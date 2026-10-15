@@ -23,15 +23,19 @@ import 'package:flick/core/utils/frame_timings_monitor.dart';
 import 'package:flick/src/rust/api/logging.dart';
 
 Future<void> main() async {
+  await runZonedGuarded(_bootstrapApp, (error, stack) {
+    AppLog.instance.add('$error\n$stack', source: LogSource.zone);
+  });
+}
+
+Future<void> _bootstrapApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Snapshot install freshness before anything can write to the preference
   // store: new installations start on the adaptive refresh-rate default.
   await AppPreferencesService.captureInstallFreshness();
 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   await AppLog.instance.initializePersistence();
   await Uac2PreferencesService().initializeDeveloperModeCache();
@@ -41,7 +45,9 @@ Future<void> main() async {
   // The global `l10n` accessor is a plain global (see lib/l10n/l10n.dart), so
   // service-layer strings need it pointed at the right locale from the start.
   await LocaleController.instance.load();
-  LocaleController.instance.bindLocale(LocaleController.instance.effectiveLocale);
+  LocaleController.instance.bindLocale(
+    LocaleController.instance.effectiveLocale,
+  );
 
   FlutterError.onError = (details) {
     AppLog.instance.add(
@@ -66,22 +72,20 @@ Future<void> main() async {
     await _restoreLastPlayedSong();
   }
 
-  runZonedGuarded(() {
-    runApp(const ProviderScope(child: FlickPlayerApp()));
+  runApp(const ProviderScope(child: FlickPlayerApp()));
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_bootstrapAppAfterFirstFrame());
-    });
-  }, (error, stack) {
-    AppLog.instance.add('$error\n$stack', source: LogSource.zone);
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_bootstrapAppAfterFirstFrame());
   });
 }
 
 void _subscribeRustLogs() {
   registerLogSink().listen(
     (msg) => AppLog.instance.add(msg, source: LogSource.rust),
-    onError: (Object e) =>
-        AppLog.instance.add('rust log stream error: $e', source: LogSource.rust),
+    onError: (Object e) => AppLog.instance.add(
+      'rust log stream error: $e',
+      source: LogSource.rust,
+    ),
   );
 }
 
@@ -93,9 +97,9 @@ Future<void> _bootstrapAppAfterFirstFrame() async {
     ),
   );
   unawaited(
-    Uac2Service.instance
-        .initializeAndroidRouteMonitoring()
-        .catchError((Object e) => devLog('USB route probe failed: $e')),
+    Uac2Service.instance.initializeAndroidRouteMonitoring().catchError(
+      (Object e) => devLog('USB route probe failed: $e'),
+    ),
   );
   unawaited(
     PlayerService().prepareForAppLaunch().catchError(

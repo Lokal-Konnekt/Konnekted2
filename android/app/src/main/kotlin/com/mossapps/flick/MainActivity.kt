@@ -215,7 +215,10 @@ class MainActivity: FlutterActivity() {
     override fun provideFlutterEngine(context: android.content.Context): FlutterEngine? {
         var engine = FlutterEngineCache.getInstance().get("main_engine")
         if (engine == null) {
-            engine = FlutterEngine(context.applicationContext)
+            // The default constructor auto-registers generated plugins. This
+            // activity registers them explicitly so cached engines and the
+            // method-channel setup share one deterministic path.
+            engine = FlutterEngine(context.applicationContext, null, false)
             ensurePluginsRegistered(engine)
             engine.dartExecutor.executeDartEntrypoint(
                 DartExecutor.DartEntrypoint.createDefault()

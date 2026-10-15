@@ -277,6 +277,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
 
   @override
   Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
     children: [
       Positioned.fill(child: widget.child),
       const Positioned.fill(child: FloatingScanProgress()),

@@ -1,0 +1,15 @@
+# dart run flutter_launcher_icons
+# ponytail: fli reads THIS file (not pubspec) when it exists. One safe-zone glyph
+# (dark dots scaled to 64% of canvas) serves both layers — foreground shows
+# dark-on-light (visible on #F5F5F5), monochrome uses its alpha as the themed shape.
+# inset is 0 because the glyph is pre-scaled into the adaptive safe zone.
+flutter_launcher_icons:
+  image_path: "assets/icons/reverse_flick_logo.png"
+  android: "launcher_icon"
+  min_sdk_android: 21
+  adaptive_icon_background: "#F5F5F5"
+  adaptive_icon_foreground: "assets/icons/launcher_icon_foreground.png"
+  adaptive_icon_foreground_inset: 0
+  # ponytail: monochrome kept larger (64%) — home themed icon looked fine; only
+  # the splash (which uses the foreground) was zoomed.
+  adaptive_icon_monochrome: "assets/icons/launcher_icon_safe.png"

@@ -1,0 +1,18 @@
+import 'package:flick/models/audio_engine_type.dart';
+
+/// Picks the engine that can decode [preferred]'s track on Android.
+///
+/// The Android system tier (just_audio/ExoPlayer) cannot decode DSD
+/// (DSF/DFF) or WavPack containers. When the audio route prefers that tier
+/// but the track needs the Rust decoder, route it to the Rust shared output
+/// so it still plays as PCM on non-bit-perfect routes (speaker/Bluetooth).
+/// Every other combination keeps the route-derived preference untouched.
+AudioEngineType resolveEngineForSong({
+  required AudioEngineType preferred,
+  required bool requiresRustDecoder,
+}) {
+  if (!requiresRustDecoder || preferred.usesRustBackend) {
+    return preferred;
+  }
+  return AudioEngineType.rustOboe;
+}

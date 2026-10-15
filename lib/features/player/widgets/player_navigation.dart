@@ -1,0 +1,157 @@
+import 'package:flutter/material.dart';
+import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/navigation/root_navigator.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/data/repositories/song_repository.dart';
+import 'package:flick/features/albums/screens/album_detail_screen.dart';
+import 'package:flick/features/artists/screens/artist_detail_screen.dart';
+import 'package:flick/models/song.dart';
+import 'package:flick/services/player_service.dart';
+import 'package:flick/l10n/l10n.dart';
+
+class PlayerNavigation {
+  final PlayerService playerService;
+  final SongRepository songRepository;
+
+  const PlayerNavigation({
+    required this.playerService,
+    required this.songRepository,
+  });
+
+  Future<void> queueSong(BuildContext context, Song song) async {
+    await playerService.addToQueue(song);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.queued(song.title)),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: l10n.viewQueue,
+          onPressed: () {
+            NavigationHelper.navigateToQueue(context);
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> openQueue(BuildContext context) async {
+    await NavigationHelper.navigateToQueue(context);
+  }
+
+  Future<void> openArtistFromSong(BuildContext context, Song song) async {
+    final artistName = song.artist.trim();
+    if (artistName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.artistIsNotAvailableForThis)),
+      );
+      return;
+    }
+
+    final artistMap = await songRepository.getSongsByArtist();
+    final artistSongs = artistMap[artistName];
+    if (!context.mounted) return;
+
+    if (artistSongs == null || artistSongs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.couldNotLoadArtistSongs)),
+      );
+      return;
+    }
+
+    final route = MaterialPageRoute<void>(
+      builder: (_) => ArtistDetailScreen(
+        artistName: artistName,
+        songs: artistSongs,
+        artistArt: _firstArt(artistSongs),
+        artistArtSourcePath: _firstSourcePath(artistSongs),
+        playerService: playerService,
+      ),
+    );
+
+    if (_isFullPlayerContext(context)) {
+      await _popFullPlayerAndPushNested(context, route);
+      return;
+    }
+
+    await Navigator.of(context).push(route);
+  }
+
+  Future<void> openAlbumFromSong(BuildContext context, Song song) async {
+    final albumGroup = await songRepository.getAlbumGroupForSong(song);
+    if (!context.mounted) return;
+
+    if (albumGroup == null || albumGroup.songs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.couldNotLoadAlbumSongs)),
+      );
+      return;
+    }
+
+    final route = MaterialPageRoute<void>(
+      builder: (_) => AlbumDetailScreen(
+        albumName: albumGroup.albumName,
+        albumArtist: albumGroup.albumArtist,
+        songs: albumGroup.songs,
+        albumArt: _firstArt(albumGroup.songs),
+        albumArtSourcePath: _firstSourcePath(albumGroup.songs),
+        playerService: playerService,
+      ),
+    );
+
+    if (_isFullPlayerContext(context)) {
+      await _popFullPlayerAndPushNested(context, route);
+      return;
+    }
+
+    await Navigator.of(context).push(route);
+  }
+
+  bool _isFullPlayerContext(BuildContext context) {
+    if (NavigationHelper.isFullPlayerOpen) return true;
+    final route = ModalRoute.of(context);
+    return route?.settings.name == '/full_player';
+  }
+
+  Future<void> _popFullPlayerAndPushNested(
+    BuildContext context,
+    Route<void> route,
+  ) async {
+    if (context.mounted) Navigator.of(context).pop();
+    final delay = AppConstants.animationNormal;
+    if (delay != Duration.zero) {
+      await Future.delayed(delay);
+    } else {
+      await Future<void>.delayed(const Duration(milliseconds: 16));
+    }
+    final nested = nestedNavigatorKey.currentState;
+    if (nested != null) {
+      await nested.push(route);
+      return;
+    }
+    final root = rootNavigatorKey.currentState;
+    if (root != null) {
+      await root.push(route);
+    }
+  }
+}
+
+String? _firstArt(List<Song> songs) {
+  for (final item in songs) {
+    final art = item.albumArt;
+    if (art != null && art.isNotEmpty) {
+      return art;
+    }
+  }
+  return null;
+}
+
+String? _firstSourcePath(List<Song> songs) {
+  for (final item in songs) {
+    final filePath = item.filePath;
+    if (filePath != null && filePath.isNotEmpty) {
+      return filePath;
+    }
+  }
+  return null;
+}

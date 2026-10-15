@@ -1,0 +1,114 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/services/player_service.dart';
+import 'package:flick/widgets/common/glass_bottom_sheet.dart';
+import 'package:flick/l10n/l10n.dart';
+
+class SpeedBottomSheet extends StatelessWidget {
+  final PlayerService playerService;
+  const SpeedBottomSheet({super.key, required this.playerService});
+
+  static Future<void> show(BuildContext context, PlayerService playerService) {
+    return showModalBottomSheet(
+      useRootNavigator: true,
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SpeedBottomSheet(playerService: playerService),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const min = 0.5;
+    const max = 2.0;
+    const step = 0.25;
+    return Container(
+      decoration: AppBottomSheetSurface.decoration,
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        24 + MediaQuery.paddingOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                LucideIcons.gauge,
+                color: AppColors.accent,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                l10n.playbackSpeed,
+                style: TextStyle(
+                  fontFamily: 'GoogleSansFlex',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ValueListenableBuilder<double>(
+            valueListenable: playerService.playbackSpeedNotifier,
+            builder: (context, currentSpeed, _) {
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      const SizedBox(width: 4),
+                      Text(
+                        l10n.x(min),
+                        style: const TextStyle(
+                          fontFamily: 'GoogleSansFlex',
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: currentSpeed,
+                          min: min,
+                          max: max,
+                          divisions: ((max - min) / step).round(),
+                          activeColor: AppColors.accent,
+                          inactiveColor: AppColors.glassBorder,
+                          onChanged: playerService.setPlaybackSpeed,
+                        ),
+                      ),
+                      Text(
+                        l10n.x2(max),
+                        style: const TextStyle(
+                          fontFamily: 'GoogleSansFlex',
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                  ),
+                  Text(
+                    l10n.x3(currentSpeed),
+                    style: const TextStyle(
+                      fontFamily: 'GoogleSansFlex',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}

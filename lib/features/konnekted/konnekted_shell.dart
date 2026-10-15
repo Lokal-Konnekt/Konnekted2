@@ -1,0 +1,326 @@
+import 'dart:async';
+
+import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/navigation/root_navigator.dart';
+import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/utils/app_haptics.dart';
+import 'package:flick/core/utils/navigation_helper.dart';
+import 'package:flick/features/albums/screens/albums_screen.dart';
+import 'package:flick/features/artists/screens/artists_screen.dart';
+import 'package:flick/features/discovery/discovery_screen.dart';
+import 'package:flick/features/favorites/screens/favorites_screen.dart';
+import 'package:flick/features/flow/flow_screen.dart';
+import 'package:flick/features/folders/screens/folders_screen.dart';
+import 'package:flick/features/menu/screens/menu_screen.dart';
+import 'package:flick/features/onboarding/tutorial_targets.dart';
+import 'package:flick/features/playlists/screens/playlists_screen.dart';
+import 'package:flick/features/playlist_links/linked_playlists_screen.dart';
+import 'package:flick/features/recently_added/screens/recently_added_screen.dart';
+import 'package:flick/features/recently_played/screens/recently_played_screen.dart';
+import 'package:flick/features/search/screens/search_screen.dart';
+import 'package:flick/features/settings/screens/audio_settings_screen.dart';
+import 'package:flick/features/settings/screens/equalizer_screen.dart';
+import 'package:flick/features/settings/screens/library_settings_screen.dart';
+import 'package:flick/features/settings/screens/lyrics_settings_screen.dart';
+import 'package:flick/features/settings/screens/settings_screen.dart';
+import 'package:flick/features/settings/screens/uac2_settings_screen.dart';
+import 'package:flick/features/spotify/spotify_library_screen.dart';
+import 'package:flick/features/songs/screens/songs_screen.dart';
+import 'package:flick/models/song.dart';
+import 'package:flick/providers/album_color_provider.dart';
+import 'package:flick/providers/navigation_provider.dart';
+import 'package:flick/providers/player_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'konnekted_destination.dart';
+import 'konnekted_dock.dart';
+import 'konnekted_home.dart';
+import 'konnekted_library.dart';
+import 'konnekted_runtime.dart';
+import 'konnekted_style.dart';
+
+/// The post-onboarding entry point. Keep Flick's existing root navigator and
+/// bootstrap; this shell owns the nested navigator and native shell lifecycle.
+class KonnektedShell extends ConsumerStatefulWidget {
+  const KonnektedShell({super.key});
+
+  @override
+  ConsumerState<KonnektedShell> createState() => _KonnektedShellState();
+}
+
+class _KonnektedShellState extends ConsumerState<KonnektedShell> {
+  final _tab = ValueNotifier(KonnektedTab.listen);
+  final _storage = PageStorageBucket();
+  DateTime? _lastBack;
+
+  @override
+  void initState() {
+    super.initState();
+    // Legacy screens return Flick's old indices. They are navigation requests,
+    // not the indices of Konnekted's four destinations.
+    ref.listenManual<int>(navigationIndexProvider, (_, index) {
+      if (index < 0) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _legacyNavigate(index);
+        ref.read(navigationIndexProvider.notifier).setIndex(-1);
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(navigationIndexProvider.notifier).setIndex(-1);
+    });
+  }
+
+  void _select(KonnektedTab tab) {
+    AppHaptics.selection();
+    nestedNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    _tab.value = tab;
+  }
+
+  void _legacyNavigate(int index) {
+    if (index == 0) {
+      _select(KonnektedTab.listen);
+    } else if (index == 2) {
+      _select(KonnektedTab.settings);
+    } else {
+      final destination = switch (index) {
+        1 => KonnektedDestination.songs,
+        3 => KonnektedDestination.albums,
+        4 => KonnektedDestination.artists,
+        5 => KonnektedDestination.folders,
+        6 => KonnektedDestination.playlists,
+        7 => KonnektedDestination.favorites,
+        8 => KonnektedDestination.search,
+        _ => null,
+      };
+      if (destination != null) {
+        var found = false;
+        nestedNavigatorKey.currentState?.popUntil((route) {
+          found = route.settings.name == '/konnekted/${destination.name}';
+          return found || route.isFirst;
+        });
+        if (!found) _navigate(destination);
+      }
+    }
+  }
+
+  void _navigate(KonnektedDestination destination) {
+    if (destination == KonnektedDestination.queue) {
+      unawaited(NavigationHelper.navigateToQueue<void>(context));
+      return;
+    }
+    final navigator = nestedNavigatorKey.currentState;
+    if (navigator == null) return;
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : AppConstants.animationNormal;
+    unawaited(
+      navigator.push<void>(
+        PageRouteBuilder<void>(
+          settings: RouteSettings(name: '/konnekted/${destination.name}'),
+          transitionDuration: duration,
+          reverseTransitionDuration: duration,
+          pageBuilder: (context, _, _) => _destination(destination),
+          transitionsBuilder: (_, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+        ),
+      ),
+    );
+  }
+
+  Widget _destination(KonnektedDestination destination) =>
+      switch (destination) {
+        KonnektedDestination.flow => const FlowScreen(),
+        KonnektedDestination.search => const SearchScreen(),
+        KonnektedDestination.songs => _withBack(
+          'Songs',
+          SongsScreen(onNavigationRequested: _legacyNavigate),
+        ),
+        KonnektedDestination.albums => const AlbumsScreen(),
+        KonnektedDestination.artists => const ArtistsScreen(),
+        KonnektedDestination.folders => const FoldersScreen(),
+        KonnektedDestination.playlists => const PlaylistsScreen(),
+        KonnektedDestination.favorites => const FavoritesScreen(),
+        KonnektedDestination.recentlyPlayed => const RecentlyPlayedScreen(),
+        KonnektedDestination.recentlyAdded => const RecentlyAddedScreen(),
+        KonnektedDestination.librarySettings => const LibrarySettingsScreen(),
+        KonnektedDestination.audio => const AudioSettingsScreen(),
+        KonnektedDestination.equalizer => const EqualizerScreen(),
+        KonnektedDestination.output => const Uac2SettingsScreen(),
+        KonnektedDestination.lyricsSettings => const LyricsSettingsScreen(),
+        KonnektedDestination.allSettings => _withBack(
+          'All settings',
+          const SettingsScreen(),
+        ),
+        KonnektedDestination.inheritedHome => _withBack(
+          'Listening hub',
+          MenuScreen(onNavigateToTab: _legacyNavigate),
+        ),
+        KonnektedDestination.queue => const SizedBox.shrink(),
+        KonnektedDestination.linkedPlaylists => const LinkedPlaylistsScreen(),
+        KonnektedDestination.spotify => const SpotifyLibraryScreen(),
+      };
+
+  // These three inherited screens were top-level tabs without a back button.
+  Widget _withBack(String title, Widget child) => Scaffold(
+    backgroundColor: KonnektedStyle.background,
+    appBar: AppBar(
+      title: Text(title),
+      backgroundColor: KonnektedStyle.background,
+    ),
+    body: MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      child: child,
+    ),
+  );
+
+  Future<void> _openPlayer() async {
+    final result = await NavigationHelper.navigateToFullPlayer(
+      context,
+      heroTag: 'konnekted-player-art',
+    );
+    if (result != null && mounted) _legacyNavigate(result);
+  }
+
+  Future<void> _play(Song song, List<Song> songs) async {
+    try {
+      await ref.read(playerProvider.notifier).play(song, playlist: songs);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Couldn’t play this song. Check that its file or server is available.',
+          ),
+        ),
+      );
+    }
+  }
+
+  void _back(bool didPop, Object? result) {
+    if (didPop) return;
+    final navigator = nestedNavigatorKey.currentState;
+    if (navigator != null && navigator.canPop()) {
+      unawaited(navigator.maybePop());
+    } else if (_tab.value != KonnektedTab.listen) {
+      _select(KonnektedTab.listen);
+    } else {
+      final now = DateTime.now();
+      if (_lastBack != null &&
+          now.difference(_lastBack!) < const Duration(seconds: 2)) {
+        SystemNavigator.pop();
+      } else {
+        _lastBack = now;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Press back again to exit'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final artworkColor = ref.watch(albumDominantColorSyncProvider);
+    final tint = Color.lerp(
+      KonnektedStyle.background,
+      artworkColor ?? KonnektedStyle.coral,
+      .13,
+    )!;
+    return Theme(
+      data: KonnektedStyle.theme(Theme.of(context)),
+      child: AdaptiveColorProvider(
+        backgroundColor: KonnektedStyle.background,
+        albumDominantColor: artworkColor,
+        child: PopScope(
+          canPop: false,
+          onPopInvokedWithResult: _back,
+          child: Scaffold(
+            backgroundColor: KonnektedStyle.background,
+            body: KonnektedRuntime(
+              onOpenPlayer: _openPlayer,
+              onOpenQueue: () => _navigate(KonnektedDestination.queue),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topRight,
+                    end: Alignment.bottomLeft,
+                    colors: [tint, KonnektedStyle.background],
+                    stops: const [0, .55],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Navigator(
+                        key: nestedNavigatorKey,
+                        onGenerateRoute: (_) => MaterialPageRoute<void>(
+                          settings: const RouteSettings(name: '/'),
+                          builder: (_) => PageStorage(
+                            bucket: _storage,
+                            child: ValueListenableBuilder<KonnektedTab>(
+                              valueListenable: _tab,
+                              builder: (_, tab, _) => KeyedSubtree(
+                                key: ValueKey(tab),
+                                // No IndexedStack/PageView: inactive native-heavy
+                                // screens are never eagerly created or retained.
+                                child: switch (tab) {
+                                  KonnektedTab.listen => KonnektedHome(
+                                    onNavigate: _navigate,
+                                    onPlay: _play,
+                                  ),
+                                  KonnektedTab.explore =>
+                                    const DiscoveryScreen(),
+                                  KonnektedTab.library => KonnektedLibrary(
+                                    onNavigate: _navigate,
+                                  ),
+                                  KonnektedTab.settings => KonnektedSettings(
+                                    onNavigate: _navigate,
+                                  ),
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    ValueListenableBuilder<KonnektedTab>(
+                      valueListenable: _tab,
+                      builder: (_, tab, _) => TutorialTargetAnchor(
+                        target: TutorialTarget.navBar,
+                        child: KonnektedDock(
+                          selected: tab,
+                          onSelect: _select,
+                          miniPlayer: TutorialTargetAnchor(
+                            target: TutorialTarget.miniPlayer,
+                            child: KonnektedMiniPlayer(
+                              onOpen: _openPlayer,
+                              onQueue: () =>
+                                  _navigate(KonnektedDestination.queue),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,6 +1,7 @@
 name: Proof HTML
 on:
   push:
+    paths: ['index.html', '.github/workflows/proof-html.yml']
   workflow_dispatch:
 jobs:
   build:

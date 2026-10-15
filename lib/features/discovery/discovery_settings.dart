@@ -1,0 +1,209 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import 'discovery_models.dart';
+
+class DiscoveryAddonConfig {
+  const DiscoveryAddonConfig({
+    required this.id,
+    required this.endpoint,
+    this.label = '',
+    this.token = '',
+    this.enabled = false,
+  });
+
+  final String id;
+  final String endpoint;
+  final String label;
+  final String token;
+  final bool enabled;
+
+  // Endpoints can contain credentials, so never derive a name from them.
+  String get displayName => label.trim().isEmpty ? 'Music addon' : label.trim();
+
+  DiscoveryAddonConfig validated() {
+    if (id.isEmpty ||
+        id.length > 80 ||
+        RegExp(r'[^A-Za-z0-9_-]').hasMatch(id)) {
+      throw const DiscoveryException('The addon ID is invalid.');
+    }
+    if (label.length > 80 || RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(label)) {
+      throw const DiscoveryException('The addon label is invalid.');
+    }
+    final trimmedToken = token.trim();
+    if (trimmedToken.length > 4096 ||
+        RegExp(r'[^\x21-\x7e]').hasMatch(trimmedToken)) {
+      throw const DiscoveryException(
+        'The bearer token contains invalid characters or is too long.',
+      );
+    }
+    final String normalizedEndpoint;
+    try {
+      normalizedEndpoint = normalizeAddonEndpoint(endpoint).toString();
+    } on DiscoveryException {
+      rethrow;
+    } catch (_) {
+      throw const DiscoveryException('The addon URL is invalid.');
+    }
+    return DiscoveryAddonConfig(
+      id: id,
+      endpoint: normalizedEndpoint,
+      label: label.trim(),
+      token: trimmedToken,
+      enabled: enabled,
+    );
+  }
+
+  static String createId() {
+    final random = Random.secure();
+    return List.generate(
+      16,
+      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+  }
+}
+
+class DiscoverySettings {
+  const DiscoverySettings({
+    this.youtubeEnabled = false,
+    this.addons = const [],
+  });
+
+  static const maxAddons = 8;
+
+  final bool youtubeEnabled;
+  final List<DiscoveryAddonConfig> addons;
+
+  List<DiscoveryAddonConfig> get activeAddons =>
+      List.unmodifiable(addons.where((addon) => addon.enabled));
+  bool get hasSource => youtubeEnabled || addons.any((addon) => addon.enabled);
+
+  DiscoverySettings validated() {
+    if (addons.length > maxAddons) {
+      throw const DiscoveryException(
+        'At most eight music addons can be saved.',
+      );
+    }
+    final ids = <String>{};
+    final endpoints = <String>{};
+    final validatedAddons = <DiscoveryAddonConfig>[];
+    for (final addon in addons) {
+      final validated = addon.validated();
+      if (!ids.add(validated.id) || !endpoints.add(validated.endpoint)) {
+        throw const DiscoveryException('Each music addon must be unique.');
+      }
+      validatedAddons.add(validated);
+    }
+    return DiscoverySettings(
+      youtubeEnabled: youtubeEnabled,
+      addons: List.unmodifiable(validatedAddons),
+    );
+  }
+}
+
+/// Store the whole record securely: reference addons may put secrets in paths.
+/// No shared-preferences copy, logs, account cookies or provider credentials.
+class DiscoverySettingsStore {
+  DiscoverySettingsStore({FlutterSecureStorage? storage})
+    : _storage = storage ?? const FlutterSecureStorage();
+  final FlutterSecureStorage _storage;
+  // The secure slot stays stable across schema versions.
+  static const _key = 'konnekted.discovery.sources.v1';
+
+  Future<DiscoverySettings> load() async {
+    try {
+      final raw = await _storage.read(key: _key);
+      if (raw == null) return const DiscoverySettings();
+      final json = jsonDecode(raw);
+      if (json is! Map ||
+          json['version'] is! int ||
+          json['youtubeEnabled'] is! bool) {
+        throw const FormatException();
+      }
+      final List<DiscoveryAddonConfig> addons;
+      switch (json['version']) {
+        case 1:
+          final endpoint = json['endpoint'];
+          final token = json['token'];
+          final enabled = json['addonEnabled'];
+          if (endpoint is! String || token is! String || enabled is! bool) {
+            throw const FormatException();
+          }
+          addons = endpoint.trim().isEmpty && token.trim().isEmpty
+              ? const []
+              : [
+                  DiscoveryAddonConfig(
+                    id: 'legacy-addon',
+                    endpoint: endpoint,
+                    token: token,
+                    enabled: enabled,
+                  ),
+                ];
+        case 2:
+          final entries = json['addons'];
+          if (entries is! List ||
+              entries.length > DiscoverySettings.maxAddons) {
+            throw const FormatException();
+          }
+          addons = entries.map(_decodeAddon).toList();
+        default:
+          throw const FormatException();
+      }
+      return DiscoverySettings(
+        youtubeEnabled: json['youtubeEnabled'] as bool,
+        addons: addons,
+      ).validated();
+    } catch (_) {
+      throw const DiscoveryException(
+        'Saved source settings are invalid. Reconfigure sources to continue.',
+      );
+    }
+  }
+
+  static DiscoveryAddonConfig _decodeAddon(Object? value) {
+    if (value is! Map ||
+        value['id'] is! String ||
+        value['endpoint'] is! String ||
+        value['label'] is! String ||
+        value['token'] is! String ||
+        value['enabled'] is! bool) {
+      throw const FormatException();
+    }
+    return DiscoveryAddonConfig(
+      id: value['id'] as String,
+      endpoint: value['endpoint'] as String,
+      label: value['label'] as String,
+      token: value['token'] as String,
+      enabled: value['enabled'] as bool,
+    );
+  }
+
+  Future<void> save(DiscoverySettings settings) async {
+    final validated = settings.validated();
+    try {
+      await _storage.write(
+        key: _key,
+        value: jsonEncode({
+          'version': 2,
+          'youtubeEnabled': validated.youtubeEnabled,
+          'addons': [
+            for (final addon in validated.addons)
+              {
+                'id': addon.id,
+                'endpoint': addon.endpoint,
+                'label': addon.label,
+                'token': addon.token,
+                'enabled': addon.enabled,
+              },
+          ],
+        }),
+      );
+    } catch (_) {
+      throw const DiscoveryException(
+        'Source settings could not be saved. Try again.',
+      );
+    }
+  }
+}

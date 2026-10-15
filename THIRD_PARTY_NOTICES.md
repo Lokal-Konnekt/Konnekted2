@@ -1,0 +1,41 @@
+# Third-party notices
+
+## Flick
+
+The Flutter player, Android platform integration, Rust engine, generated bridge, tests and bundled assets are derived from [Lokal-Konnekt/Flick](https://github.com/Lokal-Konnekt/Flick), upstream [moss-apps/Flick](https://github.com/moss-apps/Flick), commit `a309b9fd222735774f7d3e1643da2ed7114cf7c0`.
+
+MIT License
+
+Copyright (c) 2026 Flick Player Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## Konnekted / BitChord
+
+Flow rules and experience are ported from [Lokal-Konnekt/Konnekted](https://github.com/Lokal-Konnekt/Konnekted), branch `flow-feature`, commit `2dcadb44a46948cb6d7b3eb707db0727e9d436d0`. Credits include BitChord contributors, kushagrasinghx, and the BitChord Next community fork. These contributions are GPL-3.0; the combined work is distributed under the GPL-3.0 license in `LICENSE`. This does not remove the original licenses from MIT components.
+
+## Bundled components
+
+The Android build-script overlays for Rive Native 0.1.11 and Home Widget 0.10.0
+are described in `android/compat/README.md`. Original copyright/license notices
+for those adapted build configurations are retained in `android/compat/LICENSES.md`.
+
+Keep the license files distributed with `rust/vendor`, `rust_builder/cargokit`, and `assets/fonts`. Google Sans Flex and Noto Sans SC are SIL Open Font License fonts. Other third-party dependencies retain their respective licenses, available through Flutter's license registry and Cargo package metadata.
+
+No affiliation with or endorsement by Google, YouTube, Spotify, Tidal, Deezer, Discord, Last.fm or ListenBrainz is implied.

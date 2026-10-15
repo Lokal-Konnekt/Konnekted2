@@ -1,0 +1,37 @@
+name: Pinned Android toolchain
+description: Job-local Flutter, Rust and Android prerequisites; no shared build cache
+runs:
+  using: composite
+  steps:
+    - name: Isolate dependency and toolchain state
+      shell: bash
+      run: |
+        python3 tool/ci_android.py environment
+    - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      with:
+        distribution: temurin
+        java-version: '17.0.17+10'
+    - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      with:
+        flutter-version: '3.47.1'
+        channel: stable
+        cache: 'false'
+        pub-cache: 'false'
+        cache-path: ${{ runner.temp }}/konnekted-flutter
+        pub-cache-path: ${{ runner.temp }}/konnekted-pub
+    - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      with:
+        cmdline-tools-version: '15859902'
+        log-accepted-android-sdk-licenses: 'false'
+        packages: 'platform-tools platforms;android-35 platforms;android-36 platforms;android-37.0 build-tools;36.0.0 ndk;28.2.13676358 cmake;3.22.1'
+    - name: Install host native dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install --no-install-recommends -y libclang-dev clang cmake ninja-build pkg-config libasound2-dev libudev-dev libusb-1.0-0-dev autoconf automake libtool
+    - name: Pin Rust, discover host libclang and check the stack
+      shell: bash
+      run: python3 tool/ci_android.py setup
+    - name: Resolve locked Flutter dependencies
+      shell: bash
+      run: flutter pub get --enforce-lockfile

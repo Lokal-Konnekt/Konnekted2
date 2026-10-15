@@ -1,0 +1,87 @@
+// Switching the language at runtime has to reach the strings.
+//
+// `l10n` is a global accessor (see lib/l10n/l10n.dart) because a large share of
+// this app's user-visible text lives in services with no BuildContext.
+// `LocaleController.bind` re-points it from `MaterialApp.builder` on every
+// build. Anything that reads `l10n` while building therefore follows a language
+// switch -- but anything that *captures* it (a field initialised with
+// `l10n.something`, a top-level `final`) keeps the first locale forever. That is
+// exactly what shipped once: protocol, crossfade and crossfeed labels were built
+// at startup, so changing the language left them in the old one
+// (fixed upstream in 1fe3af48).
+//
+// This test pins the contract: flip the controller, and both the global accessor
+// and the rendered text must change.
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:flick/l10n/l10n.dart';
+
+/// The same wiring `lib/app/app.dart` uses: the controller drives `locale`, and
+/// the builder keeps the global accessor pointed at the active localizations.
+Widget _app() {
+  return ValueListenableBuilder<Locale?>(
+    valueListenable: LocaleController.instance,
+    builder: (context, selectedLocale, _) {
+      return MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: kSupportedLocales,
+        locale: selectedLocale,
+        home: Builder(
+          builder: (context) {
+            LocaleController.instance.bind(AppLocalizations.of(context));
+            // Read through the global accessor on purpose: this is what the
+            // service layer and the enumerated labels do.
+            return Text(l10n.flickReplay, textDirection: TextDirection.ltr);
+          },
+        ),
+      );
+    },
+  );
+}
+
+void main() {
+  setUp(() {
+    // `LocaleController.select` persists the choice, so the platform channel has
+    // to answer; without this the first await never completes.
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
+
+  tearDown(() {
+    // Singleton: leave it following the device locale for the next test.
+    LocaleController.instance.value = null;
+  });
+
+  testWidgets('a language switch reaches the global l10n accessor', (tester) async {
+    await LocaleController.instance.select(const Locale('en'));
+    await tester.pumpWidget(_app());
+    expect(l10n.flickReplay, 'Flick Replay');
+    expect(find.text('Flick Replay'), findsOneWidget);
+
+    await LocaleController.instance.select(const Locale('zh', 'CN'));
+    await tester.pumpAndSettle();
+
+    expect(
+      l10n.flickReplay,
+      'Flick 回顾',
+      reason: 'The global accessor still points at the previous locale, so every '
+          'string the service layer produces is stale.',
+    );
+    expect(find.text('Flick 回顾'), findsOneWidget);
+    expect(find.text('Flick Replay'), findsNothing);
+  });
+
+  testWidgets('a widget reading l10n during build follows the switch', (tester) async {
+    // Two switches in a row: a cached value would freeze at the first one.
+    await LocaleController.instance.select(const Locale('zh', 'CN'));
+    await tester.pumpWidget(_app());
+    expect(l10n.flickReplay, 'Flick 回顾');
+
+    await LocaleController.instance.select(const Locale('en'));
+    await tester.pumpAndSettle();
+    expect(l10n.flickReplay, 'Flick Replay');
+    expect(find.text('Flick Replay'), findsOneWidget);
+  });
+}

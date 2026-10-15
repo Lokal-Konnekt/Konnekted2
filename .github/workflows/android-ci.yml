@@ -1,0 +1,53 @@
+name: Android CI
+
+on:
+  pull_request:
+  push:
+    branches: ['**']
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  focused-tests:
+    name: Focused Flutter regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test CI helpers
+        run: |
+          python3 -B -m unittest discover -s tool -p 'ci_*_test.py' -v
+          python3 -B tool/native_test_cargokit_launcher.py
+      - uses: ./.github/actions/android-toolchain
+      - name: Focused suites from docs/BUILD.md, including share and picker
+        run: >-
+          flutter test --no-pub
+          test/spotify test/playlist_links test/flow test/discovery test/konnekted
+          test/l10n/source_guard_test.dart test/widgets/share_actions_test.dart
+          test/features/player/picked_lyrics_file_test.dart
+          test/classipod test/services test/providers test/core test/data
+      - name: Check dependency locks remained unchanged
+        run: git diff --exit-code -- pubspec.lock rust/Cargo.lock
+
+  native-android:
+    name: Native source and Android build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/android-toolchain
+      - name: Host native tests (default audio and USB features)
+        run: cargo test --locked --lib --manifest-path rust/Cargo.toml
+      - name: Compile native engine and both Android flavors without release secrets
+        run: |
+          flutter build apk --debug --flavor full --target-platform android-arm64 --no-pub
+          flutter build apk --debug --flavor play --target-platform android-arm64 --no-pub
+          bash android/gradlew -p android verifyBuiltInKotlin --console=plain --no-daemon
+      - name: Check dependency locks remained unchanged
+        run: git diff --exit-code -- pubspec.lock rust/Cargo.lock

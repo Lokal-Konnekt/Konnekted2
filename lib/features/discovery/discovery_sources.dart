@@ -1,0 +1,437 @@
+import 'dart:io';
+
+import 'discovery_http.dart';
+import 'discovery_models.dart';
+
+class YoutubeMusicCatalog {
+  YoutubeMusicCatalog(this.http);
+  final DiscoveryHttp http;
+
+  Future<List<DiscoveryTrack>> search(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return [];
+    if (trimmed.length > 200) {
+      throw const DiscoveryException('Search is limited to 200 characters.');
+    }
+    // Guest WEB_REMIX, using the songs filter from Konnekted's shared
+    // Innertube client. No cookies, account impersonation or stream extraction.
+    final response = await http.json(
+      Uri.https('music.youtube.com', '/youtubei/v1/search', {
+        'prettyPrint': 'false',
+      }),
+      headers: {
+        'Origin': 'https://music.youtube.com',
+        'X-YouTube-Client-Name': '67',
+        'X-YouTube-Client-Version': '1.20250101.01.00',
+      },
+      body: {
+        'context': {
+          'client': {
+            'clientName': 'WEB_REMIX',
+            'clientVersion': '1.20250101.01.00',
+            'hl': 'en',
+            'gl': 'US',
+          },
+        },
+        'query': trimmed,
+        'params': 'EgWKAQIIAWoKEAkQChAFEAMQBA==',
+      },
+    );
+    return parse(response);
+  }
+
+  static List<DiscoveryTrack> parse(Map<String, dynamic> response) {
+    if (response['error'] != null || response['contents'] is! Map) {
+      throw const DiscoveryException(
+        'YouTube Music returned an unsupported catalog response.',
+      );
+    }
+    final results = <String, DiscoveryTrack>{};
+    var nodes = 0;
+    void walk(Object? value, int depth) {
+      if (++nodes > 30000 || depth > 40) {
+        throw const DiscoveryException('The catalog response is too complex.');
+      }
+      if (value is Map) {
+        final row = value['musicResponsiveListItemRenderer'];
+        if (row is Map) {
+          final columns = row['flexColumns'];
+          final titleRuns = columns is List && columns.isNotEmpty
+              ? _runs(
+                  _path(columns.first, [
+                    'musicResponsiveListItemFlexColumnRenderer',
+                    'text',
+                  ]),
+                )
+              : <Map>[];
+          final title = discoveryText(
+            titleRuns.map((r) => r['text'] is String ? r['text'] : '').join(),
+          );
+          Object? rawId =
+              _path(row, ['playlistItemData', 'videoId']) ??
+              _path(row, ['navigationEndpoint', 'watchEndpoint', 'videoId']);
+          for (final run in titleRuns) {
+            rawId ??= _path(run, [
+              'navigationEndpoint',
+              'watchEndpoint',
+              'videoId',
+            ]);
+          }
+          final id = discoveryText(rawId, maxLength: 11);
+          if (id != null &&
+              RegExp(r'^[A-Za-z0-9_-]{11}$').hasMatch(id) &&
+              title != null) {
+            final artists = <String>[];
+            String? album;
+            Duration? duration;
+            if (columns is List) {
+              for (final column in columns.skip(1)) {
+                for (final run in _runs(
+                  _path(column, [
+                    'musicResponsiveListItemFlexColumnRenderer',
+                    'text',
+                  ]),
+                )) {
+                  final text = discoveryText(run['text']);
+                  if (text == null) continue;
+                  final browse = _path(run, [
+                    'navigationEndpoint',
+                    'browseEndpoint',
+                    'browseId',
+                  ]);
+                  if (browse is String && browse.startsWith('UC')) {
+                    artists.add(text);
+                  }
+                  if (browse is String && browse.startsWith('MPRE')) {
+                    album = text;
+                  }
+                  duration ??= _clock(text);
+                }
+              }
+              // Guest responses sometimes provide plain text without artist
+              // endpoints. Only the first metadata run is the artist fallback.
+              if (artists.isEmpty && columns.length > 1) {
+                final runs = _runs(
+                  _path(columns[1], [
+                    'musicResponsiveListItemFlexColumnRenderer',
+                    'text',
+                  ]),
+                );
+                if (runs.isNotEmpty) {
+                  final first = discoveryText(runs.first['text']);
+                  if (first != null &&
+                      _clock(first) == null &&
+                      first != 'Song') {
+                    artists.add(first);
+                  }
+                }
+              }
+            }
+            final fixed = row['fixedColumns'];
+            if (fixed is List) {
+              for (final column in fixed) {
+                for (final run in _runs(
+                  _path(column, [
+                    'musicResponsiveListItemFixedColumnRenderer',
+                    'text',
+                  ]),
+                )) {
+                  duration ??= _clock(run['text']);
+                }
+              }
+            }
+            if (results.length < 50) {
+              results.putIfAbsent(
+                id,
+                () => DiscoveryTrack(
+                  id: id,
+                  title: title,
+                  artist: artists.isEmpty
+                      ? 'Artist not supplied'
+                      : artists.toSet().join(', '),
+                  source: DiscoverySource.youtubeMusic,
+                  sourceUrl: Uri.https('music.youtube.com', '/watch', {
+                    'v': id,
+                  }),
+                  album: album,
+                  duration: duration,
+                ),
+              );
+            }
+          }
+        }
+        for (final child in value.values) {
+          walk(child, depth + 1);
+        }
+      } else if (value is List) {
+        for (final child in value) {
+          walk(child, depth + 1);
+        }
+      }
+    }
+
+    walk(response['contents'], 0);
+    return results.values.toList(growable: false);
+  }
+
+  static Object? _path(Object? value, List<String> keys) {
+    for (final key in keys) {
+      if (value is! Map) return null;
+      value = value[key];
+    }
+    return value;
+  }
+
+  static List<Map> _runs(Object? value) => value is Map && value['runs'] is List
+      ? (value['runs'] as List).whereType<Map>().toList()
+      : [];
+
+  static Duration? _clock(Object? value) {
+    if (value is! String ||
+        !RegExp(r'^\d{1,2}:\d{2}(:\d{2})?$').hasMatch(value)) {
+      return null;
+    }
+    final parts = value.split(':').map(int.parse).toList();
+    if (parts.skip(1).any((p) => p >= 60)) return null;
+    return discoveryDuration(parts.fold<int>(0, (a, b) => a * 60 + b));
+  }
+}
+
+class AddonHealth {
+  const AddonHealth(this.name, {required this.cacheAllowed});
+  final String name;
+  final bool cacheAllowed;
+}
+
+class ResolvedDiscoveryAudio {
+  const ResolvedDiscoveryAudio(this.url);
+  final Uri url;
+}
+
+/// Reference-compatible, deliberately limited progressive-audio addon client.
+/// See README.md for the exact supported protocol and credential boundary.
+class DiscoveryAddon {
+  DiscoveryAddon(
+    this.http, {
+    required String endpoint,
+    String token = '',
+    this.configId,
+    this.displayName = 'Music addon',
+  }) : base = normalizeAddonEndpoint(endpoint),
+       _token = token.trim() {
+    if (_token.length > 4096 || RegExp(r'[\x00-\x20\x7f]').hasMatch(_token)) {
+      throw const DiscoveryException(
+        'The bearer token contains invalid characters.',
+      );
+    }
+  }
+
+  final DiscoveryHttp http;
+  final Uri base;
+  final String _token;
+  final String? configId;
+  final String displayName;
+
+  Uri _endpoint(List<String> suffix, [Map<String, String>? query]) =>
+      base.replace(
+        pathSegments: [...base.pathSegments, ...suffix],
+        queryParameters: query,
+      );
+
+  Future<Map<String, dynamic>> _get(
+    List<String> suffix, {
+    Map<String, String>? query,
+    Future<void>? cancel,
+  }) => http.json(
+    _endpoint(suffix, query),
+    headers: {if (_token.isNotEmpty) 'Authorization': 'Bearer $_token'},
+    cancel: cancel,
+  );
+
+  Future<AddonHealth> health({Future<void>? cancel}) async {
+    final json = await _get(['manifest.json'], cancel: cancel);
+    final id = discoveryText(json['id']);
+    final resources = json['resources'];
+    if (id == null ||
+        resources is! List ||
+        !resources.contains('search') ||
+        !resources.contains('stream')) {
+      throw const DiscoveryException(
+        'The addon must declare an id and search + stream resources.',
+      );
+    }
+    final flag = json['allowDownloads'];
+    // Unknown policy values fail closed: this player needs a temporary file.
+    final allowed =
+        flag == null ||
+        flag == true ||
+        flag == 1 ||
+        flag == '1' ||
+        flag == 'true';
+    return AddonHealth(
+      discoveryText(json['name']) ?? id,
+      cacheAllowed: allowed,
+    );
+  }
+
+  Future<List<DiscoveryTrack>> search(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return [];
+    if (trimmed.length > 200) {
+      throw const DiscoveryException('Search is limited to 200 characters.');
+    }
+    final json = await _get(['search'], query: {'q': trimmed});
+    final rows = json['tracks'];
+    if (rows is! List) {
+      throw const DiscoveryException(
+        'The addon search response must contain a tracks array.',
+      );
+    }
+    final tracks = <String, DiscoveryTrack>{};
+    for (final row in rows.take(500)) {
+      if (row is! Map<String, dynamic>) continue;
+      final id = discoveryText(row['id'], maxLength: 1024);
+      final title = discoveryText(row['title']);
+      if (id == null || title == null || id == '.' || id == '..') continue;
+      Uri? sourceUrl;
+      final source = discoveryText(row['sourceURL'], maxLength: 8192);
+      if (source != null) {
+        try {
+          sourceUrl = requireHttps(source);
+        } on DiscoveryException {
+          /* optional metadata */
+        }
+      }
+      tracks.putIfAbsent(
+        id,
+        () => DiscoveryTrack(
+          id: id,
+          title: title,
+          artist: discoveryText(row['artist']) ?? 'Artist not supplied',
+          album: discoveryText(row['album']),
+          duration: discoveryDuration(row['duration']),
+          source: DiscoverySource.addon,
+          addonBase: base,
+          addonId: configId,
+          sourceName: displayName,
+          sourceUrl: sourceUrl,
+          // Retain security-relevant fields with inline URLs, not just the URL.
+          inlineStream: row['streamURL'] == null
+              ? null
+              : {...row, 'url': row['streamURL']},
+        ),
+      );
+      if (tracks.length == 50) break;
+    }
+    if (rows.isNotEmpty && tracks.isEmpty) {
+      throw const DiscoveryException(
+        'The addon returned tracks without usable ids and titles.',
+      );
+    }
+    return tracks.values.toList(growable: false);
+  }
+
+  Future<ResolvedDiscoveryAudio> resolve(
+    DiscoveryTrack track, {
+    Future<void>? cancel,
+  }) async {
+    if (track.source != DiscoverySource.addon ||
+        track.addonId != configId ||
+        track.addonBase != base ||
+        track.id.isEmpty ||
+        track.id.length > 1024 ||
+        track.id == '.' ||
+        track.id == '..') {
+      throw const DiscoveryException(
+        'This result belongs to a different source. Search again.',
+      );
+    }
+    final manifest = await health(cancel: cancel);
+    if (!manifest.cacheAllowed) {
+      throw const DiscoveryException(
+        'This addon disallows downloads. Temporary caching is required by this player.',
+      );
+    }
+    return parseStream(
+      track.inlineStream ?? await _get(['stream', track.id], cancel: cancel),
+    );
+  }
+
+  ResolvedDiscoveryAudio parseStream(Map<String, dynamic> json) {
+    if (json['error'] != null) {
+      throw const DiscoveryException(
+        'The addon could not resolve this recording.',
+      );
+    }
+    if (json['encrypted'] != null && json['encrypted'] != false) {
+      throw const DiscoveryException(
+        'Encrypted audio is not supported by this adapter.',
+      );
+    }
+    if (json['drm'] != null && json['drm'] != false) {
+      throw const DiscoveryException(
+        'DRM audio is not supported by this adapter.',
+      );
+    }
+    if (json['headers'] != null &&
+        !(json['headers'] is Map && (json['headers'] as Map).isEmpty)) {
+      throw const DiscoveryException(
+        'Use a signed media URL; custom media headers are not supported.',
+      );
+    }
+    final url = discoveryText(json['url'], maxLength: 8192);
+    if (url == null) {
+      throw const DiscoveryException('The addon returned no playable URL.');
+    }
+    final uri = requireHttps(url);
+    for (final key in [
+      'manifest',
+      'mediaType',
+      'format',
+      'container',
+      'containerFormat',
+      'mimeType',
+    ]) {
+      final value = json[key];
+      if (value != null && value is! String) {
+        throw const DiscoveryException(
+          'The addon returned invalid transport metadata.',
+        );
+      }
+      if (value is String &&
+          RegExp(
+            r'hls|dash|mpegurl|m3u8|mpd',
+            caseSensitive: false,
+          ).hasMatch(value)) {
+        throw const DiscoveryException(
+          'This source uses HLS/DASH. A progressive audio file is required.',
+        );
+      }
+    }
+    if (RegExp(r'\.(m3u8|mpd)$', caseSensitive: false).hasMatch(uri.path)) {
+      throw const DiscoveryException(
+        'A playlist URL cannot be played as an audio file.',
+      );
+    }
+    // An explicitly configured LAN addon may serve its own media. An addon
+    // cannot redirect the downloader to a different literal/private host.
+    if (uri.origin != base.origin) {
+      final host = uri.host.toLowerCase();
+      if (InternetAddress.tryParse(host) != null ||
+          !host.contains('.') ||
+          host.endsWith('.') ||
+          [
+            '.localhost',
+            '.local',
+            '.internal',
+            '.lan',
+            '.home',
+          ].any(host.endsWith)) {
+        throw const DiscoveryException(
+          'The addon returned a disallowed media host.',
+        );
+      }
+    }
+    return ResolvedDiscoveryAudio(uri);
+  }
+}

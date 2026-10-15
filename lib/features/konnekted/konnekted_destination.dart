@@ -1,0 +1,23 @@
+/// UI destinations, deliberately independent from Flick's legacy tab indices.
+enum KonnektedDestination {
+  flow,
+  search,
+  songs,
+  albums,
+  artists,
+  folders,
+  playlists,
+  favorites,
+  recentlyPlayed,
+  recentlyAdded,
+  librarySettings,
+  audio,
+  equalizer,
+  output,
+  lyricsSettings,
+  allSettings,
+  inheritedHome,
+  queue,
+  linkedPlaylists,
+  spotify,
+}

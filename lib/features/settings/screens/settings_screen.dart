@@ -20,9 +20,7 @@ import 'package:flick/features/settings/screens/support_flick_screen.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/settings/widgets/donation_coffee_icon.dart';
-import 'package:flick/features/milestone/screens/milestones_screen.dart';
 import 'package:flick/features/manual/screens/manual_screen.dart';
-import 'package:flick/services/milestone_service.dart';
 import 'package:flick/l10n/l10n.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -33,28 +31,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  int _milestonesUnlocked = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _refreshMilestoneCount();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _refreshMilestoneCount();
-  }
-
-  Future<void> _refreshMilestoneCount() async {
-    final shown = await MilestoneService().getShownMilestones();
-    if (!mounted) return;
-    if (shown.length != _milestonesUnlocked) {
-      setState(() => _milestonesUnlocked = shown.length);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Background is handled by _PersistentBackground in MaterialApp.builder.
@@ -160,10 +136,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           iconFg: const Color(0xFFFF8BB8),
                           title: l10n.casting,
                           subtitle: l10n.dlnaUpnpAndChromecastReceivers,
-                          onTap: () => _navigate(
-                            context,
-                            const CastingSettingsScreen(),
-                          ),
+                          onTap: () =>
+                              _navigate(context, const CastingSettingsScreen()),
                         ),
                         const SettingsDivider(),
                         _CategoryTile(
@@ -238,8 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           iconFg: const Color(0xFF8BB8FF),
                           title: l10n.helpManual,
                           subtitle: l10n.browseTheFullControlsGuide,
-                          onTap: () =>
-                              _navigate(context, const ManualScreen()),
+                          onTap: () => _navigate(context, const ManualScreen()),
                         ),
                       ],
                     ),
@@ -247,20 +220,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _buildSectionHeader(context, l10n.about),
                     SettingsCard(
                       children: [
-                        _CategoryTile(
-                          icon: LucideIcons.trophy,
-                          iconBg: const Color(0xFF3A3320),
-                          iconFg: const Color(0xFFD4B265),
-                          title: l10n.milestones,
-                          subtitle: _milestonesUnlocked == 0
-                              ? l10n.noAchievementsYetKeepListening
-                              : l10n.unlocked3(_milestonesUnlocked, MilestoneType.values.length),
-                          onTap: () async {
-                            _navigate(context, const MilestonesScreen());
-                            await _refreshMilestoneCount();
-                          },
-                        ),
-                        const SettingsDivider(),
                         _CategoryTile(
                           icon: LucideIcons.info,
                           iconBg: const Color(0xFF3A3A3A),
@@ -312,9 +271,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 4),
                 Text(
                   l10n.configureYourMusicExperience,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: context.adaptiveTextTertiary),
                 ),
               ],
             ),
@@ -403,16 +361,14 @@ class _CategoryTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(color: context.adaptiveTextPrimary),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: context.adaptiveTextTertiary),
                     ),
                   ],
                 ),

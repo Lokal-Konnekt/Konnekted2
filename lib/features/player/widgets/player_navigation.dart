@@ -39,29 +39,40 @@ class PlayerNavigation {
     await NavigationHelper.navigateToQueue(context);
   }
 
-  Future<void> openArtistFromSong(BuildContext context, Song song) async {
-    final artistName = song.artist.trim();
-    if (artistName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.artistIsNotAvailableForThis)),
-      );
+  Future<void> openArtistFromSong(
+    BuildContext context,
+    Song song, {
+    String? artistName,
+  }) async {
+    final requestedArtist = (artistName ?? song.artist).trim();
+    if (requestedArtist.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.artistIsNotAvailableForThis)));
       return;
     }
 
     final artistMap = await songRepository.getSongsByArtist();
-    final artistSongs = artistMap[artistName];
+    String? canonicalName;
+    for (final key in artistMap.keys) {
+      if (key.trim().toLowerCase() == requestedArtist.toLowerCase()) {
+        canonicalName = key;
+        break;
+      }
+    }
+    final resolvedName = canonicalName ?? requestedArtist;
+    final artistSongs = canonicalName == null ? null : artistMap[canonicalName];
     if (!context.mounted) return;
 
     if (artistSongs == null || artistSongs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.couldNotLoadArtistSongs)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.couldNotLoadArtistSongs)));
       return;
     }
 
     final route = MaterialPageRoute<void>(
       builder: (_) => ArtistDetailScreen(
-        artistName: artistName,
+        artistName: resolvedName,
         songs: artistSongs,
         artistArt: _firstArt(artistSongs),
         artistArtSourcePath: _firstSourcePath(artistSongs),
@@ -82,9 +93,8 @@ class PlayerNavigation {
     if (!context.mounted) return;
 
     if (albumGroup == null || albumGroup.songs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.couldNotLoadAlbumSongs)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.couldNotLoadAlbumSongs)));
       return;
     }
 

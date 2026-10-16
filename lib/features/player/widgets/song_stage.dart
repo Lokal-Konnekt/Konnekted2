@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/constants/app_constants.dart';
@@ -19,6 +20,7 @@ import 'package:flick/features/player/widgets/visualizer_art_box.dart';
 import 'package:flick/features/player/widgets/waveform_layer.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
+import 'package:flick/widgets/common/marquee_widget.dart';
 
 /// The sliding portion of the player: album art + title/artist/album +
 /// file-info row + waveform. Background, top chrome and [PlayerControls]
@@ -41,6 +43,7 @@ class SongStage extends ConsumerWidget {
   final ValueNotifier<Duration> positionNotifier;
   final String Function(Duration) formatDuration;
   final void Function(Song song) onNavigateToArtistDetail;
+  final void Function(Song song, String artistName)? onNavigateToArtistName;
   final void Function(Song song) onNavigateToAlbumDetail;
   final Widget Function(Song song, bool lyricsMode, PlayerScreenMode mode)
   buildFileInfoRow;
@@ -75,6 +78,11 @@ class SongStage extends ConsumerWidget {
   /// page keeps video running).
   final bool motionArtEnabled;
 
+  /// Artwork-card seekbar rendered behind the identity text. The parent keeps
+  /// its normal layout slot so moving it into this stack does not resize the
+  /// cover or move the controls.
+  final Widget? artworkCardSeekbarOverlay;
+
   /// True only for the carousel page of the currently playing song. Peek
   /// stages render lyrics statically instead of following playback.
   final bool active;
@@ -93,6 +101,7 @@ class SongStage extends ConsumerWidget {
     required this.positionNotifier,
     required this.formatDuration,
     required this.onNavigateToArtistDetail,
+    this.onNavigateToArtistName,
     required this.onNavigateToAlbumDetail,
     required this.buildFileInfoRow,
     this.fileInfoRowVisible = true,
@@ -120,6 +129,7 @@ class SongStage extends ConsumerWidget {
     required this.onToggleLyrics,
     this.showWaveform = true,
     this.motionArtEnabled = true,
+    this.artworkCardSeekbarOverlay,
     this.active = true,
   });
 
@@ -246,9 +256,8 @@ class SongStage extends ConsumerWidget {
                             final diagnostics = ProviderScope.containerOf(
                               context,
                             ).read(audioOutputDiagnosticsProvider);
-                            final appPrefs = ProviderScope.containerOf(
-                              context,
-                            ).read(appPreferencesProvider);
+                            final appPrefs = ProviderScope.containerOf(context)
+                                .read(appPreferencesProvider);
                             return Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -285,9 +294,8 @@ class SongStage extends ConsumerWidget {
                                       ),
                                       onTap: () {
                                         final deviceStatus =
-                                            ProviderScope.containerOf(
-                                              context,
-                                            ).read(uac2DeviceStatusProvider);
+                                            ProviderScope.containerOf(context)
+                                                .read(uac2DeviceStatusProvider);
                                         BitPerfectIndicator.showInfoSheet(
                                           context,
                                           song: song,
@@ -536,19 +544,19 @@ class SongStage extends ConsumerWidget {
         final isVeryShortHeight = constraints.maxHeight < 400;
         final horizontalPadding = constraints.maxWidth < 360
             ? 16.0
-            : context.responsive(20.0, 28.0, 36.0);
+            : context.responsive(16.0, 20.0, 24.0);
         final topPadding = isVeryShortHeight
             ? 6.0
-            : context.responsive(10.0, 12.0, 16.0);
-        final maxArtworkSize = context.responsive(360.0, 400.0, 440.0);
+            : context.responsive(4.0, 5.0, 6.0);
+        final maxArtworkSize = context.responsive(440.0, 500.0, 540.0);
         final baseArtworkSize = math
             .min(
-              (constraints.maxWidth - (horizontalPadding * 2)) * 0.88,
+              (constraints.maxWidth - (horizontalPadding * 2)) * 1.0,
               isVeryShortHeight
                   ? constraints.maxHeight * 0.38
                   : isShortHeight
-                  ? constraints.maxHeight * 0.44
-                  : constraints.maxHeight * 0.52,
+                  ? constraints.maxHeight * 1.08
+                  : constraints.maxHeight * 0.94,
             )
             .clamp(isVeryShortHeight ? 160.0 : 180.0, maxArtworkSize)
             .toDouble();
@@ -558,13 +566,13 @@ class SongStage extends ConsumerWidget {
         final artworkSpacing = isVeryShortHeight
             ? 12.0
             : isShortHeight
-            ? 16.0
-            : context.responsive(22.0, 26.0, 30.0);
+            ? 12.0
+            : context.responsive(8.0, 10.0, 12.0);
         final identitySpacing = isVeryShortHeight
             ? 8.0
             : isShortHeight
-            ? 12.0
-            : context.responsive(18.0, 20.0, 22.0);
+            ? 8.0
+            : context.responsive(6.0, 8.0, 10.0);
         final lyricsSpacing = isVeryShortHeight
             ? 12.0
             : context.responsive(16.0, 18.0, 20.0);
@@ -581,148 +589,190 @@ class SongStage extends ConsumerWidget {
           child: Column(
             children: [
               Expanded(
-                child: AnimatedSwitcher(
-                  duration: AppConstants.animationNormal,
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInOutCubic,
-                  layoutBuilder: (currentChild, previousChildren) {
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        ...previousChildren,
-                        ...?currentChild == null ? null : [currentChild],
-                      ],
-                    );
-                  },
-                  transitionBuilder: (child, animation) {
-                    final isLyrics =
-                        child.key == const ValueKey('artwork-lyrics');
-                    final slide =
-                        Tween<Offset>(
-                          begin: isLyrics
-                              ? const Offset(0, -0.06)
-                              : const Offset(0, 0.06),
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutCubic,
-                          ),
-                        );
-                    return FadeTransition(
-                      opacity: CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeOutCubic,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    if (artworkCardSeekbarOverlay != null)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        // Let the bar pass behind the identity row while
+                        // keeping the title/artist layer in front of it.
+                        bottom: -context.responsive(44.0, 52.0, 60.0),
+                        child: artworkCardSeekbarOverlay!,
                       ),
-                      child: SlideTransition(position: slide, child: child),
-                    );
-                  },
-                  child: lyricsMode
-                      ? Padding(
-                          key: const ValueKey('artwork-lyrics'),
-                          padding: EdgeInsets.only(bottom: lyricsSpacing),
-                          child: InlineLyricsPanel(
-                            song: song,
-                            playerService: playerService,
-                            lyricsService: lyricsService,
-                            albumColor: albumColor,
-                            positionNotifier: positionNotifier,
-                            active: active,
-                          ),
-                        )
-                      : KeyedSubtree(
-                          key: const ValueKey('artwork-default'),
-                          child: isVeryShortHeight
-                              ? Center(
-                                  child: CompactPlayerInfoLayout(
-                                    song: song,
-                                    onNavigateToArtistDetail:
-                                        onNavigateToArtistDetail,
-                                  ),
-                                )
-                              : Column(
-                                  mainAxisAlignment: isVeryShortHeight
-                                      ? MainAxisAlignment.start
-                                      : MainAxisAlignment.center,
-                                  children: [
-                                    Flexible(
-                                      flex: isVeryShortHeight ? 5 : 7,
-                                      child: Center(
-                                        child: Transform.translate(
-                                          offset: Offset(
-                                            0,
-                                            artworkCardArtworkOffset,
-                                          ),
-                                          child: OverflowBox(
-                                            maxWidth: artworkSize,
-                                            maxHeight: artworkSize,
-                                            child: visualizationMode
-                                                ? VisualizerArtBox(
-                                                    playerService:
-                                                        playerService,
-                                                    size: artworkSize,
-                                                    animationStyle:
-                                                        visualizerAnimationStyle,
-                                                    frequencyMode:
-                                                        visualizerFrequencyMode,
-                                                    movementMode:
-                                                        visualizerMovementMode,
-                                                    albumColor: albumColor,
-                                                    showFrame:
-                                                        artworkCardShowFrame,
-                                                  )
-                                                : AlbumArtBox(
-                                                    song: song,
-                                                    size: artworkSize,
-                                                    playerService:
-                                                        playerService,
-                                                    onRotationEnabledChanged:
-                                                        onRotationEnabledChanged,
-                                                    initialVinyl: vinylMode,
-                                                    onVinylChanged:
-                                                        onVinylChanged,
-                                                    showFrame:
-                                                        artworkCardShowFrame,
-                                                    motionArtEnabled:
-                                                        motionArtEnabled,
-                                                  ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(height: artworkSpacing),
-                                    Transform.translate(
-                                      offset: Offset(
-                                        0,
-                                        artworkCardVerticalOffset,
-                                      ),
-                                      child: Padding(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: isVeryShortHeight
-                                              ? 8.0
-                                              : 0.0,
-                                        ),
-                                        child: _buildSongIdentity(
-                                          context,
-                                          compact: isShortHeight,
-                                          veryCompact: isVeryShortHeight,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(height: identitySpacing),
-                                  ],
+                    Positioned.fill(
+                      child: AnimatedSwitcher(
+                        duration: AppConstants.animationNormal,
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInOutCubic,
+                        layoutBuilder: (currentChild, previousChildren) {
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              ...previousChildren,
+                              ...?currentChild == null ? null : [currentChild],
+                            ],
+                          );
+                        },
+                        transitionBuilder: (child, animation) {
+                          final isLyrics =
+                              child.key == const ValueKey('artwork-lyrics');
+                          final slide =
+                              Tween<Offset>(
+                                begin: isLyrics
+                                    ? const Offset(0, -0.06)
+                                    : const Offset(0, 0.06),
+                                end: Offset.zero,
+                              ).animate(
+                                CurvedAnimation(
+                                  parent: animation,
+                                  curve: Curves.easeOutCubic,
                                 ),
-                        ),
+                              );
+                          return FadeTransition(
+                            opacity: CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            ),
+                            child: SlideTransition(
+                              position: slide,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: lyricsMode
+                            ? Padding(
+                                key: const ValueKey('artwork-lyrics'),
+                                padding: EdgeInsets.only(bottom: lyricsSpacing),
+                                child: InlineLyricsPanel(
+                                  song: song,
+                                  playerService: playerService,
+                                  lyricsService: lyricsService,
+                                  albumColor: albumColor,
+                                  positionNotifier: positionNotifier,
+                                  active: active,
+                                ),
+                              )
+                            : KeyedSubtree(
+                                key: const ValueKey('artwork-default'),
+                                child: isVeryShortHeight
+                                    ? Center(
+                                        child: CompactPlayerInfoLayout(
+                                          song: song,
+                                          onNavigateToArtistDetail:
+                                              onNavigateToArtistDetail,
+                                        ),
+                                      )
+                                    : Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
+                                        children: [
+                                          Flexible(
+                                            child: Align(
+                                              alignment: Alignment.topCenter,
+                                              child: FittedBox(
+                                                fit: BoxFit.contain,
+                                                child: SizedBox(
+                                                  width: artworkSize,
+                                                  height: artworkSize,
+                                                  child: Transform.translate(
+                                                    offset: Offset(
+                                                      0,
+                                                      artworkCardArtworkOffset,
+                                                    ),
+                                                    child: ClipRRect(
+                                                      // Keep the clip outside the
+                                                      // image transform. Scaling the
+                                                      // clip itself made the top edge
+                                                      // escape the rounded viewport.
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            context.responsive(
+                                                              20.0,
+                                                              24.0,
+                                                              28.0,
+                                                            ),
+                                                          ),
+                                                      child: Transform.scale(
+                                                        scaleX: 1.11,
+                                                        scaleY: 1.18,
+                                                        child: visualizationMode
+                                                            ? VisualizerArtBox(
+                                                                playerService:
+                                                                    playerService,
+                                                                size:
+                                                                    artworkSize,
+                                                                animationStyle:
+                                                                    visualizerAnimationStyle,
+                                                                frequencyMode:
+                                                                    visualizerFrequencyMode,
+                                                                movementMode:
+                                                                    visualizerMovementMode,
+                                                                albumColor:
+                                                                    albumColor,
+                                                                showFrame:
+                                                                    artworkCardShowFrame,
+                                                              )
+                                                            : AlbumArtBox(
+                                                                song: song,
+                                                                size:
+                                                                    artworkSize,
+                                                                playerService:
+                                                                    playerService,
+                                                                onRotationEnabledChanged:
+                                                                    onRotationEnabledChanged,
+                                                                initialVinyl:
+                                                                    vinylMode,
+                                                                onVinylChanged:
+                                                                    onVinylChanged,
+                                                                showFrame:
+                                                                    artworkCardShowFrame,
+                                                                motionArtEnabled:
+                                                                    motionArtEnabled,
+                                                              ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(height: artworkSpacing),
+                                          Padding(
+                                            padding: EdgeInsets.only(
+                                              top:
+                                                  artworkCardVerticalOffset +
+                                                  context.responsive(
+                                                    6.0,
+                                                    8.0,
+                                                    10.0,
+                                                  ) +
+                                                  (isShortHeight ? 20.0 : 0.0),
+                                              left: isVeryShortHeight
+                                                  ? 8.0
+                                                  : 0.0,
+                                              right: isVeryShortHeight
+                                                  ? 8.0
+                                                  : 0.0,
+                                            ),
+                                            child: _buildSongIdentity(
+                                              context,
+                                              compact: isShortHeight,
+                                              veryCompact: isVeryShortHeight,
+                                            ),
+                                          ),
+                                          SizedBox(height: identitySpacing),
+                                        ],
+                                      ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (artworkCardShowFileInfo)
-                Visibility(
-                  visible: fileInfoRowVisible,
-                  maintainSize: true,
-                  maintainAnimation: true,
-                  maintainState: true,
-                  child: buildFileInfoRow(song, lyricsMode, playerScreenMode),
-                ),
+              if (artworkCardShowFileInfo && fileInfoRowVisible)
+                buildFileInfoRow(song, lyricsMode, playerScreenMode),
               if (showWaveform) ...[
                 if (artworkCardShowFileInfo) SizedBox(height: playbackSpacing),
                 _buildWaveformOnly(context),
@@ -746,170 +796,149 @@ class SongStage extends ConsumerWidget {
             ? context.responsive(22.0, 25.0, 28.0)
             : context.responsive(25.0, 27.0, 30.0)) *
         artworkCardTextScale;
-    final artistSize =
-        (veryCompact
-            ? context.responsive(13.0, 14.0, 15.0)
-            : compact
-            ? context.responsive(14.0, 15.0, 16.0)
-            : context.responsive(15.0, 16.0, 17.0)) *
-        artworkCardTextScale;
-    final titleToArtistSpacing = veryCompact
+    final titleToMetadataSpacing = veryCompact
         ? 6.0
         : context.responsive(8.0, 10.0, 12.0);
-    final artistToAlbumSpacing = veryCompact
-        ? 8.0
-        : compact
-        ? 10.0
-        : context.responsive(12.0, 14.0, 16.0);
-    final albumHorizontalPadding = veryCompact
-        ? 10.0
-        : context.responsive(12.0, 14.0, 16.0);
-    final albumVerticalPadding = veryCompact
-        ? 5.0
-        : context.responsive(6.0, 7.0, 8.0);
-    final albumFontSize =
-        (veryCompact
-            ? context.responsive(10.0, 11.0, 12.0)
-            : context.responsive(11.0, 12.0, 13.0)) *
-        artworkCardTextScale;
+    final metadataSize = context.responsiveText(
+      (veryCompact
+              ? 11.0
+              : compact
+              ? 12.0
+              : 12.0) *
+          artworkCardTextScale,
+    );
+    final metadata = <Widget>[];
+    void addMetadataWidget(Widget widget) {
+      if (metadata.isNotEmpty) {
+        metadata.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: Text(
+              '·',
+              style: TextStyle(
+                fontFamily: 'GoogleSansFlex',
+                fontSize: metadataSize,
+                color: Colors.white.withValues(alpha: .52),
+              ),
+            ),
+          ),
+        );
+      }
+      metadata.add(widget);
+    }
 
-    final diagnostics = ProviderScope.containerOf(
-      context,
-    ).read(audioOutputDiagnosticsProvider);
-    final appPrefs = ProviderScope.containerOf(
-      context,
-    ).read(appPreferencesProvider);
-    final isBitPerfectVerified =
-        diagnostics?.capabilityFlags.supportsVerifiedBitPerfect == true;
-    final showBitPerfectCapsule =
-        appPrefs.replaceAlbumWithBitPerfectCapsule &&
-        diagnostics != null &&
-        isBitPerfectVerified;
-    final hasAlbum = song.album != null && song.album!.trim().isNotEmpty;
+    void addMetadata(String value, {VoidCallback? onTap}) {
+      if (value.trim().isEmpty) return;
+      final text = Text(
+        value,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          fontFamily: 'GoogleSansFlex',
+          fontSize: metadataSize,
+          fontWeight: FontWeight.w500,
+          color: Colors.white.withValues(alpha: .76),
+        ),
+      );
+      addMetadataWidget(
+        onTap == null ? text : GestureDetector(onTap: onTap, child: text),
+      );
+    }
+
+    if (artworkCardShowArtist) {
+      final artists = _splitArtistNames(song.artist);
+      addMetadataWidget(
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var index = 0; index < artists.length; index++) ...[
+              if (index > 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    ', ',
+                    style: TextStyle(
+                      fontFamily: 'GoogleSansFlex',
+                      fontSize: metadataSize,
+                      color: Colors.white.withValues(alpha: .76),
+                    ),
+                  ),
+                ),
+              GestureDetector(
+                onTap: () =>
+                    (onNavigateToArtistName ??
+                    (song, _) =>
+                        onNavigateToArtistDetail(song))(song, artists[index]),
+                child: Text(
+                  artists[index],
+                  style: TextStyle(
+                    fontFamily: 'GoogleSansFlex',
+                    fontSize: metadataSize,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: .76),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+    if (artworkCardShowAlbum && song.album?.trim().isNotEmpty == true) {
+      addMetadata(song.album!, onTap: () => onNavigateToAlbumDetail(song));
+    }
+    if (song.year != null) addMetadata(song.year.toString());
 
     return Column(
       children: [
         if (artworkCardShowTitle)
-          Text(
-            song.title,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontFamily: 'GoogleSansFlex',
-              fontSize: context.responsiveText(titleSize),
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              height: 1.08,
-            ),
-          ),
-        if (artworkCardShowTitle && artworkCardShowArtist)
-          SizedBox(height: titleToArtistSpacing),
-        if (artworkCardShowArtist)
-          GestureDetector(
-            onTap: () => onNavigateToArtistDetail(song),
-            child: Text(
-              song.artist,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'GoogleSansFlex',
-                fontSize: context.responsiveText(artistSize),
-                fontWeight: FontWeight.w500,
-                color: Colors.white.withValues(alpha: 0.78),
-              ),
-            ),
-          ),
-        if (artworkCardShowAlbum &&
-            (artworkCardShowTitle || artworkCardShowArtist) &&
-            (hasAlbum || showBitPerfectCapsule)) ...[
-          SizedBox(height: artistToAlbumSpacing),
-          if (diagnostics != null && appPrefs.replaceAlbumWithBitPerfectCapsule)
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                if (hasAlbum)
-                  AnimatedOpacity(
-                    opacity: isBitPerfectVerified ? 0.0 : 1.0,
-                    duration: const Duration(milliseconds: 400),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: albumHorizontalPadding,
-                        vertical: albumVerticalPadding,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
-                        ),
-                      ),
-                      child: GestureDetector(
-                        onTap: () => onNavigateToAlbumDetail(song),
-                        child: Text(
-                          song.album!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: 'GoogleSansFlex',
-                            fontSize: context.responsiveText(albumFontSize),
-                            color: Colors.white.withValues(alpha: 0.68),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                BitPerfectCapsule(
-                  diagnostics: diagnostics,
-                  horizontalPadding: albumHorizontalPadding,
-                  verticalPadding: albumVerticalPadding,
-                  fontSize: albumFontSize,
-                  onTap: () {
-                    final deviceStatus = ProviderScope.containerOf(
-                      context,
-                    ).read(uac2DeviceStatusProvider);
-                    BitPerfectIndicator.showInfoSheet(
-                      context,
-                      song: song,
-                      diagnostics: diagnostics,
-                      deviceStatus: deviceStatus,
-                      playerService: playerService,
-                    );
-                  },
-                ),
-              ],
-            )
-          else if (hasAlbum)
-            GestureDetector(
+          SizedBox(
+            width: double.infinity,
+            child: GestureDetector(
               onTap: () => onNavigateToAlbumDetail(song),
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: albumHorizontalPadding,
-                  vertical: albumVerticalPadding,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
-                ),
+              child: MarqueeWidget(
                 child: Text(
-                  song.album!,
+                  song.title,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
-                    fontSize: context.responsiveText(albumFontSize),
-                    color: Colors.white.withValues(alpha: 0.68),
+                    fontSize: context.responsiveText(titleSize),
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    height: 1.08,
                   ),
                 ),
               ),
             ),
-        ],
+          ),
+        if (artworkCardShowTitle && metadata.isNotEmpty)
+          SizedBox(height: titleToMetadataSpacing),
+        if (metadata.isNotEmpty)
+          SizedBox(
+            width: double.infinity,
+            child: MarqueeWidget(
+              child: Row(mainAxisSize: MainAxisSize.min, children: metadata),
+            ),
+          ),
       ],
     );
+  }
+
+  List<String> _splitArtistNames(String value) {
+    final normalized = value
+        .replaceAll(
+          RegExp(r'\s+(?:feat\.?|ft\.?|featuring)\s+', caseSensitive: false),
+          ', ',
+        )
+        .replaceAll(RegExp(r'\s*&\s*'), ', ');
+    final names = normalized
+        .split(RegExp(r'\s*,\s*'))
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
+    return names.isEmpty ? <String>[value.trim()] : names;
   }
 
   // ---------------------------------------------------------------------------

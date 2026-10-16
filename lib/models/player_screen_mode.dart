@@ -16,8 +16,12 @@ extension PlayerScreenModeX on PlayerScreenMode {
       case 'artwork_card':
         return PlayerScreenMode.artworkCard;
       case 'immersive':
-      default:
         return PlayerScreenMode.immersive;
+      default:
+        // The card layout is the stable, information-dense default on phones:
+        // artwork, identity, seek bar, primary controls, and labeled actions
+        // remain visible without requiring a gesture.
+        return PlayerScreenMode.artworkCard;
     }
   }
 }

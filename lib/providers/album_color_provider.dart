@@ -12,8 +12,8 @@ import 'package:flick/services/color_extraction_service.dart';
 
 final albumColorModePreferenceServiceProvider =
     Provider<AlbumColorModePreferenceService>((ref) {
-  return AlbumColorModePreferenceService();
-});
+      return AlbumColorModePreferenceService();
+    });
 
 class AlbumColorModeNotifier extends Notifier<AlbumColorMode> {
   bool _initialized = false;
@@ -28,8 +28,9 @@ class AlbumColorModeNotifier extends Notifier<AlbumColorMode> {
   }
 
   Future<void> _loadFromPreferences() async {
-    final mode =
-        await ref.read(albumColorModePreferenceServiceProvider).getMode();
+    final mode = await ref
+        .read(albumColorModePreferenceServiceProvider)
+        .getMode();
     if (ref.mounted && state != mode) {
       state = mode;
     }
@@ -44,8 +45,8 @@ class AlbumColorModeNotifier extends Notifier<AlbumColorMode> {
 
 final albumColorModeProvider =
     NotifierProvider<AlbumColorModeNotifier, AlbumColorMode>(
-  AlbumColorModeNotifier.new,
-);
+      AlbumColorModeNotifier.new,
+    );
 
 // ============================================================================
 // Dominant color extraction from current song's album art
@@ -80,4 +81,18 @@ final albumDominantColorProvider = FutureProvider.autoDispose<Color?>((
 /// Synchronous accessor — returns the dominant color or null.
 final albumDominantColorSyncProvider = Provider<Color?>((ref) {
   return ref.watch(albumDominantColorProvider).value;
+});
+
+/// Multi-color palette used by the expanded player's moving gradient.
+final albumPaletteProvider = FutureProvider.autoDispose<List<Color>>((
+  ref,
+) async {
+  final albumArt = ref.watch(_currentAlbumArtPathProvider);
+  final colorService = ref.watch(_colorExtractionServiceProvider);
+  if (albumArt == null || albumArt.isEmpty) return const [];
+  return colorService.extractPalette(albumArt);
+});
+
+final albumPaletteSyncProvider = Provider<List<Color>>((ref) {
+  return ref.watch(albumPaletteProvider).value ?? const [];
 });

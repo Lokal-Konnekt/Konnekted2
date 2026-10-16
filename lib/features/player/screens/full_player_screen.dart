@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -8,7 +9,6 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/duration_format.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/data/repositories/song_repository.dart';
-import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/player_action_button_row.dart';
 import 'package:flick/features/player/widgets/player_controls.dart';
@@ -18,10 +18,13 @@ import 'package:flick/features/player/widgets/song_actions_sheet.dart';
 import 'package:flick/features/player/widgets/song_stage.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
+import 'package:flick/features/player/widgets/full_player_action_chip_row.dart';
 import 'package:flick/features/player/widgets/album_color_helpers.dart';
+import 'package:flick/features/player/widgets/animated_blurred_album_backdrop.dart';
 import 'package:flick/models/album_color_mode.dart';
 import 'package:flick/models/player_screen_mode.dart';
 import 'package:flick/models/player_action_button.dart';
+import 'package:flick/models/progress_bar_style.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/external_playback_service.dart';
@@ -34,10 +37,13 @@ import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/uac2/iso_volume_popup.dart';
 import 'package:flick/widgets/uac2/uac2_error_notification.dart';
+import 'package:flick/features/settings/screens/casting_settings_screen.dart';
+import 'package:flick/features/settings/screens/equalizer_screen.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
 
 class FullPlayerScreen extends ConsumerStatefulWidget {
   final Object heroTag;
@@ -87,6 +93,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   bool _isVisualizationMode = false;
   bool _isImmersiveFullView = false;
   bool _isCarouselDragging = false;
+  bool _queueDragEligible = false;
   PlayerScreenMode _playerScreenMode = PlayerScreenMode.immersive;
   int _immersiveAutoFullViewDelaySeconds = 0;
   Timer? _immersiveFullViewTimer;
@@ -124,7 +131,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     _playerService.favoriteNotificationToggleNotifier.addListener(
       _handleFavoriteToggledFromNotification,
     );
-    _updateTopBarTextMeasurement(_playerService.currentSongNotifier.value);
     _loadPlayerScreenMode();
     _refreshImmersiveFullViewTimer();
   }
@@ -233,8 +239,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   void _setVisualizationMode(bool value) {
     final nextLyricsMode = value ? false : _isLyricsMode;
-    if (_isVisualizationMode == value && _isLyricsMode == nextLyricsMode)
+    if (_isVisualizationMode == value && _isLyricsMode == nextLyricsMode) {
       return;
+    }
     setState(() {
       _isVisualizationMode = value;
       _isLyricsMode = nextLyricsMode;
@@ -328,6 +335,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     Song song,
     AlbumColorMode albumColorMode,
     Color? albumColor,
+    List<Color> albumPalette,
     bool visualizationMode,
     String visStyle,
     String visFreq,
@@ -351,6 +359,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             song,
             albumColorMode,
             albumColor,
+            albumPalette,
             visualizationMode,
             visStyle,
             visFreq,
@@ -379,6 +388,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     Song song,
     AlbumColorMode albumColorMode,
     Color? albumColor,
+    List<Color> albumPalette,
     bool visualizationMode,
     String visStyle,
     String visFreq,
@@ -428,46 +438,36 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     }
 
     if (_playerScreenMode == PlayerScreenMode.artworkCard) {
+      final placeholder = Container(
+        color: AppColors.background,
+        child: const Center(
+          child: FlickArtworkPlaceholder(size: 96, opacity: 0.35),
+        ),
+      );
       return Stack(
         children: [
           Positioned.fill(
-            child: (song.albumArt != null || song.filePath != null)
-                ? AmbientBackground(song: song)
-                : Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFF181818), AppColors.background],
-                      ),
-                    ),
-                    child: const Center(
-                      child: FlickArtworkPlaceholder(size: 96, opacity: 0.22),
-                    ),
-                  ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    (hasAlbumTint
-                            ? albumSurface(albumColor, bgBlend)
-                            : const Color(0xFF080808))
-                        .withValues(alpha: 0.5),
-                    (hasAlbumTint
-                            ? albumSurface(albumColor, bgBlend * 0.6)
-                            : const Color(0xFF0E0E0E))
-                        .withValues(alpha: 0.32),
-                    (hasAlbumTint
-                            ? albumSurface(albumColor, bgBlend)
-                            : const Color(0xFF0A0A0A))
-                        .withValues(alpha: 0.94),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 520),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ...previousChildren,
+                    ...?currentChild == null ? null : [currentChild],
                   ],
-                  stops: const [0.0, 0.5, 1.0],
-                ),
+                );
+              },
+              transitionBuilder: (child, animation) =>
+                  FadeTransition(opacity: animation, child: child),
+              child: AnimatedBlurredAlbumBackdrop(
+                key: ValueKey('album-backdrop-${song.id}'),
+                imagePath: song.albumArt,
+                audioSourcePath: song.filePath,
+                placeholder: placeholder,
+                errorWidget: placeholder,
               ),
             ),
           ),
@@ -511,7 +511,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             errorWidget: placeholder,
             albumName: song.album,
             artistName:
-                (song.albumArtist != null && song.albumArtist!.trim().isNotEmpty)
+                (song.albumArtist != null &&
+                    song.albumArtist!.trim().isNotEmpty)
                 ? song.albumArtist
                 : song.artist,
             representativeSongTitle: song.title,
@@ -558,15 +559,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     AlbumColorMode albumColorMode,
     dynamic appPrefs,
   ) {
-    final hideQueueBadge =
-        PlayerActionButtonX.fromStorageValue(appPrefs.leftActionButton) ==
-            PlayerActionButton.queue ||
-        PlayerActionButtonX.fromStorageValue(appPrefs.rightActionButton) ==
-            PlayerActionButton.queue ||
-        PlayerActionButtonX.fromStorageValue(appPrefs.leftTopActionButton) ==
-            PlayerActionButton.queue ||
-        PlayerActionButtonX.fromStorageValue(appPrefs.rightTopActionButton) ==
-            PlayerActionButton.queue;
+    final isCasting = ref.watch(isCastingProvider);
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: context.responsive(8.0, 12.0, 16.0),
@@ -576,103 +569,32 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         children: [
           _buildChromeButton(
             context,
-            icon: LucideIcons.chevronDown,
+            icon: LucideIcons.chevronLeft,
             albumColor: albumColor,
             albumColorMode: albumColorMode,
             onTap: () => _close(context),
           ),
-          SizedBox(width: context.responsive(8.0, 10.0, 12.0)),
-          Expanded(
-            child: GestureDetector(
-              onTap: song.isFromLocker
-                  ? null
-                  : () => _navigation.openQueue(context),
-              onHorizontalDragEnd: song.isFromLocker
-                  ? null
-                  : (details) async {
-                      if (details.primaryVelocity != null &&
-                          details.primaryVelocity! < -400) {
-                        await _navigation.queueSong(context, song);
-                      }
-                    },
-              child: ValueListenableBuilder<List<Song>>(
-                valueListenable: _playerService.upNextNotifier,
-                builder: (context, upNext, _) {
-                  final hasQueue = upNext.isNotEmpty;
-                  final fromLocker = song.isFromLocker;
-                  final nowPlayingContent = Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        l10n.nowPlaying,
-                        style: TextStyle(
-                          fontFamily: 'GoogleSansFlex',
-                          fontSize: context.responsive(12.0, 13.0, 14.0),
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.9),
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      if (fromLocker) ...[
-                        SizedBox(height: context.responsive(2.0, 3.0, 4.0)),
-                        Text(
-                          l10n.openedFromLocker,
-                          style: TextStyle(
-                            fontFamily: 'GoogleSansFlex',
-                            fontSize: context.responsive(10.0, 10.5, 11.0),
-                            color: Colors.white.withValues(alpha: 0.7),
-                          ),
-                        ),
-                      ],
-                    ],
-                  );
-                  final chip = AnimatedContainer(
-                    duration: AppConstants.animationFast,
-                    padding: EdgeInsets.fromLTRB(
-                      context.responsive(12.0, 14.0, 16.0),
-                      context.responsive(6.0, 7.0, 8.0),
-                      (!fromLocker && !hideQueueBadge)
-                          ? context.responsive(10.0, 11.0, 12.0)
-                          : context.responsive(12.0, 14.0, 16.0),
-                      context.responsive(6.0, 7.0, 8.0),
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF121212).withValues(alpha: 0.72),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: hasQueue
-                            ? Colors.white.withValues(alpha: 0.18)
-                            : Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        nowPlayingContent,
-                        if (!fromLocker && !hideQueueBadge) ...[
-                          SizedBox(width: context.responsive(8.0, 10.0, 12.0)),
-                          _buildQueueSummaryBadge(
-                            context,
-                            count: upNext.length,
-                            highlighted: hasQueue,
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                  return Align(alignment: Alignment.center, child: chip);
-                },
-              ),
-            ),
-          ),
-          SizedBox(width: context.responsive(8.0, 10.0, 12.0)),
+          const Spacer(),
+          _buildOutputDeviceChip(context, song),
+          SizedBox(width: context.responsive(6.0, 8.0, 10.0)),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (song.isFromLocker) ...[
-                _buildReturnToLockerButton(context),
-                SizedBox(width: context.responsive(8.0, 10.0, 12.0)),
-              ],
+              if (song.isFromLocker) _buildReturnToLockerButton(context),
+              if (song.isFromLocker)
+                SizedBox(width: context.responsive(6.0, 8.0, 10.0)),
+              _buildChromeButton(
+                context,
+                icon: LucideIcons.cast,
+                albumColor: isCasting ? albumColor : null,
+                albumColorMode: isCasting ? albumColorMode : null,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const CastingSettingsScreen(),
+                  ),
+                ),
+              ),
+              SizedBox(width: context.responsive(6.0, 8.0, 10.0)),
               _buildChromeButton(
                 context,
                 icon: Icons.more_vert,
@@ -698,6 +620,72 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOutputDeviceChip(BuildContext context, Song song) {
+    final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
+    final label = diagnostics?.outputDeviceLabel.trim().isNotEmpty == true
+        ? diagnostics!.outputDeviceLabel.trim()
+        : diagnostics?.routeLabel.trim().isNotEmpty == true
+        ? diagnostics!.routeLabel.trim()
+        : l10n.thisDevice;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () => _showOutputDevicePopup(context, song),
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: context.responsive(150, 190, 230),
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: context.responsive(12, 14, 16),
+            vertical: context.responsive(7, 8, 9),
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.045),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                LucideIcons.headphones,
+                size: context.responsive(17, 19, 21),
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'GoogleSansFlex',
+                    fontSize: context.responsive(12, 13, 14),
+                    color: Colors.white.withValues(alpha: 0.92),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showOutputDevicePopup(BuildContext context, Song song) async {
+    await showFlickDialog<void>(
+      context: context,
+      barrierLabel: 'Audio output',
+      barrierColor: Colors.black.withValues(alpha: 0.38),
+      builder: (_) => _OutputDevicePopup(
+        song: song,
+        playerService: _playerService,
+        deviceLabel: l10n.thisDevice,
       ),
     );
   }
@@ -745,51 +733,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     );
   }
 
-  Widget _buildQueueSummaryBadge(
-    BuildContext context, {
-    required int count,
-    required bool highlighted,
-  }) {
-    return AnimatedContainer(
-      duration: AppConstants.animationFast,
-      padding: EdgeInsets.symmetric(
-        horizontal: context.responsive(8.0, 9.0, 10.0),
-        vertical: context.responsive(3.0, 4.0, 5.0),
-      ),
-      decoration: BoxDecoration(
-        color: highlighted
-            ? Colors.white.withValues(alpha: 0.16)
-            : Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: highlighted
-              ? Colors.white.withValues(alpha: 0.24)
-              : Colors.white.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            LucideIcons.listMusic,
-            size: context.responsive(12.0, 13.0, 14.0),
-            color: Colors.white.withValues(alpha: highlighted ? 0.96 : 0.7),
-          ),
-          SizedBox(width: context.responsive(4.0, 5.0, 6.0)),
-          Text(
-            count > 0 ? l10n.queue2(count) : l10n.queue,
-            style: TextStyle(
-              fontFamily: 'GoogleSansFlex',
-              fontSize: context.responsive(10.0, 11.0, 12.0),
-              fontWeight: FontWeight.w600,
-              color: Colors.white.withValues(alpha: highlighted ? 0.96 : 0.8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildChromeButton(
     BuildContext context, {
     required IconData icon,
@@ -797,12 +740,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     Color? albumColor,
     AlbumColorMode? albumColorMode,
   }) {
-    final surfaceColor = (albumColor != null && albumColorMode != null)
-        ? albumSurface(albumColor, albumColorMode.surfaceBlend)
-        : const Color(0xFF121212);
     return Container(
       decoration: BoxDecoration(
-        color: surfaceColor.withValues(alpha: 0.7),
+        color: Colors.transparent,
         shape: BoxShape.circle,
       ),
       child: IconButton(
@@ -828,10 +768,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     PlayerScreenMode mode,
   ) {
     final isImmersive = mode == PlayerScreenMode.immersive;
-    // Lyrics uses the strip for immersive (waveform + dismiss arrow) but the
-    // time labels are now unified as a single pinned default for BOTH
-    // immersive and artworkCard when lyrics are on. Hide strip's internal
-    // labels and PlayerControls's labels; keep one under waveform.
+    // The seekbar shows an animated floating time bubble while dragging. The
+    // compact elapsed/total labels remain below it in the settled state.
     return LyricsModeWaveformStrip(
       playerService: _playerService,
       positionNotifier: _throttledPositionNotifier,
@@ -839,10 +777,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       formatDuration: formatDuration,
       horizontalPadding: isImmersive
           ? context.responsive(18.0, 24.0, 30.0)
-          : context.responsive(16.0, 20.0, 24.0),
+          : context.responsive(24.0, 28.0, 32.0),
+      timeLabelsPadding: isImmersive
+          ? null
+          : context.responsive(14.0, 16.0, 18.0),
       onSwipeUp: () => _setLyricsMode(false),
-      showTimeLabels: false,
+      showTimeLabels: !isImmersive && !_isLyricsMode,
       showArrow: _isLyricsMode && isImmersive,
+      styleOverride: isImmersive ? null : ProgressBarStyle.line,
+      targetStyle: !isImmersive,
     );
   }
 
@@ -859,8 +802,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
     final colorMode = ref.watch(albumColorModeProvider);
     final dominantColor = ref.watch(albumDominantColorSyncProvider);
+    final albumPalette = ref.watch(albumPaletteSyncProvider);
+    final useArtworkTint =
+        _playerScreenMode == PlayerScreenMode.artworkCard &&
+        dominantColor != null;
+    final playerColorMode = colorMode == AlbumColorMode.off && useArtworkTint
+        ? AlbumColorMode.vibrant
+        : colorMode;
     final Color? albumColor =
-        (colorMode != AlbumColorMode.off && dominantColor != null)
+        (playerColorMode != AlbumColorMode.off && dominantColor != null)
         ? dominantColor
         : null;
 
@@ -900,8 +850,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 onVerticalDragStart: (details) {
                   if (_isVinylRotationActive || _isCarouselDragging) return;
                   final screenHeight = MediaQuery.sizeOf(context).height;
+                  _queueDragEligible =
+                      details.globalPosition.dy >= screenHeight * 0.62;
                   if (details.globalPosition.dy >=
                       screenHeight - _backGestureEdgeWidth) {
+                    _queueDragEligible = false;
                     _dragOffset = 0.0;
                     return;
                   }
@@ -909,6 +862,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 },
                 onVerticalDragUpdate: (details) {
                   if (_isVinylRotationActive || _isCarouselDragging) return;
+                  if (_queueDragEligible) {
+                    if (details.delta.dy < 0) {
+                      _dragOffset = (_dragOffset + details.delta.dy).clamp(
+                        -1000.0,
+                        0.0,
+                      );
+                    }
+                    return;
+                  }
                   if (details.delta.dy > 0) {
                     final now = DateTime.now();
                     if (now.difference(_lastDragUpdate).inMilliseconds < 16) {
@@ -924,7 +886,19 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 },
                 onVerticalDragEnd: (details) {
                   if (_isVinylRotationActive || _isCarouselDragging) return;
-                  if (_dragOffset > 100 || details.primaryVelocity! > 500) {
+                  if (_queueDragEligible) {
+                    final shouldOpenQueue =
+                        _dragOffset < -90 ||
+                        (details.primaryVelocity ?? 0) < -500;
+                    _queueDragEligible = false;
+                    _dragOffset = 0.0;
+                    if (shouldOpenQueue) {
+                      unawaited(_navigation.openQueue(context));
+                    }
+                    return;
+                  }
+                  if (_dragOffset > 100 ||
+                      (details.primaryVelocity ?? 0) > 500) {
                     _close(context);
                     return;
                   }
@@ -944,8 +918,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     context,
                     song,
                     appPrefs,
-                    colorMode,
+                    playerColorMode,
                     albumColor,
+                    albumPalette,
                     visStyle,
                     visFreq,
                     visMove,
@@ -967,6 +942,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     dynamic appPrefs,
     AlbumColorMode colorMode,
     Color? albumColor,
+    List<Color> albumPalette,
     String visStyle,
     String visFreq,
     String visMove,
@@ -1011,7 +987,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     // Overlay shows over the stage's reserved invisible row slot.
     final showPinnedActionRow = _playerScreenMode == PlayerScreenMode.immersive
         ? (appPrefs.immersiveShowFileInfo && !_isLyricsMode)
-        : appPrefs.artworkCardShowFileInfo;
+        : false;
     // Match the stage's own row padding so the overlay lines up exactly.
     final pinnedActionRowPadding =
         _playerScreenMode == PlayerScreenMode.immersive
@@ -1026,6 +1002,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       song,
       colorMode,
       albumColor,
+      albumPalette,
       visualizationMode,
       visStyle,
       visFreq,
@@ -1069,6 +1046,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       stageBuilder: (s) {
                         final isCurrent = s.id == song.id;
                         return SongStage(
+                          key: ValueKey('song-stage-${s.id}'),
                           song: s,
                           lyricsMode: _isLyricsMode,
                           visualizationMode: visualizationMode,
@@ -1084,6 +1062,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           formatDuration: formatDuration,
                           onNavigateToArtistDetail: (s) =>
                               _navigation.openArtistFromSong(context, s),
+                          onNavigateToArtistName: (s, name) => _navigation
+                              .openArtistFromSong(context, s, artistName: name),
                           onNavigateToAlbumDetail: (s) =>
                               _navigation.openAlbumFromSong(context, s),
                           buildFileInfoRow: fileInfoBuilder,
@@ -1102,7 +1082,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
                           artworkCardShowFileInfo:
                               appPrefs.artworkCardShowFileInfo,
-                          artworkCardShowFrame: appPrefs.artworkCardShowFrame,
+                          artworkCardShowFrame: false,
                           immersiveTextScale: appPrefs.immersiveTextScale,
                           immersiveVerticalOffset:
                               appPrefs.immersiveVerticalOffset,
@@ -1118,7 +1098,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           onVinylChanged: (v) => _isVinylMode = v,
                           onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
                           showWaveform: false,
-                          motionArtEnabled: isCurrent,
+                          motionArtEnabled:
+                              isCurrent &&
+                              _playerScreenMode != PlayerScreenMode.artworkCard,
                           active: isCurrent,
                         );
                       },
@@ -1177,6 +1159,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                 stageBuilder: (s) {
                                   final isCurrent = s.id == song.id;
                                   return SongStage(
+                                    key: ValueKey('song-stage-${s.id}'),
                                     song: s,
                                     lyricsMode: _isLyricsMode,
                                     visualizationMode: visualizationMode,
@@ -1192,6 +1175,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                     formatDuration: formatDuration,
                                     onNavigateToArtistDetail: (s) => _navigation
                                         .openArtistFromSong(context, s),
+                                    onNavigateToArtistName: (s, name) =>
+                                        _navigation.openArtistFromSong(
+                                          context,
+                                          s,
+                                          artistName: name,
+                                        ),
                                     onNavigateToAlbumDetail: (s) => _navigation
                                         .openAlbumFromSong(context, s),
                                     buildFileInfoRow: fileInfoBuilder,
@@ -1199,7 +1188,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                     visualizerAnimationStyle: visStyle,
                                     visualizerFrequencyMode: visFreq,
                                     visualizerMovementMode: visMove,
-                                    motionArtEnabled: isCurrent,
+                                    motionArtEnabled:
+                                        isCurrent &&
+                                        _playerScreenMode !=
+                                            PlayerScreenMode.artworkCard,
+                                    artworkCardSeekbarOverlay:
+                                        isCurrent &&
+                                            _playerScreenMode ==
+                                                PlayerScreenMode.artworkCard
+                                        ? _buildPinnedWaveform(
+                                            context,
+                                            song,
+                                            _playerScreenMode,
+                                          )
+                                        : null,
                                     artworkCardArtworkScale:
                                         appPrefs.artworkCardArtworkScale,
                                     artworkCardTextScale:
@@ -1216,8 +1218,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                         appPrefs.artworkCardShowAlbum,
                                     artworkCardShowFileInfo:
                                         appPrefs.artworkCardShowFileInfo,
-                                    artworkCardShowFrame:
-                                        appPrefs.artworkCardShowFrame,
+                                    artworkCardShowFrame: false,
                                     immersiveTextScale:
                                         appPrefs.immersiveTextScale,
                                     immersiveVerticalOffset:
@@ -1281,74 +1282,86 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     topGap = appPrefs.artworkCardShowFileInfo
                         ? (isVeryShort
                               ? 10.0
-                              : context.responsive(14.0, 16.0, 18.0))
+                              : context.responsive(18.0, 22.0, 26.0))
                         : context.responsive(8.0, 10.0, 12.0);
                   }
                   final timeLabelsPadding = isImmersive
                       ? context.responsive(18.0, 24.0, 30.0)
                       : context.responsive(16.0, 20.0, 24.0);
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeInOut,
-                        height: topGap,
-                      ),
-                      _buildPinnedWaveform(context, song, _playerScreenMode),
-                      // Unified default: when lyrics are on, keep single time
-                      // labels under waveform for BOTH immersive and artworkCard.
-                      // This replaces the duplicated labels previously inside
-                      // PlayerControls and (for immersive) inside the strip.
-                      // AnimatedSize so the waveform lowers/raises smoothly.
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeInOut,
-                        alignment: Alignment.topCenter,
-                        child: _isLyricsMode
-                            ? Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    height: context.responsive(
-                                      8.0,
-                                      10.0,
-                                      12.0,
+                  return Visibility(
+                    visible: _playerScreenMode != PlayerScreenMode.artworkCard,
+                    maintainState: true,
+                    maintainAnimation: true,
+                    maintainSize: true,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeInOut,
+                          height: topGap,
+                        ),
+                        _buildPinnedWaveform(context, song, _playerScreenMode),
+                        // Unified default: when lyrics are on, keep single time
+                        // labels under waveform for BOTH immersive and artworkCard.
+                        // This replaces the duplicated labels previously inside
+                        // PlayerControls and (for immersive) inside the strip.
+                        // AnimatedSize so the waveform lowers/raises smoothly.
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeInOut,
+                          alignment: Alignment.topCenter,
+                          child: _isLyricsMode
+                              ? Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      height: context.responsive(
+                                        8.0,
+                                        10.0,
+                                        12.0,
+                                      ),
                                     ),
-                                  ),
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: timeLabelsPadding,
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: timeLabelsPadding,
+                                      ),
+                                      child: ValueListenableBuilder<Duration>(
+                                        valueListenable:
+                                            _playerService.positionNotifier,
+                                        builder: (context, position, _) {
+                                          return ValueListenableBuilder<
+                                            Duration
+                                          >(
+                                            valueListenable:
+                                                _playerService.durationNotifier,
+                                            builder:
+                                                (context, engineDuration, _) {
+                                                  final duration =
+                                                      engineDuration
+                                                              .inMilliseconds >
+                                                          0
+                                                      ? engineDuration
+                                                      : (song.duration);
+                                                  return PlaybackTimeLabels(
+                                                    position: position,
+                                                    duration: duration,
+                                                    formatDuration:
+                                                        formatDuration,
+                                                    horizontalPadding:
+                                                        timeLabelsPadding,
+                                                  );
+                                                },
+                                          );
+                                        },
+                                      ),
                                     ),
-                                    child: ValueListenableBuilder<Duration>(
-                                      valueListenable:
-                                          _playerService.positionNotifier,
-                                      builder: (context, position, _) {
-                                        return ValueListenableBuilder<Duration>(
-                                          valueListenable:
-                                              _playerService.durationNotifier,
-                                          builder: (context, engineDuration, _) {
-                                            final duration =
-                                                engineDuration.inMilliseconds > 0
-                                                ? engineDuration
-                                                : (song.duration);
-                                            return PlaybackTimeLabels(
-                                              position: position,
-                                              duration: duration,
-                                              formatDuration: formatDuration,
-                                              horizontalPadding:
-                                                  timeLabelsPadding,
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
+                                  ],
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -1359,8 +1372,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 duration: const Duration(milliseconds: 400),
                 curve: Curves.easeInOut,
                 height: _isLyricsMode
-                    ? context.responsive(10.0, 12.0, 14.0)
-                    : context.responsive(14.0, 16.0, 18.0),
+                    ? context.responsive(8.0, 10.0, 12.0)
+                    : context.responsive(10.0, 12.0, 14.0),
               ),
               // Pinned controls — do not slide. Deduplicate time labels:
               // immersive lyrics keeps strip's labels, artworkCard lyrics keeps
@@ -1384,15 +1397,299 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       : context.responsive(16.0, 20.0, 24.0),
                   albumColorMode: colorMode,
                   albumColor: albumColor,
-                  showTimeLabels: !_isLyricsMode,
+                  showTimeLabels:
+                      _playerScreenMode == PlayerScreenMode.immersive &&
+                      !_isLyricsMode,
+                  targetLayout:
+                      _playerScreenMode == PlayerScreenMode.artworkCard,
+                  favoritesService: _favoritesService,
                 ),
               ),
+              if (_playerScreenMode == PlayerScreenMode.artworkCard) ...[
+                SizedBox(height: context.responsive(6.0, 8.0, 10.0)),
+                FullPlayerActionChipRow(
+                  playerService: _playerService,
+                  lyricsActive: _isLyricsMode,
+                  onOpenQueue: () => _navigation.openQueue(context),
+                  onToggleLyrics: () => _setLyricsMode(!_isLyricsMode),
+                  onOpenEqualizer: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const EqualizerScreen(),
+                    ),
+                  ),
+                ),
+              ],
               // Original bottom spacing: immersive 24-40, artworkCard directorySpacing 24-40
-              SizedBox(height: context.responsive(24.0, 32.0, 40.0)),
+              SizedBox(height: context.responsive(8.0, 12.0, 16.0)),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _OutputDevicePopup extends StatefulWidget {
+  final Song song;
+  final PlayerService playerService;
+  final String deviceLabel;
+
+  const _OutputDevicePopup({
+    required this.song,
+    required this.playerService,
+    required this.deviceLabel,
+  });
+
+  @override
+  State<_OutputDevicePopup> createState() => _OutputDevicePopupState();
+}
+
+class _OutputDevicePopupState extends State<_OutputDevicePopup> {
+  late double _volume;
+
+  @override
+  void initState() {
+    super.initState();
+    _volume = widget.playerService.currentVolume.clamp(0.0, 1.0);
+  }
+
+  String _time(Duration value) {
+    final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xE91F1713),
+            borderRadius: BorderRadius.circular(34),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 28, 28, 26),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: SizedBox(
+                        width: 82,
+                        height: 82,
+                        child: CachedImageWidget(
+                          imagePath: widget.song.albumArt,
+                          audioSourcePath: widget.song.filePath,
+                          fit: BoxFit.cover,
+                          placeholder: const ColoredBox(color: Colors.black26),
+                          errorWidget: const ColoredBox(color: Colors.black26),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.song.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 21,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'GoogleSansFlex',
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            '${widget.song.artist}${widget.song.album == null ? '' : ' · ${widget.song.album}'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.62),
+                              fontSize: 15,
+                              fontFamily: 'GoogleSansFlex',
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              IconButton(
+                                onPressed: () => unawaited(
+                                  widget.playerService.previous(
+                                    allowRestart: false,
+                                  ),
+                                ),
+                                icon: const Icon(LucideIcons.skipBack),
+                                color: Colors.white,
+                                iconSize: 26,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 40,
+                                  minHeight: 40,
+                                ),
+                              ),
+                              ValueListenableBuilder<bool>(
+                                valueListenable:
+                                    widget.playerService.isPlayingNotifier,
+                                builder: (context, isPlaying, _) {
+                                  return IconButton(
+                                    onPressed:
+                                        widget.playerService.togglePlayPause,
+                                    icon: Icon(
+                                      isPlaying
+                                          ? LucideIcons.pause
+                                          : LucideIcons.play,
+                                    ),
+                                    color: Colors.white,
+                                    iconSize: 32,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 48,
+                                      minHeight: 40,
+                                    ),
+                                  );
+                                },
+                              ),
+                              IconButton(
+                                onPressed: () =>
+                                    unawaited(widget.playerService.next()),
+                                icon: const Icon(LucideIcons.skipForward),
+                                color: Colors.white,
+                                iconSize: 26,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 40,
+                                  minHeight: 40,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                ValueListenableBuilder<Duration>(
+                  valueListenable: widget.playerService.positionNotifier,
+                  builder: (context, position, _) {
+                    return ValueListenableBuilder<Duration>(
+                      valueListenable: widget.playerService.durationNotifier,
+                      builder: (context, duration, _) {
+                        final effective = duration.inMilliseconds > 0
+                            ? duration
+                            : widget.song.duration;
+                        final progress = effective.inMilliseconds == 0
+                            ? 0.0
+                            : (position.inMilliseconds /
+                                      effective.inMilliseconds)
+                                  .clamp(0.0, 1.0);
+                        return Column(
+                          children: [
+                            LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 7,
+                              borderRadius: BorderRadius.circular(99),
+                              backgroundColor: Colors.black.withValues(
+                                alpha: 0.28,
+                              ),
+                              valueColor: const AlwaysStoppedAnimation(
+                                Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _time(position),
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.58),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  _time(effective),
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.58),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.volume_down_rounded,
+                      color: Colors.white.withValues(alpha: 0.72),
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: _volume,
+                        onChanged: (value) {
+                          setState(() => _volume = value);
+                          unawaited(widget.playerService.setVolume(value));
+                        },
+                        activeColor: Colors.white,
+                        inactiveColor: Colors.white.withValues(alpha: 0.16),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                InkWell(
+                  borderRadius: BorderRadius.circular(28),
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.phone_android_rounded,
+                          color: Color(0xFF4F7DF3),
+                        ),
+                        const SizedBox(width: 18),
+                        Text(
+                          widget.deviceLabel,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: 'GoogleSansFlex',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,11 +1,9 @@
-import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/providers/providers.dart';
-import 'package:flick/services/milestone_service.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/settings/screens/bottom_bar_settings_screen.dart';
 import 'package:flick/features/settings/screens/visualizer_settings_screen.dart';
@@ -13,20 +11,6 @@ import 'package:flick/l10n/l10n.dart';
 
 class InterfaceSettingsScreen extends ConsumerWidget {
   const InterfaceSettingsScreen({super.key});
-
-  Future<void> _confirmResetStreak(BuildContext context) async {
-    final confirmed = await FlickDialogs.confirm(
-      context,
-      title: l10n.resetStreakData,
-      message:
-          l10n.thisClearsYourCurrentDayStreak,
-      confirmLabel: l10n.reset,
-      destructive: true,
-    );
-    if (confirmed) {
-      await MilestoneService().clearStreakData();
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -156,25 +140,6 @@ class InterfaceSettingsScreen extends ConsumerWidget {
                 },
               ),
               const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.flame,
-                title: l10n.dayStreaks,
-                subtitle: l10n.trackConsecutiveListeningDaysAndShow,
-                value: appPreferences.streaksEnabled,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setStreaksEnabled(value);
-                },
-              ),
-              const SettingsDivider(),
-              ActionButton(
-                icon: LucideIcons.trash2,
-                title: l10n.resetStreakData2,
-                subtitle: l10n.clearTheCounterAndAnyUnlocked,
-                onTap: () => _confirmResetStreak(context),
-              ),
-              const SettingsDivider(),
               NavigationSetting(
                 icon: LucideIcons.navigation,
                 title: l10n.bottomBar,
@@ -274,8 +239,7 @@ class InterfaceSettingsScreen extends ConsumerWidget {
               SelectionSetting(
                 icon: LucideIcons.listPlus,
                 title: l10n.activeQueue,
-                subtitle:
-                    'Insert into the current queue, fall back to results',
+                subtitle: 'Insert into the current queue, fall back to results',
                 selected: appPreferences.searchPlaybackMode == 'queue',
                 onTap: () {
                   ref

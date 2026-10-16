@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/navigation/root_navigator.dart';
@@ -141,10 +142,10 @@ class NavigationHelper {
 
           return SlideTransition(
             position: Tween<Offset>(
-              begin: const Offset(0.12, 0.0),
+              begin: const Offset(0.0, 1.0),
               end: Offset.zero,
             ).animate(curvedAnimation),
-            child: FadeTransition(opacity: curvedAnimation, child: child),
+            child: child,
           );
         },
         transitionDuration: AppConstants.animationNormal,

@@ -5,8 +5,8 @@ import 'package:flick/services/player_screen_mode_preference_service.dart';
 
 final playerScreenModePreferenceServiceProvider =
     Provider<PlayerScreenModePreferenceService>((ref) {
-  return PlayerScreenModePreferenceService();
-});
+      return PlayerScreenModePreferenceService();
+    });
 
 class PlayerScreenModeNotifier extends Notifier<PlayerScreenMode> {
   bool _initialized = false;
@@ -17,12 +17,13 @@ class PlayerScreenModeNotifier extends Notifier<PlayerScreenMode> {
       _initialized = true;
       Future<void>.microtask(_loadFromPreferences);
     }
-    return PlayerScreenMode.immersive;
+    return PlayerScreenMode.artworkCard;
   }
 
   Future<void> _loadFromPreferences() async {
-    final mode =
-        await ref.read(playerScreenModePreferenceServiceProvider).getMode();
+    final mode = await ref
+        .read(playerScreenModePreferenceServiceProvider)
+        .getMode();
     if (ref.mounted && state != mode) {
       state = mode;
     }
@@ -37,5 +38,5 @@ class PlayerScreenModeNotifier extends Notifier<PlayerScreenMode> {
 
 final playerScreenModeProvider =
     NotifierProvider<PlayerScreenModeNotifier, PlayerScreenMode>(
-  PlayerScreenModeNotifier.new,
-);
+      PlayerScreenModeNotifier.new,
+    );

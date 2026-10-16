@@ -3,21 +3,15 @@ import 'dart:async';
 import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
-import 'package:flick/features/milestone/widgets/milestone_card.dart';
-import 'package:flick/features/milestone/widgets/streak_popup.dart';
 import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
-import 'package:flick/features/settings/screens/support_flick_screen.dart';
 import 'package:flick/features/whats_new/widgets/whats_new_bottom_sheet.dart';
-import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/library_scanner_service.dart';
-import 'package:flick/services/milestone_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/widget_intent_handler.dart';
 import 'package:flick/services/widget_sync_service.dart';
 import 'package:flick/widgets/common/floating_scan_progress.dart';
-import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,8 +57,6 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     );
     _run('Widget intent attachment', _widgetIntents.attach);
     _player.playbackDesyncedNotifier.addListener(_onPlaybackDesync);
-    _player.pendingMilestoneNotifier.addListener(_onMilestone);
-    _player.streakPopupNotifier.addListener(_onStreak);
 
     ref.listenManual(appPreferencesProvider, (_, _) => _maybeShowWhatsNew());
 
@@ -100,7 +92,6 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
         ref.invalidate(songsProvider);
         ref.invalidate(musicFoldersProvider);
       });
-      _run('Listening activity', _player.recordActivityDayAndCheckMilestones);
       final tutorial = ref.read(tutorialProvider);
       if (tutorial.autoStartPending && !tutorial.active) {
         ref.read(tutorialProvider.notifier).start();
@@ -139,49 +130,6 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _run('What’s new', () async {
       await notifier.markCurrentVersionSeen();
       if (mounted) await WhatsNewBottomSheet.show(context, entry: entry);
-    });
-  }
-
-  void _onMilestone() {
-    final milestone = _player.pendingMilestoneNotifier.value;
-    if (!mounted || milestone == null) return;
-    _player.pendingMilestoneNotifier.value = null;
-    _run('Listening milestone', () async {
-      final next = await MilestoneService().getNextMilestone();
-      if (!mounted) return;
-      await showFlickDialog<void>(
-        context: context,
-        barrierDismissible: true,
-        barrierLabel: l10n.milestone,
-        builder: (context) => MilestoneCard(
-          milestone: milestone,
-          nextMilestone: next.next,
-          nextRemaining: next.next == null ? null : next.remaining,
-          supportLabel: l10n.supportFlick,
-          dismissLabel: l10n.dismiss,
-          onSupportTap: () => NavigationHelper.pushOnRoot<void>(
-            context,
-            MaterialPageRoute(builder: (_) => const SupportFlickScreen()),
-          ),
-        ),
-      );
-    });
-  }
-
-  void _onStreak() {
-    final streak = _player.streakPopupNotifier.value;
-    if (!mounted || streak == null || streak < 1) return;
-    _player.streakPopupNotifier.value = null;
-    _run('Listening streak', () async {
-      await showFlickDialog<void>(
-        context: context,
-        barrierDismissible: true,
-        barrierLabel: l10n.dayStreak2,
-        builder: (_) => StreakPopup(
-          streak: streak,
-          onSnooze: () => MilestoneService().snoozeStreakPopup(),
-        ),
-      );
     });
   }
 
@@ -268,8 +216,6 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _player.playbackDesyncedNotifier.removeListener(_onPlaybackDesync);
-    _player.pendingMilestoneNotifier.removeListener(_onMilestone);
-    _player.streakPopupNotifier.removeListener(_onStreak);
     _widgetSync.close();
     _run('Widget intent detach', _widgetIntents.detach);
     super.dispose();

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -8,7 +9,9 @@ class LineSeekBar extends StatefulWidget {
   final Duration duration;
   final ValueChanged<Duration> onChanged;
   final ValueChanged<Duration>? onChangeEnd;
+  final VoidCallback? onCancel;
   final double appearProgress;
+  final bool targetStyle;
 
   const LineSeekBar({
     super.key,
@@ -16,7 +19,9 @@ class LineSeekBar extends StatefulWidget {
     required this.duration,
     required this.onChanged,
     this.onChangeEnd,
+    this.onCancel,
     this.appearProgress = 1.0,
+    this.targetStyle = false,
   });
 
   @override
@@ -25,8 +30,7 @@ class LineSeekBar extends StatefulWidget {
 
 class _LineSeekBarState extends State<LineSeekBar>
     with SingleTickerProviderStateMixin {
-  static const double _baseHeight = 40;
-  static const double _expandedHeight = 72;
+  static const double _baseHeight = 24;
   static const double _fineScrubZoom = 2.6;
 
   bool _isDragging = false;
@@ -46,10 +50,7 @@ class _LineSeekBarState extends State<LineSeekBar>
       duration: const Duration(milliseconds: 1400),
     );
     _pulseAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOutSine,
-      ),
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOutSine),
     );
   }
 
@@ -126,11 +127,11 @@ class _LineSeekBarState extends State<LineSeekBar>
     final anchorProgress = widget.duration.inMilliseconds == 0
         ? 0.0
         : _fineScrubAnchorPosition.inMilliseconds /
-            widget.duration.inMilliseconds;
+              widget.duration.inMilliseconds;
     final deltaProgress =
         (details.localPosition.dx - _fineScrubAnchorDx) /
-            width /
-            _fineScrubZoom;
+        width /
+        _fineScrubZoom;
     final progress = (anchorProgress + deltaProgress).clamp(0.0, 1.0);
     final nextPosition = Duration(
       milliseconds: (progress * widget.duration.inMilliseconds).round(),
@@ -152,27 +153,79 @@ class _LineSeekBarState extends State<LineSeekBar>
     if (mounted) setState(() {});
   }
 
+  void _cancelScrub() {
+    _pulseController.stop();
+    _pulseController.reset();
+    _isDragging = false;
+    _isFineScrubbing = false;
+    _interactivePosition = null;
+    widget.onCancel?.call();
+    if (mounted) setState(() {});
+  }
+
   double _timeIndicatorLeft(double maxWidth, double progress) {
+    const popupWidth = 132.0;
     final effectiveWidth = maxWidth - 4;
-    final rawLeft = 2 + effectiveWidth * progress;
-    return (rawLeft - 25).clamp(0.0, maxWidth - 50);
+    final thumbX = 2 + effectiveWidth * progress;
+    return (thumbX - popupWidth / 2).clamp(0.0, maxWidth - popupWidth);
   }
 
   Widget _buildTimeIndicator(bool isFine) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: isFine ? 1.0 : 0.88),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        _formatDuration(_displayPosition),
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-          fontFamily: 'GoogleSansFlex',
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+            width: 78,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: isFine ? 1.0 : 0.96),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Text(
+              _formatDuration(_displayPosition),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+                fontFamily: 'GoogleSansFlex',
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: _cancelScrub,
+            borderRadius: BorderRadius.circular(23),
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: isFine ? 1.0 : 0.96),
+                shape: BoxShape.circle,
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.close, color: Colors.black, size: 25),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -186,13 +239,13 @@ class _LineSeekBarState extends State<LineSeekBar>
   double get _effectiveLineHeight {
     if (_isFineScrubbing) return 10;
     if (_isDragging) return 5;
-    return 3;
+    return widget.targetStyle ? 2.5 : 3;
   }
 
   double get _effectiveDotRadius {
     if (_isFineScrubbing) return 7;
     if (_isDragging) return 5;
-    return 3.5;
+    return widget.targetStyle ? 0 : 3.5;
   }
 
   @override
@@ -222,7 +275,7 @@ class _LineSeekBarState extends State<LineSeekBar>
               child: AnimatedContainer(
                 duration: AppConstants.animationFast,
                 curve: Curves.easeOutCubic,
-                height: _isFineScrubbing ? _expandedHeight : _baseHeight,
+                height: _baseHeight,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
@@ -230,9 +283,7 @@ class _LineSeekBarState extends State<LineSeekBar>
                       ? AppColors.glassBackgroundStrong
                       : Colors.transparent,
                 ),
-                padding: _isFineScrubbing
-                    ? EdgeInsets.symmetric(vertical: (_expandedHeight - 10) / 2)
-                    : const EdgeInsets.only(top: 26, bottom: 10),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 child: RepaintBoundary(
                   child: AnimatedBuilder(
                     animation: _pulseAnimation,
@@ -242,11 +293,16 @@ class _LineSeekBarState extends State<LineSeekBar>
                           progress: progress,
                           lineHeight: _effectiveLineHeight,
                           dotRadius: _effectiveDotRadius,
-                          glowIntensity:
-                              _isFineScrubbing ? _pulseAnimation.value : 0.0,
-                          trackColor:
-                              AppColors.textTertiary.withValues(alpha: 0.2),
-                          activeColor: AppColors.accent,
+                          targetStyle: widget.targetStyle,
+                          glowIntensity: _isFineScrubbing
+                              ? _pulseAnimation.value
+                              : 0.0,
+                          trackColor: widget.targetStyle
+                              ? Colors.white.withValues(alpha: 0.28)
+                              : AppColors.textTertiary.withValues(alpha: 0.2),
+                          activeColor: widget.targetStyle
+                              ? Colors.white.withValues(alpha: 0.82)
+                              : AppColors.accent,
                           appearProgress: widget.appearProgress,
                         ),
                       );
@@ -255,12 +311,40 @@ class _LineSeekBarState extends State<LineSeekBar>
                 ),
               ),
             ),
-            if (isScrubbing)
-              Positioned(
-                top: -2,
-                left: _timeIndicatorLeft(constraints.maxWidth, progress),
-                child: _buildTimeIndicator(_isFineScrubbing),
+            Positioned(
+              top: -86,
+              left: _timeIndicatorLeft(constraints.maxWidth, progress),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                reverseDuration: const Duration(milliseconds: 140),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: Tween<double>(begin: 0.86, end: 1.0).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutBack,
+                        ),
+                      ),
+                      child: child,
+                    ),
+                  );
+                },
+                child: isScrubbing
+                    ? KeyedSubtree(
+                        key: ValueKey(_displayPosition.inSeconds),
+                        child: _buildTimeIndicator(_isFineScrubbing),
+                      )
+                    : const SizedBox(
+                        key: ValueKey('seek-time-hidden'),
+                        width: 1,
+                        height: 1,
+                      ),
               ),
+            ),
           ],
         );
       },
@@ -276,6 +360,7 @@ class _LineSeekBarPainter extends CustomPainter {
   final Color trackColor;
   final Color activeColor;
   final double appearProgress;
+  final bool targetStyle;
 
   _LineSeekBarPainter({
     required this.progress,
@@ -285,6 +370,7 @@ class _LineSeekBarPainter extends CustomPainter {
     required this.trackColor,
     required this.activeColor,
     required this.appearProgress,
+    required this.targetStyle,
   });
 
   @override
@@ -317,6 +403,22 @@ class _LineSeekBarPainter extends CustomPainter {
     }
 
     final dotX = playedWidth.clamp(0.0, trackWidth);
+
+    if (targetStyle) {
+      final thumbHeight = math.min(size.height * 0.58, 14.0);
+      final thumbWidth = 4.0;
+      final thumbRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(dotX, centerY),
+          width: thumbWidth,
+          height: thumbHeight,
+        ),
+        const Radius.circular(3),
+      );
+      paint.color = activeColor;
+      canvas.drawRRect(thumbRect, paint);
+      return;
+    }
 
     if (glowIntensity > 0) {
       final glowPaint = Paint()..style = PaintingStyle.fill;
@@ -352,6 +454,7 @@ class _LineSeekBarPainter extends CustomPainter {
         oldDelegate.dotRadius != dotRadius ||
         oldDelegate.glowIntensity != glowIntensity ||
         oldDelegate.activeColor != activeColor ||
-        oldDelegate.appearProgress != appearProgress;
+        oldDelegate.appearProgress != appearProgress ||
+        oldDelegate.targetStyle != targetStyle;
   }
 }

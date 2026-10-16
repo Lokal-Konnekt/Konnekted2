@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -358,6 +359,7 @@ class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
         : AnimatedAlbumArt(
             imagePath: widget.song.albumArt,
             audioSourcePath: widget.song.filePath,
+            animate: motionEnabled && widget.motionArtEnabled,
             placeholder: placeholder,
             errorWidget: placeholder,
           );

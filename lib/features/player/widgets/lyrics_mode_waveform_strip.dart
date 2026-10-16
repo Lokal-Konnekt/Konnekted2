@@ -1,10 +1,12 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/features/player/widgets/waveform_layer.dart';
 import 'package:flick/features/player/widgets/player_controls.dart';
+import 'package:flick/models/progress_bar_style.dart';
 
 class _PlaybackTimeRow extends StatelessWidget {
   final PlayerService playerService;
@@ -53,8 +55,12 @@ class LyricsModeWaveformStrip extends StatefulWidget {
   final VoidCallback onSwipeUp;
   final bool showTimeLabels;
   final bool showArrow;
+  final ProgressBarStyle? styleOverride;
+  final bool targetStyle;
+  final double? timeLabelsPadding;
 
-  const LyricsModeWaveformStrip({super.key,
+  const LyricsModeWaveformStrip({
+    super.key,
     required this.playerService,
     required this.positionNotifier,
     required this.currentSong,
@@ -63,6 +69,9 @@ class LyricsModeWaveformStrip extends StatefulWidget {
     required this.onSwipeUp,
     this.showTimeLabels = true,
     this.showArrow = true,
+    this.styleOverride,
+    this.targetStyle = false,
+    this.timeLabelsPadding,
   });
 
   @override
@@ -140,8 +149,7 @@ class _LyricsModeWaveformStripState extends State<LyricsModeWaveformStrip>
                       builder: (context, child) {
                         final t = _arrowAnimController.value;
                         final bounce = -4.0 * math.sin(t * math.pi);
-                        final opacity =
-                            0.72 + 0.28 * math.sin(t * math.pi);
+                        final opacity = 0.72 + 0.28 * math.sin(t * math.pi);
                         return Transform.translate(
                           offset: Offset(0, bounce),
                           child: Opacity(opacity: opacity, child: child!),
@@ -169,6 +177,8 @@ class _LyricsModeWaveformStripState extends State<LyricsModeWaveformStrip>
               playerService: widget.playerService,
               positionNotifier: widget.positionNotifier,
               currentSong: widget.currentSong,
+              styleOverride: widget.styleOverride,
+              targetStyle: widget.targetStyle,
             ),
           ),
           if (widget.showTimeLabels) ...[
@@ -177,7 +187,8 @@ class _LyricsModeWaveformStripState extends State<LyricsModeWaveformStrip>
               playerService: widget.playerService,
               formatDuration: widget.formatDuration,
               currentSong: widget.currentSong,
-              horizontalPadding: widget.horizontalPadding,
+              horizontalPadding:
+                  widget.timeLabelsPadding ?? widget.horizontalPadding,
             ),
           ],
           AnimatedSize(
@@ -192,4 +203,3 @@ class _LyricsModeWaveformStripState extends State<LyricsModeWaveformStrip>
     );
   }
 }
-

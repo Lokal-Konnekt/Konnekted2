@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/services/player_service.dart';
@@ -10,8 +12,10 @@ import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/features/player/widgets/album_color_helpers.dart';
 import 'package:flick/features/player/widgets/shuffle_mode_sheet.dart';
 import 'package:flick/features/player/widgets/loop_mode_sheet.dart';
+import 'package:flick/services/favorites_service.dart';
 
 import 'package:flick/l10n/l10n.dart';
+
 class PlayerControls extends StatelessWidget {
   final PlayerService playerService;
   final String Function(Duration) formatDuration;
@@ -22,8 +26,11 @@ class PlayerControls extends StatelessWidget {
   final AlbumColorMode albumColorMode;
   final Color? albumColor;
   final bool showTimeLabels;
+  final bool targetLayout;
+  final FavoritesService? favoritesService;
 
-  const PlayerControls({super.key,
+  const PlayerControls({
+    super.key,
     required this.playerService,
     required this.formatDuration,
     required this.currentSong,
@@ -33,6 +40,8 @@ class PlayerControls extends StatelessWidget {
     this.albumColorMode = AlbumColorMode.off,
     this.albumColor,
     this.showTimeLabels = true,
+    this.targetLayout = false,
+    this.favoritesService,
   });
 
   @override
@@ -47,6 +56,18 @@ class PlayerControls extends StatelessWidget {
     final activeAccent = hasAlbumTint
         ? albumAccent(albumColor!, accentBlend)
         : AppColors.accent;
+
+    if (targetLayout) {
+      return _TargetPlayerControls(
+        playerService: playerService,
+        currentSong: currentSong,
+        onPrevious: onPrevious,
+        onNext: onNext,
+        albumColor: albumColor,
+        albumColorMode: albumColorMode,
+        favoritesService: favoritesService,
+      );
+    }
 
     return RepaintBoundary(
       child: ValueListenableBuilder<Duration>(
@@ -78,8 +99,7 @@ class PlayerControls extends StatelessWidget {
                                   position: position,
                                   duration: duration,
                                   formatDuration: formatDuration,
-                                  horizontalPadding:
-                                      timelineHorizontalPadding,
+                                  horizontalPadding: timelineHorizontalPadding,
                                 ),
                                 const SizedBox(height: 12),
                               ],
@@ -270,13 +290,325 @@ class PlayerControls extends StatelessWidget {
   }
 }
 
+class _TargetPlayerControls extends StatefulWidget {
+  const _TargetPlayerControls({
+    required this.playerService,
+    required this.currentSong,
+    required this.onPrevious,
+    required this.onNext,
+    required this.albumColor,
+    required this.albumColorMode,
+    required this.favoritesService,
+  });
+
+  final PlayerService playerService;
+  final Song? currentSong;
+  final Future<void> Function() onPrevious;
+  final Future<void> Function() onNext;
+  final Color? albumColor;
+  final AlbumColorMode albumColorMode;
+  final FavoritesService? favoritesService;
+
+  @override
+  State<_TargetPlayerControls> createState() => _TargetPlayerControlsState();
+}
+
+class _TargetPlayerControlsState extends State<_TargetPlayerControls> {
+  double _volume = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _volume = widget.playerService.currentVolume;
+  }
+
+  Color get _accent {
+    final color = widget.albumColor;
+    return color == null
+        ? AppColors.accent
+        : albumAccent(color, widget.albumColorMode.accentBlend);
+  }
+
+  Color get _surface {
+    return Colors.white.withValues(alpha: .08);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: context.responsive(100, 110, 120),
+              child: _mainButton(
+                context,
+                icon: LucideIcons.skipBack,
+                label: 'Previous',
+                onTap: () => unawaited(widget.onPrevious()),
+              ),
+            ),
+            SizedBox(width: context.responsive(6, 8, 10)),
+            SizedBox(
+              width: context.responsive(124, 136, 148),
+              child: ValueListenableBuilder<bool>(
+                valueListenable: widget.playerService.isPlayingNotifier,
+                builder: (context, isPlaying, _) => _mainButton(
+                  context,
+                  icon: isPlaying ? LucideIcons.pause : LucideIcons.play,
+                  label: isPlaying ? 'Pause' : 'Play',
+                  primary: true,
+                  onTap: () {
+                    AppHaptics.tap();
+                    widget.playerService.togglePlayPause();
+                  },
+                ),
+              ),
+            ),
+            SizedBox(width: context.responsive(6, 8, 10)),
+            SizedBox(
+              width: context.responsive(100, 110, 120),
+              child: _mainButton(
+                context,
+                icon: LucideIcons.skipForward,
+                label: 'Next',
+                onTap: () => unawaited(widget.onNext()),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: context.responsive(10, 12, 14)),
+        _secondaryRow(context),
+      ],
+    );
+  }
+
+  Widget _mainButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool primary = false,
+  }) {
+    final background = primary ? Colors.white.withValues(alpha: .88) : _surface;
+    final foreground = primary
+        ? Colors.black
+        : Colors.white.withValues(alpha: .9);
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: primary ? background.withValues(alpha: .9) : background,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: SizedBox(
+            height: context.responsive(86, 96, 104),
+            child: Icon(
+              icon,
+              size: primary
+                  ? context.responsive(29, 34, 38)
+                  : context.responsive(24, 28, 32),
+              color: foreground,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _secondaryRow(BuildContext context) {
+    final maxVolume = widget.playerService.maxVolume;
+    final available = widget.playerService.isVolumeAvailable;
+    final volume = _volume.clamp(0.0, maxVolume).toDouble();
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.responsive(8, 10, 12),
+        vertical: context.responsive(6, 8, 10),
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .045),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: .13)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            volume <= 0.001 ? LucideIcons.volumeX : LucideIcons.volume2,
+            size: context.responsive(17, 19, 21),
+            color: Colors.white.withValues(alpha: .88),
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                thumbShape: const _TargetVolumeThumbShape(),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                activeTrackColor: Colors.white.withValues(alpha: .78),
+                inactiveTrackColor: Colors.white.withValues(alpha: .22),
+                thumbColor: Colors.white,
+              ),
+              child: Slider(
+                min: 0,
+                max: maxVolume <= 0 ? 1 : maxVolume,
+                value: volume,
+                onChanged: available
+                    ? (value) => setState(() => _volume = value)
+                    : null,
+                onChangeEnd: available
+                    ? (value) =>
+                          unawaited(widget.playerService.setVolume(value))
+                    : null,
+              ),
+            ),
+          ),
+          SizedBox(width: context.responsive(6, 8, 10)),
+          Container(
+            width: 1,
+            height: context.responsive(28, 32, 36),
+            color: Colors.white.withValues(alpha: .14),
+          ),
+          SizedBox(width: context.responsive(6, 8, 10)),
+          ValueListenableBuilder<ShuffleMode>(
+            valueListenable: widget.playerService.shuffleModeNotifier,
+            builder: (context, shuffleMode, _) => _smallButton(
+              context,
+              icon: LucideIcons.shuffle,
+              active: shuffleMode.isActive,
+              onTap: () => widget.playerService.toggleShuffle(),
+              label: 'Shuffle',
+            ),
+          ),
+          SizedBox(width: context.responsive(6, 8, 10)),
+          ValueListenableBuilder<LoopMode>(
+            valueListenable: widget.playerService.loopModeNotifier,
+            builder: (context, loopMode, _) => _smallButton(
+              context,
+              icon: LoopModeSheet.iconFor(loopMode),
+              active: loopMode != LoopMode.off,
+              onTap: () => widget.playerService.toggleLoopMode(),
+              label: 'Repeat',
+            ),
+          ),
+          SizedBox(width: context.responsive(6, 8, 10)),
+          _favoriteButton(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _smallButton(
+    BuildContext context, {
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+    required String label,
+  }) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: IconButton(
+        onPressed: () {
+          AppHaptics.tap();
+          onTap();
+        },
+        tooltip: label,
+        style: IconButton.styleFrom(
+          backgroundColor: active
+              ? _accent.withValues(alpha: .24)
+              : Colors.white.withValues(alpha: .05),
+          side: BorderSide(
+            color: active
+                ? _accent.withValues(alpha: .62)
+                : Colors.white.withValues(alpha: .14),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+        icon: Icon(
+          icon,
+          size: context.responsive(17, 19, 21),
+          color: active ? _accent : Colors.white.withValues(alpha: .86),
+        ),
+      ),
+    );
+  }
+
+  Widget _favoriteButton(BuildContext context) {
+    final service = widget.favoritesService;
+    if (service == null || widget.currentSong == null) {
+      return _smallButton(
+        context,
+        icon: LucideIcons.heart,
+        active: false,
+        onTap: () {},
+        label: 'Favorite',
+      );
+    }
+    return FutureBuilder<bool>(
+      future: service.isFavorite(widget.currentSong!.id),
+      builder: (context, snapshot) {
+        final favorite = snapshot.data ?? false;
+        return _smallButton(
+          context,
+          icon: favorite ? LucideIcons.heart : LucideIcons.heart,
+          active: favorite,
+          onTap: () async {
+            await service.toggleFavorite(widget.currentSong!.id);
+            if (mounted) setState(() {});
+            widget.playerService.refreshNotificationState();
+          },
+          label: 'Favorite',
+        );
+      },
+    );
+  }
+}
+
+class _TargetVolumeThumbShape extends SliderComponentShape {
+  const _TargetVolumeThumbShape();
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size(5, 20);
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter? labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final paint = Paint()..color = sliderTheme.thumbColor ?? Colors.white;
+    context.canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: center, width: 5, height: 20),
+        const Radius.circular(3),
+      ),
+      paint,
+    );
+  }
+}
+
 class PlaybackTimeLabels extends StatelessWidget {
   final Duration position;
   final Duration duration;
   final String Function(Duration) formatDuration;
   final double horizontalPadding;
 
-  const PlaybackTimeLabels({super.key,
+  const PlaybackTimeLabels({
+    super.key,
     required this.position,
     required this.duration,
     required this.formatDuration,
@@ -378,4 +710,3 @@ class _PlayPauseButton extends StatelessWidget {
     );
   }
 }
-

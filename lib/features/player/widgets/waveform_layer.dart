@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/services/player_service.dart';
@@ -13,11 +14,16 @@ class WaveformLayer extends StatefulWidget {
   final PlayerService playerService;
   final ValueNotifier<Duration> positionNotifier;
   final Song? currentSong;
+  final ProgressBarStyle? styleOverride;
+  final bool targetStyle;
 
-  const WaveformLayer({super.key,
+  const WaveformLayer({
+    super.key,
     required this.playerService,
     required this.positionNotifier,
     required this.currentSong,
+    this.styleOverride,
+    this.targetStyle = false,
   });
 
   @override
@@ -63,16 +69,14 @@ class _WaveformLayerState extends State<WaveformLayer>
     if (song == null || song.isExternal) return;
     final songId = int.tryParse(song.id);
     if (songId == null) return;
-    SongRepository()
-        .getAudioCache(songId)
-        .then((cache) {
-          if (cache != null &&
-              cache.peaks.isNotEmpty &&
-              mounted &&
-              widget.currentSong?.id == song.id) {
-            setState(() => _cachedPeaks = cache.peaks);
-          }
-        });
+    SongRepository().getAudioCache(songId).then((cache) {
+      if (cache != null &&
+          cache.peaks.isNotEmpty &&
+          mounted &&
+          widget.currentSong?.id == song.id) {
+        setState(() => _cachedPeaks = cache.peaks);
+      }
+    });
   }
 
   @override
@@ -85,7 +89,8 @@ class _WaveformLayerState extends State<WaveformLayer>
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, _) {
-        final style = ref.watch(progressBarStyleProvider);
+        final ProgressBarStyle style =
+            widget.styleOverride ?? ref.watch(progressBarStyleProvider);
         return AnimatedBuilder(
           animation: _appearAnimation,
           builder: (context, _) {
@@ -113,6 +118,7 @@ class _WaveformLayerState extends State<WaveformLayer>
                           widget.positionNotifier.value = newPos;
                           unawaited(widget.playerService.seek(newPos));
                         },
+                        targetStyle: widget.targetStyle,
                       ),
                       ProgressBarStyle.waveform => WaveformSeekBar(
                         barCount: 60,

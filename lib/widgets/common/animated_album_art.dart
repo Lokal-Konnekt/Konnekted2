@@ -26,6 +26,7 @@ class AnimatedAlbumArt extends StatefulWidget {
 
   /// When false, keeps the Ken Burns effect even if album metadata is present.
   final bool motionEnabled;
+  final bool animate;
 
   const AnimatedAlbumArt({
     super.key,
@@ -39,6 +40,7 @@ class AnimatedAlbumArt extends StatefulWidget {
     this.representativeSongTitle,
     this.preferVertical = false,
     this.motionEnabled = true,
+    this.animate = true,
   });
 
   @override
@@ -74,12 +76,29 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
 
   @override
   Widget build(BuildContext context) {
-    final image = CachedImageWidget(
-      imagePath: widget.imagePath,
-      audioSourcePath: widget.audioSourcePath,
-      fit: BoxFit.cover,
-      placeholder: widget.placeholder,
-      errorWidget: widget.errorWidget,
+    final image = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 520),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            ...previousChildren,
+            ...?currentChild == null ? null : [currentChild],
+          ],
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey('${widget.imagePath}|${widget.audioSourcePath}'),
+        child: CachedImageWidget(
+          imagePath: widget.imagePath,
+          audioSourcePath: widget.audioSourcePath,
+          fit: BoxFit.cover,
+          placeholder: widget.placeholder,
+          errorWidget: widget.errorWidget,
+        ),
+      ),
     );
     final kenBurns = ClipRect(
       child: AnimatedBuilder(
@@ -90,10 +109,7 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
           return Stack(
             fit: StackFit.expand,
             children: [
-              Transform.scale(
-                scale: 1.0 + 0.12 * t,
-                child: child,
-              ),
+              Transform.scale(scale: 1.0 + 0.12 * t, child: child),
               if (glow != null)
                 IgnorePointer(
                   child: DecoratedBox(
@@ -115,6 +131,8 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
         child: image,
       ),
     );
+
+    if (!widget.animate) return image;
 
     final album = widget.albumName?.trim() ?? '';
     final artist = widget.artistName?.trim() ?? '';

@@ -153,7 +153,7 @@ class _Uac2FallbackManagerState extends ConsumerState<Uac2FallbackManager> {
                 : context.adaptiveTextSecondary,
           ),
           if (_fallbackInfo!.fallbackName != null) ...[
-            const Divider(height: 1, color: AppColors.glassBorder),
+            Divider(height: 1, color: AppColors.glassBorder),
             _buildInfoRow(
               context,
               l10n.output,

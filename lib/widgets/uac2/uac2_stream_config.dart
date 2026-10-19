@@ -146,7 +146,7 @@ class _Uac2StreamConfigState extends ConsumerState<Uac2StreamConfig> {
                     },
             ),
           ),
-          const Divider(height: 1, color: AppColors.glassBorder),
+          Divider(height: 1, color: AppColors.glassBorder),
           _buildConfigRow(
             context,
             l10n.bitDepth2,
@@ -170,7 +170,7 @@ class _Uac2StreamConfigState extends ConsumerState<Uac2StreamConfig> {
                     },
             ),
           ),
-          const Divider(height: 1, color: AppColors.glassBorder),
+          Divider(height: 1, color: AppColors.glassBorder),
           _buildConfigRow(
             context,
             l10n.channels,

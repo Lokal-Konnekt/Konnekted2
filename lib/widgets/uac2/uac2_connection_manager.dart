@@ -155,7 +155,7 @@ class _Uac2ConnectionManagerState extends ConsumerState<Uac2ConnectionManager> {
               LucideIcons.activity,
               valueColor: _getStateColor(_connectionState!.state),
             ),
-            const Divider(height: 1, color: AppColors.glassBorder),
+            Divider(height: 1, color: AppColors.glassBorder),
             _buildInfoRow(
               context,
               l10n.reconnectAttempts,
@@ -165,7 +165,7 @@ class _Uac2ConnectionManagerState extends ConsumerState<Uac2ConnectionManager> {
                   ? Colors.orange.shade400
                   : context.adaptiveTextPrimary,
             ),
-            const Divider(height: 1, color: AppColors.glassBorder),
+            Divider(height: 1, color: AppColors.glassBorder),
           ],
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -206,7 +206,7 @@ class _Uac2ConnectionManagerState extends ConsumerState<Uac2ConnectionManager> {
                 label: Text(l10n.reconnectNow),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.black,
+                  foregroundColor: AppColors.onAccent,
                   padding: const EdgeInsets.symmetric(
                     vertical: AppConstants.spacingMd,
                   ),

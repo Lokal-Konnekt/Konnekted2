@@ -34,7 +34,7 @@ class PitchBottomSheet extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.music, color: AppColors.accent, size: 24),
+              Icon(LucideIcons.music, color: AppColors.accent, size: 24),
               const SizedBox(width: 12),
               Text(
                 l10n.pitch,

@@ -273,7 +273,7 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
                             Container(
                               width: 36,
                               height: 36,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 color: AppColors.surfaceDark,
                                 borderRadius: BorderRadius.only(
                                   topLeft: Radius.circular(18),

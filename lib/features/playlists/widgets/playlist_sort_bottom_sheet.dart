@@ -271,11 +271,7 @@ class PlaylistSortBottomSheet extends StatelessWidget {
                 ),
               ),
               if (isSelected)
-                const Icon(
-                  Icons.check_rounded,
-                  size: 20,
-                  color: AppColors.accent,
-                ),
+                Icon(Icons.check_rounded, size: 20, color: AppColors.accent),
             ],
           ),
         ),

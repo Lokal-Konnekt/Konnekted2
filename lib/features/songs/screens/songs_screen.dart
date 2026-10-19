@@ -1449,7 +1449,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen>
                             _createPlaylistWithSelected();
                           },
                         ),
-                        const Divider(
+                        Divider(
                           height: 1,
                           color: AppColors.glassBorderStrong,
                         ),
@@ -2312,11 +2312,11 @@ class _SongListTile extends StatelessWidget {
                     useThumbnail: true,
                     thumbnailWidth: 92,
                     thumbnailHeight: 92,
-                    placeholder: const ColoredBox(
+                    placeholder: ColoredBox(
                       color: AppColors.surface,
                       child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
-                    errorWidget: const ColoredBox(
+                    errorWidget: ColoredBox(
                       color: AppColors.surface,
                       child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
@@ -2841,7 +2841,7 @@ class _AlbumListTile extends StatelessWidget {
                     useThumbnail: true,
                     thumbnailWidth: 104,
                     thumbnailHeight: stretchArtwork ? 104 : null,
-                    placeholder: const ColoredBox(
+                    placeholder: ColoredBox(
                       color: AppColors.surface,
                       child: Icon(
                         LucideIcons.disc,
@@ -2849,7 +2849,7 @@ class _AlbumListTile extends StatelessWidget {
                         size: 20,
                       ),
                     ),
-                    errorWidget: const ColoredBox(
+                    errorWidget: ColoredBox(
                       color: AppColors.surface,
                       child: Icon(
                         LucideIcons.disc,
@@ -2984,7 +2984,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
               (option) => _buildAlbumSortTile(context, option),
             ),
             const SizedBox(height: AppConstants.spacingMd),
-            const Divider(color: AppColors.glassBorder, height: 1),
+            Divider(color: AppColors.glassBorder, height: 1),
             const SizedBox(height: AppConstants.spacingMd),
             Text(
               l10n.filterByFormat,
@@ -3042,7 +3042,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
               }).toList(),
             ),
             const SizedBox(height: AppConstants.spacingLg),
-            const Divider(color: AppColors.glassBorder, height: 1),
+            Divider(color: AppColors.glassBorder, height: 1),
             const SizedBox(height: AppConstants.spacingMd),
             Row(
               children: [
@@ -3091,7 +3091,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
             ),
             SliderTheme(
               data: SliderThemeData(
-                activeTrackColor: AppColors.textPrimary.withValues(alpha: 0.9),
+                activeTrackColor: AppColors.accent,
                 inactiveTrackColor: AppColors.glassBackgroundStrong,
                 thumbColor: AppColors.textPrimary,
                 overlayColor: AppColors.textPrimary.withValues(alpha: 0.15),
@@ -3164,7 +3164,7 @@ class _AlbumFilterSheetState extends State<_AlbumFilterSheet> {
                 ),
               ),
               if (isSelected)
-                const Icon(
+                Icon(
                   Icons.check_rounded,
                   size: 20,
                   color: AppColors.accent,

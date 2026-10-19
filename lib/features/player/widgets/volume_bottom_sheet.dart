@@ -60,7 +60,7 @@ class VolumeBottomSheet extends StatelessWidget {
                   const Spacer(),
                   Text(
                     '${(currentVolume * 100).round()}%',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

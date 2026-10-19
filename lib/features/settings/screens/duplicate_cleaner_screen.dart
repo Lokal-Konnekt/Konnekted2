@@ -127,7 +127,7 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
                 borderRadius: BorderRadius.circular(AppConstants.radiusLg),
                 border: Border.all(color: AppColors.glassBorder),
               ),
-              child: const Center(
+              child: Center(
                 child: SizedBox(
                   width: 28,
                   height: 28,
@@ -311,7 +311,7 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
           ),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 LucideIcons.mousePointerClick,
                 size: 14,
                 color: AppColors.textSecondary,
@@ -531,7 +531,7 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                   borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                   border: Border.all(color: AppColors.glassBorderStrong),
                 ),
-                child: const Icon(
+                child: Icon(
                   LucideIcons.copy,
                   size: 20,
                   color: AppColors.textPrimary,
@@ -657,7 +657,7 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                           const SizedBox(height: AppConstants.spacingSm),
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 LucideIcons.info,
                                 size: 13,
                                 color: AppColors.textSecondary,
@@ -722,7 +722,7 @@ class _SummaryStat extends StatelessWidget {
         ),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'GoogleSansFlex',
             fontSize: 11,
             fontWeight: FontWeight.w600,
@@ -900,7 +900,7 @@ class _BottomActionBar extends ConsumerWidget {
               Expanded(
                 child: Text(
                   l10n.removedDuplicatesKept(result.removedCount, result.keptCount),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -1394,7 +1394,10 @@ class _SongSelectRow extends StatelessWidget {
             padding: const EdgeInsets.all(AppConstants.spacingSm),
             decoration: BoxDecoration(
               color: selected
-                  ? const Color(0xFF1D2E1F).withValues(alpha: 0.98)
+                  ? Color.alphaBlend(
+                      AppColors.success.withValues(alpha: .18),
+                      AppColors.surfaceLight,
+                    )
                   : AppColors.surfaceLight.withValues(alpha: 0.96),
               borderRadius: BorderRadius.circular(AppConstants.radiusMd),
               border: Border.all(
@@ -1544,7 +1547,7 @@ class _SongSelectRow extends StatelessWidget {
                         file,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'GoogleSansFlex',
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,

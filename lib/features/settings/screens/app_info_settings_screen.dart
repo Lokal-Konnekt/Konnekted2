@@ -288,7 +288,7 @@ class _AppInfoSettingsScreenState extends ConsumerState<AppInfoSettingsScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const SizedBox(height: AppConstants.spacingMd),
-                  const CircularProgressIndicator(color: AppColors.textPrimary),
+                  CircularProgressIndicator(color: AppColors.textPrimary),
                   const SizedBox(height: AppConstants.spacingMd),
                   Text(
                     l10n.loadingPatchNotes,

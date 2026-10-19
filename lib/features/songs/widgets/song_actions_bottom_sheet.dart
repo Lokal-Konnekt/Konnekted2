@@ -237,11 +237,11 @@ class SongActionsBottomSheet extends ConsumerWidget {
               useThumbnail: true,
               thumbnailWidth: 136,
               thumbnailHeight: 136,
-              placeholder: const ColoredBox(
+              placeholder: ColoredBox(
                 color: AppColors.surfaceLight,
                 child: FlickArtworkPlaceholder(size: 28, opacity: 0.9),
               ),
-              errorWidget: const ColoredBox(
+              errorWidget: ColoredBox(
                 color: AppColors.surfaceLight,
                 child: FlickArtworkPlaceholder(size: 28, opacity: 0.9),
               ),

@@ -401,7 +401,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_searchingOnline)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(bottom: AppConstants.spacingXs),
               child: LinearProgressIndicator(
                 minHeight: 2,
@@ -423,7 +423,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
                   backgroundColor: AppColors.accent,
                   disabledBackgroundColor:
                       AppColors.surfaceLight.withValues(alpha: 0.6),
-                  foregroundColor: AppColors.background,
+                  foregroundColor: AppColors.onAccent,
                   disabledForegroundColor: AppColors.textTertiary,
                   shape: RoundedRectangleBorder(
                     borderRadius:

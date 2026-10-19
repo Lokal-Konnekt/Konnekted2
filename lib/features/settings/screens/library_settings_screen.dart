@@ -742,7 +742,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -752,7 +752,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: 12,
                       color: AppColors.textTertiary,
@@ -941,7 +941,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 const SizedBox(height: AppConstants.spacingXl),
                 Text(
                   progress?.currentFolder ?? folderName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -965,7 +965,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   child: LinearProgressIndicator(
                     value: totalFiles > 0 ? displayFraction : null,
                     backgroundColor: AppColors.glassBackground,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                    valueColor: AlwaysStoppedAnimation(AppColors.accent),
                     minHeight: 6,
                   ),
                 ),
@@ -980,7 +980,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       : (progress?.filesProcessed ?? 0) > 0
                       ? l10n.filesChecked(progress!.filesProcessed)
                       : l10n.countingFiles,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
                     fontSize: 12,
                     color: AppColors.textTertiary,
@@ -991,7 +991,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   const SizedBox(height: AppConstants.spacingMd),
                   Text(
                     l10n.folderOf(progress.foldersCompleted ?? 0, progress.foldersTotal ?? progress.folders!.length),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: 13,
                       color: AppColors.textSecondary,
@@ -1124,7 +1124,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
               folder.displayName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'GoogleSansFlex',
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -1139,7 +1139,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
               child: LinearProgressIndicator(
                 value: folder.totalFiles > 0 ? folder.progressFraction : null,
                 backgroundColor: AppColors.glassBackground,
-                valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                valueColor: AlwaysStoppedAnimation(AppColors.accent),
                 minHeight: 4,
               ),
             ),
@@ -1150,7 +1150,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             child: Text(
               status,
               textAlign: TextAlign.right,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'GoogleSansFlex',
                 fontSize: 11,
                 color: AppColors.textTertiary,
@@ -1175,13 +1175,13 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             height: 12,
             child: CircularProgressIndicator(
               strokeWidth: 1.5,
-              valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+              valueColor: AlwaysStoppedAnimation(AppColors.accent),
             ),
           ),
           const SizedBox(width: 6),
           Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'GoogleSansFlex',
               fontSize: 13,
               color: AppColors.accent,
@@ -1203,7 +1203,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
               child: Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.accent,
                   shape: BoxShape.circle,
                 ),
@@ -1212,7 +1212,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             const SizedBox(width: 6),
             Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'GoogleSansFlex',
                 fontSize: 13,
                 color: AppColors.accent,
@@ -1231,7 +1231,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               LucideIcons.usb,
               size: 64,
               color: AppColors.textTertiary,
@@ -1250,7 +1250,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
             Text(
               l10n.isOfflineRetainedSongsStillListed(progress.currentFolder ?? folderName),
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'GoogleSansFlex',
                 fontSize: 13,
                 color: AppColors.textTertiary,
@@ -1263,7 +1263,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                 onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.black,
+                  foregroundColor: AppColors.onAccent,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppConstants.radiusMd),
@@ -1302,7 +1302,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const SizedBox(height: AppConstants.spacingMd),
-          const Icon(
+          Icon(
             LucideIcons.circleCheck,
             color: AppColors.accent,
             size: 48,
@@ -1359,7 +1359,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                   ),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         LucideIcons.activity,
                         color: AppColors.accent,
                         size: 18,
@@ -1382,7 +1382,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                                 preload.currentFile!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'GoogleSansFlex',
                                   fontSize: 11,
                                   color: AppColors.textSecondary,
@@ -1441,7 +1441,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
               onPressed: () => Navigator.of(context).pop(),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,
-                foregroundColor: Colors.black,
+                foregroundColor: AppColors.onAccent,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppConstants.radiusMd),
@@ -1534,7 +1534,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'GoogleSansFlex',
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -1544,7 +1544,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'GoogleSansFlex',
             fontSize: 12,
             color: AppColors.textTertiary,

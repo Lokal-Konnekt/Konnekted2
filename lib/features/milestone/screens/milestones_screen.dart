@@ -70,7 +70,7 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: AppColors.backgroundGradient,
             ),
           ),

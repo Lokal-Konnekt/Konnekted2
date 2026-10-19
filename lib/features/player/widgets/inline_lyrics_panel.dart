@@ -378,7 +378,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
 
   Widget _buildBody(BuildContext context) {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.accent),
       );
     }

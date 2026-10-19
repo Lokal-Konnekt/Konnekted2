@@ -405,7 +405,7 @@ class _DayCell extends StatelessWidget {
             child: Center(
               child: FadeTransition(
                 opacity: checkFade,
-                child: const Icon(
+                child: Icon(
                   LucideIcons.check,
                   size: 18,
                   color: AppColors.background,

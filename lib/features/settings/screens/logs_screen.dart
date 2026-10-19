@@ -512,7 +512,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
                         text: '[${e.source.name}] ',
                         style: TextStyle(color: c, fontWeight: FontWeight.w700),
                       ),
-                      TextSpan(text: e.message, style: const TextStyle(color: AppColors.textPrimary)),
+                      TextSpan(text: e.message, style: TextStyle(color: AppColors.textPrimary)),
                     ],
                   ),
                 ),

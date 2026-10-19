@@ -59,7 +59,7 @@ class _Uac2PreferencesScreenState extends ConsumerState<Uac2PreferencesScreen> {
         body: Stack(
           children: [
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: AppColors.backgroundGradient,
               ),
             ),
@@ -1201,7 +1201,7 @@ ref.invalidate(uac2ExclusiveDacModeProvider);
   }
 
   Widget _buildDivider() {
-    return const Divider(height: 1, thickness: 1, color: AppColors.glassBorder);
+    return Divider(height: 1, thickness: 1, color: AppColors.glassBorder);
   }
 
   String _getFormatPreferenceLabel(Uac2FormatPreference pref) {

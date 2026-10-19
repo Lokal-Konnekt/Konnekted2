@@ -340,7 +340,7 @@ class AnimatedSongScene extends ConsumerWidget {
             child: (song.albumArt != null || song.filePath != null)
                 ? AmbientBackground(song: song)
                 : Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,

@@ -62,7 +62,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
               const SizedBox(width: 6),
               Text(
                 '$queueCount',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'GoogleSansFlex',
                   fontWeight: FontWeight.w700,
                   fontSize: 12,
@@ -225,7 +225,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                               song.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'GoogleSansFlex',
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15.5,
@@ -288,7 +288,7 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                               width: 40,
                               height: 40,
                               alignment: Alignment.center,
-                              child: const SizedBox(
+                              child: SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(

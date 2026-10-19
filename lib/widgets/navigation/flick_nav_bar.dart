@@ -430,7 +430,7 @@ class _OverflowMenuPopupState extends State<_OverflowMenuPopup>
                                     button.label,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontFamily: 'GoogleSansFlex',
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,

@@ -37,7 +37,7 @@ class SpeedBottomSheet extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 LucideIcons.gauge,
                 color: AppColors.accent,
                 size: 24,
@@ -65,7 +65,7 @@ class SpeedBottomSheet extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         l10n.x(min),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'GoogleSansFlex',
                           fontSize: 14,
                           color: AppColors.textSecondary,
@@ -84,7 +84,7 @@ class SpeedBottomSheet extends StatelessWidget {
                       ),
                       Text(
                         l10n.x2(max),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'GoogleSansFlex',
                           fontSize: 14,
                           color: AppColors.textSecondary,
@@ -95,7 +95,7 @@ class SpeedBottomSheet extends StatelessWidget {
                   ),
                   Text(
                     l10n.x3(currentSpeed),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

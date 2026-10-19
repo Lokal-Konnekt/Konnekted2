@@ -890,7 +890,7 @@ class _AlbumSortSheet extends StatelessWidget {
                 ),
               ),
               if (isSelected)
-                const Icon(
+                Icon(
                   Icons.check_rounded,
                   size: 20,
                   color: AppColors.accent,

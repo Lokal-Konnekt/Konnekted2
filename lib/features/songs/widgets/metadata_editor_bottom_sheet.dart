@@ -307,7 +307,7 @@ class _MetadataEditorBottomSheetState
                         BorderRadius.circular(AppConstants.radiusMd),
                     border: Border.all(color: AppColors.glassBorder),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     LucideIcons.x,
                     color: AppColors.textSecondary,
                     size: 16,
@@ -594,7 +594,7 @@ class _MetadataEditorBottomSheetState
           backgroundColor: AppColors.accent,
           disabledBackgroundColor:
               AppColors.surfaceLight.withValues(alpha: 0.6),
-          foregroundColor: AppColors.background,
+          foregroundColor: AppColors.onAccent,
           disabledForegroundColor: AppColors.textTertiary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.radiusMd),
@@ -602,7 +602,7 @@ class _MetadataEditorBottomSheetState
           padding: EdgeInsets.zero,
         ),
         child: _isSaving
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(

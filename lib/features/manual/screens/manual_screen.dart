@@ -81,7 +81,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+            decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
           ),
           Positioned.fill(child: AmbientBackground(song: currentSong)),
           SafeArea(
@@ -174,12 +174,12 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xBF1E1E1E),
-                  Color(0xD9141414),
+                  AppColors.surfaceLight.withValues(alpha: .75),
+                  AppColors.surface.withValues(alpha: .85),
                 ],
               ),
               borderRadius: BorderRadius.circular(AppConstants.radiusXl),
@@ -215,7 +215,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 LucideIcons.searchX,
                 size: 40,
                 color: AppColors.textTertiary,
@@ -223,7 +223,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
               const SizedBox(height: AppConstants.spacingMd),
               Text(
                 l10n.noMatchesFor(_query),
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'GoogleSansFlex',
                   color: AppColors.textSecondary,
                   fontSize: 15,
@@ -252,7 +252,7 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
             ),
             if (i < hits.length - 1) ...[
               const SizedBox(height: AppConstants.spacingMd),
-              const Divider(color: AppColors.glassBorder, height: 1),
+              Divider(color: AppColors.glassBorder, height: 1),
               const SizedBox(height: AppConstants.spacingMd),
             ],
           ],
@@ -312,7 +312,7 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
                   Expanded(
                     child: Text(
                       widget.section.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'GoogleSansFlex',
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -322,7 +322,7 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
                   ),
                   Text(
                     '${widget.section.entries.length}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: 13,
                       color: AppColors.textTertiary,
@@ -332,7 +332,7 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
                   AnimatedRotation(
                     turns: _expanded ? 0.25 : 0,
                     duration: AppConstants.animationNormal,
-                    child: const Icon(
+                    child: Icon(
                       LucideIcons.chevronRight,
                       size: 18,
                       color: AppColors.textTertiary,
@@ -408,7 +408,7 @@ class _ManualEntryContent extends StatelessWidget {
         if (sectionLabel != null) ...[
           Text(
             sectionLabel!.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'GoogleSansFlex',
               fontSize: 11,
               fontWeight: FontWeight.w600,
@@ -420,7 +420,7 @@ class _ManualEntryContent extends StatelessWidget {
         ],
         Text(
           entry.title,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'GoogleSansFlex',
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -430,7 +430,7 @@ class _ManualEntryContent extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           entry.body,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'GoogleSansFlex',
             fontSize: 13.5,
             color: AppColors.textSecondary,
@@ -454,7 +454,7 @@ class _ManualEntryContent extends StatelessWidget {
                   const TextSpan(text: ' '),
                   TextSpan(
                     text: tip,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: 12.5,
                       color: AppColors.textTertiary,

@@ -436,9 +436,7 @@ class CustomSwitch extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           color:
-              value
-                  ? AppColors.textPrimary.withValues(alpha: 0.9)
-                  : AppColors.glassBackgroundStrong,
+              value ? AppColors.accent : AppColors.glassBackgroundStrong,
           border: Border.all(
             color: value ? Colors.transparent : AppColors.glassBorderStrong,
             width: 1,
@@ -452,7 +450,7 @@ class CustomSwitch extends StatelessWidget {
             height: 22,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: value ? AppColors.background : AppColors.textTertiary,
+              color: value ? AppColors.onAccent : AppColors.textTertiary,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
@@ -570,7 +568,7 @@ class SliderSetting extends StatelessWidget {
           ),
           SliderTheme(
             data: SliderThemeData(
-              activeTrackColor: AppColors.textPrimary.withValues(alpha: 0.9),
+              activeTrackColor: AppColors.accent,
               inactiveTrackColor: AppColors.glassBackgroundStrong,
               thumbColor: AppColors.textPrimary,
               overlayColor: AppColors.textPrimary.withValues(alpha: 0.15),
@@ -669,7 +667,7 @@ class SettingsScaffold extends ConsumerWidget {
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: AppColors.backgroundGradient,
             ),
           ),

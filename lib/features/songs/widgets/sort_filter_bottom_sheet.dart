@@ -69,7 +69,7 @@ class SortFilterBottomSheet extends StatelessWidget {
               (option) => _buildSortTile(context, option),
             ),
             const SizedBox(height: 16),
-            const Divider(color: AppColors.glassBorder, height: 1),
+            Divider(color: AppColors.glassBorder, height: 1),
             const SizedBox(height: 12),
             _buildSectionHeader(context, l10n.filterByFormat),
             const SizedBox(height: 8),
@@ -162,11 +162,7 @@ class SortFilterBottomSheet extends StatelessWidget {
                 ),
               ),
               if (isSelected)
-                const Icon(
-                  Icons.check_rounded,
-                  size: 20,
-                  color: AppColors.accent,
-                ),
+                Icon(Icons.check_rounded, size: 20, color: AppColors.accent),
             ],
           ),
         ),

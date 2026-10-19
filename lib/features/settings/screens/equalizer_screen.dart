@@ -717,7 +717,7 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.only(top: AppConstants.spacingMd),
         child: Center(
           child: CircularProgressIndicator(
@@ -1917,9 +1917,7 @@ class _GraphicBandSlider extends ConsumerWidget {
             width: 88,
             padding: const EdgeInsets.all(AppConstants.spacingSm),
             decoration: BoxDecoration(
-              color: const Color(
-                0xFF121212,
-              ).withValues(alpha: enabled ? 1.0 : 0.82),
+              color: AppColors.surface.withValues(alpha: enabled ? 1.0 : 0.82),
               borderRadius: BorderRadius.circular(AppConstants.radiusMd),
               border: Border.all(
                 color: gainDb.abs() >= 0.1
@@ -1935,7 +1933,7 @@ class _GraphicBandSlider extends ConsumerWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF121212),
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(
                       AppConstants.radiusRound,
                     ),
@@ -2546,7 +2544,7 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
       curve: Curves.easeOutCubic,
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
         border: Border.all(
           color: toneColor.withValues(alpha: 0.2),
@@ -2567,7 +2565,7 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                 alignment: Alignment.center,
                 child: Text(
                   '${widget.index + 1}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
@@ -2880,7 +2878,7 @@ class _InlineValueEditorState extends State<_InlineValueEditor> {
             width: 240,
             padding: const EdgeInsets.all(AppConstants.spacingMd),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
+              color: AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(AppConstants.radiusMd),
               border: Border.all(color: AppColors.glassBorderStrong),
               boxShadow: [
@@ -2993,7 +2991,7 @@ class _AddBandCard extends ConsumerWidget {
         child: AnimatedContainer(
           duration: AppConstants.animationFast,
           decoration: BoxDecoration(
-            color: const Color(0xFF121212).withValues(
+            color: AppColors.surface.withValues(
               alpha: enabled && !atLimit ? 0.85 : 0.5,
             ),
             borderRadius: BorderRadius.circular(AppConstants.radiusMd),
@@ -3076,7 +3074,7 @@ class _ParametricBandEditor extends ConsumerWidget {
         child: AnimatedContainer(
           duration: AppConstants.animationFast,
           decoration: BoxDecoration(
-            color: const Color(0xFF121212).withValues(
+            color: AppColors.surface.withValues(
               alpha: editable ? 1.0 : 0.82,
             ),
             borderRadius: BorderRadius.circular(AppConstants.radiusMd),
@@ -3119,7 +3117,7 @@ class _ParametricBandEditor extends ConsumerWidget {
                       alignment: Alignment.center,
                       child: Text(
                         '${index + 1}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'GoogleSansFlex',
                           fontWeight: FontWeight.w700,
                           fontSize: 11,
@@ -4081,7 +4079,7 @@ class _BandTypeDropdown extends StatelessWidget {
           value: value,
           isDense: true,
           isExpanded: compact,
-          dropdownColor: const Color(0xFF171717),
+          dropdownColor: AppColors.surface,
           borderRadius: BorderRadius.circular(AppConstants.radiusSm),
           iconEnabledColor: context.adaptiveTextSecondary,
           iconDisabledColor: context.adaptiveTextTertiary,
@@ -4307,7 +4305,7 @@ class _ActionButton extends StatelessWidget {
               const SizedBox(width: AppConstants.spacingSm),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'GoogleSansFlex',
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

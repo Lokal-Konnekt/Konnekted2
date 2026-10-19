@@ -78,11 +78,6 @@ class SongStage extends ConsumerWidget {
   /// page keeps video running).
   final bool motionArtEnabled;
 
-  /// Artwork-card seekbar rendered behind the identity text. The parent keeps
-  /// its normal layout slot so moving it into this stack does not resize the
-  /// cover or move the controls.
-  final Widget? artworkCardSeekbarOverlay;
-
   /// True only for the carousel page of the currently playing song. Peek
   /// stages render lyrics statically instead of following playback.
   final bool active;
@@ -129,7 +124,6 @@ class SongStage extends ConsumerWidget {
     required this.onToggleLyrics,
     this.showWaveform = true,
     this.motionArtEnabled = true,
-    this.artworkCardSeekbarOverlay,
     this.active = true,
   });
 
@@ -592,15 +586,6 @@ class SongStage extends ConsumerWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    if (artworkCardSeekbarOverlay != null)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        // Let the bar pass behind the identity row while
-                        // keeping the title/artist layer in front of it.
-                        bottom: -context.responsive(44.0, 52.0, 60.0),
-                        child: artworkCardSeekbarOverlay!,
-                      ),
                     Positioned.fill(
                       child: AnimatedSwitcher(
                         duration: AppConstants.animationNormal,

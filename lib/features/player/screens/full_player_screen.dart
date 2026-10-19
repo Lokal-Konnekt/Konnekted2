@@ -1192,16 +1192,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                         isCurrent &&
                                         _playerScreenMode !=
                                             PlayerScreenMode.artworkCard,
-                                    artworkCardSeekbarOverlay:
-                                        isCurrent &&
-                                            _playerScreenMode ==
-                                                PlayerScreenMode.artworkCard
-                                        ? _buildPinnedWaveform(
-                                            context,
-                                            song,
-                                            _playerScreenMode,
-                                          )
-                                        : null,
                                     artworkCardArtworkScale:
                                         appPrefs.artworkCardArtworkScale,
                                     artworkCardTextScale:
@@ -1288,80 +1278,68 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   final timeLabelsPadding = isImmersive
                       ? context.responsive(18.0, 24.0, 30.0)
                       : context.responsive(16.0, 20.0, 24.0);
-                  return Visibility(
-                    visible: _playerScreenMode != PlayerScreenMode.artworkCard,
-                    maintainState: true,
-                    maintainAnimation: true,
-                    maintainSize: true,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOut,
-                          height: topGap,
-                        ),
-                        _buildPinnedWaveform(context, song, _playerScreenMode),
-                        // Unified default: when lyrics are on, keep single time
-                        // labels under waveform for BOTH immersive and artworkCard.
-                        // This replaces the duplicated labels previously inside
-                        // PlayerControls and (for immersive) inside the strip.
-                        // AnimatedSize so the waveform lowers/raises smoothly.
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOut,
-                          alignment: Alignment.topCenter,
-                          child: _isLyricsMode
-                              ? Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      height: context.responsive(
-                                        8.0,
-                                        10.0,
-                                        12.0,
-                                      ),
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOut,
+                        height: topGap,
+                      ),
+                      _buildPinnedWaveform(context, song, _playerScreenMode),
+                      // Unified default: when lyrics are on, keep single time
+                      // labels under waveform for BOTH immersive and artworkCard.
+                      // This replaces the duplicated labels previously inside
+                      // PlayerControls and (for immersive) inside the strip.
+                      // AnimatedSize so the waveform lowers/raises smoothly.
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOut,
+                        alignment: Alignment.topCenter,
+                        child: _isLyricsMode
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    height: context.responsive(8.0, 10.0, 12.0),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: timeLabelsPadding,
                                     ),
-                                    Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: timeLabelsPadding,
-                                      ),
-                                      child: ValueListenableBuilder<Duration>(
-                                        valueListenable:
-                                            _playerService.positionNotifier,
-                                        builder: (context, position, _) {
-                                          return ValueListenableBuilder<
-                                            Duration
-                                          >(
-                                            valueListenable:
-                                                _playerService.durationNotifier,
-                                            builder:
-                                                (context, engineDuration, _) {
-                                                  final duration =
-                                                      engineDuration
-                                                              .inMilliseconds >
-                                                          0
-                                                      ? engineDuration
-                                                      : (song.duration);
-                                                  return PlaybackTimeLabels(
-                                                    position: position,
-                                                    duration: duration,
-                                                    formatDuration:
-                                                        formatDuration,
-                                                    horizontalPadding:
-                                                        timeLabelsPadding,
-                                                  );
-                                                },
-                                          );
-                                        },
-                                      ),
+                                    child: ValueListenableBuilder<Duration>(
+                                      valueListenable:
+                                          _playerService.positionNotifier,
+                                      builder: (context, position, _) {
+                                        return ValueListenableBuilder<Duration>(
+                                          valueListenable:
+                                              _playerService.durationNotifier,
+                                          builder:
+                                              (context, engineDuration, _) {
+                                                final duration =
+                                                    engineDuration
+                                                            .inMilliseconds >
+                                                        0
+                                                    ? engineDuration
+                                                    : (song.duration);
+                                                return PlaybackTimeLabels(
+                                                  position: position,
+                                                  duration: duration,
+                                                  formatDuration:
+                                                      formatDuration,
+                                                  horizontalPadding:
+                                                      timeLabelsPadding,
+                                                );
+                                              },
+                                        );
+                                      },
                                     ),
-                                  ],
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
-                    ),
+                                  ),
+                                ],
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
                   );
                 },
               ),

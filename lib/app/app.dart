@@ -40,6 +40,7 @@ import 'package:flick/widgets/common/connection_notice_host.dart';
 import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/library_scanner_service.dart';
+import 'package:flick/services/lokal_launcher_icon.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/services/widget_sync_service.dart';
@@ -59,6 +60,12 @@ class FlickPlayerApp extends StatelessWidget {
     return Consumer(
       builder: (context, ref, _) {
         final appearance = ref.watch(lokalAppearanceProvider);
+        // The launcher icon's sticker follows the accent, like desktop's
+        // Dock icon.
+        ref.listen(
+          lokalAppearanceProvider,
+          (_, next) => LokalLauncherIcon.sync(next),
+        );
         final tokens = appearance.tokens;
         final iconBrightness = tokens.isLight
             ? Brightness.dark

@@ -44,17 +44,20 @@ void main() {
     expect(find.byType(BackdropFilter), findsNothing);
   });
 
-  testWidgets('logo shows its tile only when tinted', (tester) async {
+  testWidgets('logo sticker takes the accent', (tester) async {
     await tester.pumpWidget(_app(const Scaffold(body: LokalLogo(size: 40))));
-    expect(find.byType(AnimatedContainer), findsOneWidget);
+    Color? sticker() => tester
+        .widgetList<Image>(find.byType(Image))
+        .firstWhere((image) => image.color != null)
+        .color;
+    expect(sticker(), LokalTokens.resolve(LokalThemeId.dark).accent);
 
     final element = tester.element(find.byType(LokalLogo));
     await ProviderScope.containerOf(element)
         .read(lokalAppearanceProvider.notifier)
-        .setTintLogo(false);
-    await tester.pump();
-    expect(find.byType(AnimatedContainer), findsNothing);
-    expect(find.byType(Image), findsOneWidget);
+        .setAccent(LokalAccent.pink);
+    await tester.pumpAndSettle();
+    expect(sticker(), LokalAccent.pink.value);
   });
 
   testWidgets('Appearance screen switches theme and accent', (tester) async {

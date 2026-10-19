@@ -16,7 +16,6 @@ void main() {
     const look = LokalAppearance(
       theme: LokalThemeId.cyberpunk,
       accent: LokalAccent.teal,
-      tintLogo: false,
       textScale: 1.2,
       performanceMode: true,
     );

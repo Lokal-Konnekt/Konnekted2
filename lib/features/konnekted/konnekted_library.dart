@@ -240,7 +240,7 @@ class KonnektedSettings extends StatelessWidget {
           entries: const [
             KonnektedRouteEntry(
               'Appearance',
-              'Themes, accent, logo tint, and text size',
+              'Themes, accent, glass, and text size',
               Icons.palette_rounded,
               KonnektedDestination.appearance,
             ),

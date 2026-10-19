@@ -62,15 +62,6 @@ class LokalAppearanceScreen extends ConsumerWidget {
             _Group(
               children: [
                 SwitchListTile(
-                  value: appearance.tintLogo,
-                  onChanged: notifier.setTintLogo,
-                  title: const Text('Tint app logo'),
-                  subtitle: const Text(
-                    'The logo and home screen icon follow your accent',
-                  ),
-                ),
-                Divider(height: 1, color: t.border, indent: 16),
-                SwitchListTile(
                   value: appearance.performanceMode,
                   onChanged: notifier.setPerformanceMode,
                   title: const Text('Performance mode'),

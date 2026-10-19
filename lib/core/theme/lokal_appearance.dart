@@ -6,17 +6,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'lokal_tokens.dart';
 
-/// The listener's look: theme, accent, logo tint, text size and glass.
+/// The listener's look: theme, accent, text size and glass.
 ///
 /// Mirrors desktop Lokal's Appearance settings. As on desktop, picking a
-/// theme drops a custom accent, while the logo tint, text size and
-/// performance mode survive the switch.
+/// theme drops a custom accent, while text size and performance mode
+/// survive the switch.
 @immutable
 class LokalAppearance {
   const LokalAppearance({
     this.theme = LokalThemeId.dark,
     this.accent,
-    this.tintLogo = true,
     this.textScale = 1.0,
     this.performanceMode = false,
   });
@@ -25,10 +24,6 @@ class LokalAppearance {
 
   /// A preset chosen on top of the theme; null uses the theme's own accent.
   final LokalAccent? accent;
-
-  /// Desktop's "Tint App Logo". On by default on mobile, where the launcher
-  /// icon follows it too.
-  final bool tintLogo;
 
   /// Multiplies the system text scale, 0.7–1.5 like desktop's Text Size.
   final double textScale;
@@ -46,13 +41,11 @@ class LokalAppearance {
     LokalThemeId? theme,
     LokalAccent? accent,
     bool clearAccent = false,
-    bool? tintLogo,
     double? textScale,
     bool? performanceMode,
   }) => LokalAppearance(
     theme: theme ?? this.theme,
     accent: clearAccent ? null : (accent ?? this.accent),
-    tintLogo: tintLogo ?? this.tintLogo,
     textScale: (textScale ?? this.textScale).clamp(minTextScale, maxTextScale),
     performanceMode: performanceMode ?? this.performanceMode,
   );
@@ -60,7 +53,6 @@ class LokalAppearance {
   Map<String, Object?> toJson() => {
     'theme': theme.name,
     'accent': accent?.name,
-    'tintLogo': tintLogo,
     'textScale': textScale,
     'performanceMode': performanceMode,
   };
@@ -70,7 +62,6 @@ class LokalAppearance {
     return LokalAppearance(
       theme: LokalThemeId.fromKey(json['theme'] as String?),
       accent: LokalAccent.byName(json['accent'] as String?),
-      tintLogo: json['tintLogo'] as bool? ?? true,
       textScale: (scale is num ? scale.toDouble() : 1.0).clamp(
         minTextScale,
         maxTextScale,
@@ -84,13 +75,11 @@ class LokalAppearance {
       other is LokalAppearance &&
       other.theme == theme &&
       other.accent == accent &&
-      other.tintLogo == tintLogo &&
       other.textScale == textScale &&
       other.performanceMode == performanceMode;
 
   @override
-  int get hashCode =>
-      Object.hash(theme, accent, tintLogo, textScale, performanceMode);
+  int get hashCode => Object.hash(theme, accent, textScale, performanceMode);
 }
 
 class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
@@ -137,9 +126,6 @@ class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
         ? state.copyWith(clearAccent: true)
         : state.copyWith(accent: accent),
   );
-
-  Future<void> setTintLogo(bool value) =>
-      _commit(state.copyWith(tintLogo: value));
 
   Future<void> setTextScale(double value) =>
       _commit(state.copyWith(textScale: value));

@@ -48,6 +48,9 @@ void main() {
             konnektedRecentSongsProvider.overrideWith(
               (ref) => Stream.value([]),
             ),
+            konnektedGreetingProvider.overrideWith(
+              (ref) => Stream.value('Your listening streak has some momentum.'),
+            ),
           ],
           child: _app(
             KonnektedHome(
@@ -59,7 +62,14 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Home'), findsOneWidget);
+      expect(
+        find.textContaining(RegExp('^Good (morning|afternoon|evening)\$')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Your listening streak has some momentum.'),
+        findsOneWidget,
+      );
       await tester.tap(find.bySemanticsLabel('Open Flow'));
       expect(opened, [KonnektedDestination.flow]);
       await tester.scrollUntilVisible(find.text('Add your music'), 180);

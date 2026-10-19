@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
+import 'package:flick/features/konnekted/lokal_home_greeting.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
@@ -37,6 +38,25 @@ final konnektedRecentSongsProvider = StreamProvider.autoDispose<List<Song>>((
         .take(12)
         .toList(growable: false);
   });
+});
+
+/// Home's personal greeting line, from the latest plays (desktop's rules).
+final konnektedGreetingProvider = StreamProvider.autoDispose<String>((ref) {
+  final repository = ref.watch(konnektedHistoryRepositoryProvider);
+  final changes = StreamController<void>();
+  final subscription = repository.watchHistory().listen(
+    changes.add,
+    onError: changes.addError,
+  );
+  changes.add(null);
+  ref.onDispose(() {
+    unawaited(subscription.cancel());
+    unawaited(changes.close());
+  });
+  return changes.stream.asyncMap(
+    (_) async =>
+        lokalHomeGreeting(await repository.getRecentHistory(limit: 40)),
+  );
 });
 
 final konnektedFavoritesProvider = Provider.autoDispose<AsyncValue<List<Song>>>(

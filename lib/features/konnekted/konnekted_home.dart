@@ -1,6 +1,7 @@
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/data/repositories/song_repository.dart';
+import 'package:flick/features/konnekted/lokal_home_greeting.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
@@ -36,6 +37,7 @@ class KonnektedHome extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(
             child: KonnektedHomeTopBar(
+              greeting: ref.watch(konnektedGreetingProvider).value,
               onSearch: () => onNavigate(KonnektedDestination.search),
               onSettings: () => onNavigate(KonnektedDestination.appearance),
             ),
@@ -122,50 +124,72 @@ class KonnektedHomeTopBar extends StatelessWidget {
     super.key,
     required this.onSearch,
     required this.onSettings,
+    this.greeting,
+    this.now,
   });
 
   final VoidCallback onSearch;
   final VoidCallback onSettings;
 
+  /// The personal line under the salutation; a time-of-day line until
+  /// history has loaded.
+  final String? greeting;
+
+  /// The clock, for tests.
+  final DateTime? now;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const LokalLogo(size: 32),
-            const Spacer(),
-            LokalGlassButton(
-              semanticLabel: 'Search your music',
-              onPressed: onSearch,
-              child: Icon(Icons.search_rounded, color: context.lokal.text),
-            ),
-            const SizedBox(width: 8),
-            LokalGlassButton(
-              semanticLabel: 'Appearance',
-              onPressed: onSettings,
-              child: Icon(Icons.tune_rounded, color: context.lokal.text),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Semantics(
-          header: true,
-          child: Text(
-            'Home',
-            style: TextStyle(
-              fontSize: 34,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -.7,
-              color: context.lokal.text,
+  Widget build(BuildContext context) {
+    final at = now ?? DateTime.now();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const LokalLogo(size: 32),
+              const Spacer(),
+              LokalGlassButton(
+                semanticLabel: 'Search your music',
+                onPressed: onSearch,
+                child: Icon(Icons.search_rounded, color: context.lokal.text),
+              ),
+              const SizedBox(width: 8),
+              LokalGlassButton(
+                semanticLabel: 'Appearance',
+                onPressed: onSettings,
+                child: Icon(Icons.tune_rounded, color: context.lokal.text),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Desktop's greeting: a salutation, then a line from your listening.
+          Semantics(
+            header: true,
+            child: Text(
+              lokalHomeSalutation(at.hour),
+              style: TextStyle(
+                fontSize: 34,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -.7,
+                color: context.lokal.text,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 2),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: Text(
+              greeting ?? lokalHomeGreeting(const [], now: at),
+              key: ValueKey(greeting),
+              style: TextStyle(fontSize: 15, color: context.lokal.muted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Cover Flow of your albums, with a glass shelf switch and the Flow button.

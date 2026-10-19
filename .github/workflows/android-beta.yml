@@ -1,0 +1,43 @@
+name: Android beta APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-beta
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build beta APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Prepare Flutter dependencies
+        run: |
+          flutter pub get
+          # This generated file can retain the dev-only integration_test plugin,
+          # which is not present on release/debug Android classpaths.
+          rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+      - name: Build arm64 beta APK
+        run: flutter build apk --debug --flavor full --target-platform android-arm64 --no-pub
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: konnekted-beta-arm64
+          path: build/app/outputs/flutter-apk/app-full-debug.apk
+          if-no-files-found: error
+          retention-days: 7

@@ -7,6 +7,7 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -86,6 +87,12 @@ class _KonnektedDockState extends State<KonnektedDock>
 
   bool get _wantsCollapse => widget.collapsed && widget.hasMiniPlayer;
 
+  static final _spring = SpringDescription.withDampingRatio(
+    mass: 1,
+    stiffness: 400,
+    ratio: 1,
+  );
+
   @override
   void didUpdateWidget(KonnektedDock old) {
     super.didUpdateWidget(old);
@@ -94,7 +101,11 @@ class _KonnektedDockState extends State<KonnektedDock>
     if (MediaQuery.disableAnimationsOf(context)) {
       _collapse.value = target;
     } else {
-      _collapse.animateTo(target, curve: Curves.easeInOutCubic);
+      // A critically damped spring, so a flick that reverses mid-fold carries
+      // its speed into the new direction instead of restarting a curve.
+      _collapse.animateWith(
+        SpringSimulation(_spring, _collapse.value, target, _collapse.velocity),
+      );
     }
   }
 
@@ -144,40 +155,45 @@ class _KonnektedDockState extends State<KonnektedDock>
 
     return SizedBox(
       height: lerpDouble(top + bar, bar, t),
-      // One backdrop capture for all three pieces of glass.
-      child: BackdropGroup(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            if (hasMini)
-              Positioned.fromRect(
-                rect: Rect.lerp(miniOpen, miniShut, t)!,
-                child: LokalGlass.capsule(
-                  grouped: true,
-                  child: KonnektedMiniPlayerScope(
-                    collapsed: t > .5,
-                    child: widget.miniPlayer,
+      // Its own ink layer, so tap ripples draw on the glass rather than on
+      // the page underneath, where the glass would blur them.
+      child: Material(
+        type: MaterialType.transparency,
+        // One backdrop capture for all three pieces of frosted glass.
+        child: BackdropGroup(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              if (hasMini)
+                Positioned.fromRect(
+                  rect: Rect.lerp(miniOpen, miniShut, t)!,
+                  child: LokalGlass.capsule(
+                    grouped: true,
+                    child: KonnektedMiniPlayerScope(
+                      collapsed: t > .5,
+                      child: widget.miniPlayer,
+                    ),
                   ),
                 ),
+              Positioned.fromRect(
+                rect: Rect.lerp(tabsOpen, tabsShut, t)!,
+                child: _TabCapsule(
+                  width: tabsOpen.width,
+                  collapse: t,
+                  selected: widget.selected,
+                  onSelect: widget.onSelect,
+                  onExpand: widget.onExpand,
+                ),
               ),
-            Positioned.fromRect(
-              rect: Rect.lerp(tabsOpen, tabsShut, t)!,
-              child: _TabCapsule(
-                width: tabsOpen.width,
-                collapse: t,
-                selected: widget.selected,
-                onSelect: widget.onSelect,
-                onExpand: widget.onExpand,
+              Positioned.fromRect(
+                rect: Rect.lerp(searchOpen, searchShut, t)!,
+                child: _SearchCircle(
+                  selected: widget.selected == KonnektedTab.explore,
+                  onTap: () => widget.onSelect(KonnektedTab.explore),
+                ),
               ),
-            ),
-            Positioned.fromRect(
-              rect: Rect.lerp(searchOpen, searchShut, t)!,
-              child: _SearchCircle(
-                selected: widget.selected == KonnektedTab.explore,
-                onTap: () => widget.onSelect(KonnektedTab.explore),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -269,90 +285,102 @@ class _TabCapsuleState extends State<_TabCapsule> {
         : _inset + _slot * (selectedIndex < 0 ? 0 : selectedIndex);
     final open = 1 - widget.collapse;
 
-    return LokalGlass.capsule(
-      grouped: true,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (open > 0)
-            Opacity(
-              opacity: Curves.easeIn.transform(open),
-              child: ExcludeSemantics(
-                excluding: widget.collapse > .5,
-                child: OverflowBox(
-                  alignment: Alignment.centerLeft,
-                  minWidth: widget.width,
-                  maxWidth: widget.width,
-                  child: GestureDetector(
-                    onHorizontalDragStart: (d) => _drag(d.localPosition.dx),
-                    onHorizontalDragUpdate: (d) => _drag(d.localPosition.dx),
-                    onHorizontalDragEnd: (_) => _endDrag(),
-                    onHorizontalDragCancel: _endDrag,
-                    child: Stack(
-                      children: [
-                        AnimatedPositioned(
-                          duration: reduceMotion || _dragX != null
-                              ? Duration.zero
-                              : const Duration(milliseconds: 380),
-                          curve: Curves.easeOutBack,
-                          left: lensLeft,
-                          top: _inset,
-                          bottom: _inset,
-                          width: _slot,
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 200),
-                            opacity: selectedIndex < 0 && _dragX == null
-                                ? 0
-                                : 1,
-                            child: AnimatedScale(
+    // The bar swells by 16 px while the lens is dragged: glass you can
+    // push on.
+    return AnimatedScale(
+      scale: _dragX != null && !reduceMotion ? 1 + 16 / widget.width : 1,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      child: LokalGlass.capsule(
+        grouped: true,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (open > 0)
+              Opacity(
+                opacity: Curves.easeIn.transform(open),
+                child: ExcludeSemantics(
+                  excluding: widget.collapse > .5,
+                  child: OverflowBox(
+                    alignment: Alignment.centerLeft,
+                    minWidth: widget.width,
+                    maxWidth: widget.width,
+                    child: GestureDetector(
+                      onHorizontalDragStart: (d) => _drag(d.localPosition.dx),
+                      onHorizontalDragUpdate: (d) => _drag(d.localPosition.dx),
+                      onHorizontalDragEnd: (_) => _endDrag(),
+                      onHorizontalDragCancel: _endDrag,
+                      child: Stack(
+                        children: [
+                          AnimatedPositioned(
+                            duration: reduceMotion || _dragX != null
+                                ? Duration.zero
+                                : const Duration(milliseconds: 380),
+                            curve: Curves.easeOutBack,
+                            left: lensLeft,
+                            top: _inset,
+                            bottom: _inset,
+                            width: _slot,
+                            child: AnimatedOpacity(
                               duration: const Duration(milliseconds: 200),
-                              scale: _dragX != null && !reduceMotion ? 1.08 : 1,
-                              child: _Lens(color: t.accent),
+                              opacity: selectedIndex < 0 && _dragX == null
+                                  ? 0
+                                  : 1,
+                              child: AnimatedScale(
+                                duration: const Duration(milliseconds: 200),
+                                scale: _dragX != null && !reduceMotion
+                                    ? 1.08
+                                    : 1,
+                                child: _Lens(
+                                  color: t.accent,
+                                  active: _dragX != null && !reduceMotion,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(_inset),
-                          child: Row(
-                            children: [
-                              for (final (i, tab) in _tabs.indexed)
-                                Expanded(
-                                  child: _TabButton(
-                                    tab: tab,
-                                    selected: _dragIndex != null
-                                        ? i == _dragIndex
-                                        : tab == widget.selected,
-                                    onTap: () => widget.onSelect(tab),
+                          Padding(
+                            padding: const EdgeInsets.all(_inset),
+                            child: Row(
+                              children: [
+                                for (final (i, tab) in _tabs.indexed)
+                                  Expanded(
+                                    child: _TabButton(
+                                      tab: tab,
+                                      selected: _dragIndex != null
+                                          ? i == _dragIndex
+                                          : tab == widget.selected,
+                                      onTap: () => widget.onSelect(tab),
+                                    ),
                                   ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          if (widget.collapse > 0)
-            Opacity(
-              opacity: Curves.easeOut.transform(widget.collapse),
-              child: ExcludeSemantics(
-                excluding: widget.collapse <= .5,
-                child: Semantics(
-                  button: true,
-                  label: 'Show tabs. ${shown.label}',
-                  onTap: widget.onExpand,
-                  excludeSemantics: true,
-                  child: InkWell(
+            if (widget.collapse > 0)
+              Opacity(
+                opacity: Curves.easeOut.transform(widget.collapse),
+                child: ExcludeSemantics(
+                  excluding: widget.collapse <= .5,
+                  child: Semantics(
+                    button: true,
+                    label: 'Show tabs. ${shown.label}',
                     onTap: widget.onExpand,
-                    customBorder: const CircleBorder(),
-                    child: Icon(shown.icon, color: t.accent, size: 24),
+                    excludeSemantics: true,
+                    child: InkWell(
+                      onTap: widget.onExpand,
+                      customBorder: const CircleBorder(),
+                      child: Icon(shown.icon, color: t.accent, size: 24),
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -360,27 +388,43 @@ class _TabCapsuleState extends State<_TabCapsule> {
 
 /// The selection lens: a brighter pane of glass under the current tab.
 class _Lens extends StatelessWidget {
-  const _Lens({required this.color});
+  const _Lens({required this.color, this.active = false});
 
   final Color color;
+
+  /// While a finger drags it, the lens turns clear and refracts the tabs
+  /// under it with a rainbow fringe, as in iOS 26.
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
     final light = context.lokal.isLight;
-    return DecoratedBox(
-      decoration: ShapeDecoration(
-        shape: StadiumBorder(
-          side: BorderSide(
-            color: Colors.white.withValues(alpha: light ? .7 : .12),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: active ? 1 : 0),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, _) => LokalClearLens(
+        lens: const LokalLens(height: 10, amount: 14, dispersion: 1).scale(t),
+        child: DecoratedBox(
+          decoration: ShapeDecoration(
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: Colors.white.withValues(alpha: light ? .7 : .12),
+              ),
+            ),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color.lerp(
+                  color,
+                  Colors.white,
+                  .25,
+                )!.withValues(alpha: .20 * (1 - t)),
+                color.withValues(alpha: .12 * (1 - t)),
+              ],
+            ),
           ),
-        ),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color.lerp(color, Colors.white, .25)!.withValues(alpha: .20),
-            color.withValues(alpha: .12),
-          ],
         ),
       ),
     );

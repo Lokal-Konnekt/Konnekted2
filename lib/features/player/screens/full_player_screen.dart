@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/player/screens/classic_full_player_screen.dart';
 import 'package:flick/features/player/widgets/loop_mode_sheet.dart';
@@ -152,9 +153,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     );
   }
 
-  Future<void> _openEqualizer() => Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => const EqualizerScreen()),
-  );
+  Future<void> _openEqualizer() => Navigator.of(context)
+      .push(MaterialPageRoute<void>(builder: (_) => const EqualizerScreen()));
 
   Future<void> _openCasting() => Navigator.of(context).push(
     MaterialPageRoute<void>(builder: (_) => const CastingSettingsScreen()),
@@ -266,7 +266,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
 
   // ───────────────────────────── top bar ─────────────────────────────
 
-  Widget _topBar(Song song, bool isCasting, AudioOutputDiagnostics? diagnostics) {
+  Widget _topBar(
+    Song song,
+    bool isCasting,
+    AudioOutputDiagnostics? diagnostics,
+  ) {
     final label = diagnostics?.outputDeviceLabel.trim().isNotEmpty == true
         ? diagnostics!.outputDeviceLabel.trim()
         : diagnostics?.routeLabel.trim().isNotEmpty == true
@@ -293,8 +297,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(LucideIcons.headphones,
-                            size: 17, color: Colors.white),
+                        const Icon(
+                          LucideIcons.headphones,
+                          size: 17,
+                          color: Colors.white,
+                        ),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
@@ -302,9 +309,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontFamily: _font,
-                                fontSize: 13,
-                                color: Colors.white),
+                              fontFamily: _font,
+                              fontSize: 13,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
@@ -339,7 +347,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     );
   }
 
-  Widget _pill({required Widget child, VoidCallback? onTap, bool selected = false}) {
+  Widget _pill({
+    required Widget child,
+    VoidCallback? onTap,
+    bool selected = false,
+  }) {
     return Material(
       color: Colors.white.withValues(alpha: selected ? 0.26 : 0.08),
       shape: RoundedRectangleBorder(
@@ -437,6 +449,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
             ),
           ),
         ),
+        // Desktop's quality pill, in desktop's colours on every theme.
+        if (LokalQualityTier.of(song) case final tier?) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: LokalQualityPill(tier: tier),
+          ),
+        ],
         const SizedBox(height: 6),
       ],
     );
@@ -450,7 +470,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
         child: SizedBox(
           width: 28,
           height: 28,
-          child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white70),
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: Colors.white70,
+          ),
         ),
       );
     } else if (data == null || data.lines.isEmpty) {
@@ -495,12 +518,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
             ),
             IconButton(
               tooltip: 'Search online',
-              icon: const Icon(LucideIcons.search, size: 20, color: Colors.white70),
+              icon: const Icon(
+                LucideIcons.search,
+                size: 20,
+                color: Colors.white70,
+              ),
               onPressed: () => _searchOnline(song),
             ),
             IconButton(
               tooltip: 'Edit lyrics',
-              icon: const Icon(LucideIcons.pencil, size: 20, color: Colors.white70),
+              icon: const Icon(
+                LucideIcons.pencil,
+                size: 20,
+                color: Colors.white70,
+              ),
               onPressed: () => _editLyrics(song),
             ),
           ],
@@ -511,7 +542,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
             shaderCallback: (r) => const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black, Colors.black, Colors.transparent],
+              colors: [
+                Colors.transparent,
+                Colors.black,
+                Colors.black,
+                Colors.transparent,
+              ],
               stops: [0.0, 0.07, 0.9, 1.0],
             ).createShader(r),
             child: body,
@@ -645,7 +681,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 3.5,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 6,
+                    ),
                     overlayShape: SliderComponentShape.noOverlay,
                     activeTrackColor: Colors.white,
                     inactiveTrackColor: Colors.white24,
@@ -656,7 +694,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                     onChangeStart: (_) => setState(() => _draggingSeek = true),
                     onChanged: (v) => setState(() => _seekDrag = v),
                     onChangeEnd: (v) {
-                      _player.seek(Duration(milliseconds: (v * totalMs).round()));
+                      _player.seek(
+                        Duration(milliseconds: (v * totalMs).round()),
+                      );
                       setState(() => _draggingSeek = false);
                     },
                   ),
@@ -667,7 +707,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _clock(Duration(milliseconds: (value * totalMs).round())),
+                        _clock(
+                          Duration(milliseconds: (value * totalMs).round()),
+                        ),
                         style: mono,
                       ),
                       Text(_clock(duration), style: mono),
@@ -712,7 +754,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
             flex: 10,
             color: glass,
             onTap: () => _player.previous(),
-            child: const Icon(Icons.skip_previous_rounded, size: 32, color: Colors.white),
+            child: const Icon(
+              Icons.skip_previous_rounded,
+              size: 32,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(width: 10),
           big(
@@ -737,7 +783,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
             flex: 10,
             color: glass,
             onTap: () => _player.next(),
-            child: const Icon(Icons.skip_next_rounded, size: 32, color: Colors.white),
+            child: const Icon(
+              Icons.skip_next_rounded,
+              size: 32,
+              color: Colors.white,
+            ),
           ),
         ],
       ),
@@ -816,7 +866,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     );
   }
 
-  Widget _toggle(IconData icon, bool on, VoidCallback onTap, {VoidCallback? onLong}) {
+  Widget _toggle(
+    IconData icon,
+    bool on,
+    VoidCallback onTap, {
+    VoidCallback? onLong,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Material(
@@ -839,7 +894,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
   // ───────────────────────────── chips ─────────────────────────────
 
   Widget _chipRow() {
-    Widget chip(IconData icon, String label, VoidCallback onTap, {bool active = false}) {
+    Widget chip(
+      IconData icon,
+      String label,
+      VoidCallback onTap, {
+      bool active = false,
+    }) {
       return Padding(
         padding: const EdgeInsets.only(right: 8),
         child: _pill(
@@ -870,8 +930,17 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          chip(LucideIcons.listMusic, l10n.queue, () => _navigation.openQueue(context)),
-          chip(LucideIcons.messageSquareQuote, l10n.lyrics, _toggleLyrics, active: _showLyrics),
+          chip(
+            LucideIcons.listMusic,
+            l10n.queue,
+            () => _navigation.openQueue(context),
+          ),
+          chip(
+            LucideIcons.messageSquareQuote,
+            l10n.lyrics,
+            _toggleLyrics,
+            active: _showLyrics,
+          ),
           ValueListenableBuilder<Duration?>(
             valueListenable: _player.sleepTimerRemainingNotifier,
             builder: (_, remaining, __) => chip(
@@ -885,7 +954,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
             valueListenable: _player.playbackSpeedNotifier,
             builder: (_, speed, __) => chip(
               LucideIcons.gauge,
-              (speed - 1.0).abs() < 0.01 ? l10n.speedUp : '${speed.toStringAsFixed(2)}x',
+              (speed - 1.0).abs() < 0.01
+                  ? l10n.speedUp
+                  : '${speed.toStringAsFixed(2)}x',
               () => SpeedBottomSheet.show(context, _player),
               active: (speed - 1.0).abs() >= 0.01,
             ),
@@ -938,7 +1009,10 @@ class _FluidBackdropState extends State<_FluidBackdrop>
               Widget blob(Color color, double phase, double r) {
                 return Positioned(
                   left: size.width * (0.5 + 0.42 * math.cos(a + phase)) - r,
-                  top: size.height * (0.5 + 0.38 * math.sin(a * 0.8 + phase * 1.7)) - r,
+                  top:
+                      size.height *
+                          (0.5 + 0.38 * math.sin(a * 0.8 + phase * 1.7)) -
+                      r,
                   child: Container(
                     width: r * 2,
                     height: r * 2,
@@ -954,7 +1028,11 @@ class _FluidBackdropState extends State<_FluidBackdrop>
                 color: (animatedBase ?? base).withValues(alpha: 1),
                 child: ClipRect(
                   child: ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80, tileMode: TileMode.decal),
+                    imageFilter: ImageFilter.blur(
+                      sigmaX: 80,
+                      sigmaY: 80,
+                      tileMode: TileMode.decal,
+                    ),
                     child: Stack(
                       children: [
                         blob(colors[0], 0, size.width * 0.75),
@@ -972,7 +1050,6 @@ class _FluidBackdropState extends State<_FluidBackdrop>
     );
   }
 }
-
 
 // ═════════════════════════════ flowing lyrics ═════════════════════════════
 
@@ -1027,7 +1104,10 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   late final List<int> _ts = [
     for (final l in widget.lyrics.lines) l.timestamp.inMilliseconds,
   ];
-  late final List<List<_Word>?> _wordCache = List<List<_Word>?>.filled(_lines.length, null);
+  late final List<List<_Word>?> _wordCache = List<List<_Word>?>.filled(
+    _lines.length,
+    null,
+  );
 
   List<double> _heights = const [];
   List<double> _tops = const [];
@@ -1070,7 +1150,10 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     final p = widget.player;
     if (!p.isPlayingNotifier.value) return _anchorPos.inMilliseconds;
     final speed = p.playbackSpeedNotifier.value;
-    final elapsed = DateTime.now().difference(_anchorAt).inMilliseconds.clamp(0, 600);
+    final elapsed = DateTime.now()
+        .difference(_anchorAt)
+        .inMilliseconds
+        .clamp(0, 600);
     return _anchorPos.inMilliseconds + (elapsed * speed).round();
   }
 
@@ -1085,7 +1168,9 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
       a < 0 ? -(_introHeight + _gap) : _tops[a.clamp(0, _tops.length - 1)];
 
   void _ensureLayout(double w, double h) {
-    if ((w - _w).abs() < 0.5 && (h - _h).abs() < 0.5 && _heights.length == _lines.length) {
+    if ((w - _w).abs() < 0.5 &&
+        (h - _h).abs() < 0.5 &&
+        _heights.length == _lines.length) {
       return;
     }
     _w = w;
@@ -1114,7 +1199,9 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   }
 
   void _onTick(Duration elapsed) {
-    final dt = ((elapsed - _lastElapsed).inMicroseconds / 1e6).clamp(0.0, 0.05).toDouble();
+    final dt = ((elapsed - _lastElapsed).inMicroseconds / 1e6)
+        .clamp(0.0, 0.05)
+        .toDouble();
     _lastElapsed = elapsed;
     if (_heights.isEmpty || _heights.length != _lines.length) return;
 
@@ -1133,7 +1220,8 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
       _focus += (a - _focus) * (1 - math.exp(-dt * 10.0));
     }
 
-    final settled = !playing &&
+    final settled =
+        !playing &&
         (target - _offset).abs() < 0.2 &&
         (a - _focus).abs() < 0.003 &&
         a == _active;
@@ -1183,7 +1271,10 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   double _wordAlpha(_Word w, int ms) {
     if (ms >= w.endMs) return 1.0;
     if (ms <= w.startMs) return 0.42;
-    final t = ((ms - w.startMs) / math.max(w.endMs - w.startMs, 1)).clamp(0.0, 1.0);
+    final t = ((ms - w.startMs) / math.max(w.endMs - w.startMs, 1)).clamp(
+      0.0,
+      1.0,
+    );
     return 0.42 + 0.58 * Curves.easeOut.transform(t);
   }
 
@@ -1191,7 +1282,9 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     final l = _lines[i];
     if (l.text.trim().isEmpty) return SizedBox(height: _heights[i]);
     final d = (i - _focus).abs();
-    final op = d < 1 ? 1 - 0.66 * d : 0.34 - 0.18 * ((d - 1) / 3).clamp(0.0, 1.0);
+    final op = d < 1
+        ? 1 - 0.66 * d
+        : 0.34 - 0.18 * ((d - 1) / 3).clamp(0.0, 1.0);
     final scale = 1 - 0.1 * math.min(d, 1.0);
     final blur = d < 1.0 ? 0.0 : math.min((d - 1) * 0.9, 2.8);
 
@@ -1203,7 +1296,9 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
           for (final w in _wordsFor(i))
             TextSpan(
               text: w.text,
-              style: TextStyle(color: Colors.white.withValues(alpha: _wordAlpha(w, _posMs))),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: _wordAlpha(w, _posMs)),
+              ),
             ),
         ],
       );
@@ -1221,7 +1316,11 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     );
     if (blur > 0.3) {
       child = ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur, tileMode: TileMode.decal),
+        imageFilter: ImageFilter.blur(
+          sigmaX: blur,
+          sigmaY: blur,
+          tileMode: TileMode.decal,
+        ),
         child: child,
       );
     }
@@ -1288,17 +1387,23 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
             child: ValueListenableBuilder<int>(
               valueListenable: _frame,
               builder: (context, _, __) {
-                if (_heights.length != _lines.length) return const SizedBox.expand();
+                if (_heights.length != _lines.length) {
+                  return const SizedBox.expand();
+                }
                 final anchorY = _h * _anchor;
                 final children = <Widget>[];
                 final dotsTop = anchorY - (_introHeight + _gap) - _offset;
                 if (dotsTop > -80 && dotsTop < _h) {
-                  children.add(Positioned(left: 0, top: dotsTop, child: _introDots()));
+                  children.add(
+                    Positioned(left: 0, top: dotsTop, child: _introDots()),
+                  );
                 }
                 for (var i = 0; i < _lines.length; i++) {
                   final top = anchorY + _tops[i] - _offset;
                   if (top + _heights[i] < -80 || top > _h + 80) continue;
-                  children.add(Positioned(left: 0, right: 0, top: top, child: _line(i)));
+                  children.add(
+                    Positioned(left: 0, right: 0, top: top, child: _line(i)),
+                  );
                 }
                 return Stack(clipBehavior: Clip.hardEdge, children: children);
               },

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flick/src/rust/frb_generated.dart';
 import 'package:flick/app/app.dart';
 import 'package:flick/data/database.dart';
@@ -72,6 +73,8 @@ Future<void> _bootstrapApp() async {
     await _restoreLastPlayedSong();
   }
 
+  // Glass renders frosted until the lens is ready, so don't wait for it.
+  unawaited(LokalGlassShaders.load());
   runApp(const ProviderScope(child: FlickPlayerApp()));
 
   WidgetsBinding.instance.addPostFrameCallback((_) {

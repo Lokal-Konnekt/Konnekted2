@@ -77,7 +77,7 @@ class EngineRestartNotice extends StatelessWidget {
             ),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.accent,
-              foregroundColor: AppColors.background,
+              foregroundColor: AppColors.onAccent,
               padding: const EdgeInsets.symmetric(
                 horizontal: AppConstants.spacingMd,
                 vertical: AppConstants.spacingSm,

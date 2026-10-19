@@ -98,7 +98,7 @@ class _RestartingScreenState extends State<RestartingScreen>
                           return LinearGradient(
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
-                            colors: const [
+                            colors: [
                               AppColors.accentDim,
                               AppColors.accentLight,
                               Colors.white,

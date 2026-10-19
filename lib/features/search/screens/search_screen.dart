@@ -113,12 +113,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xBF1E1E1E),
-                      Color(0xD9141414),
+                      AppColors.surfaceLight.withValues(alpha: .75),
+                      AppColors.surface.withValues(alpha: .85),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(AppConstants.radiusXl),
@@ -186,7 +186,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }) {
     if (!hasQuery) {
       // Debounce in-flight – show spinner if user typed but not yet committed.
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
           color: AppColors.textTertiary,
           strokeWidth: 2,
@@ -208,7 +208,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         }
         return _buildGroupedResults(context, results, enabled);
       },
-      loading: () => const Center(
+      loading: () => Center(
         child: CircularProgressIndicator(
           color: AppColors.textTertiary,
           strokeWidth: 2,
@@ -718,11 +718,11 @@ class _SongTile extends ConsumerWidget {
             useThumbnail: true,
             thumbnailWidth: 96,
             thumbnailHeight: 96,
-            placeholder: const ColoredBox(
+            placeholder: ColoredBox(
               color: AppColors.surface,
               child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
             ),
-            errorWidget: const ColoredBox(
+            errorWidget: ColoredBox(
               color: AppColors.surface,
               child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
             ),
@@ -890,11 +890,11 @@ class _AlbumTile extends StatelessWidget {
             useThumbnail: true,
             thumbnailWidth: 96,
             thumbnailHeight: 96,
-            placeholder: const ColoredBox(
+            placeholder: ColoredBox(
               color: AppColors.surface,
               child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
             ),
-            errorWidget: const ColoredBox(
+            errorWidget: ColoredBox(
               color: AppColors.surface,
               child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
             ),

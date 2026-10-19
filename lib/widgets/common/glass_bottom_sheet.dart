@@ -250,7 +250,7 @@ class GlassBottomSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                   border: Border.all(color: AppColors.glassBorder),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.close_rounded,
                   color: AppColors.textSecondary,
                   size: 20,

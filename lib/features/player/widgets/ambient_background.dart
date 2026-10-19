@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/album_art_service.dart';
@@ -267,8 +268,13 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
                 fit: BoxFit.cover,
                 opacity: const AlwaysStoppedAnimation(0.6),
               ),
-              // Dark scrim for readability
-              ColoredBox(color: Colors.black.withValues(alpha: 0.3)),
+              // Scrim in the theme's background colour for readability: a
+              // dark veil on dark themes, a light wash on light ones.
+              ColoredBox(
+                color: AppColors.background.withValues(
+                  alpha: AppColors.isLight ? 0.62 : 0.3,
+                ),
+              ),
             ],
           ),
         ),

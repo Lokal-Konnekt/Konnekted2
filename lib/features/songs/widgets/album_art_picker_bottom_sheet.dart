@@ -364,7 +364,7 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
                     label: Text(l10n.pickImage),
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.accent,
-                      foregroundColor: Colors.black,
+                      foregroundColor: AppColors.onAccent,
                     ),
                   ),
                   if (selectedCandidate != null)
@@ -566,14 +566,14 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
                       child: CachedImageWidget(
                         imagePath: candidate.previewUrl,
                         fit: BoxFit.cover,
-                        placeholder: const ColoredBox(
+                        placeholder: ColoredBox(
                           color: AppColors.surface,
                           child: Icon(
                             LucideIcons.image,
                             color: AppColors.textTertiary,
                           ),
                         ),
-                        errorWidget: const ColoredBox(
+                        errorWidget: ColoredBox(
                           color: AppColors.surface,
                           child: Icon(
                             LucideIcons.imageOff,
@@ -646,7 +646,7 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
                 imagePath: imagePath,
                 audioSourcePath: audioSourcePath,
                 fit: BoxFit.cover,
-                placeholder: const ColoredBox(
+                placeholder: ColoredBox(
                   color: AppColors.surface,
                   child: Icon(
                     LucideIcons.image,
@@ -654,7 +654,7 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
                     size: 30,
                   ),
                 ),
-                errorWidget: const ColoredBox(
+                errorWidget: ColoredBox(
                   color: AppColors.surface,
                   child: Icon(
                     LucideIcons.imageOff,

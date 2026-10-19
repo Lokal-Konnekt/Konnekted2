@@ -48,7 +48,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     LucideIcons.moonStar,
                     color: AppColors.accent,
                     size: 24,
@@ -106,7 +106,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
+                        Icon(
                           LucideIcons.timer,
                           color: AppColors.accent,
                           size: 18,
@@ -114,7 +114,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
                         const SizedBox(width: 8),
                         Text(
                           l10n.stoppingIn(formatDuration(remaining)),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'GoogleSansFlex',
                             fontSize: 14,
                             color: AppColors.accent,
@@ -134,7 +134,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
               const SizedBox(width: 4),
               Text(
                 l10n.m(_min.round()),
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'GoogleSansFlex',
                   fontSize: 14,
                   color: AppColors.textSecondary,
@@ -163,7 +163,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
               ),
               Text(
                 l10n.m2(_max.round()),
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'GoogleSansFlex',
                   fontSize: 14,
                   color: AppColors.textSecondary,
@@ -175,7 +175,7 @@ class _SleepTimerBottomSheetState extends State<SleepTimerBottomSheet> {
           Center(
             child: Text(
               l10n.min(_value.round()),
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'GoogleSansFlex',
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

@@ -19,7 +19,7 @@ class AppTheme {
 
   /// Primary text theme using Google Sans Flex
   static TextTheme get _textTheme {
-    return const TextTheme(
+    return TextTheme(
       // Display styles
       displayLarge: TextStyle(
         fontFamily: _fontFamily,
@@ -139,7 +139,7 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
 
       // Color scheme
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme.dark(
         primary: AppColors.textPrimary,
         onPrimary: AppColors.background,
         secondary: AppColors.accent,
@@ -159,11 +159,11 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
         titleTextStyle: _textTheme.titleLarge,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
       ),
 
       // Icon theme
-      iconTheme: const IconThemeData(color: AppColors.textPrimary, size: 24),
+      iconTheme: IconThemeData(color: AppColors.textPrimary, size: 24),
 
       // Button themes
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -174,7 +174,7 @@ class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: AppColors.glassBorder, width: 1),
+            side: BorderSide(color: AppColors.glassBorder, width: 1),
           ),
         ),
       ),
@@ -192,19 +192,19 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.glassBorder, width: 1),
+          side: BorderSide(color: AppColors.glassBorder, width: 1),
         ),
       ),
 
       // Divider theme
-      dividerTheme: const DividerThemeData(
+      dividerTheme: DividerThemeData(
         color: AppColors.glassBorder,
         thickness: 1,
         space: 1,
       ),
 
       // Monochrome chips (format pickers, filters)
-      chipTheme: const ChipThemeData(
+      chipTheme: ChipThemeData(
         backgroundColor: AppColors.glassBackgroundStrong,
         selectedColor: Color(0x1AE0E0E0), // 10% accent
         checkmarkColor: AppColors.textPrimary,
@@ -228,7 +228,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-          side: const BorderSide(color: AppColors.glassBorder),
+          side: BorderSide(color: AppColors.glassBorder),
         ),
         titleTextStyle: _textTheme.headlineSmall?.copyWith(
           fontWeight: FontWeight.w600,

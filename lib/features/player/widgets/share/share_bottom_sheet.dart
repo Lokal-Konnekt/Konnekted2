@@ -240,7 +240,7 @@ class _ShareBottomSheetState extends ConsumerState<ShareBottomSheet> {
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(LucideIcons.share2, color: AppColors.accent, size: 22),
+              Icon(LucideIcons.share2, color: AppColors.accent, size: 22),
               const SizedBox(width: 12),
               Text(
                 l10n.share,
@@ -345,7 +345,7 @@ class _ActionButton extends StatelessWidget {
           border: Border.all(color: AppColors.glassBorder),
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.textPrimary),

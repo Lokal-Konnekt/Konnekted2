@@ -318,7 +318,7 @@ class MiniPlayerBar extends StatelessWidget {
     ),
   );
 
-  static const _placeholder = ColoredBox(
+  static final _placeholder = ColoredBox(
     color: AppColors.surface,
     child: FlickArtworkPlaceholder(size: 26, opacity: 0.9),
   );

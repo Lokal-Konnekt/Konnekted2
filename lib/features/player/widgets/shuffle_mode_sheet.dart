@@ -115,7 +115,7 @@ class _ModeTile extends StatelessWidget {
                     ),
                     Text(
                       description,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'GoogleSansFlex',
                         fontSize: 12,
                         color: AppColors.textTertiary,
@@ -125,7 +125,7 @@ class _ModeTile extends StatelessWidget {
                 ),
               ),
               if (selected)
-                const Icon(
+                Icon(
                   LucideIcons.check,
                   size: 18,
                   color: AppColors.accent,

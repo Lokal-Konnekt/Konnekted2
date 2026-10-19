@@ -277,7 +277,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
                   _buildHeader(context),
                   Expanded(
                     child: _isLoading
-                        ? const Center(
+                        ? Center(
                             child: CircularProgressIndicator(
                               color: AppColors.textSecondary,
                             ),
@@ -989,7 +989,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
             child: Column(
               children: [
                 _buildHeader(context, 0),
-                const Expanded(
+                Expanded(
                   child: Center(
                     child: CircularProgressIndicator(
                       color: AppColors.textSecondary,
@@ -1710,11 +1710,11 @@ class _SongTile extends StatelessWidget {
                     useThumbnail: true,
                     thumbnailWidth: 92,
                     thumbnailHeight: 92,
-                    placeholder: const ColoredBox(
+                    placeholder: ColoredBox(
                       color: AppColors.surface,
                       child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
-                    errorWidget: const ColoredBox(
+                    errorWidget: ColoredBox(
                       color: AppColors.surface,
                       child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
@@ -2256,7 +2256,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
               (option) => _buildSortTile(context, option),
             ),
             const SizedBox(height: 16),
-            const Divider(color: AppColors.glassBorder, height: 1),
+            Divider(color: AppColors.glassBorder, height: 1),
             const SizedBox(height: 12),
             _buildSectionHeader(context, l10n.folderLimit),
             const SizedBox(height: 4),
@@ -2296,9 +2296,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
             ),
             SliderTheme(
               data: SliderThemeData(
-                activeTrackColor: AppColors.textPrimary.withValues(
-                  alpha: 0.9,
-                ),
+                activeTrackColor: AppColors.accent,
                 inactiveTrackColor: AppColors.glassBackgroundStrong,
                 thumbColor: AppColors.textPrimary,
                 overlayColor: AppColors.textPrimary.withValues(alpha: 0.15),
@@ -2396,7 +2394,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
                 ),
               ),
               if (isSelected)
-                const Icon(
+                Icon(
                   Icons.check_rounded,
                   size: 20,
                   color: AppColors.accent,
@@ -2468,7 +2466,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
               (option) => _buildSortTile(context, option),
             ),
             const SizedBox(height: 16),
-            const Divider(color: AppColors.glassBorder, height: 1),
+            Divider(color: AppColors.glassBorder, height: 1),
             const SizedBox(height: 12),
             _buildSectionHeader(context, l10n.filterByFormat),
             const SizedBox(height: 8),
@@ -2558,7 +2556,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
                 ),
               ),
               if (isSelected)
-                const Icon(
+                Icon(
                   Icons.check_rounded,
                   size: 20,
                   color: AppColors.accent,

@@ -163,7 +163,7 @@ class ParametricEqGraph extends ConsumerWidget {
                                     ),
                                     child: Text(
                                       label,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontFamily: 'GoogleSansFlex',
                                         fontSize: 9,
                                         color: AppColors.textTertiary,

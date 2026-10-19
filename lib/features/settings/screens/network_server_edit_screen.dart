@@ -778,7 +778,7 @@ class _TextFieldSettingState extends State<_TextFieldSetting> {
                       borderRadius: BorderRadius.circular(
                         AppConstants.radiusSm,
                       ),
-                      borderSide: const BorderSide(
+                      borderSide: BorderSide(
                         color: AppColors.glassBorder,
                       ),
                     ),
@@ -786,7 +786,7 @@ class _TextFieldSettingState extends State<_TextFieldSetting> {
                       borderRadius: BorderRadius.circular(
                         AppConstants.radiusSm,
                       ),
-                      borderSide: const BorderSide(
+                      borderSide: BorderSide(
                         color: AppColors.glassBorderStrong,
                       ),
                     ),

@@ -526,7 +526,7 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
                 backgroundColor: AppColors.accent,
                 disabledBackgroundColor:
                     AppColors.surfaceLight.withValues(alpha: 0.6),
-                foregroundColor: AppColors.background,
+                foregroundColor: AppColors.onAccent,
                 disabledForegroundColor: AppColors.textTertiary,
                 shape: RoundedRectangleBorder(
                   borderRadius:
@@ -535,7 +535,7 @@ class _MetadataEditorScreenState extends ConsumerState<MetadataEditorScreen> {
                 padding: EdgeInsets.zero,
               ),
               child: _isSaving
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(

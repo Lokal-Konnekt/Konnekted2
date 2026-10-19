@@ -76,5 +76,5 @@ class FlickOptionTile extends StatelessWidget {
   }
 
   Widget _checkIcon() =>
-      const Icon(Icons.check_circle, color: AppColors.accent, size: 20);
+      Icon(Icons.check_circle, color: AppColors.accent, size: 20);
 }

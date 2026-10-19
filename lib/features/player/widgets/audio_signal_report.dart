@@ -369,7 +369,7 @@ class _ReportRow extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: 48),
       padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.glassBorder)),
       ),
       child: Row(

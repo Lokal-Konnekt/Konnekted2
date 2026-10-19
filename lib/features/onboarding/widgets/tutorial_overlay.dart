@@ -285,7 +285,7 @@ class _TooltipCard extends StatelessWidget {
                 ),
                 child: Text(
                   '${currentStep + 1}/$totalSteps',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -311,7 +311,7 @@ class _TooltipCard extends StatelessWidget {
           const SizedBox(height: AppConstants.spacingMd),
           Text(
             step.title(context.l10n),
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'GoogleSansFlex',
               fontSize: 20,
               fontWeight: FontWeight.w600,
@@ -321,7 +321,7 @@ class _TooltipCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             step.description(context.l10n),
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'GoogleSansFlex',
               fontSize: 14,
               color: AppColors.textSecondary,
@@ -449,7 +449,7 @@ class _SecondaryButton extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'GoogleSansFlex',
                 fontSize: 14,
                 fontWeight: FontWeight.w500,

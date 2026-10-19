@@ -44,7 +44,7 @@ class AddToPlaylistSheet extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 LucideIcons.listPlus,
                 color: AppColors.accent,
                 size: 24,

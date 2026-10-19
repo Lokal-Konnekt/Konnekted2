@@ -525,7 +525,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                       opacity: fadeOut,
                       child: Transform.scale(
                         scale: 0.5 + 0.5 * checkScale,
-                        child: const Icon(
+                        child: Icon(
                           Icons.check_rounded,
                           size: 26,
                           color: AppColors.accent,
@@ -544,7 +544,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                             strokeWidth: 3,
                             strokeCap: StrokeCap.round,
                             backgroundColor: AppColors.glassBackground,
-                            valueColor: const AlwaysStoppedAnimation(
+                            valueColor: AlwaysStoppedAnimation(
                               AppColors.accent,
                             ),
                           ),
@@ -680,7 +680,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'GoogleSansFlex',
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -691,7 +691,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                 const SizedBox(width: 8),
                 Text(
                   _formatElapsed(startedAt),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'GoogleSansFlex',
                     fontSize: 12,
                     color: AppColors.textTertiary,
@@ -706,7 +706,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                 value: total > 0 ? fraction : null,
                 minHeight: 5,
                 backgroundColor: AppColors.glassBackground,
-                valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                valueColor: AlwaysStoppedAnimation(AppColors.accent),
               ),
             ),
             const SizedBox(height: 6),
@@ -716,7 +716,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                   : loadingArtwork
                   ? l10n.loadingArtwork2
                   : l10n.countingFiles,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'GoogleSansFlex',
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -728,7 +728,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
                 currentFile,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'GoogleSansFlex',
                   fontSize: 11,
                   color: AppColors.textTertiary,

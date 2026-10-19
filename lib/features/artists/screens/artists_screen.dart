@@ -848,7 +848,7 @@ class _ArtistSortSheet extends ConsumerWidget {
                 ),
               ),
               if (isSelected)
-                const Icon(
+                Icon(
                   Icons.check_rounded,
                   size: 20,
                   color: AppColors.accent,

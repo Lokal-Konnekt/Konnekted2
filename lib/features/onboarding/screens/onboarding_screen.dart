@@ -59,7 +59,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
+      SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         systemNavigationBarColor: AppColors.background,
@@ -485,7 +485,7 @@ class _StepContent extends StatelessWidget {
           Text(
             data.title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'GoogleSansFlex',
               fontSize: 38,
               fontWeight: FontWeight.w900,
@@ -498,7 +498,7 @@ class _StepContent extends StatelessWidget {
           Text(
             data.description,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'GoogleSansFlex',
               fontSize: AppConstants.fontSizeMd,
               fontWeight: FontWeight.w400,

@@ -902,11 +902,11 @@ class _Artwork extends StatelessWidget {
           useThumbnail: true,
           thumbnailWidth: 96,
           thumbnailHeight: 96,
-          placeholder: const ColoredBox(
+          placeholder: ColoredBox(
             color: AppColors.surface,
             child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
           ),
-          errorWidget: const ColoredBox(
+          errorWidget: ColoredBox(
             color: AppColors.surface,
             child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
           ),

@@ -2226,7 +2226,7 @@ class _MenuLoadingState extends StatelessWidget {
               color: AppColors.glassBackgroundStrong,
               border: Border.all(color: AppColors.glassBorder),
             ),
-            child: const Center(
+            child: Center(
               child: CircularProgressIndicator(
                 strokeWidth: 2.6,
                 color: AppColors.accent,

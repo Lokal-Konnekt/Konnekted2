@@ -301,7 +301,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
   Widget _buildLoadingSection() {
     return AnimatedSwitcher(
       duration: AppConstants.animationFast,
-      child: const Padding(
+      child: Padding(
         key: ValueKey('loading'),
         padding: EdgeInsets.symmetric(vertical: 32),
         child: Center(
@@ -445,7 +445,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                 onPressed: _isSaving ? null : () => _openPreview(result),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
-                  foregroundColor: AppColors.background,
+                  foregroundColor: AppColors.onAccent,
                   padding: const EdgeInsets.symmetric(vertical: 11),
                   shape: RoundedRectangleBorder(
                     borderRadius:
@@ -674,7 +674,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
     if (_isSearching) {
       return AnimatedSwitcher(
         duration: AppConstants.animationFast,
-        child: const Padding(
+        child: Padding(
           key: ValueKey('results-loading'),
           padding: EdgeInsets.only(top: 32),
           child: Center(
@@ -1163,7 +1163,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                 onPressed: _isSaving ? null : () => _saveResult(result),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
-                  foregroundColor: AppColors.background,
+                  foregroundColor: AppColors.onAccent,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius:
@@ -1173,7 +1173,7 @@ class _OnlineLyricsSearchSheetState extends State<OnlineLyricsSearchSheet>
                       AppColors.accent.withValues(alpha: 0.4),
                 ),
                 child: _isSaving
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(

@@ -57,7 +57,8 @@ class AlbumDetailScreen extends ConsumerStatefulWidget {
 
 class _AlbumDetailScreenState extends ConsumerState<AlbumDetailScreen>
     with ArtworkExtractionScrollGate {
-  static const Color _darkBase = Color(0xFF121212);
+  // The theme's background, so the album tint stays light on light themes.
+  static Color get _darkBase => AppColors.background;
   static const double _backgroundBlend = 0.22;
 
   final SongRepository _songRepository = SongRepository();

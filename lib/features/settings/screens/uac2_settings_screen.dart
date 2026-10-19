@@ -39,7 +39,7 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
         body: Stack(
           children: [
             Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: AppColors.backgroundGradient,
               ),
             ),
@@ -859,7 +859,7 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
   }
 
   Widget _buildDivider() {
-    return const Divider(height: 1, thickness: 1, color: AppColors.glassBorder);
+    return Divider(height: 1, thickness: 1, color: AppColors.glassBorder);
   }
 
   void _handleDeviceSelection(

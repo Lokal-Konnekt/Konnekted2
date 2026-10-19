@@ -56,14 +56,14 @@ class WordTimeline extends StatelessWidget {
           children: [
             Text(
               formatTime(windowStart),
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textTertiary,
                 fontSize: 10,
               ),
             ),
             Text(
               formatTime(windowEnd),
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textTertiary,
                 fontSize: 10,
               ),
@@ -192,7 +192,7 @@ class WordTimeline extends StatelessWidget {
               Text(
                 l10n.s((durationMs / 1000).toStringAsFixed(2)),
                 maxLines: 1,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textTertiary,
                   fontSize: 9,
                 ),

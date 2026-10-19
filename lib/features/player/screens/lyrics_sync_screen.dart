@@ -1631,7 +1631,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             lyrics: previewData,
             lineIndex: previewIndex,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w700,

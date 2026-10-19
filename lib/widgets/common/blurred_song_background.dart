@@ -17,7 +17,7 @@ class BlurredSongBackground extends ConsumerWidget {
     final currentSong = ref.watch(currentSongProvider);
     return Stack(
       children: [
-        const Positioned.fill(
+        Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
           ),

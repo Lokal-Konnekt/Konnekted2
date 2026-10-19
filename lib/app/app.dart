@@ -67,6 +67,11 @@ class FlickPlayerApp extends StatelessWidget {
           (_, next) => LokalLauncherIcon.sync(next),
         );
         final tokens = appearance.tokens;
+        // The older screens read AppColors directly; point it at the new
+        // tokens and rebuild everything once so they all follow at once.
+        if (AppColors.bind(tokens)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _rebuildAll());
+        }
         final iconBrightness = tokens.isLight
             ? Brightness.dark
             : Brightness.light;
@@ -135,6 +140,18 @@ class FlickPlayerApp extends StatelessWidget {
       },
     );
   }
+}
+
+/// Marks every element dirty, as a hot reload does, so widgets that read
+/// [AppColors] statically pick up a theme or accent change without losing
+/// their state.
+void _rebuildAll() {
+  void rebuild(Element element) {
+    element.markNeedsBuild();
+    element.visitChildren(rebuild);
+  }
+
+  WidgetsBinding.instance.rootElement?.visitChildren(rebuild);
 }
 
 /// The system text scale times the listener's Lokal text size.
@@ -760,7 +777,7 @@ class _MainShellState extends ConsumerState<MainShell>
                 children: [
                   // Base Gradient
                   Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: AppColors.backgroundGradient,
                     ),
                   ),

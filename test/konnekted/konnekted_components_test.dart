@@ -1,9 +1,10 @@
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/features/konnekted/konnekted_destination.dart';
 import 'package:flick/features/konnekted/konnekted_dock.dart';
 import 'package:flick/features/konnekted/konnekted_home.dart';
 import 'package:flick/features/konnekted/konnekted_library.dart';
-import 'package:flick/features/konnekted/konnekted_style.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flutter/material.dart';
@@ -18,16 +19,19 @@ const _song = Song(
   fileType: 'FLAC',
 );
 
-Widget _app(Widget child, {double scale = 1}) => MaterialApp(
-  theme: KonnektedStyle.theme(ThemeData.dark()),
-  home: MediaQuery(
-    data: MediaQueryData(
-      size: const Size(320, 568),
-      textScaler: TextScaler.linear(scale),
-      padding: const EdgeInsets.only(top: 24, bottom: 24),
-      disableAnimations: true,
+// Lokal glass reads the performance-mode setting, so every pump has a scope.
+Widget _app(Widget child, {double scale = 1}) => ProviderScope(
+  child: MaterialApp(
+    theme: LokalTheme.build(LokalTokens.resolve(LokalThemeId.dark)),
+    home: MediaQuery(
+      data: MediaQueryData(
+        size: const Size(320, 568),
+        textScaler: TextScaler.linear(scale),
+        padding: const EdgeInsets.only(top: 24, bottom: 24),
+        disableAnimations: true,
+      ),
+      child: Scaffold(body: child),
     ),
-    child: Scaffold(body: child),
   ),
 );
 

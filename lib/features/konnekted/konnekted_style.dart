@@ -1,34 +1,10 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
-abstract final class KonnektedStyle {
-  static const background = Color(0xFF0D0D10);
-  static const surface = Color(0xFF1C1B21);
-  static const coral = Color(0xFFFF817B);
-  static const muted = Color(0xFFBAB5C2);
-  static const outline = Color(0xFF363139);
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/lokal_glass.dart';
 
-  static ThemeData theme(ThemeData base) => base.copyWith(
-    scaffoldBackgroundColor: background,
-    colorScheme: const ColorScheme.dark(
-      primary: coral,
-      onPrimary: background,
-      secondary: Color(0xFFFFBA9B),
-      surface: surface,
-      onSurface: Color(0xFFFAF7FA),
-      onSurfaceVariant: muted,
-      outline: outline,
-    ),
-    textTheme: base.textTheme.apply(
-      bodyColor: const Color(0xFFFAF7FA),
-      displayColor: const Color(0xFFFAF7FA),
-    ),
-    dividerColor: outline,
-  );
-}
-
-/// A bounded blur, rather than a full-screen offscreen render pass.
+/// A bounded glass panel; Lokal's glass material with a panel radius.
 class KonnektedGlass extends StatelessWidget {
   const KonnektedGlass({super.key, required this.child, this.radius = 28});
 
@@ -36,20 +12,8 @@ class KonnektedGlass extends StatelessWidget {
   final double radius;
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(radius),
-    child: BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: KonnektedStyle.surface.withValues(alpha: .91),
-          borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: Colors.white.withValues(alpha: .10)),
-        ),
-        child: child,
-      ),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      LokalGlass(borderRadius: BorderRadius.circular(radius), child: child);
 }
 
 class KonnektedHeading extends StatelessWidget {
@@ -76,11 +40,9 @@ class KonnektedHeading extends StatelessWidget {
             children: [
               Text(
                 eyebrow.toUpperCase(),
-                style: const TextStyle(
-                  color: KonnektedStyle.coral,
-                  fontSize: 11,
-                  letterSpacing: 2.4,
-                  fontWeight: FontWeight.w700,
+                style: LokalTheme.label(
+                  context.lokal,
+                  color: context.lokal.accent,
                 ),
               ),
               const SizedBox(height: 8),
@@ -164,14 +126,14 @@ class KonnektedMessage extends StatelessWidget {
     margin: const EdgeInsets.symmetric(horizontal: 24),
     padding: const EdgeInsets.all(22),
     decoration: BoxDecoration(
-      color: KonnektedStyle.surface,
+      color: context.lokal.surface,
       borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: KonnektedStyle.outline),
+      border: Border.all(color: context.lokal.border),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: KonnektedStyle.coral, size: 28),
+        Icon(icon, color: context.lokal.accent, size: 28),
         const SizedBox(height: 14),
         Text(
           title,
@@ -180,7 +142,7 @@ class KonnektedMessage extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           message,
-          style: const TextStyle(color: KonnektedStyle.muted, height: 1.5),
+          style: TextStyle(color: context.lokal.muted, height: 1.5),
         ),
         if (onAction != null && actionLabel != null) ...[
           const SizedBox(height: 12),
@@ -205,13 +167,13 @@ class KonnektedLoading extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: KonnektedStyle.muted)),
+          Text(label, style: TextStyle(color: context.lokal.muted)),
           const SizedBox(height: 14),
           // A static placeholder also respects the system's reduced-motion flag.
           Container(
             height: 88,
             decoration: BoxDecoration(
-              color: KonnektedStyle.surface,
+              color: context.lokal.surface,
               borderRadius: BorderRadius.circular(18),
             ),
           ),

@@ -465,7 +465,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appInfo => 'App Info';
 
   @override
-  String get appTitle => 'Flick Player';
+  String get appTitle => 'Lokal';
 
   @override
   String get appearance => 'Appearance';

@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flick/core/theme/app_theme.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/theme/lokal_appearance.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/features/menu/screens/menu_screen.dart';
 import 'package:flick/features/settings/screens/settings_screen.dart';
@@ -39,6 +40,7 @@ import 'package:flick/widgets/common/connection_notice_host.dart';
 import 'package:flick/widgets/uac2/usb_bit_perfect_prompt.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/library_scanner_service.dart';
+import 'package:flick/services/lokal_launcher_icon.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/services/widget_sync_service.dart';
@@ -55,50 +57,108 @@ class FlickPlayerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Set system UI overlay style for immersive experience
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: AppColors.background,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
-    );
-
-    return ValueListenableBuilder<Locale?>(
-      valueListenable: LocaleController.instance,
-      builder: (context, selectedLocale, _) {
-        return MaterialApp(
-          onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.darkTheme,
-          navigatorKey: rootNavigatorKey,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: kSupportedLocales,
-          // null means "follow the device locale".
-          locale: selectedLocale,
-          home: const _RootRouter(),
-          // Global connectivity notice. It sits below the app content so it is
-          // never covered by routes and never covers any interface itself.
-          builder: (context, child) {
-            // Keep the global `l10n` accessor pointed at the active locale, so
-            // service-layer strings resolve consistently with the widget layer.
-            LocaleController.instance.bind(AppLocalizations.of(context));
-            return Consumer(
-              builder: (context, ref, _) => ConnectionNoticeHost(
-                showNotice: ref.watch(
-                  appPreferencesProvider.select(
-                    (preferences) => preferences.connectionNoticesEnabled,
-                  ),
-                ),
-                child: child ?? const SizedBox.shrink(),
-              ),
-            );
-          },
+    return Consumer(
+      builder: (context, ref, _) {
+        final appearance = ref.watch(lokalAppearanceProvider);
+        // The launcher icon's sticker follows the accent, like desktop's
+        // Dock icon.
+        ref.listen(
+          lokalAppearanceProvider,
+          (_, next) => LokalLauncherIcon.sync(next),
+        );
+        final tokens = appearance.tokens;
+        final iconBrightness = tokens.isLight
+            ? Brightness.dark
+            : Brightness.light;
+        // Set system UI overlay style for immersive experience
+        SystemChrome.setSystemUIOverlayStyle(
+          SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: iconBrightness,
+            systemNavigationBarColor: tokens.bg,
+            systemNavigationBarIconBrightness: iconBrightness,
+          ),
+        );
+        return ValueListenableBuilder<Locale?>(
+          valueListenable: LocaleController.instance,
+          builder: (context, selectedLocale, _) =>
+              _app(context, selectedLocale, appearance),
         );
       },
     );
   }
+
+  Widget _app(
+    BuildContext context,
+    Locale? selectedLocale,
+    LokalAppearance appearance,
+  ) {
+    return MaterialApp(
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+      debugShowCheckedModeBanner: false,
+      theme: LokalTheme.build(appearance.tokens),
+      // A theme or accent change cross-fades every colour at once.
+      themeAnimationDuration: const Duration(milliseconds: 400),
+      themeAnimationCurve: Curves.easeInOutCubic,
+      navigatorKey: rootNavigatorKey,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: kSupportedLocales,
+      // null means "follow the device locale".
+      locale: selectedLocale,
+      home: const _RootRouter(),
+      // Global connectivity notice. It sits below the app content so it is
+      // never covered by routes and never covers any interface itself.
+      builder: (context, child) {
+        // Keep the global `l10n` accessor pointed at the active locale, so
+        // service-layer strings resolve consistently with the widget layer.
+        LocaleController.instance.bind(AppLocalizations.of(context));
+        // Desktop's Text Size multiplies the system text scale.
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: _ScaledTextScaler(
+              media.textScaler,
+              appearance.textScale,
+            ),
+          ),
+          child: Consumer(
+            builder: (context, ref, _) => ConnectionNoticeHost(
+              showNotice: ref.watch(
+                appPreferencesProvider.select(
+                  (preferences) => preferences.connectionNoticesEnabled,
+                ),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The system text scale times the listener's Lokal text size.
+class _ScaledTextScaler extends TextScaler {
+  const _ScaledTextScaler(this.system, this.factor);
+
+  final TextScaler system;
+  final double factor;
+
+  @override
+  double scale(double fontSize) => system.scale(fontSize) * factor;
+
+  @override
+  // ignore: deprecated_member_use
+  double get textScaleFactor => system.textScaleFactor * factor;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ScaledTextScaler &&
+      other.system == system &&
+      other.factor == factor;
+
+  @override
+  int get hashCode => Object.hash(system, factor);
 }
 
 /// Main shell widget that contains navigation and screens.

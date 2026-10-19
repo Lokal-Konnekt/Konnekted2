@@ -231,6 +231,7 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         // Idempotent: cached engines skip duplicate GeneratedPluginRegistrant.
         ensurePluginsRegistered(flutterEngine)
+        LauncherIcon.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "openDocumentTree" -> {
@@ -5450,6 +5451,13 @@ class MainActivity: FlutterActivity() {
         } catch (e: Exception) {
             Log.w("AudioDevice", "AudioDeviceCallback registration failed: ${e.message}")
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // In the background now, so swapping the launcher alias can't close
+        // the app under the listener.
+        LauncherIcon.applyPending(applicationContext)
     }
 
     override fun onDestroy() {

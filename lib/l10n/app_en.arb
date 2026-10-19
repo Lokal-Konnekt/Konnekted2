@@ -617,7 +617,7 @@
   "@appInfo": {
     "description": "lib/features/settings/screens/app_info_settings_screen.dart:598"
   },
-  "appTitle": "Flick Player",
+  "appTitle": "Lokal",
   "@appTitle": {
     "description": "Application name. Used by MaterialApp.onGenerateTitle and shown in the Android task switcher."
   },

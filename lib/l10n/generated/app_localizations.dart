@@ -887,7 +887,7 @@ abstract class AppLocalizations {
   /// Application name. Used by MaterialApp.onGenerateTitle and shown in the Android task switcher.
   ///
   /// In en, this message translates to:
-  /// **'Flick Player'**
+  /// **'Lokal'**
   String get appTitle;
 
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:253

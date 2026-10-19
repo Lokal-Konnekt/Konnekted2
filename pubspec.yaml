@@ -129,8 +129,30 @@ flutter:
     - assets/autoeq/autoeq_brands.json
     - assets/fonts/GoogleSansFlex-OFL.txt
     - assets/fonts/NotoSansSC-OFL.txt
+    - assets/fonts/DMSans-OFL.txt
+    - assets/fonts/DMMono-OFL.txt
+    - assets/branding/lokal_icon.png
+    - assets/branding/lokal_icon_sticker.png
 
   fonts:
+    # DM Sans and DM Mono are desktop Lokal's faces (body and uppercase
+    # labels). Static instances of the upstream variable fonts (SIL OFL 1.1);
+    # see DMSans-OFL.txt and DMMono-OFL.txt.
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/DMSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/DMSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/DMSans-SemiBold.ttf
+          weight: 600
+    - family: DMMono
+      fonts:
+        - asset: assets/fonts/DMMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/DMMono-Medium.ttf
+          weight: 500
+
     # Google Sans Flex replaces Product Sans, which was not licensed for
     # third-party redistribution. The four faces are instanced from the
     # upstream variable font (SIL OFL 1.1, no Reserved Font Names) by

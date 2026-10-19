@@ -445,7 +445,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appInfo => '应用信息';
 
   @override
-  String get appTitle => 'Flick 音乐播放器';
+  String get appTitle => 'Lokal';
 
   @override
   String get appearance => '外观';

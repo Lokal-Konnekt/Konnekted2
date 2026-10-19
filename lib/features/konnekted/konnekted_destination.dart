@@ -16,6 +16,7 @@ enum KonnektedDestination {
   output,
   lyricsSettings,
   allSettings,
+  appearance,
   inheritedHome,
   queue,
   linkedPlaylists,

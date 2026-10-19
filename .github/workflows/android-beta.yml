@@ -27,9 +27,11 @@ jobs:
 
       - name: Prepare Flutter dependencies
         run: |
+          # integration_test is only used by host-side tests. Keeping it out
+          # of the beta package prevents Flutter from registering its Android
+          # plugin in an APK classpath where that plugin is unavailable.
+          sed -i '/^  integration_test:$/,+1d' pubspec.yaml
           flutter pub get
-          # This generated file can retain the dev-only integration_test plugin,
-          # which is not present on release/debug Android classpaths.
           rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 
       - name: Build arm64 beta APK

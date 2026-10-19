@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flutter/material.dart';
@@ -99,7 +100,7 @@ class _TabButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 10),
             decoration: BoxDecoration(
               color: selected
-                  ? KonnektedStyle.coral.withValues(alpha: .13)
+                  ? context.lokal.accent.withValues(alpha: .13)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(22),
             ),
@@ -109,7 +110,7 @@ class _TabButton extends StatelessWidget {
                 Icon(
                   tab.icon,
                   size: 23,
-                  color: selected ? KonnektedStyle.coral : KonnektedStyle.muted,
+                  color: selected ? context.lokal.accent : context.lokal.muted,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -119,8 +120,8 @@ class _TabButton extends StatelessWidget {
                     fontSize: 10,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     color: selected
-                        ? KonnektedStyle.coral
-                        : KonnektedStyle.muted,
+                        ? context.lokal.accent
+                        : context.lokal.muted,
                   ),
                 ),
               ],
@@ -166,7 +167,7 @@ class KonnektedMiniPlayer extends ConsumerWidget {
             value: value.isFinite ? value.clamp(0.0, 1.0) : 0,
             minHeight: 2,
             backgroundColor: Colors.white.withValues(alpha: .06),
-            color: KonnektedStyle.coral,
+            color: context.lokal.accent,
             semanticsLabel: 'Track progress',
           );
         },
@@ -260,9 +261,9 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                                       song.artist,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
-                                        color: KonnektedStyle.muted,
+                                        color: context.lokal.muted,
                                       ),
                                     ),
                                   ],

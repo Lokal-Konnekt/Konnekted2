@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/classipod/classipod_screen.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -98,7 +99,7 @@ class KonnektedLibrary extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
           child: Material(
-            color: KonnektedStyle.surface,
+            color: context.lokal.surface,
             borderRadius: BorderRadius.circular(22),
             clipBehavior: Clip.antiAlias,
             child: ListTile(
@@ -106,9 +107,9 @@ class KonnektedLibrary extends ConsumerWidget {
                 horizontal: 16,
                 vertical: 8,
               ),
-              leading: const Icon(
+              leading: Icon(
                 Icons.radio_button_checked,
-                color: KonnektedStyle.coral,
+                color: context.lokal.accent,
               ),
               title: const Text('Classipod'),
               subtitle: const Text('Your local music, with a click wheel'),
@@ -238,6 +239,12 @@ class KonnektedSettings extends StatelessWidget {
           onNavigate: onNavigate,
           entries: const [
             KonnektedRouteEntry(
+              'Appearance',
+              'Themes, accent, logo tint, and text size',
+              Icons.palette_rounded,
+              KonnektedDestination.appearance,
+            ),
+            KonnektedRouteEntry(
               'Music library',
               'Manage folders and scan your music',
               Icons.library_music_rounded,
@@ -296,7 +303,7 @@ class KonnektedRouteGroup extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 24),
     child: Material(
-      color: KonnektedStyle.surface,
+      color: context.lokal.surface,
       borderRadius: BorderRadius.circular(22),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -326,7 +333,7 @@ class _RouteTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         child: Row(
           children: [
-            Icon(entry.icon, color: KonnektedStyle.coral, size: 26),
+            Icon(entry.icon, color: context.lokal.accent, size: 26),
             const SizedBox(width: 18),
             Expanded(
               child: Column(
@@ -342,20 +349,20 @@ class _RouteTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     entry.subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       height: 1.4,
-                      color: KonnektedStyle.muted,
+                      color: context.lokal.muted,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 20,
-              color: KonnektedStyle.muted,
+              color: context.lokal.muted,
             ),
           ],
         ),

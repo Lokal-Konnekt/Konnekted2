@@ -13,6 +13,7 @@
     "accuraterip": "brand / product name",
     "alt": "release type label ('Alt'), kept verbatim",
     "android": "brand / product name",
+    "appTitle": "brand / product name (Lokal)",
     "aptxAdaptive": "brand / product name",
     "aptxHd": "brand / product name",
     "b": "byte-size suffix ('B{arg1}')",

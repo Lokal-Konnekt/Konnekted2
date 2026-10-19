@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
@@ -48,8 +49,7 @@ class KonnektedHome extends ConsumerWidget {
               loading: () => const KonnektedLoading(),
               error: (_, _) => KonnektedMessage(
                 title: 'Your library needs another look',
-                message:
-                    'We couldn’t load your music. Try again, or check your music folders in Library.',
+                message: 'We couldn’t load your music. Try again, or check your music folders in Library.',
                 icon: Icons.cloud_off_rounded,
                 actionLabel: 'Try again',
                 onAction: () => ref.invalidate(songsProvider),
@@ -59,8 +59,7 @@ class KonnektedHome extends ConsumerWidget {
                       padding: const EdgeInsets.only(top: 24),
                       child: KonnektedMessage(
                         title: 'Make room for your favorites',
-                        message:
-                            'Add a music folder to start your collection. Your albums, favorites, and listening history will live here.',
+                        message: 'Add a music folder to start your collection. Your albums, favorites, and listening history will live here.',
                         icon: Icons.library_music_rounded,
                         actionLabel: 'Add your music',
                         onAction: () =>
@@ -75,8 +74,7 @@ class KonnektedHome extends ConsumerWidget {
               title: 'On repeat, lately',
               songs: ref.watch(konnektedRecentSongsProvider),
               emptyTitle: 'Your next listen starts a story',
-              emptyMessage:
-                  'The music you play will appear here. Pick something from your library to begin.',
+              emptyMessage: 'The music you play will appear here. Pick something from your library to begin.',
               onSeeAll: () => onNavigate(KonnektedDestination.recentlyPlayed),
               onRetry: () => ref.invalidate(konnektedRecentSongsProvider),
               onPlay: onPlay,
@@ -320,10 +318,10 @@ class KonnektedSongShelf extends StatelessWidget {
                               song.artist,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 height: 1.5,
-                                color: KonnektedStyle.muted,
+                                color: context.lokal.muted,
                               ),
                             ),
                           ],
@@ -356,11 +354,11 @@ class KonnektedArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final placeholder = Container(
-      color: const Color(0xFF352831),
+      color: context.lokal.surface3,
       alignment: Alignment.center,
       child: Icon(
         Icons.music_note_rounded,
-        color: KonnektedStyle.coral,
+        color: context.lokal.accent,
         size: size * .35,
       ),
     );

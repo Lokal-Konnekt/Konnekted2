@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/navigation/root_navigator.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/albums/screens/albums_screen.dart';
+import 'package:flick/features/appearance/lokal_appearance_screen.dart';
 import 'package:flick/features/artists/screens/artists_screen.dart';
 import 'package:flick/features/discovery/discovery_screen.dart';
 import 'package:flick/features/favorites/screens/favorites_screen.dart';
@@ -39,7 +41,6 @@ import 'konnekted_dock.dart';
 import 'konnekted_home.dart';
 import 'konnekted_library.dart';
 import 'konnekted_runtime.dart';
-import 'konnekted_style.dart';
 
 /// The post-onboarding entry point. Keep Flick's existing root navigator and
 /// bootstrap; this shell owns the nested navigator and native shell lifecycle.
@@ -155,6 +156,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
           'All settings',
           const SettingsScreen(),
         ),
+        KonnektedDestination.appearance => const LokalAppearanceScreen(),
         KonnektedDestination.inheritedHome => _withBack(
           'Listening hub',
           MenuScreen(onNavigateToTab: _legacyNavigate),
@@ -166,11 +168,8 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
 
   // These three inherited screens were top-level tabs without a back button.
   Widget _withBack(String title, Widget child) => Scaffold(
-    backgroundColor: KonnektedStyle.background,
-    appBar: AppBar(
-      title: Text(title),
-      backgroundColor: KonnektedStyle.background,
-    ),
+    backgroundColor: context.lokal.bg,
+    appBar: AppBar(title: Text(title), backgroundColor: context.lokal.bg),
     body: MediaQuery.removePadding(
       context: context,
       removeTop: true,
@@ -235,87 +234,84 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
   Widget build(BuildContext context) {
     final artworkColor = ref.watch(albumDominantColorSyncProvider);
     final tint = Color.lerp(
-      KonnektedStyle.background,
-      artworkColor ?? KonnektedStyle.coral,
+      context.lokal.bg,
+      artworkColor ?? context.lokal.accent,
       .13,
     )!;
-    return Theme(
-      data: KonnektedStyle.theme(Theme.of(context)),
-      child: AdaptiveColorProvider(
-        backgroundColor: KonnektedStyle.background,
-        albumDominantColor: artworkColor,
-        child: PopScope(
-          canPop: false,
-          onPopInvokedWithResult: _back,
-          child: Scaffold(
-            backgroundColor: KonnektedStyle.background,
-            body: KonnektedRuntime(
-              onOpenPlayer: _openPlayer,
-              onOpenQueue: () => _navigate(KonnektedDestination.queue),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                    colors: [tint, KonnektedStyle.background],
-                    stops: const [0, .55],
+    // The Lokal theme comes from MaterialApp; artwork only tints the backdrop.
+    return AdaptiveColorProvider(
+      backgroundColor: context.lokal.bg,
+      albumDominantColor: artworkColor,
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: _back,
+        child: Scaffold(
+          backgroundColor: context.lokal.bg,
+          body: KonnektedRuntime(
+            onOpenPlayer: _openPlayer,
+            onOpenQueue: () => _navigate(KonnektedDestination.queue),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [tint, context.lokal.bg],
+                  stops: const [0, .55],
+                ),
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Navigator(
+                      key: nestedNavigatorKey,
+                      onGenerateRoute: (_) => MaterialPageRoute<void>(
+                        settings: const RouteSettings(name: '/'),
+                        builder: (_) => PageStorage(
+                          bucket: _storage,
+                          child: ValueListenableBuilder<KonnektedTab>(
+                            valueListenable: _tab,
+                            builder: (_, tab, _) => KeyedSubtree(
+                              key: ValueKey(tab),
+                              // No IndexedStack/PageView: inactive native-heavy
+                              // screens are never eagerly created or retained.
+                              child: switch (tab) {
+                                KonnektedTab.listen => KonnektedHome(
+                                  onNavigate: _navigate,
+                                  onPlay: _play,
+                                ),
+                                KonnektedTab.explore => const DiscoveryScreen(),
+                                KonnektedTab.library => KonnektedLibrary(
+                                  onNavigate: _navigate,
+                                ),
+                                KonnektedTab.settings => KonnektedSettings(
+                                  onNavigate: _navigate,
+                                ),
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Navigator(
-                        key: nestedNavigatorKey,
-                        onGenerateRoute: (_) => MaterialPageRoute<void>(
-                          settings: const RouteSettings(name: '/'),
-                          builder: (_) => PageStorage(
-                            bucket: _storage,
-                            child: ValueListenableBuilder<KonnektedTab>(
-                              valueListenable: _tab,
-                              builder: (_, tab, _) => KeyedSubtree(
-                                key: ValueKey(tab),
-                                // No IndexedStack/PageView: inactive native-heavy
-                                // screens are never eagerly created or retained.
-                                child: switch (tab) {
-                                  KonnektedTab.listen => KonnektedHome(
-                                    onNavigate: _navigate,
-                                    onPlay: _play,
-                                  ),
-                                  KonnektedTab.explore =>
-                                    const DiscoveryScreen(),
-                                  KonnektedTab.library => KonnektedLibrary(
-                                    onNavigate: _navigate,
-                                  ),
-                                  KonnektedTab.settings => KonnektedSettings(
-                                    onNavigate: _navigate,
-                                  ),
-                                },
-                              ),
-                            ),
+                  ValueListenableBuilder<KonnektedTab>(
+                    valueListenable: _tab,
+                    builder: (_, tab, _) => TutorialTargetAnchor(
+                      target: TutorialTarget.navBar,
+                      child: KonnektedDock(
+                        selected: tab,
+                        onSelect: _select,
+                        miniPlayer: TutorialTargetAnchor(
+                          target: TutorialTarget.miniPlayer,
+                          child: KonnektedMiniPlayer(
+                            onOpen: _openPlayer,
+                            onQueue: () =>
+                                _navigate(KonnektedDestination.queue),
                           ),
                         ),
                       ),
                     ),
-                    ValueListenableBuilder<KonnektedTab>(
-                      valueListenable: _tab,
-                      builder: (_, tab, _) => TutorialTargetAnchor(
-                        target: TutorialTarget.navBar,
-                        child: KonnektedDock(
-                          selected: tab,
-                          onSelect: _select,
-                          miniPlayer: TutorialTargetAnchor(
-                            target: TutorialTarget.miniPlayer,
-                            child: KonnektedMiniPlayer(
-                              onOpen: _openPlayer,
-                              onQueue: () =>
-                                  _navigate(KonnektedDestination.queue),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -32,7 +32,6 @@ jobs:
           # plugin in an APK classpath where that plugin is unavailable.
           sed -i '/^  integration_test:$/,+1d' pubspec.yaml
           flutter pub get
-          rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 
       - name: Build arm64 beta APK
         run: flutter build apk --debug --flavor full --target-platform android-arm64 --no-pub

@@ -59,16 +59,24 @@ class KonnektedSectionHeading extends StatelessWidget {
     super.key,
     required this.title,
     this.onSeeAll,
+    this.icon,
   });
 
   final String title;
   final VoidCallback? onSeeAll;
+
+  /// A small accent glyph before the title, as desktop's section headers.
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(24, 26, 16, 12),
     child: Row(
       children: [
+        if (icon != null) ...[
+          Icon(icon, size: 18, color: context.lokal.accent),
+          const SizedBox(width: 8),
+        ],
         Expanded(
           child: Semantics(
             header: true,

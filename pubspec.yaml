@@ -109,6 +109,11 @@ flutter:
   # Generates AppLocalizations from lib/l10n/*.arb (see l10n.yaml).
   generate: true
 
+  # Lokal's liquid glass lens (LokalGlass).
+  shaders:
+    - shaders/lokal_glass_lens.frag
+    - shaders/lokal_glass_rim.frag
+
   assets:
     - assets/icons/flicklogo.png
     - assets/icons/flicklogo_svg.svg

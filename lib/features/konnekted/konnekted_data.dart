@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flick/data/repositories/recently_played_repository.dart';
+import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
@@ -60,3 +61,51 @@ final konnektedRecentlyAddedProvider =
         return sorted.take(12).toList(growable: false);
       }),
     );
+
+/// The two Cover Flow shelves on Home.
+enum KonnektedCoverShelf {
+  recent('Recent'),
+  added('New');
+
+  const KonnektedCoverShelf(this.label);
+
+  final String label;
+}
+
+/// Albums for Home's Cover Flow: the ones played lately, or newest added.
+final konnektedCoverAlbumsProvider = Provider.autoDispose
+    .family<AsyncValue<List<AlbumGroup>>, KonnektedCoverShelf>((ref, shelf) {
+      final library = ref.watch(konnektedLibraryProvider);
+      return library.whenData((songs) {
+        final albums = SongsState(
+          songs: songs
+              .where((song) => !song.isNetworkSource && !song.isExternal)
+              .toList(),
+          sortOption: SongSortOption.album,
+        ).albumGroups;
+        if (albums.isEmpty) return const <AlbumGroup>[];
+        switch (shelf) {
+          case KonnektedCoverShelf.added:
+            DateTime newest(AlbumGroup album) => album.songs
+                .map((song) => song.dateAdded ?? DateTime(1970))
+                .reduce((a, b) => a.isAfter(b) ? a : b);
+            return (List<AlbumGroup>.of(albums)
+                  ..sort((a, b) => newest(b).compareTo(newest(a))))
+                .take(40)
+                .toList(growable: false);
+          case KonnektedCoverShelf.recent:
+            final recent =
+                ref.watch(konnektedRecentSongsProvider).value ?? const [];
+            final byId = <String, AlbumGroup>{
+              for (final album in albums)
+                for (final song in album.songs) song.id: album,
+            };
+            final seen = <String>{};
+            return [
+              for (final song in recent)
+                if (byId[song.id] case final album?)
+                  if (seen.add(album.key)) album,
+            ];
+        }
+      });
+    });

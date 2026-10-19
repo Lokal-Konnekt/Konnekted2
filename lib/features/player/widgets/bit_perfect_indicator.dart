@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/utils/responsive.dart';
@@ -42,6 +43,15 @@ class BitPerfectIndicator extends ConsumerWidget {
       suppressVerified: prefs.replaceAlbumWithBitPerfectCapsule,
     );
     final label = _getSongQuality(song);
+
+    // Desktop Lokal's tier and colours; the verified/locked mark rides along.
+    if (LokalQualityTier.of(song) case final tier?) {
+      return GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: LokalQualityPill(tier: tier, icon: state.icon),
+      );
+    }
 
     return GestureDetector(
       onTap: onTap,
@@ -262,8 +272,8 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     final dominantColor = ref.watch(albumDominantColorSyncProvider);
     final Color? albumColor =
         (colorMode != AlbumColorMode.off && dominantColor != null)
-            ? dominantColor
-            : null;
+        ? dominantColor
+        : null;
 
     return Container(
       decoration: AppBottomSheetSurface.decoration,
@@ -344,15 +354,21 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
                           child: Container(
                             padding: const EdgeInsets.all(5),
                             decoration: BoxDecoration(
-                              color: AppColors.background.withValues(alpha: 0.5),
+                              color: AppColors.background.withValues(
+                                alpha: 0.5,
+                              ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 250),
-                              transitionBuilder: (child, anim) => FadeTransition(
-                                opacity: anim,
-                                child: ScaleTransition(scale: anim, child: child),
-                              ),
+                              transitionBuilder: (child, anim) =>
+                                  FadeTransition(
+                                    opacity: anim,
+                                    child: ScaleTransition(
+                                      scale: anim,
+                                      child: child,
+                                    ),
+                                  ),
                               child: Icon(
                                 _isExpanded
                                     ? Icons.close_fullscreen_rounded
@@ -409,7 +425,11 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.verified_rounded, size: 12, color: Colors.green.shade400),
+                Icon(
+                  Icons.verified_rounded,
+                  size: 12,
+                  color: Colors.green.shade400,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   l10n.bitPerfect2,
@@ -452,18 +472,20 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
             color: widget.isVerified
                 ? Colors.green.withValues(alpha: 0.15)
                 : widget.isDirectUsb
-                    ? Colors.blue.withValues(alpha: 0.15)
-                    : AppColors.glassBackgroundStrong,
+                ? Colors.blue.withValues(alpha: 0.15)
+                : AppColors.glassBackgroundStrong,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
-            widget.isVerified ? LucideIcons.badgeCheck : LucideIcons.audioWaveform,
+            widget.isVerified
+                ? LucideIcons.badgeCheck
+                : LucideIcons.audioWaveform,
             size: 20,
             color: widget.isVerified
                 ? Colors.green.shade400
                 : widget.isDirectUsb
-                    ? Colors.blue.shade400
-                    : context.adaptiveTextPrimary,
+                ? Colors.blue.shade400
+                : context.adaptiveTextPrimary,
           ),
         ),
         const SizedBox(width: 12),
@@ -552,7 +574,11 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
 
     if (widget.song.resolution != null && !widget.song.isDsd) {
       rows.add(
-        _buildRow(context, label: l10n.resolution, value: widget.song.resolution!),
+        _buildRow(
+          context,
+          label: l10n.resolution,
+          value: widget.song.resolution!,
+        ),
       );
     }
 
@@ -596,15 +622,26 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           label: l10n.outputRate,
           value: _formatHz(displayRate),
           trailing: matches
-              ? Icon(Icons.check_circle_rounded, size: 14, color: Colors.green.shade400)
-              : Icon(Icons.warning_amber_rounded, size: 14, color: Colors.amber.shade400),
+              ? Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Colors.green.shade400,
+                )
+              : Icon(
+                  Icons.warning_amber_rounded,
+                  size: 14,
+                  color: Colors.amber.shade400,
+                ),
         ),
       );
     }
 
-    final bitDepth = widget.deviceStatus?.currentFormat?.bitDepth ?? widget.song.bitDepth;
+    final bitDepth =
+        widget.deviceStatus?.currentFormat?.bitDepth ?? widget.song.bitDepth;
     if (bitDepth != null) {
-      rows.add(_buildRow(context, label: l10n.bitDepth, value: '$bitDepth-bit'));
+      rows.add(
+        _buildRow(context, label: l10n.bitDepth, value: '$bitDepth-bit'),
+      );
     }
 
     final channels = widget.deviceStatus?.currentFormat?.channels;
@@ -613,7 +650,11 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
         _buildRow(
           context,
           label: l10n.channels,
-          value: channels == 1 ? l10n.mono : channels == 2 ? l10n.stereo : l10n.ch(channels),
+          value: channels == 1
+              ? l10n.mono
+              : channels == 2
+              ? l10n.stereo
+              : l10n.ch(channels),
         ),
       );
     }
@@ -638,7 +679,13 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
 
     final volMode = widget.deviceStatus?.volumeMode;
     if (volMode != null && volMode != Uac2VolumeMode.unavailable) {
-      rows.add(_buildRow(context, label: l10n.volume, value: _formatVolumeMode(volMode)));
+      rows.add(
+        _buildRow(
+          context,
+          label: l10n.volume,
+          value: _formatVolumeMode(volMode),
+        ),
+      );
     }
 
     final routeLabel = d?.routeLabel;
@@ -651,8 +698,8 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           trailing: widget.isDirectUsb
               ? _buildTinyBadge(l10n.direct, Colors.blue)
               : (d?.isMixerManaged ?? false)
-                  ? _buildTinyBadge(l10n.mixer, Colors.grey)
-                  : null,
+              ? _buildTinyBadge(l10n.mixer, Colors.grey)
+              : null,
         ),
       );
     }
@@ -664,8 +711,16 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           label: l10n.resampler,
           value: d.resamplerActive ? l10n.active : l10n.inactive,
           trailing: d.resamplerActive
-              ? Icon(Icons.warning_amber_rounded, size: 14, color: Colors.amber.shade400)
-              : Icon(Icons.check_circle_rounded, size: 14, color: Colors.green.shade400),
+              ? Icon(
+                  Icons.warning_amber_rounded,
+                  size: 14,
+                  color: Colors.amber.shade400,
+                )
+              : Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Colors.green.shade400,
+                ),
         ),
       );
     }
@@ -677,7 +732,11 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
           label: l10n.passthrough,
           value: d.passthroughAllowed ? l10n.allowed : l10n.blocked,
           trailing: d.passthroughAllowed
-              ? Icon(Icons.check_circle_rounded, size: 14, color: Colors.green.shade400)
+              ? Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Colors.green.shade400,
+                )
               : Icon(Icons.block_rounded, size: 14, color: Colors.red.shade400),
         ),
       );
@@ -702,7 +761,8 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     }
 
     final isDop = widget.deviceStatus?.currentFormat?.isDop ?? false;
-    final isNativeDsd = widget.deviceStatus?.currentFormat?.isNativeDsd ?? false;
+    final isNativeDsd =
+        widget.deviceStatus?.currentFormat?.isNativeDsd ?? false;
     if (isDop || isNativeDsd || widget.song.isDsd) {
       // The device-status format is derived from the DSD preference, not from
       // what the engine actually negotiated (e.g. an Auto multichannel source
@@ -719,15 +779,19 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
         dsdLabel = isNativeDsd
             ? l10n.nativeDsd
             : isDop
-                ? l10n.dop
-                : 'DSD';
+            ? l10n.dop
+            : 'DSD';
       }
       rows.add(_buildRow(context, label: l10n.dsdMode, value: dsdLabel));
     }
 
     if (widget.song.filePath != null) {
       rows.add(
-        _buildRow(context, label: l10n.source, value: _truncatePath(widget.song.filePath!)),
+        _buildRow(
+          context,
+          label: l10n.source,
+          value: _truncatePath(widget.song.filePath!),
+        ),
       );
     }
 

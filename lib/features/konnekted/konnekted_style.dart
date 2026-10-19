@@ -2,19 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
-import 'package:flick/widgets/lokal/lokal_glass.dart';
-
-/// A bounded glass panel; Lokal's glass material with a panel radius.
-class KonnektedGlass extends StatelessWidget {
-  const KonnektedGlass({super.key, required this.child, this.radius = 28});
-
-  final Widget child;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) =>
-      LokalGlass(borderRadius: BorderRadius.circular(radius), child: child);
-}
 
 class KonnektedHeading extends StatelessWidget {
   const KonnektedHeading({

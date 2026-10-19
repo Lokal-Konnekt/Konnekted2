@@ -59,8 +59,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Listen now'), findsOneWidget);
-      await tester.tap(find.text('Open Flow'));
+      expect(find.text('Home'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Open Flow'));
       expect(opened, [KonnektedDestination.flow]);
       await tester.scrollUntilVisible(find.text('Add your music'), 180);
       await tester.pumpAndSettle();
@@ -210,7 +210,7 @@ void main() {
     await tester.tap(find.byTooltip('Pause'));
     await tester.tap(find.byTooltip('Open queue'));
     for (final tab in KonnektedTab.values) {
-      await tester.tap(find.text(tab.label));
+      await tester.tap(find.bySemanticsLabel(tab.label));
       await tester.pump();
       expect(selected, tab);
       expect(
@@ -231,5 +231,121 @@ void main() {
     expect(queueOpens, 1);
     expect(tester.takeException(), isNull);
     semantics.dispose();
+  });
+
+  Widget dock({
+    required KonnektedTab selected,
+    required ValueChanged<KonnektedTab> onSelect,
+    bool collapsed = false,
+    VoidCallback? onExpand,
+  }) => Align(
+    alignment: Alignment.bottomCenter,
+    child: KonnektedDock(
+      selected: selected,
+      onSelect: onSelect,
+      collapsed: collapsed,
+      onExpand: onExpand,
+      miniPlayer: KonnektedMiniPlayerContent(
+        song: _song,
+        isPlaying: false,
+        onOpen: () {},
+        onPlayPause: () {},
+        onNext: () {},
+        onQueue: () {},
+        progress: const SizedBox.shrink(),
+      ),
+    ),
+  );
+
+  testWidgets('dragging the lens across the tab capsule picks a tab', (
+    tester,
+  ) async {
+    var selected = KonnektedTab.listen;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) => dock(
+            selected: selected,
+            onSelect: (tab) => setState(() => selected = tab),
+          ),
+        ),
+      ),
+    );
+    final home = tester.getCenter(find.bySemanticsLabel('Home'));
+    final you = tester.getCenter(find.bySemanticsLabel('You'));
+    final gesture = await tester.startGesture(home);
+    await gesture.moveBy(const Offset(20, 0));
+    await gesture.moveTo(you);
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(selected, KonnektedTab.settings);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('scrolled-down dock tucks the mini player between circles', (
+    tester,
+  ) async {
+    var expands = 0;
+    var collapsed = false;
+    late StateSetter set;
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            set = setState;
+            return dock(
+              selected: KonnektedTab.library,
+              onSelect: (_) {},
+              collapsed: collapsed,
+              onExpand: () => expands++,
+            );
+          },
+        ),
+      ),
+    );
+    final openHeight = tester.getSize(find.byType(KonnektedDock)).height;
+    expect(find.byTooltip('Open queue'), findsOneWidget);
+
+    set(() => collapsed = true);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byType(KonnektedDock)).height,
+      lessThan(openHeight),
+    );
+    // The hidden tabs leave the semantics tree; the shrunken capsule stays.
+    expect(find.bySemanticsLabel('Home'), findsNothing);
+    expect(find.byTooltip('Open queue'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp('Open player for')), findsOneWidget);
+    expect(find.bySemanticsLabel('Search'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Show tabs. Library'));
+    expect(expands, 1);
+    expect(tester.takeException(), isNull);
+    semantics.dispose();
+  });
+
+  testWidgets('dock without a song is one row and never collapses', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: KonnektedDock(
+            selected: KonnektedTab.explore,
+            onSelect: (_) {},
+            hasMiniPlayer: false,
+            collapsed: true,
+            miniPlayer: const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byType(KonnektedDock)).height,
+      KonnektedDock.reservedHeight(hasMiniPlayer: false, systemInset: 24),
+    );
+    expect(find.bySemanticsLabel('Home'), findsOneWidget);
   });
 }

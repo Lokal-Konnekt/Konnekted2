@@ -33,6 +33,7 @@ import 'package:flick/providers/album_color_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -53,6 +54,7 @@ class KonnektedShell extends ConsumerStatefulWidget {
 
 class _KonnektedShellState extends ConsumerState<KonnektedShell> {
   final _tab = ValueNotifier(KonnektedTab.listen);
+  final _dockCollapsed = ValueNotifier(false);
   final _storage = PageStorageBucket();
   DateTime? _lastBack;
 
@@ -79,6 +81,19 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
     AppHaptics.selection();
     nestedNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     _tab.value = tab;
+    _dockCollapsed.value = false;
+  }
+
+  /// Scrolling down tucks the dock away, scrolling up brings it back, like
+  /// Apple Music on iOS 26. Sideways shelves and Cover Flow don't count.
+  bool _onScroll(UserScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    if (n.direction == ScrollDirection.reverse && n.metrics.extentBefore > 24) {
+      _dockCollapsed.value = true;
+    } else if (n.direction == ScrollDirection.forward) {
+      _dockCollapsed.value = false;
+    }
+    return false;
   }
 
   void _legacyNavigate(int index) {
@@ -227,6 +242,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
   @override
   void dispose() {
     _tab.dispose();
+    _dockCollapsed.dispose();
     super.dispose();
   }
 
@@ -259,59 +275,93 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                   stops: const [0, .55],
                 ),
               ),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Navigator(
-                      key: nestedNavigatorKey,
-                      onGenerateRoute: (_) => MaterialPageRoute<void>(
-                        settings: const RouteSettings(name: '/'),
-                        builder: (_) => PageStorage(
-                          bucket: _storage,
-                          child: ValueListenableBuilder<KonnektedTab>(
-                            valueListenable: _tab,
-                            builder: (_, tab, _) => KeyedSubtree(
-                              key: ValueKey(tab),
-                              // No IndexedStack/PageView: inactive native-heavy
-                              // screens are never eagerly created or retained.
-                              child: switch (tab) {
-                                KonnektedTab.listen => KonnektedHome(
-                                  onNavigate: _navigate,
-                                  onPlay: _play,
+              // The dock floats over the content, so glass has something to
+              // refract; pages get its height as bottom padding instead.
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final hasSong = ref.watch(
+                    currentSongProvider.select((song) => song != null),
+                  );
+                  final media = MediaQuery.of(context);
+                  return Stack(
+                    children: [
+                      MediaQuery(
+                        data: media.copyWith(
+                          padding: media.padding.copyWith(
+                            bottom: KonnektedDock.reservedHeight(
+                              hasMiniPlayer: hasSong,
+                              systemInset: media.padding.bottom,
+                            ),
+                          ),
+                        ),
+                        child: NotificationListener<UserScrollNotification>(
+                          onNotification: _onScroll,
+                          child: Navigator(
+                            key: nestedNavigatorKey,
+                            onGenerateRoute: (_) => MaterialPageRoute<void>(
+                              settings: const RouteSettings(name: '/'),
+                              builder: (_) => PageStorage(
+                                bucket: _storage,
+                                child: ValueListenableBuilder<KonnektedTab>(
+                                  valueListenable: _tab,
+                                  builder: (_, tab, _) => KeyedSubtree(
+                                    key: ValueKey(tab),
+                                    // No IndexedStack/PageView: inactive native-heavy
+                                    // screens are never eagerly created or retained.
+                                    child: switch (tab) {
+                                      KonnektedTab.listen => KonnektedHome(
+                                        onNavigate: _navigate,
+                                        onPlay: _play,
+                                      ),
+                                      KonnektedTab.explore =>
+                                        const DiscoveryScreen(),
+                                      KonnektedTab.library => KonnektedLibrary(
+                                        onNavigate: _navigate,
+                                      ),
+                                      KonnektedTab.settings =>
+                                        KonnektedSettings(
+                                          onNavigate: _navigate,
+                                        ),
+                                    },
+                                  ),
                                 ),
-                                KonnektedTab.explore => const DiscoveryScreen(),
-                                KonnektedTab.library => KonnektedLibrary(
-                                  onNavigate: _navigate,
-                                ),
-                                KonnektedTab.settings => KonnektedSettings(
-                                  onNavigate: _navigate,
-                                ),
-                              },
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  ValueListenableBuilder<KonnektedTab>(
-                    valueListenable: _tab,
-                    builder: (_, tab, _) => TutorialTargetAnchor(
-                      target: TutorialTarget.navBar,
-                      child: KonnektedDock(
-                        selected: tab,
-                        onSelect: _select,
-                        miniPlayer: TutorialTargetAnchor(
-                          target: TutorialTarget.miniPlayer,
-                          child: KonnektedMiniPlayer(
-                            onOpen: _openPlayer,
-                            onQueue: () =>
-                                _navigate(KonnektedDestination.queue),
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: TutorialTargetAnchor(
+                          target: TutorialTarget.navBar,
+                          child: ListenableBuilder(
+                            listenable: Listenable.merge([
+                              _tab,
+                              _dockCollapsed,
+                            ]),
+                            builder: (_, _) => KonnektedDock(
+                              selected: _tab.value,
+                              onSelect: _select,
+                              hasMiniPlayer: hasSong,
+                              collapsed: _dockCollapsed.value,
+                              onExpand: () => _dockCollapsed.value = false,
+                              miniPlayer: TutorialTargetAnchor(
+                                target: TutorialTarget.miniPlayer,
+                                child: KonnektedMiniPlayer(
+                                  onOpen: _openPlayer,
+                                  onQueue: () =>
+                                      _navigate(KonnektedDestination.queue),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),

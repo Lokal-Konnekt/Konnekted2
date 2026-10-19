@@ -19,7 +19,9 @@ class KonnektedLibrary extends ConsumerWidget {
     bottom: false,
     child: ListView(
       key: const PageStorageKey('konnekted-library'),
-      padding: const EdgeInsets.only(bottom: 28),
+      padding: EdgeInsets.only(
+        bottom: 28 + MediaQuery.paddingOf(context).bottom,
+      ),
       children: [
         KonnektedHeading(
           title: 'Your library',
@@ -187,7 +189,9 @@ class KonnektedSettings extends StatelessWidget {
     bottom: false,
     child: ListView(
       key: const PageStorageKey('konnekted-settings'),
-      padding: const EdgeInsets.only(bottom: 28),
+      padding: EdgeInsets.only(
+        bottom: 28 + MediaQuery.paddingOf(context).bottom,
+      ),
       children: [
         const KonnektedHeading(
           title: 'Fine tuning',

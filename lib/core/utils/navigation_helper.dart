@@ -100,7 +100,9 @@ class NavigationHelper {
           },
           transitionDuration: AppConstants.animationNormal,
           opaque: false,
-          barrierColor: Colors.black,
+          // Transparent, so the app shows (dimmed by the player itself)
+          // while Now Playing is dragged down to close.
+          barrierColor: Colors.transparent,
           settings: const RouteSettings(name: '/full_player'),
         ),
       );

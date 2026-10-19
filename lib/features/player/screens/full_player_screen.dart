@@ -8,6 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/features/player/widgets/song_stage_carousel.dart';
+import 'package:flick/widgets/lokal/lokal_like_burst.dart';
+import 'package:flick/widgets/lokal/lokal_pull_to_dismiss.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/player/screens/classic_full_player_screen.dart';
@@ -34,7 +38,6 @@ import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/flick_dialog.dart';
 
 const String _font = 'GoogleSansFlex';
-const Color _cream = Color(0xFFE6E1D0);
 
 /// Wave player: fluid artwork backdrop, big art, flowing lyrics, labeled action
 /// chips. Same constructor as the old screen, so every existing entry point
@@ -70,6 +73,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
   bool _draggingSeek = false;
   double _seekDrag = 0;
   bool _draggingVolume = false;
+
+  bool _carouselDragging = false;
+  int _burst = 0;
+  bool _burstVisible = false;
 
   @override
   void initState() {
@@ -145,6 +152,19 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
 
   void _close() => Navigator.of(context).pop();
 
+  // ───────────────────────────── gestures ─────────────────────────────
+
+  /// Double-tapping the artwork likes the song (never unlikes it), with a
+  /// burst over the cover.
+  void _likeFromArtwork() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _burst++;
+      _burstVisible = true;
+    });
+    if (!_isFav) _toggleFavorite();
+  }
+
   void _openClassic() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
@@ -207,6 +227,26 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
             const Color(0xFF14141A),
           ];
 
+    return PopScope(
+      // Back closes the lyrics first, then the player.
+      canPop: !_showLyrics,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _showLyrics) _toggleLyrics();
+      },
+      child: LokalPullToDismiss(
+        onDismiss: _close,
+        onPullUp: _showLyrics ? null : () => _navigation.openQueue(context),
+        isBlocked: () => _carouselDragging,
+        child: _scaffold(colors, isCasting, diagnostics),
+      ),
+    );
+  }
+
+  Widget _scaffold(
+    List<Color> colors,
+    bool isCasting,
+    AudioOutputDiagnostics? diagnostics,
+  ) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: ValueListenableBuilder<Song?>(
@@ -276,57 +316,51 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
         : diagnostics?.routeLabel.trim().isNotEmpty == true
         ? diagnostics!.routeLabel.trim()
         : l10n.thisDevice;
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onVerticalDragEnd: (d) {
-        if ((d.primaryVelocity ?? 0) > 700) _close();
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            _roundIcon(LucideIcons.chevronLeft, _close),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Align(
-                alignment: Alignment.center,
-                child: _pill(
-                  onTap: () => _openOutputPopup(song),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 190),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          LucideIcons.headphones,
-                          size: 17,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: _font,
-                              fontSize: 13,
-                              color: Colors.white,
-                            ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          _roundIcon(LucideIcons.chevronLeft, _close),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Align(
+              alignment: Alignment.center,
+              child: _pill(
+                onTap: () => _openOutputPopup(song),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 190),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        LucideIcons.headphones,
+                        size: 17,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: _font,
+                            fontSize: 13,
+                            color: Colors.white,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            _roundIcon(LucideIcons.cast, _openCasting, active: isCasting),
-            const SizedBox(width: 4),
-            _roundIcon(Icons.more_vert, () => _openMore(song)),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          _roundIcon(LucideIcons.cast, _openCasting, active: isCasting),
+          const SizedBox(width: 4),
+          _roundIcon(Icons.more_vert, () => _openMore(song)),
+        ],
       ),
     );
   }
@@ -353,10 +387,16 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     bool selected = false,
   }) {
     return Material(
-      color: Colors.white.withValues(alpha: selected ? 0.26 : 0.08),
+      color: selected
+          ? context.lokal.accent.withValues(alpha: 0.22)
+          : Colors.white.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+        side: BorderSide(
+          color: selected
+              ? context.lokal.accent.withValues(alpha: 0.5)
+              : Colors.white.withValues(alpha: 0.18),
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -379,36 +419,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
           child: LayoutBuilder(
             builder: (context, c) {
               final side = math.min(c.maxWidth, c.maxHeight);
-              return Align(
-                alignment: Alignment.center,
-                child: GestureDetector(
-                  onHorizontalDragEnd: (d) {
-                    final v = d.primaryVelocity ?? 0;
-                    if (v < -300) {
-                      _player.next();
-                    } else if (v > 300) {
-                      _player.previousBySwipe();
-                    }
-                  },
-                  child: SizedBox(
-                    width: side,
-                    height: side,
-                    child: Hero(
-                      tag: widget.heroTag,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(28),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 280),
-                          child: CachedImageWidget(
-                            key: ValueKey('${song.id}|${song.albumArt}'),
-                            imagePath: song.albumArt,
-                            audioSourcePath: song.filePath,
-                            fit: BoxFit.cover,
-                            placeholder: const FlickArtworkPlaceholder(),
-                            errorWidget: const FlickArtworkPlaceholder(),
-                          ),
-                        ),
-                      ),
+              // Follows the finger; neighbours slide in beside the cover.
+              return ValueListenableBuilder<List<Song>>(
+                valueListenable: _player.upNextNotifier,
+                builder: (context, _, __) => ValueListenableBuilder<int>(
+                  valueListenable: _player.currentIndexNotifier,
+                  builder: (context, _, __) => SongStageCarousel(
+                    currentSong: song,
+                    nextSong: _player.peekNext,
+                    prevSong: _player.peekPrevious,
+                    onDragStateChanged: (v) => _carouselDragging = v,
+                    onNext: _player.next,
+                    onPrevious: _player.previousBySwipe,
+                    stageBuilder: (s) => Center(
+                      child: _artwork(s, side, current: s.id == song.id),
                     ),
                   ),
                 ),
@@ -459,6 +483,50 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
         ],
         const SizedBox(height: 6),
       ],
+    );
+  }
+
+  Widget _artwork(Song song, double side, {required bool current}) {
+    final art = ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        child: CachedImageWidget(
+          key: ValueKey('${song.id}|${song.albumArt}'),
+          imagePath: song.albumArt,
+          audioSourcePath: song.filePath,
+          fit: BoxFit.cover,
+          placeholder: const FlickArtworkPlaceholder(),
+          errorWidget: const FlickArtworkPlaceholder(),
+        ),
+      ),
+    );
+    final shown = _burst;
+    return GestureDetector(
+      onDoubleTap: current ? _likeFromArtwork : null,
+      child: SizedBox(
+        width: side,
+        height: side,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned.fill(
+              child: current ? Hero(tag: widget.heroTag, child: art) : art,
+            ),
+            if (current && _burstVisible)
+              LokalLikeBurst(
+                key: ValueKey(_burst),
+                color: context.lokal.accent,
+                size: side * .28,
+                onDone: () {
+                  if (mounted && shown == _burst) {
+                    setState(() => _burstVisible = false);
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -685,7 +753,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                       enabledThumbRadius: 6,
                     ),
                     overlayShape: SliderComponentShape.noOverlay,
-                    activeTrackColor: Colors.white,
+                    activeTrackColor: context.lokal.accent,
                     inactiveTrackColor: Colors.white24,
                     thumbColor: Colors.white,
                   ),
@@ -746,6 +814,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     }
 
     final glass = Colors.white.withValues(alpha: 0.13);
+    final tokens = context.lokal;
     return SizedBox(
       height: compact ? 66 : 82,
       child: Row(
@@ -763,7 +832,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
           const SizedBox(width: 10),
           big(
             flex: 17,
-            color: _cream,
+            color: tokens.accent,
             onTap: () => _player.togglePlayPause(),
             child: ValueListenableBuilder<bool>(
               valueListenable: _player.isPlayingNotifier,
@@ -773,7 +842,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                   playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                   key: ValueKey(playing),
                   size: 40,
-                  color: const Color(0xFF26231A),
+                  color: tokens.onAccent,
                 ),
               ),
             ),
@@ -875,7 +944,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Material(
-        color: on ? Colors.white.withValues(alpha: 0.28) : Colors.transparent,
+        color: on
+            ? context.lokal.accent.withValues(alpha: 0.22)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(13),
         child: InkWell(
           borderRadius: BorderRadius.circular(13),
@@ -884,7 +955,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
           child: SizedBox(
             width: 42,
             height: 42,
-            child: Icon(icon, size: 20, color: Colors.white),
+            child: Icon(
+              icon,
+              size: 20,
+              color: on ? context.lokal.accent : Colors.white,
+            ),
           ),
         ),
       ),

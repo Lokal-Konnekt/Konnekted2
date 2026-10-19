@@ -5,6 +5,7 @@ import 'package:flick/features/konnekted/konnekted_destination.dart';
 import 'package:flick/features/konnekted/konnekted_dock.dart';
 import 'package:flick/features/konnekted/konnekted_home.dart';
 import 'package:flick/features/konnekted/konnekted_library.dart';
+import 'package:flick/features/konnekted/lokal_mixes.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flutter/material.dart';
@@ -35,7 +36,82 @@ Widget _app(Widget child, {double scale = 1}) => ProviderScope(
   ),
 );
 
+Song _track(String id) => Song(
+  id: id,
+  title: 'Track $id',
+  artist: 'Artist $id',
+  duration: const Duration(minutes: 3),
+  fileType: 'FLAC',
+);
+
 void main() {
+  testWidgets('Made for you and Your Mixes play with their own queues', (
+    tester,
+  ) async {
+    final mixes = [
+      for (final name in ['Daily Mix', 'New Arrivals', 'Most Played'])
+        LokalMix(
+          id: name,
+          name: name,
+          type: LokalMixType.daily,
+          tracks: [for (var i = 0; i < 4; i++) _track('$name $i')],
+        ),
+    ];
+    final picks = [
+      for (final mix in mixes)
+        for (final song in mix.tracks.take(2))
+          LokalMadeForYouPick(song: song, mix: mix),
+    ];
+    final played = <(Song, List<Song>)>[];
+    tester.view
+      ..physicalSize = const Size(412, 915)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _app(
+        ListView(
+          children: [
+            KonnektedMadeForYou(
+              picks: picks,
+              onPlay: (song, queue) => played.add((song, queue)),
+            ),
+            KonnektedYourMixes(
+              mixes: mixes,
+              onPlay: (song, queue) => played.add((song, queue)),
+            ),
+          ],
+        ),
+      ),
+    );
+    expect(find.text('Made for you'), findsOneWidget);
+    expect(find.text('DAILY MIX'), findsWidgets);
+    await tester.tap(find.text('Track Daily Mix 0'));
+    expect(played.single.$1, picks.first.song);
+    expect(played.single.$2, [for (final pick in picks) pick.song]);
+
+    await tester.ensureVisible(find.text('Most Played'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Most Played'));
+    expect(played.last.$1, mixes[2].tracks.first);
+    expect(played.last.$2, mixes[2].tracks);
+    expect(find.text('4 songs'), findsNWidgets(3));
+  });
+
+  testWidgets('no mixes, no sections', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        Column(
+          children: [
+            KonnektedMadeForYou(picks: const [], onPlay: (_, _) {}),
+            KonnektedYourMixes(mixes: const [], onPlay: (_, _) {}),
+          ],
+        ),
+      ),
+    );
+    expect(find.text('Made for you'), findsNothing);
+    expect(find.text('Your Mixes'), findsNothing);
+  });
+
   testWidgets(
     'empty home uses real provider boundaries and opens Flow and import',
     (tester) async {

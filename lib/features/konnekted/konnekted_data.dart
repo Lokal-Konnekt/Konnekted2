@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/konnekted/lokal_home_greeting.dart';
+import 'package:flick/features/konnekted/lokal_mixes.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Repository boundaries are overridable; rendering the home never requires a
@@ -82,9 +84,56 @@ final konnektedRecentlyAddedProvider =
       }),
     );
 
-/// The two Cover Flow shelves on Home.
+({String key, List<LokalMix> mixes})? _mixes;
+
+/// Forgets the cached mixes (tests).
+@visibleForTesting
+void resetKonnektedMixes() => _mixes = null;
+
+/// Your Mixes, by desktop's rules (`lokal_mixes.dart`). Like desktop, they
+/// are built once and kept for the day rather than reshuffled on every play;
+/// they are rebuilt when the day turns or the library or favourites change
+/// size.
+final konnektedMixesProvider = FutureProvider.autoDispose<List<LokalMix>>((
+  ref,
+) async {
+  final library = ref.watch(konnektedLibraryProvider.select((s) => s.value));
+  final liked =
+      ref.watch(konnektedFavoritesProvider.select((s) => s.value)) ??
+      const <Song>[];
+  // Still loading: stay loading rather than flash an empty Home.
+  if (library == null) return Completer<List<LokalMix>>().future;
+  if (library.isEmpty) return const [];
+  final now = DateTime.now();
+  final key =
+      '${now.year}-${now.month}-${now.day}|${library.length}|${liked.length}';
+  final cached = _mixes;
+  if (cached != null && cached.key == key) return cached.mixes;
+  final history = ref.read(konnektedHistoryRepositoryProvider);
+  final recent = await history.getRecentHistory(limit: 50);
+  final counts = await history.getPlayCounts();
+  final mixes = lokalMixes(
+    library: library,
+    liked: liked,
+    history: [for (final entry in recent) entry.song],
+    playCounts: counts,
+    now: now,
+  );
+  _mixes = (key: key, mixes: mixes);
+  return mixes;
+});
+
+/// Made for you: two songs from each of the first six mixes, picked once
+/// per run (desktop's rule).
+final konnektedMadeForYouProvider =
+    Provider.autoDispose<AsyncValue<List<LokalMadeForYouPick>>>(
+      (ref) => ref.watch(konnektedMixesProvider).whenData(lokalMadeForYou),
+    );
+
+/// The three Cover Flow shelves on Home.
 enum KonnektedCoverShelf {
   recent('Recent'),
+  madeForYou('Made for you'),
   added('New');
 
   const KonnektedCoverShelf(this.label);
@@ -92,9 +141,28 @@ enum KonnektedCoverShelf {
   final String label;
 }
 
+/// Marks a Cover Flow entry that is one of Your Mixes, not an album.
+const konnektedMixKeyPrefix = 'lokal-mix:';
+
 /// Albums for Home's Cover Flow: the ones played lately, or newest added.
 final konnektedCoverAlbumsProvider = Provider.autoDispose
     .family<AsyncValue<List<AlbumGroup>>, KonnektedCoverShelf>((ref, shelf) {
+      if (shelf == KonnektedCoverShelf.madeForYou) {
+        // Your Mixes as covers; the key marks them for the collage art.
+        return ref
+            .watch(konnektedMixesProvider)
+            .whenData(
+              (mixes) => [
+                for (final mix in mixes)
+                  AlbumGroup(
+                    key: '$konnektedMixKeyPrefix${mix.id}',
+                    albumName: mix.title,
+                    albumArtist: '${mix.tracks.length} songs',
+                    songs: mix.tracks,
+                  ),
+              ],
+            );
+      }
       final library = ref.watch(konnektedLibraryProvider);
       return library.whenData((songs) {
         final albums = SongsState(
@@ -105,6 +173,7 @@ final konnektedCoverAlbumsProvider = Provider.autoDispose
         ).albumGroups;
         if (albums.isEmpty) return const <AlbumGroup>[];
         switch (shelf) {
+          case KonnektedCoverShelf.madeForYou:
           case KonnektedCoverShelf.added:
             DateTime newest(AlbumGroup album) => album.songs
                 .map((song) => song.dateAdded ?? DateTime(1970))

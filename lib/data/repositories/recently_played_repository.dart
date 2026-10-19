@@ -401,6 +401,18 @@ class RecentlyPlayedRepository {
     return await _isar.recentlyPlayedEntitys.count();
   }
 
+  /// How many times each song id has been played, over the whole history.
+  Future<Map<String, int>> getPlayCounts() async {
+    final ids =
+        await _isar.recentlyPlayedEntitys.where().songIdProperty().findAll();
+    final counts = <String, int>{};
+    for (final id in ids) {
+      final key = id.toString();
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   /// Count distinct, non-empty artist names across the entire play history.
   Future<int> getDistinctArtistCount() async {
     final entries = await _isar.recentlyPlayedEntitys.where().findAll();

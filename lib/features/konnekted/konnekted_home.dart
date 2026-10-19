@@ -2,6 +2,7 @@ import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/konnekted/lokal_home_greeting.dart';
+import 'package:flick/features/konnekted/lokal_mixes.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
@@ -9,6 +10,7 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/lokal/lokal_cover_flow.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flick/widgets/lokal/lokal_logo.dart';
+import 'package:flick/widgets/lokal/lokal_made_for_you.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,6 +73,18 @@ class KonnektedHome extends ConsumerWidget {
                       ),
                     )
                   : const SizedBox.shrink(),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: KonnektedMadeForYou(
+              picks: ref.watch(konnektedMadeForYouProvider).value ?? const [],
+              onPlay: onPlay,
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: KonnektedYourMixes(
+              mixes: ref.watch(konnektedMixesProvider).value ?? const [],
+              onPlay: onPlay,
             ),
           ),
           SliverToBoxAdapter(
@@ -216,8 +230,8 @@ class _KonnektedCoverFlowSectionState
   Widget build(BuildContext context) {
     final t = context.lokal;
     var albums = ref.watch(konnektedCoverAlbumsProvider(_shelf));
-    // Nothing played yet: show what's new rather than an empty stage.
-    if (_shelf == KonnektedCoverShelf.recent &&
+    // Nothing played (or mixed) yet: show what's new, not an empty stage.
+    if (_shelf != KonnektedCoverShelf.added &&
         (albums.value?.isEmpty ?? false)) {
       albums = ref.watch(
         konnektedCoverAlbumsProvider(KonnektedCoverShelf.added),
@@ -258,16 +272,18 @@ class _KonnektedCoverFlowSectionState
           key: ValueKey(_shelf),
           albums: list,
           onPlay: widget.onPlay,
-          cover: (album) => CachedImageWidget(
-            imagePath: _artworkSong(album).albumArt,
-            audioSourcePath: _artworkSong(album).filePath,
-            fit: BoxFit.cover,
-            placeholder: Container(
-              color: t.surface3,
-              alignment: Alignment.center,
-              child: Icon(Icons.album_rounded, color: t.muted, size: 56),
-            ),
-          ),
+          cover: (album) => album.key.startsWith(konnektedMixKeyPrefix)
+              ? KonnektedMixArt(songs: album.songs)
+              : CachedImageWidget(
+                  imagePath: _artworkSong(album).albumArt,
+                  audioSourcePath: _artworkSong(album).filePath,
+                  fit: BoxFit.cover,
+                  placeholder: Container(
+                    color: t.surface3,
+                    alignment: Alignment.center,
+                    child: Icon(Icons.album_rounded, color: t.muted, size: 56),
+                  ),
+                ),
         ),
         const SizedBox(height: 14),
         _FlowButton(onTap: widget.onOpenFlow),
@@ -519,6 +535,320 @@ class KonnektedArtwork extends StatelessWidget {
         placeholder: placeholder,
         errorWidget: placeholder,
       ),
+    );
+  }
+}
+
+/// Made for you: twelve songs, two from each of Your Mixes, on desktop's
+/// rolling carousel. Hidden until there are mixes.
+class KonnektedMadeForYou extends StatelessWidget {
+  const KonnektedMadeForYou({
+    super.key,
+    required this.picks,
+    required this.onPlay,
+  });
+
+  final List<LokalMadeForYouPick> picks;
+  final void Function(Song song, List<Song> queue) onPlay;
+
+  @override
+  Widget build(BuildContext context) {
+    if (picks.isEmpty) return const SizedBox.shrink();
+    final songs = [for (final pick in picks) pick.song];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const KonnektedSectionHeading(
+          title: 'Made for you',
+          icon: Icons.auto_awesome_rounded,
+        ),
+        LokalMadeForYouCarousel(
+          count: picks.length,
+          semanticLabel: (index) =>
+              'Play ${picks[index].song.title} by ${picks[index].song.artist}',
+          onPlay: (index) {
+            HapticFeedback.lightImpact();
+            onPlay(songs[index], songs);
+          },
+          card: (context, index) => _MadeForYouCard(pick: picks[index]),
+        ),
+      ],
+    );
+  }
+}
+
+class _MadeForYouCard extends StatelessWidget {
+  const _MadeForYouCard({required this.pick});
+
+  final LokalMadeForYouPick pick;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    final song = pick.song;
+    final placeholder = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white.withValues(alpha: .10), Colors.black],
+        ),
+      ),
+    );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        // Desktop's lift; softer on light themes, where black reads heavy.
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: t.isLight ? .18 : .45),
+            blurRadius: 40,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(color: t.surface2),
+            CachedImageWidget(
+              imagePath: song.albumArt,
+              audioSourcePath: song.filePath,
+              fit: BoxFit.cover,
+              useThumbnail: true,
+              placeholder: placeholder,
+              errorWidget: placeholder,
+            ),
+            const IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Color(0xD9000000),
+                      Color(0x66000000),
+                      Color(0x00000000),
+                    ],
+                    stops: [0, .33, .67],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    song.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    song.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .7),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .15),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      pick.mix.title.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: LokalTheme.label(
+                        t,
+                        size: 9,
+                        color: Colors.white.withValues(alpha: .8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // A hairline rim, as desktop's border-white/10.
+            IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: .10),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Your Mixes: the first six as cards in two columns, each a collage of
+/// its covers, as on desktop. A tap plays the mix from the top.
+class KonnektedYourMixes extends StatelessWidget {
+  const KonnektedYourMixes({
+    super.key,
+    required this.mixes,
+    required this.onPlay,
+  });
+
+  final List<LokalMix> mixes;
+  final void Function(Song song, List<Song> queue) onPlay;
+
+  @override
+  Widget build(BuildContext context) {
+    if (mixes.isEmpty) return const SizedBox.shrink();
+    final shown = mixes.take(6).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const KonnektedSectionHeading(
+          title: 'Your Mixes',
+          icon: Icons.radio_rounded,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = (constraints.maxWidth - 14) / 2;
+              return Wrap(
+                spacing: 14,
+                runSpacing: 18,
+                children: [
+                  for (final mix in shown)
+                    SizedBox(
+                      width: width,
+                      child: _MixCard(mix: mix, onPlay: onPlay),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MixCard extends StatelessWidget {
+  const _MixCard({required this.mix, required this.onPlay});
+
+  final LokalMix mix;
+  final void Function(Song song, List<Song> queue) onPlay;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    void play() {
+      HapticFeedback.lightImpact();
+      onPlay(mix.tracks.first, mix.tracks);
+    }
+
+    return Semantics(
+      button: true,
+      label: 'Play ${mix.title}, ${mix.tracks.length} songs',
+      excludeSemantics: true,
+      onTap: play,
+      child: InkWell(
+        onTap: play,
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: KonnektedMixArt(songs: mix.tracks),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              mix.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${mix.tracks.length} songs',
+              style: TextStyle(fontSize: 12, color: t.muted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A mix's cover: four of its album covers in a square, or the one cover it
+/// has, or a radio glyph.
+class KonnektedMixArt extends StatelessWidget {
+  const KonnektedMixArt({super.key, required this.songs});
+
+  final List<Song> songs;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    final covers = <String, Song>{};
+    for (final song in songs) {
+      final key =
+          song.albumArt ??
+          '${song.album ?? song.title}|${song.albumArtist ?? song.artist}';
+      covers.putIfAbsent(key, () => song);
+      if (covers.length == 4) break;
+    }
+    final placeholder = Container(
+      color: t.surface3,
+      alignment: Alignment.center,
+      child: Icon(Icons.radio_rounded, color: t.muted, size: 36),
+    );
+    Widget art(Song song) => CachedImageWidget(
+      imagePath: song.albumArt,
+      audioSourcePath: song.filePath,
+      fit: BoxFit.cover,
+      useThumbnail: true,
+      placeholder: placeholder,
+      errorWidget: placeholder,
+    );
+    final list = covers.values.toList();
+    if (list.isEmpty) return placeholder;
+    if (list.length < 4) return SizedBox.expand(child: art(list.first));
+    return Column(
+      children: [
+        for (final row in [list.sublist(0, 2), list.sublist(2, 4)])
+          Expanded(
+            child: Row(
+              children: [
+                for (final song in row)
+                  Expanded(child: SizedBox.expand(child: art(song))),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

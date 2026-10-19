@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/features/player/lokal_lyrics_subline.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/widgets/lokal/lokal_like_burst.dart';
 import 'package:flick/widgets/lokal/lokal_pull_to_dismiss.dart';
@@ -85,6 +86,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     _player.currentSongNotifier.addListener(_onSongChanged);
     _player.favoriteNotificationToggleNotifier.addListener(_refreshFavorite);
     _refreshFavorite();
+    unawaited(LokalLyricsSubline.load());
   }
 
   @override
@@ -133,7 +135,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     });
     LyricsData? data;
     try {
-      data = await _lyricsService.loadLyricsForSong(song, forceRefresh: force);
+      data = await _lyricsService.loadLyricsForSong(
+        song,
+        forceRefresh: force,
+        fetchOnline: ref.read(appPreferencesProvider).lyricsAutoFetch,
+      );
     } catch (_) {
       data = null;
     }
@@ -561,10 +567,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
         ),
       );
     } else {
-      body = _FlowingLyrics(
-        key: ValueKey('${song.id}|${data.lines.length}'),
-        player: _player,
-        lyrics: data,
+      body = ValueListenableBuilder<bool>(
+        valueListenable: LokalLyricsSubline.showTranslation,
+        builder: (context, translate, _) => _FlowingLyrics(
+          key: ValueKey('${song.id}|${data.lines.length}|$translate'),
+          player: _player,
+          lyrics: data,
+          showTranslation: translate,
+        ),
       );
     }
 
@@ -584,6 +594,24 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
                 ),
               ),
             ),
+            // Shown when the lyrics carry their own translation, as desktop.
+            if (LokalLyricsSubline.hasTranslation(data))
+              ValueListenableBuilder<bool>(
+                valueListenable: LokalLyricsSubline.showTranslation,
+                builder: (context, translate, _) => IconButton(
+                  tooltip: translate ? 'Hide translation' : 'Show translation',
+                  isSelected: translate,
+                  icon: Icon(
+                    LucideIcons.languages,
+                    size: 20,
+                    color: translate ? context.lokal.accent : Colors.white70,
+                  ),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    LokalLyricsSubline.toggle();
+                  },
+                ),
+              ),
             IconButton(
               tooltip: 'Search online',
               icon: const Icon(
@@ -1149,7 +1177,15 @@ class _Word {
 class _FlowingLyrics extends StatefulWidget {
   final PlayerService player;
   final LyricsData lyrics;
-  const _FlowingLyrics({super.key, required this.player, required this.lyrics});
+
+  /// Each line's translation under it, when it has one.
+  final bool showTranslation;
+  const _FlowingLyrics({
+    super.key,
+    required this.player,
+    required this.lyrics,
+    this.showTranslation = false,
+  });
 
   @override
   State<_FlowingLyrics> createState() => _FlowingLyricsState();
@@ -1165,6 +1201,14 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     fontSize: 31,
     height: 1.2,
     fontWeight: FontWeight.w800,
+    color: Colors.white,
+  );
+  static const double _subGap = 6;
+  static const TextStyle _sub = TextStyle(
+    fontFamily: _font,
+    fontSize: 18,
+    height: 1.25,
+    fontWeight: FontWeight.w600,
     color: Colors.white,
   );
 
@@ -1263,6 +1307,13 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
           textDirection: TextDirection.ltr,
         )..layout(maxWidth: math.max(w, 40));
         lh = tp.height;
+        if (_translationOf(l) case final sub?) {
+          final sp = TextPainter(
+            text: TextSpan(text: sub, style: _sub),
+            textDirection: TextDirection.ltr,
+          )..layout(maxWidth: math.max(w, 40));
+          lh += _subGap + sp.height;
+        }
       }
       tops.add(y);
       hs.add(lh);
@@ -1271,6 +1322,12 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     _heights = hs;
     _tops = tops;
     _needsJump = true;
+  }
+
+  String? _translationOf(LyricsLine line) {
+    if (!widget.showTranslation) return null;
+    final text = line.translation?.trim();
+    return text == null || text.isEmpty ? null : text;
   }
 
   void _onTick(Duration elapsed) {
@@ -1384,10 +1441,27 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
       );
     }
 
+    final sub = _translationOf(l);
     Widget child = Transform.scale(
       alignment: Alignment.centerLeft,
       scale: scale,
-      child: Text.rich(span),
+      child: sub == null
+          ? Text.rich(span)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(span),
+                const SizedBox(height: _subGap),
+                Text(
+                  sub,
+                  style: _sub.copyWith(
+                    color: Colors.white.withValues(
+                      alpha: (i == _active ? .72 : op * .8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
     if (blur > 0.3) {
       child = ImageFiltered(

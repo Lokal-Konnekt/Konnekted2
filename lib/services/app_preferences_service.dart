@@ -56,6 +56,10 @@ class AppPreferences {
   final double widgetFlagshipTextScale;
   final double widgetCompactTextScale;
   final bool lyricsMatchAudioFilename;
+
+  /// Look lyrics up online when a song carries none (desktop's
+  /// `lyrics_auto_fetch`, on by default).
+  final bool lyricsAutoFetch;
   final String leftActionButton;
   final String rightActionButton;
   final String leftTopActionButton;
@@ -174,6 +178,7 @@ class AppPreferences {
     this.widgetFlagshipTextScale = 1.0,
     this.widgetCompactTextScale = 1.0,
     this.lyricsMatchAudioFilename = false,
+    this.lyricsAutoFetch = true,
     this.leftActionButton = 'lyrics',
     this.rightActionButton = 'favorites',
     this.leftTopActionButton = 'none',
@@ -293,6 +298,7 @@ class AppPreferences {
     double? widgetFlagshipTextScale,
     double? widgetCompactTextScale,
     bool? lyricsMatchAudioFilename,
+    bool? lyricsAutoFetch,
     String? leftActionButton,
     String? rightActionButton,
     String? leftTopActionButton,
@@ -435,6 +441,7 @@ class AppPreferences {
           widgetCompactTextScale ?? this.widgetCompactTextScale,
       lyricsMatchAudioFilename:
           lyricsMatchAudioFilename ?? this.lyricsMatchAudioFilename,
+      lyricsAutoFetch: lyricsAutoFetch ?? this.lyricsAutoFetch,
       leftActionButton: leftActionButton ?? this.leftActionButton,
       rightActionButton: rightActionButton ?? this.rightActionButton,
       leftTopActionButton: leftTopActionButton ?? this.leftTopActionButton,
@@ -585,6 +592,7 @@ class AppPreferencesService {
   static const _widgetFlagshipTextScaleKey = 'widget_flagship_text_scale';
   static const _widgetCompactTextScaleKey = 'widget_compact_text_scale';
   static const _lyricsMatchAudioFilenameKey = 'lyrics_match_audio_filename';
+  static const _lyricsAutoFetchKey = 'lyrics_auto_fetch';
   static const _leftActionButtonKey = 'left_action_button';
   static const _rightActionButtonKey = 'right_action_button';
   static const _leftTopActionButtonKey = 'left_top_action_button';
@@ -744,6 +752,7 @@ class AppPreferencesService {
           prefs.getDouble(_widgetCompactTextScaleKey) ?? 1.0,
       lyricsMatchAudioFilename:
           prefs.getBool(_lyricsMatchAudioFilenameKey) ?? false,
+      lyricsAutoFetch: prefs.getBool(_lyricsAutoFetchKey) ?? true,
       leftActionButton: prefs.getString(_leftActionButtonKey) ?? 'lyrics',
       rightActionButton: prefs.getString(_rightActionButtonKey) ?? 'favorites',
       leftTopActionButton:
@@ -1369,6 +1378,16 @@ class AppPreferencesService {
   Future<void> setLyricsMatchAudioFilename(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_lyricsMatchAudioFilenameKey, value);
+  }
+
+  Future<bool> getLyricsAutoFetch() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_lyricsAutoFetchKey) ?? true;
+  }
+
+  Future<void> setLyricsAutoFetch(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_lyricsAutoFetchKey, value);
   }
 
   Future<String> getLeftActionButton() async {

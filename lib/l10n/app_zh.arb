@@ -727,6 +727,8 @@
   "favoritesYouHaveNotRevisitedLately": "你最近没有重温的收藏",
   "feb": "2 月",
   "feedback": "反馈",
+  "fetchLyricsAutomatically": "自动获取歌词",
+  "fetchLyricsAutomaticallyDescription": "关闭后，歌曲只显示自带的歌词（标签内或旁边的 .lrc 文件）。在歌词界面中仍可手动在线搜索。",
   "file": "文件",
   "fileInformation": "文件信息",
   "filePath": "文件路径",

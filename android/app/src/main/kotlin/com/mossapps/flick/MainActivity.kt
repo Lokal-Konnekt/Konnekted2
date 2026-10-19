@@ -2954,45 +2954,27 @@ class MainActivity: FlutterActivity() {
             }
 
             val lyricText = lyricKey?.let { retriever.extractMetadata(it) }
-            if (lyricText.isNullOrBlank()) {
-                val id3Lyrics = parseId3EmbeddedLyrics(audioUriString)
-                if (!id3Lyrics.isNullOrBlank()) {
-                    mapOf(
-                        "content" to id3Lyrics,
-                        "source" to "embedded:id3",
-                    )
-                    } else {
-                        val flacVorbisLyrics = parseFlacVorbisLyrics(audioUriString)
-                        if (!flacVorbisLyrics.isNullOrBlank()) {
-                            mapOf(
-                                "content" to flacVorbisLyrics,
-                                "source" to "embedded:vorbis",
-                            )
-                        } else {
-                            val mp4Lyrics = parseMp4Lyrics(audioUriString)
-                            if (!mp4Lyrics.isNullOrBlank()) {
-                                mapOf(
-                                    "content" to mp4Lyrics,
-                                    "source" to "embedded:mp4",
-                                )
-                            } else {
-                                // ponytail: covers ID3/FLAC/MP4/Ogg; WMA and APE tags not parsed
-                                val oggLyrics = parseOggLyrics(audioUriString)
-                                if (!oggLyrics.isNullOrBlank()) {
-                                    mapOf(
-                                        "content" to oggLyrics,
-                                        "source" to "embedded:ogg",
-                                    )
-                                } else {
-                                    null
-                                }
-                            }
-                        }
-                    }
-            } else {
+            // Desktop Lokal's rule: timed lyrics win over plain whichever tag
+            // holds them, so the platform's (often unsynced) lyric field only
+            // wins when the tags themselves have nothing timed.
+            val tagged = listOf(
+                "embedded:id3" to { parseId3EmbeddedLyrics(audioUriString) },
+                "embedded:vorbis" to { parseFlacVorbisLyrics(audioUriString) },
+                "embedded:mp4" to { parseMp4Lyrics(audioUriString) },
+                // ponytail: covers ID3/FLAC/MP4/Ogg; WMA and APE tags not parsed
+                "embedded:ogg" to { parseOggLyrics(audioUriString) },
+            ).firstNotNullOfOrNull { (source, read) ->
+                read()?.takeIf { it.isNotBlank() }?.let { source to it }
+            }
+            val candidates = listOfNotNull(
+                tagged,
+                lyricText?.takeIf { it.isNotBlank() }?.let { "embedded" to it },
+            )
+            val best = pickEmbeddedLyrics(candidates.map { it.second })
+            candidates.firstOrNull { it.second == best }?.let { (source, content) ->
                 mapOf(
-                    "content" to lyricText,
-                    "source" to "embedded",
+                    "content" to content,
+                    "source" to source,
                 )
             }
         } catch (_: Exception) {
@@ -3037,8 +3019,7 @@ class MainActivity: FlutterActivity() {
 
     private fun parseId3v22Lyrics(data: ByteArray): String? {
         var pos = 0
-        var bestSync: String? = null
-        var bestUnsync: String? = null
+        val found = mutableListOf<String>()
 
         while (pos + 6 <= data.size) {
             val id = String(data, pos, 3, Charsets.ISO_8859_1)
@@ -3053,21 +3034,13 @@ class MainActivity: FlutterActivity() {
 
             val frameData = data.copyOfRange(pos, pos + frameSize)
             when (id) {
-                "SLT" -> {
-                    val parsed = parseSyltFrame(frameData)
-                    if (!parsed.isNullOrBlank()) bestSync = parsed
-                }
-                "ULT" -> {
-                    val parsed = parseUsltFrame(frameData)
-                    if (!parsed.isNullOrBlank() && bestUnsync == null) {
-                        bestUnsync = parsed
-                    }
-                }
+                "SLT" -> parseSyltFrame(frameData)?.let(found::add)
+                "ULT" -> parseUsltFrame(frameData)?.let(found::add)
             }
             pos += frameSize
         }
 
-        return bestSync ?: bestUnsync
+        return pickEmbeddedLyrics(found)
     }
 
     private fun parseId3v23Or24Lyrics(data: ByteArray, version: Int, flags: Int): String? {
@@ -3084,8 +3057,7 @@ class MainActivity: FlutterActivity() {
             }
         }
 
-        var bestSync: String? = null
-        var bestUnsync: String? = null
+        val found = mutableListOf<String>()
 
         while (pos + 10 <= data.size) {
             val id = String(data, pos, 4, Charsets.ISO_8859_1)
@@ -3101,21 +3073,13 @@ class MainActivity: FlutterActivity() {
 
             val frameData = data.copyOfRange(pos, pos + frameSize)
             when (id) {
-                "SYLT" -> {
-                    val parsed = parseSyltFrame(frameData)
-                    if (!parsed.isNullOrBlank()) bestSync = parsed
-                }
-                "USLT" -> {
-                    val parsed = parseUsltFrame(frameData)
-                    if (!parsed.isNullOrBlank() && bestUnsync == null) {
-                        bestUnsync = parsed
-                    }
-                }
+                "SYLT" -> parseSyltFrame(frameData)?.let(found::add)
+                "USLT" -> parseUsltFrame(frameData)?.let(found::add)
             }
             pos += frameSize
         }
 
-        return bestSync ?: bestUnsync
+        return pickEmbeddedLyrics(found)
     }
 
     private fun parseUsltFrame(frameData: ByteArray): String? {
@@ -3141,6 +3105,10 @@ class MainActivity: FlutterActivity() {
 
         val encoding = frameData[0].toInt() and 0xFF
         val timestampFormat = frameData[4].toInt() and 0xFF
+        // ID3: 1 counts MPEG frames, 2 milliseconds. Frame counts can't be
+        // turned into times without the stream, so only 2 is read (desktop
+        // does the same).
+        if (timestampFormat != 2) return null
         val descriptorStart = 6 // + content type byte
         val termLen = nullTerminatorLength(encoding)
         val descriptorEnd = findTerminator(frameData, descriptorStart, encoding)
@@ -3161,11 +3129,7 @@ class MainActivity: FlutterActivity() {
             pos += 4
             if (text.isBlank()) continue
 
-            val timeMs = when (timestampFormat) {
-                1 -> timestamp // milliseconds
-                else -> timestamp // fallback for MPEG frames or unknown
-            }.coerceAtLeast(0)
-            lines.add("${formatLrcTime(timeMs)}$text")
+            lines.add("${formatLrcTime(timestamp.coerceAtLeast(0))}$text")
         }
 
         if (lines.isEmpty()) return null
@@ -3376,8 +3340,9 @@ class MainActivity: FlutterActivity() {
             "UNSYNCED_LYRICS",
         )
 
+        val found = mutableListOf<String>()
         repeat(commentCount) {
-            val len = readLeIntSafe(buffer) ?: return null
+            val len = readLeIntSafe(buffer) ?: return pickEmbeddedLyrics(found)
             if (len < 0 || len > buffer.remaining()) return null
 
             val bytes = ByteArray(len)
@@ -3389,12 +3354,10 @@ class MainActivity: FlutterActivity() {
             val key = entry.substring(0, sep).uppercase()
             val value = entry.substring(sep + 1).trim()
             if (value.isBlank()) return@repeat
-            if (wantedKeys.contains(key)) {
-                return value
-            }
+            if (wantedKeys.contains(key)) found.add(value)
         }
 
-        return null
+        return pickEmbeddedLyrics(found)
     }
 
     private fun openAudioInputStream(audioUriString: String): InputStream? {
@@ -3512,6 +3475,49 @@ class MainActivity: FlutterActivity() {
             1, 2 -> 2
             else -> 1
         }
+    }
+
+    private val lrcStampPattern = Regex("""\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?]""")
+    private val lrcMetaPattern = Regex(
+        """^\[(?:ar|ti|al|au|by|re|ve|length|offset|id|hash|sign|qq|total|#)\s*:""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Unstamped lines right under stamped ones: an LRC's translation lines. */
+    private fun lyricTranslationScore(text: String): Int {
+        var score = 0
+        var afterStamped = false
+        for (raw in text.replace("\r\n", "\n").replace('\r', '\n').split('\n')) {
+            val line = raw.trim()
+            if (line.isEmpty()) {
+                afterStamped = false
+                continue
+            }
+            if (lrcStampPattern.containsMatchIn(line)) {
+                afterStamped = true
+                continue
+            }
+            if (afterStamped && !lrcMetaPattern.containsMatchIn(line)) score++
+            afterStamped = false
+        }
+        return score
+    }
+
+    /**
+     * Desktop Lokal's pick among a file's lyric tags: timed text wins over
+     * plain whichever tag comes first, and among timed tags the one carrying
+     * the most translation lines (an MP3's USLT often holds the LRC with
+     * translations while its SYLT holds the timing alone).
+     */
+    private fun pickEmbeddedLyrics(candidates: List<String>): String? {
+        val parts = candidates.filter { it.isNotBlank() }
+        val synced = parts.filter { lrcStampPattern.containsMatchIn(it) }
+        if (synced.isNotEmpty()) {
+            return synced.reduce { best, part ->
+                if (lyricTranslationScore(part) > lyricTranslationScore(best)) part else best
+            }
+        }
+        return parts.firstOrNull()
     }
 
     private fun formatLrcTime(milliseconds: Int): String {

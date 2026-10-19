@@ -3490,6 +3490,14 @@
   "@feedback": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:3654"
   },
+  "fetchLyricsAutomatically": "Fetch Lyrics Automatically",
+  "@fetchLyricsAutomatically": {
+    "description": "lib/features/settings/screens/lyrics_settings_screen.dart"
+  },
+  "fetchLyricsAutomaticallyDescription": "Off: songs only show the lyrics they carry themselves (in their tags or a .lrc next to them). Searching online from the lyrics view still works.",
+  "@fetchLyricsAutomaticallyDescription": {
+    "description": "lib/features/settings/screens/lyrics_settings_screen.dart"
+  },
   "file": "File",
   "@file": {
     "description": "lib/features/player/widgets/bit_perfect_indicator.dart:909"

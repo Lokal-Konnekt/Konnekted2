@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flick/models/song.dart';
+import 'package:flick/services/online_lyrics_service.dart';
 
 /// A single word (or whitespace-joined token) within a lyric line, with an
 /// optional timing window for karaoke-style highlighting.
@@ -30,11 +31,23 @@ class LyricsLine {
   final String text;
   final List<LyricsWord>? words;
 
+  /// The line in another language, shown under it: in an LRC, the unstamped
+  /// line right under a stamped one (desktop Lokal v9.2's rule).
+  final String? translation;
+
   const LyricsLine({
     required this.timestamp,
     required this.text,
     this.words,
+    this.translation,
   });
+
+  LyricsLine withTranslation(String? translation) => LyricsLine(
+    timestamp: timestamp,
+    text: text,
+    words: words,
+    translation: translation,
+  );
 }
 
 /// Parsed lyrics payload.
@@ -74,9 +87,45 @@ class LyricsService {
     r'<(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?)>',
   );
 
+  LyricsService({this.online});
+
+  /// Where lyrics are looked up online (LRCLIB unless given).
+  final OnlineLyricsService? online;
   final Map<String, LyricsData?> _cache = {};
 
+  /// The song's own lyrics (a manual pick, its tags, a file beside it). With
+  /// [fetchOnline], a song that carries none is looked up on LRCLIB, as
+  /// desktop's "Fetch lyrics automatically" does; nothing is written to disk.
   Future<LyricsData?> loadLyricsForSong(
+    Song song, {
+    bool forceRefresh = false,
+    bool fetchOnline = false,
+  }) async {
+    final own = await _loadOwnLyrics(song, forceRefresh: forceRefresh);
+    if (own != null || !fetchOnline) return own;
+    return fetchOnlineLyrics(song);
+  }
+
+  /// LRCLIB's lyrics for [song], timed ones preferred; null on a miss.
+  Future<LyricsData?> fetchOnlineLyrics(Song song) async {
+    if (song.title.trim().isEmpty || song.artist.trim().isEmpty) return null;
+    try {
+      final result = await (online ?? OnlineLyricsService()).fetchExact(
+        artist: song.artist,
+        title: song.title,
+        album: song.album,
+        duration: song.duration,
+      );
+      if (result == null || result.instrumental) return null;
+      final text = result.bestLyrics;
+      if (text.trim().isEmpty) return null;
+      return _parseLyrics(text, source: 'LRCLIB');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<LyricsData?> _loadOwnLyrics(
     Song song, {
     bool forceRefresh = false,
   }) async {
@@ -477,6 +526,11 @@ class LyricsService {
       } else {
         buffer.writeln('${formatTimestamp(line.timestamp)}${line.text}');
       }
+      // Kept the way it's read: unstamped, right under its line.
+      if (line.translation case final translation?
+          when translation.trim().isNotEmpty) {
+        buffer.writeln(translation.trim());
+      }
     }
     return buffer.toString().trimRight();
   }
@@ -635,10 +689,18 @@ class LyricsService {
     var offsetMs = 0;
     var hasTimestamps = false;
     final parsedLines = <LyricsLine>[];
+    // Unstamped rows, kept apart: in a synced file one right under a stamped
+    // line is that line's translation; the rest are notes and credits.
+    final plainLines = <LyricsLine>[];
+    final translations = <(List<int>, String)>[];
+    var previous = <int>[]; // indexes the last stamped row made
 
     for (final row in rows) {
       final line = row.trimRight();
-      if (line.trim().isEmpty) continue;
+      if (line.trim().isEmpty) {
+        previous = [];
+        continue;
+      }
 
       final offsetMatch = offsetPattern.firstMatch(line);
       if (offsetMatch != null) {
@@ -654,6 +716,7 @@ class LyricsService {
         final lyricText = body
             .replaceAll(_wordTimestampPattern, '')
             .trim();
+        previous = [];
         for (final match in matches) {
           final parsedTime = _parseTimestamp(match.group(1) ?? '');
           if (parsedTime == null) continue;
@@ -663,6 +726,7 @@ class LyricsService {
             milliseconds: adjustedMs < 0 ? 0 : adjustedMs,
           );
           if (lyricText.isEmpty) continue;
+          previous.add(parsedLines.length);
           parsedLines.add(
             LyricsLine(timestamp: clamped, text: lyricText, words: words),
           );
@@ -671,13 +735,27 @@ class LyricsService {
       }
 
       if (metadataPattern.hasMatch(line)) {
+        previous = [];
         continue;
       }
 
-      parsedLines.add(LyricsLine(timestamp: Duration.zero, text: line.trim()));
+      final text = line.trim().replaceAll(RegExp(r'\s+'), ' ');
+      if (previous.isNotEmpty) translations.add((previous, text));
+      previous = [];
+      plainLines.add(LyricsLine(timestamp: Duration.zero, text: line.trim()));
     }
 
     if (hasTimestamps) {
+      // A stray note isn't a translation: a translated file has one under at
+      // least half its sung lines.
+      final sung = parsedLines.map((line) => line.timestamp).toSet().length;
+      if (translations.isNotEmpty && translations.length >= sung / 2) {
+        for (final (indexes, text) in translations) {
+          for (final index in indexes) {
+            parsedLines[index] = parsedLines[index].withTranslation(text);
+          }
+        }
+      }
       parsedLines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       return LyricsData(
         lines: parsedLines,
@@ -688,7 +766,7 @@ class LyricsService {
     }
 
     return LyricsData(
-      lines: parsedLines.where((line) => line.text.isNotEmpty).toList(),
+      lines: plainLines.where((line) => line.text.isNotEmpty).toList(),
       isSynchronized: false,
       source: source,
       rawContent: raw,

@@ -33,6 +33,18 @@ class LyricsSettingsScreen extends ConsumerWidget {
                       .setLyricsMatchAudioFilename(value);
                 },
               ),
+              const SettingsDivider(),
+              ToggleSetting(
+                icon: LucideIcons.globe,
+                title: l10n.fetchLyricsAutomatically,
+                subtitle: l10n.fetchLyricsAutomaticallyDescription,
+                value: appPrefs.lyricsAutoFetch,
+                onChanged: (value) {
+                  ref
+                      .read(appPreferencesProvider.notifier)
+                      .setLyricsAutoFetch(value);
+                },
+              ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingLg),

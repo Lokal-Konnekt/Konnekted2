@@ -4466,6 +4466,18 @@ abstract class AppLocalizations {
   /// **'Feedback'**
   String get feedback;
 
+  /// lib/features/settings/screens/lyrics_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch Lyrics Automatically'**
+  String get fetchLyricsAutomatically;
+
+  /// lib/features/settings/screens/lyrics_settings_screen.dart
+  ///
+  /// In en, this message translates to:
+  /// **'Off: songs only show the lyrics they carry themselves (in their tags or a .lrc next to them). Searching online from the lyrics view still works.'**
+  String get fetchLyricsAutomaticallyDescription;
+
   /// lib/features/player/widgets/bit_perfect_indicator.dart:909
   ///
   /// In en, this message translates to:

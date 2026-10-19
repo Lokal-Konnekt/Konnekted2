@@ -42,3 +42,27 @@ jobs:
           path: build/app/outputs/flutter-apk/app-full-debug.apk
           if-no-files-found: error
           retention-days: 7
+
+  publish:
+    name: Publish beta release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: konnekted-beta-arm64
+          path: beta
+      - name: Publish downloadable APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          gh release create "beta-${RUN_NUMBER}-${RUN_ATTEMPT}" beta/*.apk \
+            --target "$COMMIT" --title "Android beta ${RUN_NUMBER}" \
+            --prerelease --latest=false \
+            --notes "ARM64 Android beta for testing. Debug-signed APK; not a production release."

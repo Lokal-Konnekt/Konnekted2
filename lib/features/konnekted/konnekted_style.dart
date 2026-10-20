@@ -60,10 +60,18 @@ class KonnektedSectionHeading extends StatelessWidget {
     required this.title,
     this.onSeeAll,
     this.icon,
+    this.subtitle,
+    this.seeAllLabel = 'See all',
   });
 
   final String title;
   final VoidCallback? onSeeAll;
+
+  /// A line under the title, e.g. where a shelf's songs come from.
+  final String? subtitle;
+
+  /// The button's label, e.g. "Show less" once a shelf is open.
+  final String seeAllLabel;
 
   /// A small accent glyph before the title, as desktop's section headers.
   final IconData? icon;
@@ -78,22 +86,35 @@ class KonnektedSectionHeading extends StatelessWidget {
           const SizedBox(width: 8),
         ],
         Expanded(
-          child: Semantics(
-            header: true,
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 22,
-                letterSpacing: -.5,
-                fontWeight: FontWeight.w700,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    letterSpacing: -.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-            ),
+              if (subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    subtitle!,
+                    style: TextStyle(fontSize: 12, color: context.lokal.muted),
+                  ),
+                ),
+            ],
           ),
         ),
         if (onSeeAll != null)
           TextButton(
             onPressed: onSeeAll,
-            child: Text('See all', semanticsLabel: 'See all $title'),
+            child: Text(seeAllLabel, semanticsLabel: '$seeAllLabel $title'),
           ),
       ],
     ),

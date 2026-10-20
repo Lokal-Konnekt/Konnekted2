@@ -17,8 +17,10 @@ typedef LokalCoverBuilder = Widget Function(AlbumGroup album);
 /// The facing album sits flat and forward; its neighbours turn 70° away and
 /// stack behind, each with a floor reflection. Drag to spin with momentum,
 /// settle on the nearest album with a spring, and feel a tick for every
-/// album that passes. Tap a side cover to bring it forward; tap the facing
-/// cover to flip it over to its track list.
+/// album that passes. With [onSelect], one tap on any cover brings it forward
+/// and selects it (Home plays it straight away); long-press the facing cover
+/// to flip it over to its track list. Without [onSelect], a tap brings a side
+/// cover forward and flips the facing one.
 class LokalCoverFlow extends StatefulWidget {
   const LokalCoverFlow({
     super.key,
@@ -27,6 +29,7 @@ class LokalCoverFlow extends StatefulWidget {
     required this.onPlay,
     this.initialIndex = 0,
     this.onIndexChanged,
+    this.onSelect,
   });
 
   final List<AlbumGroup> albums;
@@ -36,6 +39,9 @@ class LokalCoverFlow extends StatefulWidget {
   final void Function(Song song, List<Song> album) onPlay;
   final int initialIndex;
   final ValueChanged<int>? onIndexChanged;
+
+  /// Called once when a cover is tapped, after it starts moving forward.
+  final ValueChanged<int>? onSelect;
 
   @override
   State<LokalCoverFlow> createState() => _LokalCoverFlowState();
@@ -57,6 +63,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
 
   // Width the finger travels to move one album; set per layout.
   double _albumWidth = 120;
+  double _stageWidth = 0;
 
   static const _spring = SpringDescription(
     mass: 1,
@@ -131,6 +138,28 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   void _onDragEnd(DragEndDetails details) =>
       _settle(velocity: -details.velocity.pixelsPerSecond.dx / _albumWidth);
 
+  void _select(int index) {
+    final onSelect = widget.onSelect;
+    if (onSelect == null) {
+      index == _index ? _toggleFlip() : goTo(index);
+      return;
+    }
+    HapticFeedback.lightImpact();
+    if (_flip.value > 0) _flip.reverse();
+    if (index != _index) goTo(index);
+    onSelect(index);
+  }
+
+  /// The cover nearest [x] across the stage, inverting `_cover`'s layout.
+  int _indexAt(double x, double size) {
+    final offset = x - _stageWidth / 2;
+    final near = size * .62;
+    final d = offset.abs() <= near
+        ? offset / near
+        : offset.sign * (1 + (offset.abs() - near) / (size * .22));
+    return (_position.value + d).round().clamp(0, _last);
+  }
+
   void _toggleFlip() {
     HapticFeedback.lightImpact();
     if (_reduceMotion) {
@@ -152,6 +181,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
       builder: (context, constraints) {
         final size = math.min(220.0, constraints.maxWidth * .52);
         _albumWidth = size * .6;
+        _stageWidth = constraints.maxWidth;
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -166,13 +196,18 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
                   : null,
               onIncrease: _index < _last ? () => goTo(_index + 1) : null,
               onDecrease: _index > 0 ? () => goTo(_index - 1) : null,
-              onTap: _toggleFlip,
+              onTap: () => _select(_index),
+              onLongPress: widget.onSelect == null ? null : _toggleFlip,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onHorizontalDragDown: (_) => _position.stop(),
                 onHorizontalDragUpdate: _onDragUpdate,
                 onHorizontalDragEnd: _onDragEnd,
                 onHorizontalDragCancel: _settle,
+                // A tap in a gap between covers picks the nearest one; a tap
+                // on a cover is claimed by that cover first.
+                onTapUp: (details) =>
+                    _select(_indexAt(details.localPosition.dx, size)),
                 child: SizedBox(
                   height: size * 1.42,
                   width: constraints.maxWidth,
@@ -265,7 +300,8 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
         alignment: Alignment.center,
         transform: matrix,
         child: GestureDetector(
-          onTap: facing ? _toggleFlip : () => goTo(i),
+          onTap: () => _select(i),
+          onLongPress: facing && widget.onSelect != null ? _toggleFlip : null,
           child: Opacity(
             opacity: (1 - (ad - 4).clamp(0.0, 1.0)),
             child: showBack

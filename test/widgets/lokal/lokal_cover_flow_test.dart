@@ -93,8 +93,44 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('with onSelect, one tap on any cover centres and selects it', (
+    tester,
+  ) async {
+    final selected = <int>[];
+    final seen = <int>[];
+    await tester.pumpWidget(
+      _app(
+        LokalCoverFlow(
+          albums: albums,
+          cover: (_) => const ColoredBox(color: Colors.blueGrey),
+          onPlay: (_, _) => fail('the track list should stay closed'),
+          onSelect: selected.add,
+          onIndexChanged: seen.add,
+        ),
+      ),
+    );
+    final centre =
+        tester.getCenter(find.byType(LokalCoverFlow)) - const Offset(0, 40);
+    // The facing cover: selected at once, no flip.
+    await tester.tapAt(centre);
+    await tester.pumpAndSettle();
+    expect(selected, [0]);
+    expect(find.text('PLAY'), findsNothing);
+    // A side cover: comes forward and is selected in the same tap.
+    await tester.tapAt(centre + const Offset(150, 0));
+    await tester.pumpAndSettle();
+    expect(selected, [0, 1]);
+    expect(seen.last, 1);
+    expect(find.text('Second'), findsOneWidget);
+    // Long-press on the facing cover still shows its tracks.
+    await tester.longPressAt(centre);
+    await tester.pumpAndSettle();
+    expect(find.text('PLAY'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   test(
-    'cover shelves: newest albums first, recent ones in play order',
+    'cover shelves hold one song each: newest added, recent in play order',
     () async {
       final library = [
         _track('old', 'Old', addedDay: 1),
@@ -114,7 +150,13 @@ void main() {
       final added = container.read(
         konnektedCoverAlbumsProvider(KonnektedCoverShelf.added),
       );
-      expect(added.value!.map((a) => a.albumName), ['New', 'Mid', 'Old']);
+      expect(added.value!.map((a) => a.songs.single.id), [
+        'new',
+        'mid1',
+        'mid2',
+        'old',
+      ]);
+      expect(added.value!.first.albumName, 'Track new');
 
       final sub = container.listen(
         konnektedCoverAlbumsProvider(KonnektedCoverShelf.recent),
@@ -126,8 +168,8 @@ void main() {
         container
             .read(konnektedCoverAlbumsProvider(KonnektedCoverShelf.recent))
             .value!
-            .map((a) => a.albumName),
-        ['Mid', 'Old'],
+            .map((a) => a.songs.single.id),
+        ['mid2', 'old', 'mid1'],
       );
     },
   );

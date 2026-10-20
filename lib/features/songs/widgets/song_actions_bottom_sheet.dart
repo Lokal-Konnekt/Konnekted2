@@ -7,6 +7,8 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/konnekted/library/lokal_radio.dart';
+import 'package:flick/features/music_videos/music_videos_page.dart';
+import 'package:flick/providers/opt_in_source_provider.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/metadata_editor_bottom_sheet.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
@@ -134,6 +136,16 @@ class SongActionsBottomSheet extends ConsumerWidget {
               unawaited(startLokalRadio(rootContext, seed: song));
             },
           ),
+          if (ref.watch(musicVideosEnabledProvider))
+            _buildActionTile(
+              context: context,
+              icon: LucideIcons.monitorPlay,
+              label: 'Watch video',
+              onTap: () {
+                Navigator.pop(context);
+                unawaited(watchMusicVideo(rootContext, ref, song));
+              },
+            ),
           _buildActionTile(
             context: context,
             icon: LucideIcons.listMusic,

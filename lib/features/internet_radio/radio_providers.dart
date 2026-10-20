@@ -205,11 +205,14 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
           s.processingState == ja.ProcessingState.loading ||
           s.processingState == ja.ProcessingState.buffering;
       if (loading) {
-        _bufferingTimer ??= Timer(_radioLoadTimeout, () {
-          _bufferingTimer = null;
-          final station = state.station;
-          if (station != null) unawaited(_failPlay(_playRequest, station));
-        });
+        if (_bufferingTimer == null) {
+          final request = _playRequest;
+          final station = state.station!;
+          _bufferingTimer = Timer(_radioLoadTimeout, () {
+            _bufferingTimer = null;
+            unawaited(_failPlay(request, station));
+          });
+        }
       } else {
         _bufferingTimer?.cancel();
         _bufferingTimer = null;

@@ -12,6 +12,7 @@ import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
 import 'package:flick/features/spotiflac/spotiflac_service.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 
 /// Songs you don't have, under your library's results: desktop's Search
 /// "online" block. One source at a time (YouTube Music or an add-on you
@@ -37,6 +38,9 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   static String? _remembered; // The chosen source, for the app's lifetime.
 
   final _client = http.Client();
+  late final _progress = LokalStatusSnack(
+    () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
+  );
   List<OnlineSource>? _sources;
   String? _chosen;
   Future<List<OnlineResult>>? _results;
@@ -54,6 +58,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   @override
   void dispose() {
     SpotiflacService.instance.removeListener(_load);
+    _progress.dispose();
     _client.close();
     super.dispose();
   }
@@ -99,27 +104,27 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     });
   }
 
-  void _status(String message) => _say(message);
-
-  void _say(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.maybeOf(context)
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+  /// Download progress: one line, updated in place, only while a song is
+  /// being got ready.
+  void _status(String message) {
+    if (!mounted || _busy == null) return;
+    _progress.update(message);
   }
 
   Future<void> _play(OnlineSource source, OnlineResult result) async {
     if (_busy != null) return;
     final track = result.track;
     setState(() => _busy = '${source.id}:${track.id}');
-    _say('Getting ${track.title} from ${source.name}…');
+    _progress.update('Getting ${track.title} from ${source.name}…');
     try {
       final song = await source.play(track);
       if (!mounted) return;
-      ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+      _busy = null; // Late progress from the add-on says nothing now.
+      _progress.clear();
       await ref.read(playerProvider.notifier).play(song, playlist: [song]);
     } catch (error) {
-      _say(discoveryError(error));
+      _busy = null;
+      if (mounted) _progress.fail(discoveryError(error));
     } finally {
       if (mounted) setState(() => _busy = null);
     }

@@ -155,6 +155,7 @@ class YoutubeMusicCatalog {
                   }),
                   album: album,
                   duration: duration,
+                  artwork: _cover(row),
                 ),
               );
             }
@@ -172,6 +173,22 @@ class YoutubeMusicCatalog {
 
     walk(response['contents'], 0);
     return results.values.toList(growable: false);
+  }
+
+  /// The row's largest square cover, if it has one.
+  static String? _cover(Map row) {
+    final thumbnails = _path(row, [
+      'thumbnail',
+      'musicThumbnailRenderer',
+      'thumbnail',
+      'thumbnails',
+    ]);
+    if (thumbnails is! List) return null;
+    for (final entry in thumbnails.reversed) {
+      final url = entry is Map ? entry['url'] : null;
+      if (url is String && Uri.tryParse(url)?.scheme == 'https') return url;
+    }
+    return null;
   }
 
   static Object? _path(Object? value, List<String> keys) {

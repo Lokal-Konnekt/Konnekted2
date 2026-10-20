@@ -108,6 +108,49 @@ void main() {
     },
   );
 
+  test('the cover is kept next to the song and played with it', () async {
+    final source = File(p.join(directory.path, 'work', 'audio.flac'));
+    await source.create(recursive: true);
+    await source.writeAsBytes(flacHeader);
+    final cacheDir = Directory(p.join(directory.path, 'cache'));
+    final cover = [0xff, 0xd8, 0xff, 0xe0, 1, 2, 3];
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(
+        MockClient((request) async {
+          expect(request.url.toString(), 'https://img.example/cover.jpg');
+          return http.Response.bytes(cover, 200);
+        }),
+      ),
+      directory: () async => cacheDir,
+      probe: (_) async =>
+          const AudioProbeFormat(sampleRate: 44100, channels: 2),
+    );
+    final song = await cache.adopt(
+      fixtureTrack.withArtwork('https://img.example/cover.jpg'),
+      source,
+    );
+    expect(song.albumArt, DiscoveryPlaybackCache.coverPath(song.filePath!));
+    expect(await File(song.albumArt!).readAsBytes(), cover);
+  });
+
+  test('a cover that won\'t load leaves the song playable', () async {
+    final source = File(p.join(directory.path, 'audio.flac'))
+      ..writeAsBytesSync(flacHeader);
+    final cacheDir = Directory(p.join(directory.path, 'cache'));
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(MockClient((_) async => http.Response('', 404))),
+      directory: () async => cacheDir,
+      probe: (_) async =>
+          const AudioProbeFormat(sampleRate: 44100, channels: 2),
+    );
+    final song = await cache.adopt(
+      fixtureTrack.withArtwork('https://img.example/cover.jpg'),
+      source,
+    );
+    expect(song.albumArt, isNull);
+    expect(cacheDir.listSync().map((e) => e.path), [song.filePath]);
+  });
+
   test('an add-on file the engine refuses is not left in the cache', () async {
     final source = File(p.join(directory.path, 'audio.flac'))
       ..writeAsBytesSync(flacHeader);

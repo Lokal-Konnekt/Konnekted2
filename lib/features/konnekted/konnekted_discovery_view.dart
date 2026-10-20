@@ -8,6 +8,7 @@ import 'package:flick/features/discovery/youtube_music_sign_in.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
+import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,11 +69,24 @@ class _KonnektedDiscoveryViewState
   void _toggle(_Shelf shelf) =>
       setState(() => _open = _open == shelf ? null : shelf);
 
-  void _say(String message) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+  /// What's being got ready, on one line updated in place.
+  late final _progress = LokalStatusSnack(
+    () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
+  );
+
+  @override
+  void dispose() {
+    _progress.dispose();
+    super.dispose();
+  }
+
+  /// A message that replaces the progress line and goes after a while.
+  void _say(String message) => _progress.fail(message);
+
+  /// Progress, while something is being got ready (late reports from a
+  /// download that already ended say nothing).
+  void _status(String message) {
+    if (mounted && _busy != null) _progress.update(message);
   }
 
   Future<void> _connectYoutubeMusic() async {
@@ -102,7 +116,7 @@ class _KonnektedDiscoveryViewState
     }
     if (_busy != null) return;
     setState(() => _busy = 'mix:' + mix.id);
-    _say('Loading ' + mix.title + '…');
+    _progress.update('Loading ' + mix.title + '…');
     try {
       final tracks = await youtubeMusicMix(account, mix.id);
       if (!mounted) return;
@@ -126,12 +140,7 @@ class _KonnektedDiscoveryViewState
           continue;
         }
         try {
-          final song = await widget.findSong(
-            track,
-            onStatus: (status) {
-              if (mounted) _say(status);
-            },
-          );
+          final song = await widget.findSong(track, onStatus: _status);
           if (song != null) {
             songs.add(song);
             seen.add(song.id);
@@ -148,7 +157,7 @@ class _KonnektedDiscoveryViewState
       if (songs.isEmpty) {
         _say('No tracks from this mix could be prepared.');
       } else {
-        ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+        _progress.clear();
         widget.onPlay(songs.first, songs);
       }
     } on YoutubeMusicSignedOut catch (error) {
@@ -182,19 +191,14 @@ class _KonnektedDiscoveryViewState
     }
     if (_busy != null) return;
     setState(() => _busy = track.key);
-    _say('Looking for ${track.title}…');
+    _progress.update('Looking for ${track.title}…');
     try {
-      final song = await widget.findSong(
-        track,
-        onStatus: (status) {
-          if (mounted) _say(status);
-        },
-      );
+      final song = await widget.findSong(track, onStatus: _status);
       if (!mounted) return;
       if (song == null) {
         _say('Couldn’t find ${track.title} on YouTube Music or your add-ons.');
       } else {
-        ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+        _progress.clear();
         widget.onPlay(song, _shelfQueue(track, song, shelf, library));
       }
     } catch (error) {

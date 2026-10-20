@@ -301,6 +301,7 @@ class SpotiflacHost {
     this.onProgress,
     this.onTransfer,
     this.appVersion = '1.0.0',
+    this.stallTimeout = const Duration(seconds: 30),
   }) : root = p.normalize(p.absolute(root)),
        grants = [for (final grant in grants) p.normalize(p.absolute(grant))] {
     Directory(this.root).createSync(recursive: true);
@@ -319,6 +320,10 @@ class SpotiflacHost {
   final void Function({double? percent, String? message})? onProgress;
   final void Function(SpotiflacTransfer transfer)? onTransfer;
   final String appVersion;
+
+  /// How long a download may go without a byte before its connection is
+  /// dropped and the download resumed.
+  final Duration stallTimeout;
   final DateTime _startedAt = DateTime.now();
 
   bool _aborted = false;
@@ -476,7 +481,10 @@ class SpotiflacHost {
             written: written,
           ),
         );
-        await for (final chunk in response.body) {
+        // A connection that goes quiet is dropped and resumed (desktop's
+        // socket timeout): otherwise the download sits at the same
+        // percentage until the add-on's day-long limit.
+        await for (final chunk in response.body.timeout(stallTimeout)) {
           _check();
           await output.writeFrom(chunk);
           written += chunk.length;

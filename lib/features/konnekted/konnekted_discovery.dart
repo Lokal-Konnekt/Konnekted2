@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flick/features/discovery/discovery_artwork.dart'
+    show discoveryImageUrl;
 import 'package:flick/features/discovery/discovery_http.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/discovery_playback.dart';
@@ -414,10 +416,12 @@ class KonnektedLibraryIndex {
 /// A place a song you don't own can be played from.
 /// A song a source found, with its cover when the source has one.
 class OnlineResult {
-  const OnlineResult(this.track, {this.artwork});
+  const OnlineResult(this.track, {String? artwork}) : _artwork = artwork;
 
   final DiscoveryTrack track;
-  final String? artwork;
+  final String? _artwork;
+
+  String? get artwork => _artwork ?? track.artwork;
 }
 
 /// A place to find songs you don't have: YouTube Music or one of your
@@ -481,25 +485,30 @@ Future<List<_PlaybackSource>> _spotiflacSources(
                 source: DiscoverySource.spotiflac,
                 addonId: addon.key,
                 sourceName: addon.displayName,
+                artwork: song.thumbnail,
               ),
-              artwork: song.thumbnail,
             ),
         ],
         play: (found) async {
+          final progress = SpotiflacProgressText(
+            found.title,
+            addon.displayName,
+          );
+          var finished = false;
           final SpotiflacDownload download;
           try {
             download = await packages.download(
               addon.key,
               found.id,
               onProgress: ({percent, message}) {
-                if (message != null && message.isNotEmpty) {
-                  onStatus?.call(message);
-                } else if (percent != null && percent > 0) {
-                  onStatus?.call(
-                    'Getting ${found.title} from ${addon.displayName}… '
-                    '${percent.clamp(0, 100).round()}%',
-                  );
-                }
+                // A runtime winding down after a failure or a cancel says
+                // nothing more: no stale "downloading" after the error.
+                if (finished) return;
+                final text = progress.update(
+                  percent: percent,
+                  message: message,
+                );
+                if (text != null) onStatus?.call(text);
               },
               cancel: cancel,
             );
@@ -507,6 +516,17 @@ Future<List<_PlaybackSource>> _spotiflacSources(
             throw DiscoveryException(error.message);
           } on SpotiflacRuntimeError catch (error) {
             throw DiscoveryException(error.message);
+          } on DiscoveryException {
+            rethrow;
+          } catch (_) {
+            // Network drops, stalls and file errors: this source failed, so
+            // the next one can be tried.
+            throw DiscoveryException(
+              '${addon.displayName} couldn’t download ${found.title}. '
+              'Check your connection and try again.',
+            );
+          } finally {
+            finished = true;
           }
           try {
             return await cache().adopt(found, download.file);
@@ -516,6 +536,38 @@ Future<List<_PlaybackSource>> _spotiflacSources(
         },
       ),
   ];
+}
+
+/// One line of an add-on's download progress, "Getting Song from Qobuz…
+/// 42%", said only when it changes: percentages come several times a
+/// second, and the add-on's own status words ("Qobuz loading…") replace
+/// the percentage instead of being repeated after it.
+class SpotiflacProgressText {
+  SpotiflacProgressText(this.title, this.source);
+
+  final String title;
+  final String source;
+  String? _said;
+  int? _percent;
+
+  /// The line to show now, or null when it says what was said already.
+  String? update({double? percent, String? message}) {
+    if (percent != null && percent.isFinite && percent > 0) {
+      _percent = percent.clamp(0, 100).round();
+    }
+    final words = message?.trim() ?? '';
+    final prefix = 'Getting $title from $source…';
+    final percentText = _percent == null ? '' : ' $_percent%';
+    final RegExp numbered = RegExp(r'\d+(\.\d+)?\s*%');
+    final text = words.isEmpty
+        ? (_percent == null ? prefix : '$prefix$percentText')
+        : numbered.hasMatch(words)
+        ? '$prefix ${words.replaceAll(RegExp(r'\s+'), ' ')}'
+        : '$prefix ${words.replaceAll(RegExp(r'\s+'), ' ')}$percentText';
+    if (text == _said) return null;
+    _said = text;
+    return text;
+  }
 }
 
 /// Where found songs are kept while they play; never deletes what's queued.
@@ -646,6 +698,7 @@ Future<Song?> findDiscoverySong(
         duration: track.duration,
         source: DiscoverySource.youtubeMusic,
         sourceUrl: Uri.tryParse(track.url),
+        artwork: _artworkOf(track),
       );
       return await _playbackCache(
         web,
@@ -688,11 +741,19 @@ Future<Song?> findDiscoverySong(
         check();
         onStatus?.call('Getting ${track.title} from ${source.name}…');
         try {
-          return await source.play(found);
-        } on DiscoveryException catch (error) {
+          return await source.play(found.withArtwork(_artworkOf(track)));
+        } catch (error) {
           check();
           // This source found it but couldn't play it: try the next one.
-          failure = error;
+          failure = error is DiscoveryException
+              ? error
+              : DiscoveryException(
+                  '${source.name} couldn’t get ${track.title} ready.',
+                );
+          onStatus?.call(
+            'Couldn’t get ${track.title} from ${source.name}. '
+            'Trying elsewhere…',
+          );
           break;
         }
       }
@@ -702,6 +763,12 @@ Future<Song?> findDiscoverySong(
   } finally {
     if (owned) transport.close();
   }
+}
+
+/// [track]'s cover address, or null when it has none worth fetching.
+String? _artworkOf(LokalDiscoveryTrack track) {
+  final url = discoveryImageUrl(track.artworkUrl);
+  return url.isEmpty ? null : url;
 }
 
 /// A queue placeholder for [track], a song you don't own: found on YouTube
@@ -714,6 +781,7 @@ Song discoveryPendingSong(LokalDiscoveryTrack track) {
     artist: track.artist,
     album: track.album,
     duration: track.duration,
+    artwork: _artworkOf(track),
     resolve: ({onStatus, cancel}) => findDiscoverySong(
       track,
       onStatus: onStatus,

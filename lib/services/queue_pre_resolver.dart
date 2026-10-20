@@ -173,6 +173,7 @@ class QueuePreResolver {
     required String artist,
     String? album,
     Duration? duration,
+    String? artwork,
     required PendingResolve resolve,
   }) {
     final id = 'pending:$key';
@@ -186,6 +187,9 @@ class QueuePreResolver {
       title: title,
       artist: artist,
       album: album == null || album.isEmpty ? null : album,
+      // The cover's address, shown while it's looked up; the song found
+      // brings its own copy on disk.
+      albumArt: artwork == null || artwork.isEmpty ? null : artwork,
       duration: duration ?? Duration.zero,
       fileType: 'ONLINE',
       sourcePackage: Song.pendingSourcePackage,

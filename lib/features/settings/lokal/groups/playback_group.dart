@@ -9,7 +9,6 @@ import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
 import 'package:flick/features/settings/screens/bluetooth_settings_screen.dart';
 import 'package:flick/features/settings/screens/casting_settings_screen.dart';
 import 'package:flick/features/settings/screens/equalizer_screen.dart';
-import 'package:flick/features/settings/screens/uac2_preferences_screen.dart';
 import 'package:flick/features/settings/screens/uac2_settings_screen.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/player_provider.dart';
@@ -302,13 +301,10 @@ List<LokalSettingsSection> outputSettings(BuildContext context, WidgetRef ref) {
       children: [
         LokalSettingLink(
           label: 'USB DAC',
-          description: 'Play straight to a USB DAC: bit-perfect, DSD and device diagnostics.',
+          description:
+              'Devices, playback engine, bit-perfect output, format, DSD '
+              'and 432 Hz tuning.',
           onTap: () => _push(context, const Uac2SettingsScreen()),
-        ),
-        LokalSettingLink(
-          label: 'Engine and tuning',
-          description: 'Playback engine, 432 Hz tuning and USB preferences.',
-          onTap: () => _push(context, const Uac2PreferencesScreen()),
         ),
       ],
     ),

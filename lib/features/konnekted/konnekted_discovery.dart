@@ -56,9 +56,10 @@ class KonnektedYoutubeMusicNotifier extends AsyncNotifier<YoutubeMusicSession?> 
   }
 
   Future<void> rotated(YoutubeMusicSession session) async {
-    // Do not let an in-flight request resurrect a session after sign-out.
+    // Keep the account provider stable while its own client is in flight.
+    // The account object has already accepted these rotated cookies; persist
+    // them without publishing a new AsyncData value that would dispose it.
     if (state.valueOrNull == null) return;
-    state = AsyncData(session);
     await ref.read(konnektedYoutubeMusicStoreProvider).write(session);
   }
 

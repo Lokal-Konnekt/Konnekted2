@@ -86,11 +86,13 @@ void main() {
   }
 
   testWidgets(
-    'Library entry pushes Classipod, keeps Library mounted, and visibly exits',
+    'Library easter egg pushes Classipod, keeps Library mounted, and exits',
     (tester) async {
       await pumpApp(tester, library: true);
-      await tester.scrollUntilVisible(find.text('Classipod'), 180);
-      await tap(tester, find.text('Classipod'));
+      // No visible entry: a long press on Library's title opens it.
+      expect(find.text('Classipod'), findsNothing);
+      await tester.longPress(find.text('Library'));
+      await tester.pumpAndSettle();
       expect(find.byType(ClassipodScreen), findsOneWidget);
       expect(
         find.byType(KonnektedLibrary, skipOffstage: false),

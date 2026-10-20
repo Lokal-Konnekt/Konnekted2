@@ -234,11 +234,13 @@ class DiscoveryPlaybackCache {
     final bits = format == 'flac' && (metadata.bitsPerSample ?? 0) > 0
         ? metadata.bitsPerSample
         : null;
+    final cover = await _cover(track, ready);
     return Song(
       id: 'discovery:$hash',
       title: track.title,
       artist: track.artist,
       album: track.album,
+      albumArt: cover,
       duration: track.duration ?? Duration.zero,
       fileType: format.toUpperCase(),
       sampleRate: metadata.sampleRate,
@@ -252,8 +254,48 @@ class DiscoveryPlaybackCache {
     );
   }
 
+  /// Where the cover of the audio at [audio] is kept: beside it, so the
+  /// player, the mini player and the notification read it as a file.
+  static String coverPath(String audio) =>
+      '${p.withoutExtension(audio)}$_coverSuffix';
+  static const _coverSuffix = '-cover.jpg';
+  static const _maxCoverBytes = 4 * 1024 * 1024;
+
+  /// Downloads [track]'s cover next to [ready]; null when it has none or
+  /// it can't be fetched (the song still plays, without a picture).
+  Future<String?> _cover(DiscoveryTrack track, File ready) async {
+    final url = Uri.tryParse(track.artwork ?? '');
+    if (url == null || url.scheme != 'https') return null;
+    final file = File(coverPath(ready.path));
+    IOSink? sink;
+    try {
+      sink = file.openWrite();
+      final out = sink;
+      await http.transfer(
+        url,
+        headers: const {'Accept': 'image/*'},
+        maxBytes: _maxCoverBytes,
+        deadline: const Duration(seconds: 15),
+        onChunk: out.add,
+      );
+      await out.close();
+      sink = null;
+      return file.path;
+    } catch (_) {
+      try {
+        await sink?.close();
+      } catch (_) {}
+      try {
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
+      return null;
+    }
+  }
+
   Future<void> _reserve(Directory root, int reservation) async {
-    final protected = _protectedPaths();
+    final audio = _protectedPaths();
+    // A song kept keeps its cover.
+    final protected = {...audio, for (final path in audio) coverPath(path)};
     final files = <({File file, FileStat stat})>[];
     var total = 0;
     await for (final entry in root.list(followLinks: false)) {

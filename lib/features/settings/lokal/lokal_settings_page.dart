@@ -5,13 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
-import 'package:flick/features/spotiflac/spotiflac_addons_screen.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 import 'groups/about_group.dart';
 import 'groups/appearance_group.dart';
 import 'groups/data_group.dart';
-import 'groups/integrations_group.dart';
+import 'groups/online_sources_group.dart';
 import 'groups/library_group.dart';
 import 'groups/playback_group.dart';
 import 'lokal_settings_group.dart';
@@ -31,11 +30,12 @@ List<LokalSettingsSection> lokalSettingsSections(
   BuildContext context,
   WidgetRef ref,
 ) => switch (group) {
-  LokalSettingsGroup.integrations => integrationsSettings(context, ref),
+  LokalSettingsGroup.integrations => onlineSourcesSettings(context, ref),
   LokalSettingsGroup.playback => playbackSettings(context, ref),
   LokalSettingsGroup.output => outputSettings(context, ref),
   LokalSettingsGroup.library => librarySettings(context, ref),
-  LokalSettingsGroup.addons => addonsSettings(context, ref),
+  // Add-ons is a section of Online sources, found there.
+  LokalSettingsGroup.addons => const [],
   LokalSettingsGroup.appearance => appearanceSettings(context, ref),
   LokalSettingsGroup.data => dataSettings(context, ref),
   LokalSettingsGroup.about => aboutSettings(context, ref),
@@ -45,8 +45,13 @@ List<LokalSettingsSection> lokalSettingsSections(
 /// [section].
 Widget lokalSettingsPage({LokalSettingsGroup? group, String? section}) {
   if (group == null) return const LokalSettingsPage();
-  // Add-ons is one big tool: the group opens it directly.
-  if (group == LokalSettingsGroup.addons) return const SpotiflacAddonsScreen();
+  // Add-ons are part of Online sources: open it at them.
+  if (group == LokalSettingsGroup.addons) {
+    return LokalSettingsGroupPage(
+      group: LokalSettingsGroup.integrations,
+      section: section ?? LokalOnlineSections.addons,
+    );
+  }
   return LokalSettingsGroupPage(group: group, section: section);
 }
 
@@ -80,7 +85,7 @@ Future<void> openLokalSettings(
         .push(lokalSettingsRoute(context, group: group, section: section));
 
 /// Settings: a large title, a search field that filters every row of every
-/// group by label and description, and the seven groups.
+/// group by label and description, and the groups.
 class LokalSettingsPage extends ConsumerStatefulWidget {
   const LokalSettingsPage({super.key, this.sectionsBuilder});
 
@@ -266,7 +271,11 @@ class _LokalSettingsGroupPageState
   @override
   Widget build(BuildContext context) {
     final t = context.lokal;
-    final wanted = widget.section?.toLowerCase();
+    final asked = widget.section?.toLowerCase();
+    // Older links name sections that moved; follow them.
+    final wanted = widget.group == LokalSettingsGroup.integrations
+        ? (LokalOnlineSections.aliases[asked]?.toLowerCase() ?? asked)
+        : asked;
     return Scaffold(
       backgroundColor: t.bg,
       body: SafeArea(

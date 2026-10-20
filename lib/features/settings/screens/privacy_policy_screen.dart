@@ -1,205 +1,102 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/l10n/l10n.dart';
 
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
+
+/// What Lokal keeps and what it sends: a local player first, with every
+/// online service off until you turn it on.
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
+  static const _sections = <(String, String)>[
+    (
+      'Your library stays on your phone',
+      'Lokal plays the music files in the folders you choose. Your library, '
+          'play counts, playlists, favourites and settings are stored only on '
+          'this device. Lokal has no account of its own, no ads and no '
+          'analytics, and it doesn’t send your library anywhere.',
+    ),
+    (
+      'Online services are opt-in',
+      'YouTube Music, Spotify, Last.fm, ListenBrainz, network servers and '
+          'add-ons are all off until you sign in, connect or install them in '
+          'Settings › Online sources. Once you do, Lokal talks to that '
+          'service on your behalf: for example to load your mixes, import '
+          'playlists or scrobble what you play. Each service handles that '
+          'data under its own privacy policy. Sign-in sessions and tokens '
+          'are kept on this device, and signing out removes them.',
+    ),
+    (
+      'Add-ons',
+      'Add-ons are made and run by third parties. When you search or play '
+          'through one, it contacts its own service. Lokal doesn’t host, '
+          'check or vouch for add-ons; only install the ones you trust.',
+    ),
+    (
+      'Lyrics and artwork',
+      'When Lokal looks up lyrics or artwork, automatically if you leave '
+          'those lookups on or when you search yourself, it sends the song’s '
+          'title, artist and album to public services such as LRCLIB and '
+          'Apple’s iTunes search. Nothing else about you is sent.',
+    ),
+    (
+      'Updates',
+      'Lokal checks for a newer version through Google Play when it was '
+          'installed from there, otherwise through its GitHub releases page.',
+    ),
+    (
+      'Permissions',
+      'Storage or media access lets Lokal read your music. USB access is '
+          'used only for a DAC you plug in. Photo access is used only when you '
+          'pick an image yourself, such as custom artwork. Notifications show '
+          'the playback controls.',
+    ),
+    (
+      'Debug logs',
+      'Logs stay on this device. They leave it only if you share or export '
+          'them yourself, for example to attach to a bug report.',
+    ),
+    (
+      'Children',
+      'Lokal doesn’t knowingly collect personal information from anyone, '
+          'including children.',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: AppColors.backgroundGradient,
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(context),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppConstants.spacingMd,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _Section(
-                          title: l10n.dataCollection,
-                          content:
-                              l10n.flickPlayerDoesNotCollectStore,
-                        ),
-                        _Section(
-                          title: l10n.localData,
-                          content:
-                              l10n.allDataIsStoredLocallyOn,
-                        ),
-                        _Section(
-                          title: l10n.cameraAndPhotos,
-                          content:
-                              l10n.cameraAndPhotoLibraryAccessIs,
-                        ),
-                        _Section(
-                          title: l10n.storagePermissions,
-                          content:
-                              l10n.storageAccessIsRequiredToScan,
-                        ),
-                        _Section(
-                          title: l10n.usbDeviceAccess,
-                          content:
-                              l10n.usbAudioClass20Devices,
-                        ),
-                        _Section(
-                          title: l10n.lastFmScrobbling,
-                          content:
-                              l10n.ifYouConnectYourLastFm,
-                        ),
-                        _Section(
-                          title: l10n.albumArtImport,
-                          content:
-                              l10n.theAppQueriesPublicApisMusicbrainz,
-                        ),
-                        _Section(
-                          title: l10n.mossEcosystem,
-                          content:
-                              l10n.flickCanReceivePlaybackHandoffsFrom,
-                        ),
-                        _Section(
-                          title: l10n.inAppUpdates,
-                          content:
-                              l10n.playStoreUpdatesUseGooglePlay,
-                        ),
-                        _Section(
-                          title: l10n.childrenSPrivacy,
-                          content:
-                              l10n.theAppDoesNotKnowinglyCollect,
-                        ),
-                        const SizedBox(height: AppConstants.spacingLg),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(AppConstants.spacingMd),
-                          decoration: BoxDecoration(
-                            color: AppColors.glassBackground,
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.radiusMd,
-                            ),
-                            border: Border.all(color: AppColors.glassBorder),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10n.lastUpdated,
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.titleSmall?.copyWith(
-                                  color: context.adaptiveTextPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                l10n.may42026,
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.copyWith(
-                                  color: context.adaptiveTextSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: AppConstants.spacingLg),
-                        const SizedBox(
-                          height: AppConstants.navBarHeight + 40,
-                        ),
-                      ],
-                    ),
+    final t = context.lokal;
+    return LokalSettingsScaffold(
+      title: 'Privacy',
+      subtitle: 'What Lokal keeps and what it sends.',
+      children: [
+        for (final (title, body) in _sections)
+          LokalSettingsSection(
+            title: title,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  body,
+                  style: TextStyle(
+                    fontFamily: LokalTheme.sans,
+                    fontSize: 14,
+                    height: 1.5,
+                    color: t.text,
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingLg,
-        vertical: AppConstants.spacingMd,
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(
-              LucideIcons.chevronLeft,
-              color: context.adaptiveTextPrimary,
-            ),
-          ),
-          const SizedBox(width: AppConstants.spacingSm),
-          Text(
-            l10n.privacyPolicy,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: context.adaptiveTextPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.content});
-
-  final String title;
-  final String content;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppConstants.spacingMd),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppConstants.spacingMd),
-        decoration: BoxDecoration(
-          color: AppColors.glassBackground,
-          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          border: Border.all(color: AppColors.glassBorder),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: context.adaptiveTextPrimary,
-                fontWeight: FontWeight.w600,
               ),
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            Text(
-              content,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: context.adaptiveTextSecondary,
-                height: 1.5,
-              ),
-            ),
-          ],
+            ],
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          child: Text(
+            'LAST UPDATED OCTOBER 2026',
+            style: LokalTheme.label(t, size: 10.5),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

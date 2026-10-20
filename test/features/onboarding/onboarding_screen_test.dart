@@ -8,9 +8,7 @@ import 'package:flick/features/onboarding/screens/onboarding_screen.dart';
 Future<void> _pumpOnboarding(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
   await tester.pumpWidget(
-    const ProviderScope(
-      child: MaterialApp(home: OnboardingScreen()),
-    ),
+    const ProviderScope(child: MaterialApp(home: OnboardingScreen())),
   );
   await tester.pump(const Duration(milliseconds: 50));
 }
@@ -22,24 +20,24 @@ void main() {
     AppConstants.setAnimationsEnabled(true);
     await _pumpOnboarding(tester);
 
-    expect(find.text('Welcome to\nFlick Player'), findsOneWidget);
+    expect(find.text('Welcome to Lokal'), findsOneWidget);
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('Get Started'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('Build Your\nLibrary'), findsOneWidget);
+    expect(find.text('Pick your look'), findsOneWidget);
   });
 
   testWidgets('Next advances when animations are disabled', (tester) async {
     AppConstants.setAnimationsEnabled(false);
     await _pumpOnboarding(tester);
 
-    expect(find.text('Welcome to\nFlick Player'), findsOneWidget);
+    expect(find.text('Welcome to Lokal'), findsOneWidget);
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('Get Started'));
     await tester.pump();
 
-    expect(find.text('Build Your\nLibrary'), findsOneWidget);
+    expect(find.text('Pick your look'), findsOneWidget);
   });
 }

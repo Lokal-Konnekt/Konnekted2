@@ -12,6 +12,8 @@ import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/services/display_mode_service.dart';
 import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/permission_service.dart';
+import 'package:flick/providers/onboarding_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/playback_cache_maintenance.dart';
 import 'package:flick/services/process_exit_diagnostics_service.dart';
@@ -117,6 +119,9 @@ Future<void> _bootstrapAppAfterFirstFrame() async {
 }
 
 Future<void> _requestNotificationPermission() async {
+  // First run asks on its last step, in context, instead of at launch.
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getBool(OnboardingCompletedNotifier.prefKey) != true) return;
   final permissionService = PermissionService();
   final hasPermission = await permissionService.hasNotificationPermission();
   if (!hasPermission) {

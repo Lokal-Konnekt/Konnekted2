@@ -1,0 +1,224 @@
+import 'package:flick/widgets/lokal/lokal_player_route.dart';
+import 'package:flick/widgets/lokal/lokal_pull_to_dismiss.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// A screen with a "mini player" bar at [_miniTop] that a finger can pull up
+/// into a [LokalPlayerRoute], as the dock's mini player does.
+const _miniTop = 700.0;
+
+class _Home extends StatefulWidget {
+  const _Home();
+
+  @override
+  State<_Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<_Home> {
+  LokalPlayerRoute<void>? route;
+  LokalPlayerPull? pull;
+  int closes = 0;
+  bool? pulling;
+
+  Widget _player(BuildContext context) => Scaffold(
+    backgroundColor: Colors.black,
+    body: LokalPullToDismiss(
+      onDismiss: () => Navigator.of(context).pop(),
+      child: const Center(child: Text('now playing')),
+    ),
+  );
+
+  void open({double? from}) {
+    final pushed = LokalPlayerRoute<void>(
+      builder: _player,
+      startTop: () => _miniTop,
+      initialProgress: from,
+    );
+    route = pushed;
+    Navigator.of(context).push(pushed).then((_) => closes++);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Stack(
+      children: [
+        Positioned(
+          left: 0,
+          right: 0,
+          top: _miniTop,
+          height: 60,
+          child: GestureDetector(
+            key: const ValueKey('mini'),
+            behavior: HitTestBehavior.opaque,
+            onTap: open,
+            onVerticalDragUpdate: (d) {
+              if (pulling == null) {
+                pulling = d.delta.dy < 0;
+                if (pulling!) {
+                  pull = LokalPlayerPull.start(
+                    Navigator.of(context),
+                    builder: _player,
+                    startTop: () => _miniTop,
+                    onOpen: (progress) => open(from: progress),
+                  );
+                }
+              }
+              if (pulling!) pull?.dragBy(d.delta.dy);
+            },
+            onVerticalDragEnd: (d) {
+              if (pulling ?? false) pull?.end(d.primaryVelocity ?? 0);
+              pulling = null;
+            },
+            child: const ColoredBox(color: Colors.teal),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+void main() {
+  Future<_HomeState> pump(
+    WidgetTester tester, {
+    bool disableAnimations = false,
+  }) async {
+    tester.view
+      ..physicalSize = const Size(400, 800)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MediaQuery(
+        data: MediaQueryData(
+          size: const Size(400, 800),
+          disableAnimations: disableAnimations,
+        ),
+        child: const MaterialApp(home: _Home()),
+      ),
+    );
+    return tester.state<_HomeState>(find.byType(_Home));
+  }
+
+  double sheetTop(WidgetTester tester) => tester
+      .getTopLeft(
+        find.ancestor(
+          of: find.byType(LokalPullToDismiss),
+          matching: find.byType(Scaffold),
+        ),
+      )
+      .dy;
+
+  testWidgets('pulling the mini player up opens Now Playing under the finger', (
+    tester,
+  ) async {
+    final home = await pump(tester);
+    final gesture = await tester.startGesture(const Offset(200, 720));
+    await gesture.moveBy(const Offset(0, -30));
+    await tester.pump();
+    await gesture.moveBy(const Offset(0, -200));
+    await tester.pump();
+    // The sheet's top edge rides with the finger, from the mini player up
+    // (the drag slop aside); nothing is pushed while the finger is down.
+    expect(home.route, isNull);
+    final top = sheetTop(tester);
+    expect(top, inInclusiveRange(_miniTop - 230, _miniTop - 190));
+    await gesture.up();
+    await tester.pump();
+    // Handed to the route right where the finger let go: no jump.
+    final route = home.route!;
+    expect(route.progress, closeTo(1 - top / _miniTop, .02));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(sheetTop(tester), lessThanOrEqualTo(top));
+    await tester.pumpAndSettle();
+    expect(route.progress, 1);
+    expect(sheetTop(tester), 0);
+  });
+
+  testWidgets('a short pull up falls back into the mini player', (
+    tester,
+  ) async {
+    final home = await pump(tester);
+    await tester.timedDrag(
+      find.byKey(const ValueKey('mini')),
+      const Offset(0, -80),
+      const Duration(seconds: 1),
+    );
+    await tester.pumpAndSettle();
+    expect(home.route, isNull);
+    expect(find.text('now playing'), findsNothing);
+  });
+
+  testWidgets(
+    'pulling Now Playing down sinks it into the mini player in one movement',
+    (tester) async {
+      final home = await pump(tester);
+      await tester.tap(find.byKey(const ValueKey('mini')));
+      await tester.pumpAndSettle();
+      final route = home.route!;
+      expect(route.progress, 1);
+
+      final gesture = await tester.startGesture(const Offset(200, 300));
+      await gesture.moveBy(const Offset(0, 30));
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, 220));
+      await tester.pump();
+      // The finger moves the route itself: no separate sheet offset.
+      expect(sheetTop(tester), closeTo(250, 25));
+      expect(route.progress, closeTo(1 - 250 / _miniTop, .05));
+
+      await gesture.up();
+      // From there it carries on down without ever coming back up: one
+      // movement, not a drop followed by a second slide.
+      var last = route.progress;
+      for (var frame = 0; frame < 120 && route.isActive; frame++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        if (!route.isActive) break;
+        expect(route.progress, lessThanOrEqualTo(last + 1e-9));
+        last = route.progress;
+      }
+      await tester.pumpAndSettle();
+      expect(home.closes, 1);
+      expect(find.text('now playing'), findsNothing);
+    },
+  );
+
+  testWidgets('a short pull down springs back open', (tester) async {
+    final home = await pump(tester);
+    await tester.tap(find.byKey(const ValueKey('mini')));
+    await tester.pumpAndSettle();
+    await tester.timedDrag(
+      find.text('now playing'),
+      const Offset(0, 90),
+      const Duration(seconds: 1),
+    );
+    await tester.pumpAndSettle();
+    expect(home.closes, 0);
+    expect(home.route!.progress, 1);
+    expect(sheetTop(tester), 0);
+  });
+
+  testWidgets('with reduced motion it follows the finger, then jumps', (
+    tester,
+  ) async {
+    final home = await pump(tester, disableAnimations: true);
+    final gesture = await tester.startGesture(const Offset(200, 720));
+    await gesture.moveBy(const Offset(0, -30));
+    await tester.pump();
+    await gesture.moveBy(const Offset(0, -250));
+    await tester.pump();
+    expect(sheetTop(tester), inInclusiveRange(_miniTop - 280, _miniTop - 240));
+    await gesture.up();
+    await tester.pump();
+    expect(home.route!.progress, 1);
+    await tester.pump();
+    expect(sheetTop(tester), 0);
+
+    await tester.timedDrag(
+      find.text('now playing'),
+      const Offset(0, 400),
+      const Duration(seconds: 1),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(home.closes, 1);
+  });
+}

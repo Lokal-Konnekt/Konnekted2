@@ -1,0 +1,250 @@
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/features/konnekted/konnekted_data.dart';
+import 'package:flick/models/song.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'lokal_library_kit.dart';
+
+/// Desktop's Simple view sorts.
+enum LokalSongSort {
+  /// The list's own order (a playlist, or history newest first).
+  original('Default order'),
+  recentlyAdded('Recently added'),
+  title('Title'),
+  artist('Artist'),
+  mostPlayed('Most played'),
+  longest('Longest');
+
+  const LokalSongSort(this.label);
+
+  final String label;
+}
+
+/// A song list as slivers: a search field and sort that stay pinned while
+/// the list scrolls, the Play and Shuffle pills, and the songs.
+class LokalSongBrowser extends ConsumerStatefulWidget {
+  const LokalSongBrowser({
+    super.key,
+    required this.songs,
+    this.initialSort = LokalSongSort.recentlyAdded,
+    this.originalLabel,
+    this.searchHint = 'Search songs',
+    this.onRemove,
+    this.subtitleOf,
+  });
+
+  final List<Song> songs;
+  final LokalSongSort initialSort;
+
+  /// Offers [LokalSongSort.original] under this name, e.g. "Playlist order".
+  final String? originalLabel;
+  final String searchHint;
+
+  /// Offered in each song's actions, e.g. remove from this playlist.
+  final void Function(Song song)? onRemove;
+  final String Function(Song song)? subtitleOf;
+
+  @override
+  ConsumerState<LokalSongBrowser> createState() => _LokalSongBrowserState();
+}
+
+class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
+  final _search = TextEditingController();
+  late LokalSongSort _sort = widget.initialSort;
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  List<Song> _visible(Map<String, int> counts) {
+    final query = _query.trim().toLowerCase();
+    final songs = query.isEmpty
+        ? List<Song>.of(widget.songs)
+        : [
+            for (final song in widget.songs)
+              if ('${song.title}\n${song.artist}\n${song.album ?? ''}'
+                  .toLowerCase()
+                  .contains(query))
+                song,
+          ];
+    int byTitle(Song a, Song b) =>
+        a.title.toLowerCase().compareTo(b.title.toLowerCase());
+    switch (_sort) {
+      case LokalSongSort.original:
+        break;
+      case LokalSongSort.recentlyAdded:
+        songs.sort((a, b) {
+          final c = (b.dateAdded ?? DateTime(1970)).compareTo(
+            a.dateAdded ?? DateTime(1970),
+          );
+          return c != 0 ? c : byTitle(a, b);
+        });
+      case LokalSongSort.title:
+        songs.sort(byTitle);
+      case LokalSongSort.artist:
+        songs.sort((a, b) {
+          final c = a.artist.toLowerCase().compareTo(b.artist.toLowerCase());
+          return c != 0 ? c : byTitle(a, b);
+        });
+      case LokalSongSort.mostPlayed:
+        songs.sort((a, b) {
+          final c = (counts[b.id] ?? 0).compareTo(counts[a.id] ?? 0);
+          return c != 0 ? c : byTitle(a, b);
+        });
+      case LokalSongSort.longest:
+        songs.sort((a, b) => b.duration.compareTo(a.duration));
+    }
+    return songs;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    final counts = _sort == LokalSongSort.mostPlayed
+        ? ref.watch(lokalPlayCountsProvider).value ?? const <String, int>{}
+        : const <String, int>{};
+    final songs = _visible(counts);
+    final sorts = [
+      if (widget.originalLabel != null) LokalSongSort.original,
+      for (final sort in LokalSongSort.values)
+        if (sort != LokalSongSort.original) sort,
+    ];
+    String label(LokalSongSort sort) => sort == LokalSongSort.original
+        ? widget.originalLabel ?? sort.label
+        : sort.label;
+    final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: LokalPinnedHeader(
+            height: 60 * scale,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: LokalSearchField(
+                      controller: _search,
+                      hint: widget.searchHint,
+                      onChanged: (value) => setState(() => _query = value),
+                    ),
+                  ),
+                  PopupMenuButton<LokalSongSort>(
+                    tooltip: 'Sort: ${label(_sort)}',
+                    icon: Icon(Icons.swap_vert_rounded, color: t.accent),
+                    color: t.surface2,
+                    initialValue: _sort,
+                    onSelected: (sort) => setState(() => _sort = sort),
+                    itemBuilder: (_) => [
+                      for (final sort in sorts)
+                        CheckedPopupMenuItem(
+                          value: sort,
+                          checked: sort == _sort,
+                          child: Text(label(sort)),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(child: LokalPlayShufflePills(songs: songs)),
+        if (songs.isEmpty)
+          SliverToBoxAdapter(
+            child: LokalEmptyState(
+              icon: Icons.search_off_rounded,
+              title: _query.isEmpty ? 'No songs yet' : 'No results',
+              message: _query.isEmpty
+                  ? 'Songs show up here once they’re in your library.'
+                  : 'Nothing matches “$_query”.',
+            ),
+          )
+        else
+          SliverList.builder(
+            itemCount: songs.length,
+            itemBuilder: (context, index) {
+              final song = songs[index];
+              return LokalTrackRow(
+                song: song,
+                subtitle: widget.subtitleOf?.call(song),
+                onTap: () => lokalPlay(context, ref, songs, start: song),
+                onRemove: widget.onRemove == null
+                    ? null
+                    : () => widget.onRemove!(song),
+              );
+            },
+          ),
+      ],
+    );
+  }
+}
+
+/// A page with a song list: Songs, Liked, Downloads, a genre.
+class LokalSongListPage extends ConsumerWidget {
+  const LokalSongListPage({
+    super.key,
+    required this.title,
+    required this.source,
+    this.initialSort = LokalSongSort.recentlyAdded,
+    this.originalLabel,
+    this.emptyIcon = Icons.music_note_rounded,
+    this.emptyTitle = 'No songs yet',
+    this.emptyMessage = 'Songs show up here once they’re in your library.',
+    this.subtitleOf,
+  });
+
+  final String title;
+  final AsyncValue<List<Song>> Function(WidgetRef ref) source;
+  final LokalSongSort initialSort;
+  final String? originalLabel;
+  final IconData emptyIcon;
+  final String emptyTitle;
+  final String emptyMessage;
+  final String Function(Song song)? subtitleOf;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final songs = source(ref);
+    final list = songs.value;
+    return LokalLibraryPage(
+      title: title,
+      subtitle: list == null ? null : lokalSongCount(list.length),
+      slivers: [
+        if (list != null && list.isNotEmpty)
+          LokalSongBrowser(
+            songs: list,
+            initialSort: initialSort,
+            originalLabel: originalLabel,
+            subtitleOf: subtitleOf,
+          )
+        else
+          SliverToBoxAdapter(
+            child: songs.hasError
+                ? LokalEmptyState(
+                    icon: Icons.error_outline_rounded,
+                    title: 'Couldn’t load these songs',
+                    message: 'Try again in a moment.',
+                    actionLabel: 'Try again',
+                    onAction: () => ref.invalidate(konnektedLibraryProvider),
+                  )
+                : list == null
+                ? const Padding(
+                    padding: EdgeInsets.all(48),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : LokalEmptyState(
+                    icon: emptyIcon,
+                    title: emptyTitle,
+                    message: emptyMessage,
+                  ),
+          ),
+      ],
+    );
+  }
+}

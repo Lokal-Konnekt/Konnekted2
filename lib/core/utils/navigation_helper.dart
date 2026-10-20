@@ -5,6 +5,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/navigation/root_navigator.dart';
 import 'package:flick/features/player/screens/full_player_screen.dart';
 import 'package:flick/features/queue/screens/queue_screen.dart';
+import 'package:flick/widgets/lokal/lokal_player_route.dart';
 
 /// Helper class to prevent duplicate navigation to FullPlayerScreen
 class NavigationHelper {
@@ -34,9 +35,15 @@ class NavigationHelper {
   /// Returns true if the full player is currently open or navigation is in progress.
   static bool get isFullPlayerOpen => _isFullPlayerOpen || _isNavigating;
 
+  /// Opens Now Playing as a sheet rising out of the mini player. [startTop]
+  /// gives the mini player's top edge, where the sheet starts and lands
+  /// (null: the bottom of the screen); [initialProgress] is how far a pull
+  /// on the mini player already brought it ([pullFullPlayer]).
   static Future<int?> navigateToFullPlayer(
     BuildContext context, {
     required String heroTag,
+    double? Function()? startTop,
+    double? initialProgress,
   }) async {
     // Prevent multiple simultaneous navigations
     if (_isNavigating || _isFullPlayerOpen) {
@@ -75,37 +82,14 @@ class NavigationHelper {
       final navigator = rootNavigatorKey.currentState != null
           ? rootNavigatorKey.currentState!
           : Navigator.of(context);
-      final result = await navigator.push<int>(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              FullPlayerScreen(heroTag: heroTag),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            if (AppConstants.animationNormal == Duration.zero) {
-              return child;
-            }
-
-            const begin = Offset(0.0, 1.0);
-            const end = Offset.zero;
-            const curve = Curves.easeOutCubic;
-
-            var tween = Tween(
-              begin: begin,
-              end: end,
-            ).chain(CurveTween(curve: curve));
-
-            return SlideTransition(
-              position: animation.drive(tween),
-              child: child,
-            );
-          },
-          transitionDuration: AppConstants.animationNormal,
-          opaque: false,
-          // Transparent, so the app shows (dimmed by the player itself)
-          // while Now Playing is dragged down to close.
-          barrierColor: Colors.transparent,
-          settings: const RouteSettings(name: '/full_player'),
-        ),
+      final route = LokalPlayerRoute<int>(
+        builder: (context) => FullPlayerScreen(heroTag: heroTag),
+        startTop: startTop,
+        initialProgress: initialProgress,
+        reduceMotion: () => AppConstants.animationNormal == Duration.zero,
+        settings: const RouteSettings(name: '/full_player'),
       );
+      final result = await navigator.push<int>(route);
 
       // Reset flags after navigation completes (screen was popped)
       _isFullPlayerOpen = false;
@@ -122,6 +106,26 @@ class NavigationHelper {
       _navigationTimer = null;
       rethrow;
     }
+  }
+
+  /// A pull up on the mini player: Now Playing rises under the finger and,
+  /// once let go far or fast enough, opens with [navigateToFullPlayer] from
+  /// where it got to ([onOpen] runs that). Null while the player is open.
+  static LokalPlayerPull? pullFullPlayer(
+    BuildContext context, {
+    required String heroTag,
+    required double? Function() startTop,
+    required void Function(double progress) onOpen,
+  }) {
+    if (_isNavigating || _isFullPlayerOpen) return null;
+    final navigator = rootNavigatorKey.currentState ?? Navigator.of(context);
+    return LokalPlayerPull.start(
+      navigator,
+      builder: (_) => FullPlayerScreen(heroTag: heroTag),
+      startTop: startTop,
+      onOpen: onOpen,
+      reduceMotion: () => AppConstants.animationNormal == Duration.zero,
+    );
   }
 
   static Future<T?> navigateToQueue<T>(BuildContext context) {

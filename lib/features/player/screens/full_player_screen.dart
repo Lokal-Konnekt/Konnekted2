@@ -291,8 +291,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         onPullUpUpdate: _showLyrics ? null : _queue.dragBy,
         onPullUpEnd: _showLyrics ? null : _releaseQueue,
         // While the queue is out, its header owns vertical drags.
-        isBlocked: () =>
-            _carouselDragging || _queue.isOpen || _queueProgress.value > 0,
+        isBlocked: () => _carouselDragging || _queue.engaged,
         child: _scaffold(colors, isCasting, diagnostics),
       ),
     );

@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/features/konnekted/library/lokal_radio.dart';
+import 'package:flick/features/music_videos/music_videos_page.dart';
+import 'package:flick/providers/opt_in_source_provider.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
 import 'package:flick/features/songs/widgets/metadata_editor_bottom_sheet.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
@@ -124,6 +127,25 @@ class SongActionsBottomSheet extends ConsumerWidget {
               }
             },
           ),
+          _buildActionTile(
+            context: context,
+            icon: LucideIcons.radio,
+            label: 'Start radio',
+            onTap: () {
+              Navigator.pop(context);
+              unawaited(startLokalRadio(rootContext, seed: song));
+            },
+          ),
+          if (ref.watch(musicVideosEnabledProvider))
+            _buildActionTile(
+              context: context,
+              icon: LucideIcons.monitorPlay,
+              label: 'Watch video',
+              onTap: () {
+                Navigator.pop(context);
+                unawaited(watchMusicVideo(rootContext, ref, song));
+              },
+            ),
           _buildActionTile(
             context: context,
             icon: LucideIcons.listMusic,
@@ -439,7 +461,8 @@ class SongActionsBottomSheet extends ConsumerWidget {
                                   l10n.noPlaylistsYet,
                                   style: Theme.of(context).textTheme.titleMedium
                                       ?.copyWith(
-                color: sheetContext.adaptiveTextSecondary,
+                                        color:
+                                            sheetContext.adaptiveTextSecondary,
                                       ),
                                 ),
                                 const SizedBox(height: AppConstants.spacingLg),
@@ -489,7 +512,11 @@ class SongActionsBottomSheet extends ConsumerWidget {
                                 onTap: () async {
                                   await sheetRef
                                       .read(playlistsProvider.notifier)
-                                      .addSongToPlaylist(playlist.id, song.id, song: song);
+                                      .addSongToPlaylist(
+                                        playlist.id,
+                                        song.id,
+                                        song: song,
+                                      );
                                   if (context.mounted) {
                                     Navigator.pop(context);
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -536,9 +563,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
 
         if (playlist == null) {
           messenger.showSnackBar(
-            SnackBar(
-              content: Text(l10n.aPlaylistWithThisNameAlready),
-            ),
+            SnackBar(content: Text(l10n.aPlaylistWithThisNameAlready)),
           );
           return;
         }
@@ -597,7 +622,11 @@ class SongActionsBottomSheet extends ConsumerWidget {
                       _buildMetadataRow(sheetContext, l10n.title, song.title),
                       _buildMetadataRow(sheetContext, l10n.artist, song.artist),
                       if (song.album != null)
-                        _buildMetadataRow(sheetContext, l10n.album, song.album!),
+                        _buildMetadataRow(
+                          sheetContext,
+                          l10n.album,
+                          song.album!,
+                        ),
                       if (song.albumArtist != null)
                         _buildMetadataRow(
                           sheetContext,
@@ -673,7 +702,8 @@ class SongActionsBottomSheet extends ConsumerWidget {
   /// straight from the file; hidden when unavailable.
   Widget _buildFileTagExtras(BuildContext context) {
     final path = song.filePath;
-    final canReadFileTags = path != null &&
+    final canReadFileTags =
+        path != null &&
         path.isNotEmpty &&
         !path.startsWith('content://') &&
         song.startOffsetMs == null &&
@@ -700,8 +730,10 @@ class SongActionsBottomSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (hasFullDate) _buildMetadataRow(context, l10n.date, date),
-            if (hasCopyright) _buildMetadataRow(context, l10n.copyright, copyright),
-            if (hasLabel) _buildMetadataRow(context, l10n.labelOrganization, label),
+            if (hasCopyright)
+              _buildMetadataRow(context, l10n.copyright, copyright),
+            if (hasLabel)
+              _buildMetadataRow(context, l10n.labelOrganization, label),
           ],
         );
       },
@@ -712,9 +744,8 @@ class SongActionsBottomSheet extends ConsumerWidget {
     BuildContext sheetContext,
     WidgetRef ref,
   ) async {
-    final canDeleteFile = song.filePath != null &&
-        song.filePath!.isNotEmpty &&
-        !song.isExternal;
+    final canDeleteFile =
+        song.filePath != null && song.filePath!.isNotEmpty && !song.isExternal;
 
     final action = await showFlickDialog<String>(
       context: sheetContext,

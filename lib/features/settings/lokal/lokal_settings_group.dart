@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// Desktop Lokal's seven settings groups, in desktop's order, plus pages that
-/// open from inside one of them.
+/// Lokal's settings groups, in desktop's order, plus pages that open from
+/// inside one of them.
+///
+/// Desktop's Integrations and Add-ons are one flow here: [integrations] is
+/// Online sources, and [addons] opens it at its add-ons.
 enum LokalSettingsGroup {
   integrations(
-    'Integrations',
-    'YouTube Music, Spotify, scrobbling and network sources',
-    Icons.hub_rounded,
+    'Online sources',
+    'YouTube Music, add-ons, servers, Spotify and scrobbling',
+    Icons.cloud_rounded,
   ),
   playback(
     'Playback',
@@ -17,11 +20,6 @@ enum LokalSettingsGroup {
     'Library',
     'Folders, scanning and library maintenance',
     Icons.library_music_rounded,
-  ),
-  addons(
-    'Add-ons',
-    'SpotiFLAC add-ons for songs that aren’t in your library',
-    Icons.extension_rounded,
   ),
   appearance(
     'Appearance',
@@ -41,6 +39,14 @@ enum LokalSettingsGroup {
     'USB DAC, bit-perfect, engine, Bluetooth and volume',
     Icons.usb_rounded,
     parent: LokalSettingsGroup.playback,
+  ),
+
+  /// SpotiFLAC add-ons: Online sources, scrolled to its add-ons.
+  addons(
+    'Add-ons',
+    'SpotiFLAC add-ons for songs that aren’t in your library',
+    Icons.extension_rounded,
+    parent: LokalSettingsGroup.integrations,
   );
 
   const LokalSettingsGroup(
@@ -54,12 +60,31 @@ enum LokalSettingsGroup {
   final String description;
   final IconData icon;
 
-  /// The group this page opens from; `null` for the seven groups.
+  /// The group this page opens from; `null` for the listed groups.
   final LokalSettingsGroup? parent;
 
-  /// The seven groups the Settings page lists, in desktop's order.
+  /// The groups the Settings page lists, in desktop's order.
   static List<LokalSettingsGroup> get listed => [
     for (final group in values)
       if (group.parent == null) group,
   ];
+}
+
+/// The sections of Online sources, by the title deep links use.
+abstract final class LokalOnlineSections {
+  static const streaming = 'Streaming & search';
+  static const addons = 'Add-ons';
+  static const repositories = 'Add-on repositories';
+  static const accounts = 'Accounts & scrobbling';
+  static const radioVideos = 'Radio & videos';
+
+  /// Section names older links used, mapped to where they are now.
+  static const aliases = {
+    'accounts': accounts,
+    'scrobbling': accounts,
+    'network sources': streaming,
+    'repositories': repositories,
+    'radio': radioVideos,
+    'videos': radioVideos,
+  };
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
@@ -251,6 +253,67 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('download progress updates one line in place, then clears', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(412, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final done = Completer<Song?>();
+    void Function(String)? say;
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: KonnektedDiscoveryView(
+            onNavigate: (_) {},
+            onPlay: (song, queue) {},
+            pendingSong: (track) => _song(track.key, track.artist, track.title),
+            findSong: (track, {onStatus, additionalProtectedPaths}) {
+              say = onStatus;
+              return done.future;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Play Not Here by Nobody'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    say!('Getting Not Here from Qobuz… 10%');
+    await tester.pump();
+    say!('Getting Not Here from Qobuz… 40%');
+    await tester.pump();
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.text('Getting Not Here from Qobuz… 40%'), findsOneWidget);
+    expect(find.textContaining('10%'), findsNothing);
+
+    done.complete(_song('9', 'Nobody', 'Not Here'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    // A late report from the finished download says nothing.
+    say!('Getting Not Here from Qobuz… 90%');
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(SnackBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('add-on progress is said once per change', () {
+    final text = SpotiflacProgressText('Song', 'Qobuz');
+    expect(text.update(percent: 10), 'Getting Song from Qobuz… 10%');
+    expect(text.update(percent: 10.2), isNull);
+    expect(
+      text.update(message: 'Qobuz loading 10%'),
+      'Getting Song from Qobuz… Qobuz loading 10%',
+    );
+    expect(text.update(message: 'Qobuz loading 10%'), isNull);
+    expect(
+      text.update(percent: 55, message: 'Decrypting'),
+      'Getting Song from Qobuz… Decrypting 55%',
+    );
+  });
+
   testWidgets('Discovery fits a narrow screen with large text', (tester) async {
     tester.view
       ..physicalSize = const Size(320, 2400)
@@ -277,7 +340,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('without Last.fm, Discovery leads to Integrations', (
+  testWidgets('without Last.fm, Discovery leads to Online sources', (
     tester,
   ) async {
     final opened = <KonnektedDestination>[];
@@ -293,11 +356,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open Integrations'));
+    await tester.tap(find.text('Open Online sources'));
     expect(opened, [
       const KonnektedDestination.settingsAt(
         LokalSettingsGroup.integrations,
-        section: 'Scrobbling',
+        section: LokalOnlineSections.accounts,
       ),
     ]);
   });

@@ -1,11 +1,10 @@
 import 'package:flick/core/utils/app_haptics.dart';
-import 'package:flick/features/player/widgets/ambient_background.dart';
-import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/audio_metadata_utils.dart';
 import 'package:flick/core/utils/responsive.dart';
@@ -40,6 +39,39 @@ String _folderName(String path) {
   return '';
 }
 
+Future<bool> _confirm(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+  bool destructive = false,
+}) async {
+  final t = context.lokal;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: t.surface,
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: destructive ? t.red : t.accent,
+            foregroundColor: destructive ? Colors.white : t.onAccent,
+          ),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+  return ok == true;
+}
+
 // ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
@@ -52,7 +84,8 @@ class DuplicateCleanerScreen extends ConsumerStatefulWidget {
       _DuplicateCleanerScreenState();
 }
 
-class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen> {
+class _DuplicateCleanerScreenState
+    extends ConsumerState<DuplicateCleanerScreen> {
   @override
   void initState() {
     super.initState();
@@ -65,34 +98,27 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
   @override
   Widget build(BuildContext context) {
     final scanState = ref.watch(duplicateScanProvider);
-    final currentSong = ref.watch(currentSongProvider);
 
-    return Stack(
-      children: [
-        Positioned.fill(child: AmbientBackground(song: currentSong)),
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _Header(
-                  scanState: scanState,
-                  onBack: () => Navigator.of(context).pop(),
-                  onRefresh: () => ref
-                      .read(duplicateScanProvider.notifier)
-                      .scanForDuplicates(),
-                ),
-                Expanded(child: _buildBody(context, scanState)),
-                if (scanState.result != null &&
-                    scanState.result!.totalDuplicates > 0)
-                  _BottomActionBar(scanState: scanState),
-              ],
+    return Scaffold(
+      backgroundColor: context.lokal.bg,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Header(
+              scanState: scanState,
+              onBack: () => Navigator.of(context).pop(),
+              onRefresh: () =>
+                  ref.read(duplicateScanProvider.notifier).scanForDuplicates(),
             ),
-          ),
+            Expanded(child: _buildBody(context, scanState)),
+            if (scanState.result != null &&
+                scanState.result!.totalDuplicates > 0)
+              _BottomActionBar(scanState: scanState),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -123,9 +149,9 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppColors.surface.withValues(alpha: 0.7),
+                color: context.lokal.surface.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-                border: Border.all(color: AppColors.glassBorder),
+                border: Border.all(color: context.lokal.border),
               ),
               child: Center(
                 child: SizedBox(
@@ -133,7 +159,7 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
                   height: 28,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.5,
-                    color: AppColors.textPrimary,
+                    color: context.lokal.text,
                   ),
                 ),
               ),
@@ -142,10 +168,10 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
             Text(
               l10n.scanningForDuplicates,
               style: TextStyle(
-                fontFamily: 'GoogleSansFlex',
+                fontFamily: LokalTheme.sans,
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: context.adaptiveTextPrimary,
+                color: context.lokal.text,
               ),
             ),
             const SizedBox(height: AppConstants.spacingSm),
@@ -153,10 +179,10 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
               l10n.groupingByTitleArtistThisIs,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'GoogleSansFlex',
+                fontFamily: LokalTheme.sans,
                 fontSize: 13,
                 height: 1.4,
-                color: context.adaptiveTextSecondary,
+                color: context.lokal.muted,
               ),
             ),
           ],
@@ -176,24 +202,26 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppColors.errorDim,
+                color: context.lokal.red.withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-                border: Border.all(color: AppColors.errorBorder),
+                border: Border.all(
+                  color: context.lokal.red.withValues(alpha: .4),
+                ),
               ),
               child: Icon(
                 LucideIcons.triangleAlert,
                 size: 32,
-                color: AppColors.error,
+                color: context.lokal.red,
               ),
             ),
             const SizedBox(height: AppConstants.spacingLg),
             Text(
               l10n.somethingWentWrong,
               style: TextStyle(
-                fontFamily: 'GoogleSansFlex',
+                fontFamily: LokalTheme.sans,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: context.adaptiveTextPrimary,
+                color: context.lokal.text,
               ),
             ),
             const SizedBox(height: AppConstants.spacingSm),
@@ -201,21 +229,26 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
               error,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'GoogleSansFlex',
+                fontFamily: LokalTheme.sans,
                 fontSize: 13,
                 height: 1.4,
-                color: context.adaptiveTextSecondary,
+                color: context.lokal.muted,
               ),
             ),
             const SizedBox(height: AppConstants.spacingLg),
             SizedBox(
               width: double.infinity,
-              child: FlickDialogButton(
-                label: l10n.tryAgain,
-                style: FlickDialogButtonStyle.primary,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: context.lokal.accent,
+                  foregroundColor: context.lokal.onAccent,
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
                 onPressed: () => ref
                     .read(duplicateScanProvider.notifier)
                     .scanForDuplicates(),
+                child: Text(l10n.tryAgain),
               ),
             ),
           ],
@@ -229,9 +262,9 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
       child: Text(
         l10n.noScanResultsYet,
         style: TextStyle(
-          fontFamily: 'GoogleSansFlex',
+          fontFamily: LokalTheme.sans,
           fontSize: 15,
-          color: context.adaptiveTextSecondary,
+          color: context.lokal.muted,
         ),
       ),
     );
@@ -248,26 +281,26 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
               width: 88,
               height: 88,
               decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.12),
+                color: context.lokal.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppConstants.radiusXl),
                 border: Border.all(
-                  color: Colors.green.withValues(alpha: 0.28),
+                  color: context.lokal.accent.withValues(alpha: 0.28),
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 LucideIcons.sparkles,
                 size: 40,
-                color: Colors.green,
+                color: context.lokal.accent,
               ),
             ),
             const SizedBox(height: AppConstants.spacingLg),
             Text(
               l10n.allClearNoDuplicates,
               style: TextStyle(
-                fontFamily: 'GoogleSansFlex',
+                fontFamily: LokalTheme.sans,
                 fontSize: 19,
                 fontWeight: FontWeight.w700,
-                color: context.adaptiveTextPrimary,
+                color: context.lokal.text,
               ),
             ),
             const SizedBox(height: AppConstants.spacingSm),
@@ -275,19 +308,22 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
               l10n.yourLibraryIsTidyWeLl,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'GoogleSansFlex',
+                fontFamily: LokalTheme.sans,
                 fontSize: 13,
                 height: 1.45,
-                color: context.adaptiveTextSecondary,
+                color: context.lokal.muted,
               ),
             ),
             const SizedBox(height: AppConstants.spacingLg),
-            FlickDialogButton(
-              label: l10n.scanAgain,
-              style: FlickDialogButtonStyle.secondary,
-              onPressed: () => ref
-                  .read(duplicateScanProvider.notifier)
-                  .scanForDuplicates(),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.lokal.text,
+                side: BorderSide(color: context.lokal.border2),
+                shape: const StadiumBorder(),
+              ),
+              onPressed: () =>
+                  ref.read(duplicateScanProvider.notifier).scanForDuplicates(),
+              child: Text(l10n.scanAgain),
             ),
           ],
         ),
@@ -314,17 +350,17 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
               Icon(
                 LucideIcons.mousePointerClick,
                 size: 14,
-                color: AppColors.textSecondary,
+                color: context.lokal.muted,
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   l10n.checkVersionsToKeepUncheckedWill,
                   style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
+                    fontFamily: LokalTheme.sans,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: context.lokal.text,
                   ),
                 ),
               ),
@@ -339,12 +375,12 @@ class _DuplicateCleanerScreenState extends ConsumerState<DuplicateCleanerScreen>
                   child: Text(
                     l10n.reset,
                     style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
+                      fontFamily: LokalTheme.sans,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: context.lokal.text,
                       decoration: TextDecoration.underline,
-                      decorationColor: AppColors.textPrimary,
+                      decorationColor: context.lokal.text,
                     ),
                   ),
                 ),
@@ -390,88 +426,62 @@ class _Header extends StatelessWidget {
     final subtitle = scanState.isScanning
         ? l10n.scanningYourLibrary
         : hasResult
-            ? (scanState.result!.totalDuplicates == 0
-                ? l10n.noDuplicatesFound
-                : l10n.groupsToRemove(scanState.result!.totalGroups, scanState.result!.totalDuplicates))
-            : l10n.findAndCleanUpDuplicateSongs;
+        ? (scanState.result!.totalDuplicates == 0
+              ? l10n.noDuplicatesFound
+              : l10n.groupsToRemove(
+                  scanState.result!.totalGroups,
+                  scanState.result!.totalDuplicates,
+                ))
+        : l10n.findAndCleanUpDuplicateSongs;
 
+    final t = context.lokal;
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingMd,
-        vertical: AppConstants.spacingSm,
-      ),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Material(
-            color: AppColors.surface.withValues(alpha: 0.6),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-              side: BorderSide(color: AppColors.glassBorder),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-              onTap: onBack,
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Icon(
-                  LucideIcons.chevronLeft,
-                  size: context.responsiveIcon(AppConstants.iconSizeMd),
-                  color: context.adaptiveTextPrimary,
+          Row(
+            children: [
+              LokalGlassButton(
+                semanticLabel: 'Back',
+                size: 40,
+                onPressed: onBack,
+                child: Icon(Icons.chevron_left_rounded, color: t.text),
+              ),
+              const Spacer(),
+              if (hasResult && !scanState.isScanning)
+                LokalGlassButton(
+                  semanticLabel: l10n.scanAgain,
+                  size: 40,
+                  onPressed: onRefresh,
+                  child: Icon(Icons.refresh_rounded, color: t.text, size: 20),
                 ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Text(
+              l10n.duplicateCleaner,
+              style: TextStyle(
+                fontFamily: LokalTheme.sans,
+                fontSize: 34,
+                height: 1.1,
+                letterSpacing: -1.2,
+                fontWeight: FontWeight.w800,
+                color: t.text,
               ),
             ),
           ),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.duplicateCleaner,
-                  style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: context.adaptiveTextPrimary,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                    color: context.adaptiveTextSecondary,
-                  ),
-                ),
-              ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 6, 0, 0),
+            child: Text(
+              subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: t.muted, height: 1.4),
             ),
           ),
-          const SizedBox(width: AppConstants.spacingSm),
-          if (hasResult && !scanState.isScanning)
-            Material(
-              color: AppColors.surface.withValues(alpha: 0.6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-                side: BorderSide(color: AppColors.glassBorder),
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-                onTap: onRefresh,
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Icon(
-                    LucideIcons.refreshCw,
-                    size: 18,
-                    color: context.adaptiveTextPrimary,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -506,16 +516,9 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
           .copyWith(top: AppConstants.spacingSm),
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.92),
+        color: context.lokal.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorderStrong),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: context.lokal.border2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,14 +530,14 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.backgroundLight,
+                  color: context.lokal.surface3,
                   borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: Border.all(color: AppColors.glassBorderStrong),
+                  border: Border.all(color: context.lokal.border2),
                 ),
                 child: Icon(
                   LucideIcons.copy,
                   size: 20,
-                  color: AppColors.textPrimary,
+                  color: context.lokal.text,
                 ),
               ),
               const SizedBox(width: AppConstants.spacingMd),
@@ -545,10 +548,10 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                     Text(
                       l10n.reviewBeforeYouClean,
                       style: TextStyle(
-                        fontFamily: 'GoogleSansFlex',
+                        fontFamily: LokalTheme.sans,
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: context.lokal.text,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -557,11 +560,10 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                           ? l10n.groupsToRemove2(result.totalGroups, toRemove)
                           : l10n.onlyLibraryEntriesAreRemovedYour,
                       style: TextStyle(
-                        fontFamily: 'GoogleSansFlex',
+                        fontFamily: LokalTheme.sans,
                         fontSize: 12,
                         height: 1.35,
-                        color: AppColors.textSecondary
-                            .withValues(alpha: 0.92),
+                        color: context.lokal.muted.withValues(alpha: 0.92),
                       ),
                     ),
                   ],
@@ -580,13 +582,13 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: AppColors.glassBackgroundStrong,
+                      color: context.lokal.surface3,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.glassBorder),
+                      border: Border.all(color: context.lokal.border),
                     ),
                     child: Icon(
                       LucideIcons.chevronDown,
-                      color: context.adaptiveTextSecondary,
+                      color: context.lokal.muted,
                       size: 16,
                     ),
                   ),
@@ -613,12 +615,13 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                             vertical: AppConstants.spacingSm,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.backgroundLight
-                                .withValues(alpha: 0.9),
-                            borderRadius:
-                                BorderRadius.circular(AppConstants.radiusMd),
-                            border: Border.all(
-                                color: AppColors.glassBorderStrong),
+                            color: context.lokal.surface3.withValues(
+                              alpha: 0.9,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              AppConstants.radiusMd,
+                            ),
+                            border: Border.all(color: context.lokal.border2),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -631,7 +634,7 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                               Container(
                                 width: 1,
                                 height: 36,
-                                color: AppColors.glassBorder,
+                                color: context.lokal.border,
                               ),
                               _SummaryStat(
                                 label: l10n.toRemove,
@@ -642,12 +645,11 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                               Container(
                                 width: 1,
                                 height: 36,
-                                color: AppColors.glassBorder,
+                                color: context.lokal.border,
                               ),
                               _SummaryStat(
                                 label: l10n.willKeep,
-                                value: scanState.selectedKeepCount
-                                    .toString(),
+                                value: scanState.selectedKeepCount.toString(),
                                 icon: LucideIcons.shieldCheck,
                               ),
                             ],
@@ -660,16 +662,16 @@ class _SummaryCardState extends ConsumerState<_SummaryCard> {
                               Icon(
                                 LucideIcons.info,
                                 size: 13,
-                                color: AppColors.textSecondary,
+                                color: context.lokal.muted,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   l10n.youCustomizedWhichVersionsToKeep,
                                   style: TextStyle(
-                                    fontFamily: 'GoogleSansFlex',
+                                    fontFamily: LokalTheme.sans,
                                     fontSize: 11.5,
-                                    color: AppColors.textSecondary,
+                                    color: context.lokal.muted,
                                   ),
                                 ),
                               ),
@@ -706,28 +708,26 @@ class _SummaryStat extends StatelessWidget {
         Icon(
           icon,
           size: 18,
-          color: highlight
-              ? AppColors.textPrimary
-              : context.adaptiveTextSecondary,
+          color: highlight ? context.lokal.text : context.lokal.muted,
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
-            fontFamily: 'GoogleSansFlex',
+            fontFamily: LokalTheme.sans,
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: context.adaptiveTextPrimary,
+            color: context.lokal.text,
           ),
         ),
         Text(
           label,
           style: TextStyle(
-            fontFamily: 'GoogleSansFlex',
+            fontFamily: LokalTheme.sans,
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.3,
-            color: AppColors.textSecondary,
+            color: context.lokal.muted,
           ),
         ),
       ],
@@ -757,37 +757,29 @@ class _BottomActionBar extends ConsumerWidget {
         MediaQuery.paddingOf(context).bottom + AppConstants.spacingMd,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.86),
-        border: Border(top: BorderSide(color: AppColors.glassBorder)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, -6),
-          ),
-        ],
+        color: context.lokal.surface.withValues(alpha: 0.86),
+        border: Border(top: BorderSide(color: context.lokal.border)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              Icon(
-                LucideIcons.info,
-                size: 14,
-                color: context.adaptiveTextTertiary,
-              ),
+              Icon(LucideIcons.info, size: 14, color: context.lokal.muted2),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   isRemoving
                       ? l10n.removingDuplicates
-                      : l10n.readyToRemoveSongKeepingIn(toRemove, scanState.selectedKeepCount),
+                      : l10n.readyToRemoveSongKeepingIn(
+                          toRemove,
+                          scanState.selectedKeepCount,
+                        ),
                   style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
+                    fontFamily: LokalTheme.sans,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: context.adaptiveTextSecondary,
+                    color: context.lokal.muted,
                   ),
                 ),
               ),
@@ -813,20 +805,19 @@ class _BottomActionBar extends ConsumerWidget {
               label: Text(
                 isRemoving ? l10n.removing : l10n.removeDuplicates3(toRemove),
                 style: const TextStyle(
-                  fontFamily: 'GoogleSansFlex',
+                  fontFamily: LokalTheme.sans,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error.withValues(alpha: 0.92),
+                backgroundColor: context.lokal.red.withValues(alpha: 0.92),
                 foregroundColor: Colors.white,
-                disabledBackgroundColor:
-                    AppColors.glassBackgroundStrong.withValues(alpha: 0.5),
-                disabledForegroundColor: context.adaptiveTextTertiary,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 14,
+                disabledBackgroundColor: context.lokal.surface3.withValues(
+                  alpha: 0.5,
                 ),
+                disabledForegroundColor: context.lokal.muted2,
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                 ),
@@ -842,7 +833,7 @@ class _BottomActionBar extends ConsumerWidget {
                   ? null
                   : () => _confirmRemoveAll(context, ref, toRemove),
               style: TextButton.styleFrom(
-                foregroundColor: context.adaptiveTextSecondary,
+                foregroundColor: context.lokal.muted,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppConstants.radiusMd),
@@ -851,12 +842,12 @@ class _BottomActionBar extends ConsumerWidget {
               child: Text(
                 l10n.orRemoveAllUsingRecommendedPicks,
                 style: TextStyle(
-                  fontFamily: 'GoogleSansFlex',
+                  fontFamily: LokalTheme.sans,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
-                  color: context.adaptiveTextSecondary,
+                  color: context.lokal.muted,
                   decoration: TextDecoration.underline,
-                  decorationColor: context.adaptiveTextTertiary,
+                  decorationColor: context.lokal.muted2,
                 ),
               ),
             ),
@@ -872,39 +863,41 @@ class _BottomActionBar extends ConsumerWidget {
     int toRemove,
   ) async {
     final kept = ref.read(duplicateScanProvider).selectedKeepCount;
-    final confirmed = await FlickDialogs.confirm(
+    final confirmed = await _confirm(
       context,
       title: l10n.removeDuplicates2(toRemove),
-      message:
-          l10n.weLlKeepYourCheckedVersion(kept, toRemove),
+      message: l10n.weLlKeepYourCheckedVersion(kept, toRemove),
       confirmLabel: l10n.remove,
       destructive: true,
-      icon: LucideIcons.trash2,
     );
     if (!confirmed) return;
-    final result =
-        await ref.read(duplicateScanProvider.notifier).removeSelected();
+    final result = await ref
+        .read(duplicateScanProvider.notifier)
+        .removeSelected();
     if (!context.mounted) return;
     if (result != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: AppColors.surfaceLight,
+          backgroundColor: context.lokal.surface2,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.radiusMd),
           ),
           content: Row(
             children: [
-              const Icon(LucideIcons.check, size: 18, color: Colors.green),
+              Icon(LucideIcons.check, size: 18, color: context.lokal.accent),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  l10n.removedDuplicatesKept(result.removedCount, result.keptCount),
+                  l10n.removedDuplicatesKept(
+                    result.removedCount,
+                    result.keptCount,
+                  ),
                   style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
+                    fontFamily: LokalTheme.sans,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: context.lokal.text,
                   ),
                 ),
               ),
@@ -920,37 +913,35 @@ class _BottomActionBar extends ConsumerWidget {
     WidgetRef ref,
     int toRemove,
   ) async {
-    final confirmed = await FlickDialogs.confirm(
+    final confirmed = await _confirm(
       context,
       title: l10n.removeAllWithBestPicks,
-      message:
-          l10n.weLlKeepTheBestQuality(toRemove),
+      message: l10n.weLlKeepTheBestQuality(toRemove),
       confirmLabel: l10n.removeAll,
       destructive: true,
-      icon: LucideIcons.sparkles,
     );
     if (!confirmed) return;
     await ref.read(duplicateScanProvider.notifier).removeAllDuplicates();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: AppColors.surfaceLight,
+        backgroundColor: context.lokal.surface2,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusMd),
         ),
         content: Row(
           children: [
-            const Icon(LucideIcons.check, size: 18, color: Colors.green),
+            Icon(LucideIcons.check, size: 18, color: context.lokal.accent),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 l10n.duplicatesRemovedUsingRecommendedPicks,
                 style: TextStyle(
-                  fontFamily: 'GoogleSansFlex',
+                  fontFamily: LokalTheme.sans,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: context.lokal.text,
                 ),
               ),
             ),
@@ -981,7 +972,8 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
   @override
   Widget build(BuildContext context) {
     final scanState = ref.watch(duplicateScanProvider);
-    final keepSet = scanState.keepSelection[widget.group.key] ??
+    final keepSet =
+        scanState.keepSelection[widget.group.key] ??
         {widget.group.recommendedKeep.id};
     final keptCount = keepSet.length;
     final removeCount = widget.group.songs.length - keptCount;
@@ -1008,7 +1000,8 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
         orElse: () => widget.group.recommendedKeep,
       );
       final type = kept.fileType?.toUpperCase() ?? '—';
-      final br = AudioMetadataUtils.formatBitrateLabel(
+      final br =
+          AudioMetadataUtils.formatBitrateLabel(
             kept.bitrate,
             sampleRate: kept.sampleRate,
             bitDepth: kept.bitDepth,
@@ -1016,16 +1009,19 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
           l10n.unknownBitrate;
       keepingBadgeText = l10n.keeping(type, br);
     } else {
-      keepingBadgeText =
-          l10n.keepingOfToRemove(keptCount, widget.group.songs.length, removeCount);
+      keepingBadgeText = l10n.keepingOfToRemove(
+        keptCount,
+        widget.group.songs.length,
+        removeCount,
+      );
     }
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppConstants.spacingSm),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.92),
+        color: context.lokal.surface.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorderStrong),
+        border: Border.all(color: context.lokal.border2),
       ),
       child: Column(
         children: [
@@ -1044,15 +1040,15 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                       width: context.scaleSize(AppConstants.containerSizeSm),
                       height: context.scaleSize(AppConstants.containerSizeSm),
                       decoration: BoxDecoration(
-                        color: AppColors.glassBackgroundStrong,
+                        color: context.lokal.surface3,
                         borderRadius: BorderRadius.circular(
                           AppConstants.radiusSm,
                         ),
-                        border: Border.all(color: AppColors.glassBorder),
+                        border: Border.all(color: context.lokal.border),
                       ),
                       child: Icon(
                         LucideIcons.copy,
-                        color: context.adaptiveTextSecondary,
+                        color: context.lokal.muted,
                         size: context.responsiveIcon(AppConstants.iconSizeMd),
                       ),
                     ),
@@ -1064,10 +1060,10 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                           Text(
                             widget.group.songs.first.title,
                             style: TextStyle(
-                              fontFamily: 'GoogleSansFlex',
+                              fontFamily: LokalTheme.sans,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: context.adaptiveTextPrimary,
+                              color: context.lokal.text,
                               letterSpacing: -0.15,
                             ),
                             maxLines: 1,
@@ -1075,12 +1071,15 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            l10n.copies(widget.group.songs.first.artist, widget.group.songs.length),
+                            l10n.copies(
+                              widget.group.songs.first.artist,
+                              widget.group.songs.length,
+                            ),
                             style: TextStyle(
-                              fontFamily: 'GoogleSansFlex',
+                              fontFamily: LokalTheme.sans,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                              color: context.lokal.muted,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -1092,31 +1091,34 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                                   vertical: 2.5,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.green.withValues(alpha: 0.14),
+                                  color: context.lokal.accent.withValues(
+                                    alpha: 0.14,
+                                  ),
                                   borderRadius: BorderRadius.circular(
                                     AppConstants.radiusRound,
                                   ),
                                   border: Border.all(
-                                    color: Colors.green
-                                        .withValues(alpha: 0.28),
+                                    color: context.lokal.accent.withValues(
+                                      alpha: 0.28,
+                                    ),
                                   ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       LucideIcons.shieldCheck,
                                       size: 11,
-                                      color: Colors.green,
+                                      color: context.lokal.accent,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
                                       keepingBadgeText,
-                                      style: const TextStyle(
-                                        fontFamily: 'GoogleSansFlex',
+                                      style: TextStyle(
+                                        fontFamily: LokalTheme.sans,
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.w700,
-                                        color: Colors.green,
+                                        color: context.lokal.accent,
                                       ),
                                     ),
                                   ],
@@ -1135,13 +1137,13 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                         width: 28,
                         height: 28,
                         decoration: BoxDecoration(
-                          color: AppColors.glassBackgroundStrong,
+                          color: context.lokal.surface3,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.glassBorder),
+                          border: Border.all(color: context.lokal.border),
                         ),
                         child: Icon(
                           LucideIcons.chevronDown,
-                          color: context.adaptiveTextSecondary,
+                          color: context.lokal.muted,
                           size: 16,
                         ),
                       ),
@@ -1168,55 +1170,60 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            height: 1,
-                            color: AppColors.glassBorder,
-                          ),
+                          Container(height: 1, color: context.lokal.border),
                           const SizedBox(height: AppConstants.spacingSm),
                           Row(
                             children: [
                               Text(
                                 l10n.chooseWhichToKeep,
                                 style: TextStyle(
-                                  fontFamily: 'GoogleSansFlex',
+                                  fontFamily: LokalTheme.sans,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                  color: context.lokal.text,
                                 ),
                               ),
                               const Spacer(),
                               if (keptCount != 1 ||
                                   !keepSet.contains(
-                                      widget.group.recommendedKeep.id))
+                                    widget.group.recommendedKeep.id,
+                                  ))
                                 GestureDetector(
                                   onTap: isRemoving
                                       ? null
                                       : () {
                                           AppHaptics.tap();
                                           ref
-                                              .read(duplicateScanProvider
-                                                  .notifier)
+                                              .read(
+                                                duplicateScanProvider.notifier,
+                                              )
                                               .resetKeepToRecommended(
-                                                  widget.group.key);
+                                                widget.group.key,
+                                              );
                                         },
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.backgroundLight
-                                          .withValues(alpha: 0.9),
+                                      color: context.lokal.surface3.withValues(
+                                        alpha: 0.9,
+                                      ),
                                       borderRadius: BorderRadius.circular(
-                                          AppConstants.radiusRound),
+                                        AppConstants.radiusRound,
+                                      ),
                                       border: Border.all(
-                                          color: AppColors.glassBorderStrong),
+                                        color: context.lokal.border2,
+                                      ),
                                     ),
                                     child: Text(
                                       l10n.recommendedOnly,
                                       style: TextStyle(
-                                        fontFamily: 'GoogleSansFlex',
+                                        fontFamily: LokalTheme.sans,
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.w600,
-                                        color: AppColors.textSecondary,
+                                        color: context.lokal.muted,
                                       ),
                                     ),
                                   ),
@@ -1229,7 +1236,8 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                                         AppHaptics.tap();
                                         ref
                                             .read(
-                                                duplicateScanProvider.notifier)
+                                              duplicateScanProvider.notifier,
+                                            )
                                             .setKeepSet(
                                               widget.group.key,
                                               widget.group.songs
@@ -1239,22 +1247,27 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                                       },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.backgroundLight
-                                        .withValues(alpha: 0.9),
+                                    color: context.lokal.surface3.withValues(
+                                      alpha: 0.9,
+                                    ),
                                     borderRadius: BorderRadius.circular(
-                                        AppConstants.radiusRound),
+                                      AppConstants.radiusRound,
+                                    ),
                                     border: Border.all(
-                                        color: AppColors.glassBorderStrong),
+                                      color: context.lokal.border2,
+                                    ),
                                   ),
                                   child: Text(
                                     l10n.keepAll,
                                     style: TextStyle(
-                                      fontFamily: 'GoogleSansFlex',
+                                      fontFamily: LokalTheme.sans,
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary,
+                                      color: context.lokal.muted,
                                     ),
                                   ),
                                 ),
@@ -1265,11 +1278,10 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                           Text(
                             l10n.checkTheVersionsYouWantTo,
                             style: TextStyle(
-                              fontFamily: 'GoogleSansFlex',
+                              fontFamily: LokalTheme.sans,
                               fontSize: 11.5,
                               height: 1.35,
-                              color: AppColors.textSecondary
-                                  .withValues(alpha: 0.9),
+                              color: context.lokal.muted.withValues(alpha: 0.9),
                             ),
                           ),
                           if (keepSet.length > 1) ...[
@@ -1277,68 +1289,68 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                             Text(
                               l10n.keptWillBeRemoved(keptCount, removeCount),
                               style: TextStyle(
-                                fontFamily: 'GoogleSansFlex',
+                                fontFamily: LokalTheme.sans,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.green.shade300,
+                                color: context.lokal.accent,
                               ),
                             ),
                           ],
                           const SizedBox(height: AppConstants.spacingSm),
-                          ...songs.map(
-                            (song) {
-                              final isKept = keepSet.contains(song.id);
-                              final canToggleOff = keepSet.length > 1;
-                              return _SongSelectRow(
-                                song: song,
-                                group: widget.group,
-                                selected: isKept,
-                                isRecommended:
-                                    song.id == widget.group.recommendedKeep.id,
-                                enabled: !isRemoving,
-                                canToggleOff: canToggleOff,
-                                onTap: () {
-                                  AppHaptics.selection();
-                                  final ok = ref
-                                      .read(duplicateScanProvider.notifier)
-                                      .toggleKeep(widget.group.key, song.id);
-                                  if (!ok && context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        backgroundColor:
-                                            AppColors.surfaceLight,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                              AppConstants.radiusMd),
+                          ...songs.map((song) {
+                            final isKept = keepSet.contains(song.id);
+                            final canToggleOff = keepSet.length > 1;
+                            return _SongSelectRow(
+                              song: song,
+                              group: widget.group,
+                              selected: isKept,
+                              isRecommended:
+                                  song.id == widget.group.recommendedKeep.id,
+                              enabled: !isRemoving,
+                              canToggleOff: canToggleOff,
+                              onTap: () {
+                                AppHaptics.selection();
+                                final ok = ref
+                                    .read(duplicateScanProvider.notifier)
+                                    .toggleKeep(widget.group.key, song.id);
+                                if (!ok && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      backgroundColor: context.lokal.surface2,
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(
+                                          AppConstants.radiusMd,
                                         ),
-                                        content: Row(
-                                          children: [
-                                            Icon(LucideIcons.info,
-                                                size: 16,
-                                                color: Colors.amber),
-                                            SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                l10n.atLeastOneVersionMustStay,
-                                                style: TextStyle(
-                                                  fontFamily: 'GoogleSansFlex',
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: AppColors.textPrimary,
-                                                ),
+                                      ),
+                                      content: Row(
+                                        children: [
+                                          Icon(
+                                            LucideIcons.info,
+                                            size: 16,
+                                            color: context.lokal.orange,
+                                          ),
+                                          SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              l10n.atLeastOneVersionMustStay,
+                                              style: TextStyle(
+                                                fontFamily: LokalTheme.sans,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: context.lokal.text,
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                        duration: const Duration(seconds: 2),
+                                          ),
+                                        ],
                                       ),
-                                    );
-                                  }
-                                },
-                              );
-                            },
-                          ),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                            );
+                          }),
                         ],
                       ),
                     )
@@ -1372,7 +1384,8 @@ class _SongSelectRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bitrateLabel = AudioMetadataUtils.formatBitrateLabel(
+    final bitrateLabel =
+        AudioMetadataUtils.formatBitrateLabel(
           song.bitrate,
           sampleRate: song.sampleRate,
           bitDepth: song.bitDepth,
@@ -1395,15 +1408,15 @@ class _SongSelectRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: selected
                   ? Color.alphaBlend(
-                      AppColors.success.withValues(alpha: .18),
-                      AppColors.surfaceLight,
+                      context.lokal.accent.withValues(alpha: .18),
+                      context.lokal.surface2,
                     )
-                  : AppColors.surfaceLight.withValues(alpha: 0.96),
+                  : context.lokal.surface2.withValues(alpha: 0.96),
               borderRadius: BorderRadius.circular(AppConstants.radiusMd),
               border: Border.all(
                 color: selected
-                    ? Colors.green.withValues(alpha: 0.45)
-                    : AppColors.glassBorderStrong.withValues(alpha: 0.9),
+                    ? context.lokal.accent.withValues(alpha: 0.45)
+                    : context.lokal.border2.withValues(alpha: 0.9),
                 width: selected ? 1.3 : 1,
               ),
             ),
@@ -1417,13 +1430,11 @@ class _SongSelectRow extends StatelessWidget {
                   margin: const EdgeInsets.only(top: 1),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
-                    color: selected
-                        ? Colors.green
-                        : Colors.transparent,
+                    color: selected ? context.lokal.accent : Colors.transparent,
                     border: Border.all(
                       color: selected
-                          ? Colors.green
-                          : AppColors.textSecondary.withValues(alpha: 0.65),
+                          ? context.lokal.accent
+                          : context.lokal.muted.withValues(alpha: 0.65),
                       width: 1.4,
                     ),
                   ),
@@ -1449,28 +1460,31 @@ class _SongSelectRow extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: selected
-                                  ? Colors.green.withValues(alpha: 0.22)
-                                  : AppColors.backgroundLight
-                                      .withValues(alpha: 0.95),
+                                  ? context.lokal.accent.withValues(alpha: 0.22)
+                                  : context.lokal.surface3.withValues(
+                                      alpha: 0.95,
+                                    ),
                               borderRadius: BorderRadius.circular(
                                 AppConstants.radiusXs,
                               ),
                               border: Border.all(
                                 color: selected
-                                    ? Colors.green.withValues(alpha: 0.38)
-                                    : AppColors.glassBorderStrong,
+                                    ? context.lokal.accent.withValues(
+                                        alpha: 0.38,
+                                      )
+                                    : context.lokal.border2,
                               ),
                             ),
                             child: Text(
                               typeLabel,
                               style: TextStyle(
-                                fontFamily: 'GoogleSansFlex',
+                                fontFamily: LokalTheme.sans,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.4,
                                 color: selected
-                                    ? Colors.green.shade300
-                                    : AppColors.textPrimary,
+                                    ? context.lokal.accent
+                                    : context.lokal.text,
                               ),
                             ),
                           ),
@@ -1479,12 +1493,12 @@ class _SongSelectRow extends StatelessWidget {
                             child: Text(
                               '$bitrateLabel • $sizeLabel',
                               style: TextStyle(
-                                fontFamily: 'GoogleSansFlex',
+                                fontFamily: LokalTheme.sans,
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w700,
                                 color: selected
-                                    ? Colors.green.shade300
-                                    : AppColors.textPrimary,
+                                    ? context.lokal.accent
+                                    : context.lokal.text,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1498,12 +1512,16 @@ class _SongSelectRow extends StatelessWidget {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.amber.withValues(alpha: 0.14),
+                                color: context.lokal.orange.withValues(
+                                  alpha: 0.14,
+                                ),
                                 borderRadius: BorderRadius.circular(
                                   AppConstants.radiusRound,
                                 ),
                                 border: Border.all(
-                                  color: Colors.amber.withValues(alpha: 0.32),
+                                  color: context.lokal.orange.withValues(
+                                    alpha: 0.32,
+                                  ),
                                 ),
                               ),
                               child: Row(
@@ -1512,16 +1530,16 @@ class _SongSelectRow extends StatelessWidget {
                                   Icon(
                                     LucideIcons.star,
                                     size: 10,
-                                    color: Colors.amber,
+                                    color: context.lokal.orange,
                                   ),
                                   SizedBox(width: 3),
                                   Text(
                                     l10n.recommended,
                                     style: TextStyle(
-                                      fontFamily: 'GoogleSansFlex',
+                                      fontFamily: LokalTheme.sans,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.amber,
+                                      color: context.lokal.orange,
                                     ),
                                   ),
                                 ],
@@ -1534,12 +1552,12 @@ class _SongSelectRow extends StatelessWidget {
                       Text(
                         selected ? l10n.keepingThisVersion : l10n.willBeRemoved,
                         style: TextStyle(
-                          fontFamily: 'GoogleSansFlex',
+                          fontFamily: LokalTheme.sans,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: selected
-                              ? Colors.green.shade300
-                              : AppColors.textSecondary,
+                              ? context.lokal.accent
+                              : context.lokal.muted,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -1548,10 +1566,10 @@ class _SongSelectRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontFamily: 'GoogleSansFlex',
+                          fontFamily: LokalTheme.sans,
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: context.lokal.text,
                         ),
                       ),
                       if (folder.isNotEmpty)
@@ -1560,11 +1578,10 @@ class _SongSelectRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontFamily: 'GoogleSansFlex',
+                            fontFamily: LokalTheme.sans,
                             fontSize: 10.5,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary
-                                .withValues(alpha: 0.95),
+                            color: context.lokal.muted.withValues(alpha: 0.95),
                           ),
                         ),
                       if ((song.albumArtPath as String?) != null)
@@ -1576,16 +1593,16 @@ class _SongSelectRow extends StatelessWidget {
                               Icon(
                                 LucideIcons.image,
                                 size: 11,
-                                color: AppColors.textSecondary,
+                                color: context.lokal.muted,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 l10n.hasArtwork,
                                 style: TextStyle(
-                                  fontFamily: 'GoogleSansFlex',
+                                  fontFamily: LokalTheme.sans,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w500,
-                                  color: AppColors.textSecondary,
+                                  color: context.lokal.muted,
                                 ),
                               ),
                             ],

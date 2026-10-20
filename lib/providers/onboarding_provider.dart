@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingCompletedNotifier extends Notifier<bool> {
-  static const _prefKey = 'onboarding_completed';
+  /// Persisted flag; kept so existing users never see onboarding again.
+  static const prefKey = 'onboarding_completed';
   bool _initialized = false;
 
   @override
@@ -16,7 +17,7 @@ class OnboardingCompletedNotifier extends Notifier<bool> {
 
   Future<void> _loadPreference() async {
     final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getBool(_prefKey) ?? false;
+    final value = prefs.getBool(prefKey) ?? false;
     if (!ref.mounted) return;
     state = value;
   }
@@ -26,14 +27,14 @@ class OnboardingCompletedNotifier extends Notifier<bool> {
     state = true;
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_prefKey, true);
+    await prefs.setBool(prefKey, true);
   }
 
   Future<void> reset() async {
     state = false;
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_prefKey, false);
+    await prefs.setBool(prefKey, false);
   }
 }
 

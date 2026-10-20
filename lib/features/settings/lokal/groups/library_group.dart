@@ -4,9 +4,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flick/features/settings/library_scan/library_scan_flow.dart';
 import 'package:flick/features/settings/screens/duplicate_cleaner_screen.dart';
 import 'package:flick/features/settings/screens/library_settings_screen.dart';
 import 'package:flick/features/settings/screens/missing_metadata_screen.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/library_scan_preferences_provider.dart';
 import 'package:flick/services/apple_music/apple_music_settings.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
@@ -34,9 +36,17 @@ List<LokalSettingsSection> librarySettings(
     LokalSettingsSection(
       title: 'Folders',
       children: [
+        LokalSettingRow(
+          key: const ValueKey('library-add-folder'),
+          icon: Icons.create_new_folder_rounded,
+          label: 'Add folder',
+          description:
+              'Pick a folder on your phone; Lokal scans it straight away.',
+          onTap: () => unawaited(LibraryScanFlow.addFolder(context)),
+        ),
         LokalSettingLink(
-          label: 'Folders and rescan',
-          description: 'Add or remove music folders and rescan them, quick or full. ReplayGain scan and audio preload are there too.',
+          label: 'Manage folders',
+          description: 'See and remove your folders, rescan (quick, full or deep), full library access, ReplayGain and audio preparation.',
           onTap: () => _push(context, const LibrarySettingsScreen()),
         ),
         if (Platform.isAndroid)
@@ -82,6 +92,19 @@ List<LokalSettingsSection> librarySettings(
           description: 'Decode new songs after a scan so waveforms and loudness are ready.',
           value: scan.preloadAudioData,
           onChanged: notifier.setPreloadAudioData,
+        ),
+      ],
+    ),
+    LokalSettingsSection(
+      title: 'Covers',
+      children: [
+        LokalSettingRow.toggle(
+          label: 'Stretch non-square covers',
+          description: 'Fill the square with covers that aren’t square. Off crops them instead.',
+          value: ref.watch(appPreferencesProvider).albumsStretchArtwork,
+          onChanged: ref
+              .read(appPreferencesProvider.notifier)
+              .setAlbumsStretchArtwork,
         ),
       ],
     ),

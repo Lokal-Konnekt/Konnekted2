@@ -3,7 +3,9 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/features/discovery/youtube_music_sign_in.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 /// Opt-in YouTube Music account connection, separate from catalog search.
 class YoutubeMusicSettingsTile extends ConsumerStatefulWidget {
@@ -26,28 +28,18 @@ class _YoutubeMusicSettingsTileState
       if (current == null) {
         final session = await YoutubeMusicSignInSheet.show(context);
         if (!mounted || session == null) return;
-        await ref.read(konnektedYoutubeMusicSessionProvider.notifier).save(session);
+        await ref
+            .read(konnektedYoutubeMusicSessionProvider.notifier)
+            .save(session);
       } else {
-        final signOut = await showDialog<bool>(
+        final signOut = await showLokalConfirmSheet(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Sign out of YouTube Music?'),
-            content: const Text(
-              'This removes the saved account session from this device.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Sign out'),
-              ),
-            ],
-          ),
+          title: 'Sign out of YouTube Music?',
+          message: 'This removes the saved account session from this device.',
+          confirmLabel: 'Sign out',
+          destructive: true,
         );
-        if (!mounted || signOut != true) return;
+        if (!mounted || !signOut) return;
         try {
           await CookieManager.instance().deleteAllCookies();
         } catch (_) {
@@ -59,7 +51,9 @@ class _YoutubeMusicSettingsTileState
       if (mounted) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(
           const SnackBar(
-            content: Text('Could not update the YouTube Music account session.'),
+            content: Text(
+              'Could not update the YouTube Music account session.',
+            ),
           ),
         );
       }
@@ -79,21 +73,24 @@ class _YoutubeMusicSettingsTileState
       loading: () => 'Checking saved session…',
       error: (_, _) => 'Session could not be read',
     );
-    return ListTile(
-      leading: const Icon(Icons.music_note_rounded),
-      title: const Text('YouTube Music'),
-      subtitle: Text(subtitle),
-      trailing: _busy || session.isLoading
-          ? const SizedBox(
+    final busy = _busy || session.isLoading;
+    return LokalSettingRow(
+      label: 'YouTube Music',
+      description: subtitle,
+      onTap: busy ? null : _activate,
+      trailing: busy
+          ? SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: context.lokal.accent,
+              ),
             )
-          : TextButton(
+          : LokalSettingButton(
+              label: signedIn ? 'Sign out' : 'Sign in',
               onPressed: _activate,
-              child: Text(signedIn ? 'Sign out' : 'Sign in'),
             ),
-      onTap: _busy || session.isLoading ? null : _activate,
     );
   }
 }

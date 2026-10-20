@@ -1,14 +1,30 @@
-import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/constants/app_constants.dart';
+
+import 'package:flick/core/theme/lokal_appearance.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/features/appearance/lokal_appearance_screen.dart';
+import 'package:flick/features/konnekted/konnekted_discovery.dart';
+import 'package:flick/features/settings/library_scan/library_scan_flow.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
+import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/providers/onboarding_provider.dart';
 import 'package:flick/providers/tutorial_provider.dart';
+import 'package:flick/services/permission_service.dart';
+import 'package:flick/widgets/lokal/lokal_logo.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
+/// Lokal's first run, in desktop's order and wording: Welcome, your look,
+/// your music folder, optional accounts, then All Set.
+///
+/// Each permission is asked for where it is needed: storage when a folder is
+/// picked, notifications on the last step. Nothing online is turned on here;
+/// the accounts step only opens Settings › Online sources.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -16,542 +32,684 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
-    with SingleTickerProviderStateMixin {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
+enum _Step { welcome, look, folder, online, done }
 
-  static const int _totalPages = 5;
-  static const List<_StepData> _steps = [
-    _StepData(
-      icon: LucideIcons.zap,
-      title: 'Welcome to\nFlick Player',
-      description:
-          'A beautiful, fast music player\nbuilt for your local library.\nNo ads. No tracking. Just music.',
-    ),
-    _StepData(
-      icon: LucideIcons.folderOpen,
-      title: 'Build Your\nLibrary',
-      description:
-          'Head to Settings and tap\nMusic Folders to scan your\ndevice. Supports MP3, FLAC,\nAAC, WAV, and more.',
-    ),
-    _StepData(
-      icon: LucideIcons.layoutGrid,
-      title: 'Browse\nYour Music',
-      description:
-          'Swipe between tabs to explore\nSongs, Artists, Albums, and\nPlaylists. Sort and search\nyour entire collection.',
-    ),
-    _StepData(
-      icon: LucideIcons.music,
-      title: 'Rich\nPlayback',
-      description:
-          'Tap any song for the full player\nwith waveform seek bar,\nequalizer, lyrics, and ambient\nalbum art visuals.',
-    ),
-    _StepData(
-      icon: LucideIcons.headphones,
-      title: "You're\nAll Set",
-      description:
-          'Start exploring your music.\nSit back, relax, and enjoy\nthe sound of Flick Player.',
-    ),
-  ];
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  _Step _step = _Step.welcome;
+  bool _forward = true;
+  String? _folderName;
+  bool _picking = false;
+  bool _finishing = false;
 
-  @override
-  void initState() {
-    super.initState();
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: AppColors.background,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
-    );
+  void _go(_Step step) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _forward = step.index > _step.index;
+      _step = step;
+    });
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _goToNext() {
-    if (_currentPage < _totalPages - 1) {
-      final next = _currentPage + 1;
-      if (AppConstants.animationNormal == Duration.zero) {
-        _pageController.jumpToPage(next);
-      } else {
-        _pageController.animateToPage(
-          next,
-          duration: AppConstants.animationNormal,
-          curve: Curves.easeOutCubic,
-        );
-      }
+  void _next() {
+    if (_step == _Step.done) {
+      unawaited(_finish());
     } else {
-      _complete();
+      _go(_Step.values[_step.index + 1]);
     }
   }
 
-  void _skip() {
-    _complete();
+  void _back() {
+    if (_step.index > 0) _go(_Step.values[_step.index - 1]);
   }
 
-  void _complete() {
+  Future<void> _pickFolder() async {
+    if (_picking) return;
+    setState(() => _picking = true);
+    final folder = await LibraryScanFlow.addFolder(context);
+    if (!mounted) return;
+    setState(() {
+      _picking = false;
+      if (folder != null) _folderName = folder.displayName;
+    });
+  }
+
+  Future<void> _finish() async {
+    if (_finishing) return;
+    setState(() => _finishing = true);
+    final permissions = PermissionService();
+    try {
+      if (!await permissions.hasNotificationPermission()) {
+        await permissions.requestNotificationPermission();
+      }
+    } catch (e) {
+      debugPrint('Notification permission request failed: $e');
+    }
+    if (!mounted) return;
     ref.read(tutorialProvider.notifier).flagAutoStart();
-    ref.read(onboardingCompletedProvider.notifier).complete();
-    if (context.mounted && Navigator.of(context).canPop()) {
+    await ref.read(onboardingCompletedProvider.notifier).complete();
+    if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
   }
 
+  void _skipAll() {
+    ref.read(tutorialProvider.notifier).flagAutoStart();
+    unawaited(ref.read(onboardingCompletedProvider.notifier).complete());
+    if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: _OnboardingBackdrop(pageController: _pageController),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    onPageChanged: (index) {
-                      setState(() => _currentPage = index);
-                    },
-                    children: _steps.map((step) {
-                      return AnimatedSwitcher(
-                        duration: AppConstants.animationNormal,
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        child: _StepContent(
-                          key: ValueKey(step.title),
-                          data: step,
-                        ),
-                      );
-                    }).toList(),
+    final t = context.lokal;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final duration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 420);
+
+    final (primary, onPrimary) = switch (_step) {
+      _Step.welcome => ('Get Started', _next),
+      _Step.folder when _folderName == null => (
+        _picking ? 'Opening…' : 'Choose Folder',
+        _picking ? null : _pickFolder,
+      ),
+      _Step.done => (
+        _finishing ? 'Starting…' : 'Start Listening',
+        _finishing ? null : _next,
+      ),
+      _ => ('Continue', _next),
+    };
+    final (secondary, onSecondary) = switch (_step) {
+      _Step.welcome => ('Skip Setup', _skipAll),
+      _Step.folder when _folderName == null => ('Skip for now', _next),
+      _Step.online => ('Not now', _next),
+      _ => (null, null),
+    };
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value:
+          (t.isLight ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light)
+              .copyWith(
+                statusBarColor: Colors.transparent,
+                systemNavigationBarColor: t.bg,
+              ),
+      child: Scaffold(
+        backgroundColor: t.bg,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _TopBar(
+                step: _step.index,
+                count: _Step.values.length,
+                onBack: _step.index > 0 && !_finishing ? _back : null,
+              ),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: duration,
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    final incoming = child.key == ValueKey(_step);
+                    final dx = (incoming == _forward) ? .06 : -.06;
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: Offset(dx, 0),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(_step),
+                    child: _page(context),
                   ),
                 ),
-                _buildFooter(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingMd,
-        vertical: AppConstants.spacingSm,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          if (_currentPage < _totalPages - 1)
-            TextButton(
-              onPressed: _skip,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.textSecondary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.spacingMd,
-                  vertical: AppConstants.spacingXs,
-                ),
               ),
-              child: const Text(
-                'Skip',
-                style: TextStyle(
-                  fontFamily: 'GoogleSansFlex',
-                  fontSize: AppConstants.fontSizeMd,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooter() {
-    final isLastPage = _currentPage == _totalPages - 1;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppConstants.spacingXl,
-        AppConstants.spacingMd,
-        AppConstants.spacingXl,
-        AppConstants.spacingXl,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildDots(),
-          _buildActionButton(isLastPage: isLastPage),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDots() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(_totalPages, (index) {
-        final isActive = index == _currentPage;
-        return AnimatedContainer(
-          duration: AppConstants.animationFast,
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: isActive ? 28 : 8,
-          height: 8,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            gradient: isActive
-                ? const LinearGradient(
-                    colors: [Color(0xFFEDF6FF), Color(0xFF8AB7FF)],
-                  )
-                : null,
-            color: isActive ? null : AppColors.inactiveState,
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF8AB7FF).withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                child: Column(
+                  children: [
+                    _PrimaryButton(label: primary, onPressed: onPrimary),
+                    AnimatedSize(
+                      duration: duration,
+                      curve: Curves.easeOutCubic,
+                      child: secondary == null
+                          ? const SizedBox(width: double.infinity)
+                          : Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: TextButton(
+                                onPressed: onSecondary,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: t.muted,
+                                  minimumSize: const Size.fromHeight(44),
+                                ),
+                                child: Text(
+                                  secondary,
+                                  style: const TextStyle(
+                                    fontFamily: LokalTheme.sans,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
-                  ]
-                : null,
+                  ],
+                ),
+              ),
+            ],
           ),
-        );
-      }),
+        ),
+      ),
     );
   }
 
-  Widget _buildActionButton({required bool isLastPage}) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF5F7FF), Color(0xFF9CC4FF)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8AB7FF).withValues(alpha: 0.2),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+  Widget _page(BuildContext context) => switch (_step) {
+    _Step.welcome => const _WelcomePage(),
+    _Step.look => const _LookPage(),
+    _Step.folder => _FolderPage(
+      folderName: _folderName,
+      picking: _picking,
+      onPick: _pickFolder,
+    ),
+    _Step.online => const _OnlinePage(),
+    _Step.done => _DonePage(hasFolder: _folderName != null),
+  };
+}
+
+// ─── Chrome ──────────────────────────────────────────────────────────────────
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.step, required this.count, this.onBack});
+
+  final int step;
+  final int count;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return SizedBox(
+      height: 52,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            child: AnimatedOpacity(
+              opacity: onBack == null ? 0 : 1,
+              duration: const Duration(milliseconds: 200),
+              child: IconButton(
+                tooltip: 'Back',
+                onPressed: onBack,
+                icon: Icon(Icons.chevron_left_rounded, size: 30, color: t.text),
+              ),
+            ),
           ),
+          Expanded(
+            child: Semantics(
+              label: 'Step ${step + 1} of $count',
+              excludeSemantics: true,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < count; i++)
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: i == step ? 22 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: i <= step ? t.accent : t.surface3,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 56),
         ],
       ),
-      child: ElevatedButton(
-        onPressed: _goToNext,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: const Color(0xFF0A111A),
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppConstants.spacingLg + 4,
-            vertical: AppConstants.spacingSm + 4,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          ),
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({required this.label, this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: FilledButton(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: t.accent,
+          foregroundColor: t.onAccent,
+          disabledBackgroundColor: t.accent.withValues(alpha: .55),
+          disabledForegroundColor: t.onAccent.withValues(alpha: .8),
+          shape: const StadiumBorder(),
           elevation: 0,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              isLastPage ? 'Get Started' : 'Next',
-              style: const TextStyle(
-                fontFamily: 'GoogleSansFlex',
-                fontSize: AppConstants.fontSizeMd,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: Text(
+            label,
+            key: ValueKey(label),
+            style: const TextStyle(
+              fontFamily: LokalTheme.sans,
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -.2,
             ),
-            if (!isLastPage) ...[
-              const SizedBox(width: 6),
-              const Icon(LucideIcons.chevronRight, size: 18),
-            ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ─── Animated Onboarding Backdrop ─────────────────────────────────────────────
-// Each page has a unique arrangement of glowing orbs. As the user swipes,
-// the orbs interpolate smoothly between configurations. A subtle breathing
-// animation keeps the backdrop feeling alive even when idle.
+/// Eyebrow, large title and body, as every page opens.
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.eyebrow,
+    required this.title,
+    required this.body,
+    this.center = false,
+  });
 
-class _OrbState {
-  final double x; // fraction of screen width  (0 = left edge)
-  final double y; // fraction of screen height (0 = top edge)
-  final double size;
-  final Color color;
-
-  const _OrbState(this.x, this.y, this.size, this.color);
-
-  _OrbState lerp(_OrbState other, double t) {
-    return _OrbState(
-      _lerpDouble(x, other.x, t),
-      _lerpDouble(y, other.y, t),
-      _lerpDouble(size, other.size, t),
-      Color.lerp(color, other.color, t) ?? color,
-    );
-  }
-
-  static double _lerpDouble(double a, double b, double t) => a + (b - a) * t;
-}
-
-/// Per-page configurations for 3 orbs.
-const _orbConfigs = <List<_OrbState>>[
-  // Page 0 – Welcome: cool blues, centered
-  [
-    _OrbState(-0.15, -0.10, 340, Color(0xFF1B3258)),
-    _OrbState(0.70, 0.35, 300, Color(0xFF1A2D44)),
-    _OrbState(0.05, 0.82, 240, Color(0xFF1A2D44)),
-  ],
-  // Page 1 – Library: warmer tones appear
-  [
-    _OrbState(0.55, -0.08, 320, Color(0xFF2A1D45)),
-    _OrbState(-0.20, 0.45, 360, Color(0xFF4A2A1F)),
-    _OrbState(0.40, 0.78, 260, Color(0xFF1B3258)),
-  ],
-  // Page 2 – Browse: spread out, purple accent
-  [
-    _OrbState(0.10, 0.05, 280, Color(0xFF3B1D5E)),
-    _OrbState(0.75, 0.50, 320, Color(0xFF1B3258)),
-    _OrbState(-0.10, 0.70, 300, Color(0xFF2A1D45)),
-  ],
-  // Page 3 – Playback: vibrant, tighter
-  [
-    _OrbState(0.60, -0.05, 360, Color(0xFF4A2A1F)),
-    _OrbState(-0.15, 0.40, 280, Color(0xFF3B1D5E)),
-    _OrbState(0.35, 0.85, 320, Color(0xFF1B3258)),
-  ],
-  // Page 4 – All Set: calm, centred glow
-  [
-    _OrbState(0.25, 0.05, 380, Color(0xFF1A2D44)),
-    _OrbState(0.60, 0.45, 340, Color(0xFF1B3258)),
-    _OrbState(0.10, 0.75, 280, Color(0xFF2A1D45)),
-  ],
-];
-
-class _OnboardingBackdrop extends StatefulWidget {
-  final PageController pageController;
-
-  const _OnboardingBackdrop({required this.pageController});
-
-  @override
-  State<_OnboardingBackdrop> createState() => _OnboardingBackdropState();
-}
-
-class _OnboardingBackdropState extends State<_OnboardingBackdrop>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _breathe;
-  double _page = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _breathe = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    )..repeat(reverse: true);
-    widget.pageController.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    final p = widget.pageController.page;
-    if (p != null && mounted) setState(() => _page = p);
-  }
-
-  @override
-  void dispose() {
-    widget.pageController.removeListener(_onScroll);
-    _breathe.dispose();
-    super.dispose();
-  }
-
-  List<_OrbState> _interpolatedOrbs() {
-    final base = _page.floor().clamp(0, _orbConfigs.length - 1);
-    final next = (base + 1).clamp(0, _orbConfigs.length - 1);
-    final t = _page - _page.floor();
-    return [
-      for (int i = 0; i < 3; i++) _orbConfigs[base][i].lerp(_orbConfigs[next][i], t),
-    ];
-  }
+  final String eyebrow;
+  final String title;
+  final String body;
+  final bool center;
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _breathe,
-        builder: (context, _) {
-          final orbs = _interpolatedOrbs();
-          final breath = _breathe.value; // 0 → 1 → 0
-          final w = MediaQuery.sizeOf(context).width;
-          final h = MediaQuery.sizeOf(context).height;
-
-          return Stack(
-            children: [
-              // Base gradient
-              const Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFF040608), Color(0xFF0A0A0A)],
-                    ),
-                  ),
-                ),
-              ),
-              // Animated orbs
-              for (int i = 0; i < orbs.length; i++)
-                _buildOrb(orbs[i], i, breath, w, h),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildOrb(_OrbState orb, int index, double breath, double w, double h) {
-    // Each orb breathes with a slightly different phase offset
-    final phase = math.sin((breath + index * 0.33) * math.pi);
-    final sizeScale = 1.0 + phase * 0.08; // ±8% size pulse
-    final offsetX = phase * 12.0 * (index.isEven ? 1 : -1); // subtle drift
-    final offsetY = phase * 8.0 * (index.isOdd ? 1 : -1);
-    final s = orb.size * sizeScale;
-
-    return Positioned(
-      left: orb.x * w + offsetX - s / 2,
-      top: orb.y * h + offsetY - s / 2,
-      child: _GlowOrb(
-        size: s,
-        color: orb.color,
-        opacity: 0.85 + phase * 0.15,
-      ),
+    final t = context.lokal;
+    final align = center ? TextAlign.center : TextAlign.start;
+    return Column(
+      crossAxisAlignment: center
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          eyebrow.toUpperCase(),
+          textAlign: align,
+          style: LokalTheme.label(t, color: t.accent),
+        ),
+        const SizedBox(height: 10),
+        Semantics(
+          header: true,
+          child: Text(
+            title,
+            textAlign: align,
+            style: TextStyle(
+              fontFamily: LokalTheme.sans,
+              fontSize: 34,
+              height: 1.08,
+              letterSpacing: -1.1,
+              fontWeight: FontWeight.w800,
+              color: t.text,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          body,
+          textAlign: align,
+          style: TextStyle(
+            fontFamily: LokalTheme.sans,
+            fontSize: 16,
+            height: 1.45,
+            color: t.muted,
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _StepContent extends StatelessWidget {
-  final _StepData data;
+// ─── Pages ───────────────────────────────────────────────────────────────────
 
-  const _StepContent({super.key, required this.data});
+class _WelcomePage extends StatelessWidget {
+  const _WelcomePage();
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingXl),
+      padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Spacer(flex: 2),
-          Container(
-            width: 112,
-            height: 112,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0x26FFFFFF), Color(0x08FFFFFF)],
-              ),
-              borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              border: Border.all(
-                color: const Color(0x33FFFFFF),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF8AB7FF).withValues(alpha: 0.08),
-                  blurRadius: 32,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Icon(data.icon, size: 48, color: AppColors.accent),
+          const Spacer(flex: 3),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: reduceMotion ? 1 : .82, end: 1),
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 900),
+            curve: Curves.easeOutBack,
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
+            child: const LokalLogo(size: 132),
           ),
-          const Spacer(flex: 1),
-          Text(
-            data.title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'GoogleSansFlex',
-              fontSize: 38,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
-              height: 0.92,
-              letterSpacing: -1.4,
-            ),
+          const SizedBox(height: 36),
+          const _Header(
+            eyebrow: 'Lokal',
+            title: 'Welcome to Lokal',
+            body:
+                'Your personal local-first music player. Enjoy your entire '
+                'music library without the burden of streaming subscriptions.',
+            center: true,
           ),
-          const SizedBox(height: AppConstants.spacingLg),
-          Text(
-            data.description,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'GoogleSansFlex',
-              fontSize: AppConstants.fontSizeMd,
-              fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary,
-              height: 1.6,
-              letterSpacing: 0.2,
-            ),
-          ),
-          const Spacer(flex: 2),
+          const Spacer(flex: 4),
         ],
       ),
     );
   }
 }
 
-class _GlowOrb extends StatelessWidget {
-  final double size;
-  final Color color;
-  final double opacity;
-
-  const _GlowOrb({
-    required this.size,
-    required this.color,
-    this.opacity = 1.0,
-  });
+class _LookPage extends ConsumerWidget {
+  const _LookPage();
 
   @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: opacity.clamp(0.0, 1.0),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [color, color.withValues(alpha: 0)],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appearance = ref.watch(lokalAppearanceProvider);
+    final notifier = ref.read(lokalAppearanceProvider.notifier);
+    final t = context.lokal;
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(24, 12, 24, 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _Header(
+                  eyebrow: 'Make it yours',
+                  title: 'Pick your look',
+                  body:
+                      'Choose a theme and an accent. You can change them '
+                      'any time in Settings › Appearance.',
+                ),
+              ),
+              SizedBox(width: 12),
+              LokalLogo(size: 64),
+            ],
           ),
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
+          child: Text('THEME', style: LokalTheme.label(t)),
+        ),
+        LokalThemeGrid(
+          selected: appearance.theme,
+          onSelect: (id) {
+            HapticFeedback.selectionClick();
+            notifier.selectTheme(id);
+          },
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 26, 24, 12),
+          child: Text('ACCENT', style: LokalTheme.label(t)),
+        ),
+        LokalAccentRow(
+          selected: appearance.accent,
+          onSelect: (accent) {
+            HapticFeedback.selectionClick();
+            notifier.setAccent(accent);
+          },
+        ),
+      ],
     );
   }
 }
 
-class _StepData {
-  final IconData icon;
-  final String title;
-  final String description;
-
-  const _StepData({
-    required this.icon,
-    required this.title,
-    required this.description,
+class _FolderPage extends StatelessWidget {
+  const _FolderPage({
+    required this.folderName,
+    required this.picking,
+    required this.onPick,
   });
+
+  final String? folderName;
+  final bool picking;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    final added = folderName != null;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+      children: [
+        const _Header(
+          eyebrow: 'Your music',
+          title: 'Select Your Music Folder',
+          body:
+              'Choose a folder where your music files are stored. Lokal will '
+              'scan and organize your library.',
+        ),
+        const SizedBox(height: 28),
+        Semantics(
+          button: true,
+          label: added ? 'Add another folder' : 'Choose a music folder',
+          excludeSemantics: true,
+          child: Material(
+            color: added ? t.accentSoft : t.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: added ? t.accent.withValues(alpha: .5) : t.border2,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: picking ? null : onPick,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: added ? t.accent : t.surface3,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        added ? Icons.check_rounded : Icons.folder_open_rounded,
+                        color: added ? t.onAccent : t.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            folderName ?? 'Choose a folder',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: LokalTheme.sans,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: t.text,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            added
+                                ? 'Added · scanning in the background'
+                                : 'MP3, FLAC, AAC, WAV and more',
+                            style: TextStyle(
+                              fontFamily: LokalTheme.sans,
+                              fontSize: 13,
+                              color: t.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (added)
+                      Text('ADD', style: LokalTheme.label(t, color: t.accent)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline_rounded, size: 18, color: t.muted2),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Lokal is not a streaming service: it plays music you own. '
+                'You can add folders later from Library or '
+                'Settings › Library.',
+                style: TextStyle(
+                  fontFamily: LokalTheme.sans,
+                  fontSize: 13,
+                  height: 1.4,
+                  color: t.muted2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
+class _OnlinePage extends ConsumerWidget {
+  const _OnlinePage();
+
+  void _open(BuildContext context, String section) => unawaited(
+    openLokalSettings(
+      context,
+      group: LokalSettingsGroup.integrations,
+      section: section,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final youtube =
+        ref.watch(konnektedYoutubeMusicSessionProvider).value?.signedIn == true;
+    final lastFm = ref.watch(lastFmSessionProvider).value != null;
+    return ListView(
+      padding: const EdgeInsets.only(top: 12, bottom: 24),
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24),
+          child: _Header(
+            eyebrow: 'Optional',
+            title: 'Connect Your Music Accounts',
+            body:
+                'Sign in to YouTube Music for your mixes, and connect Last.fm '
+                'for scrobbling and Discovery. Both stay off until you turn '
+                'them on, here or later in Settings › Online sources.',
+          ),
+        ),
+        const SizedBox(height: 6),
+        LokalSettingsSection(
+          title: 'Online sources',
+          children: [
+            LokalSettingRow.toggle(
+              label: 'YouTube Music',
+              description: youtube
+                  ? 'Signed in'
+                  : 'Your mixes, likes and history',
+              icon: Icons.play_circle_outline_rounded,
+              value: youtube,
+              onChanged: (_) => _open(context, LokalOnlineSections.streaming),
+            ),
+            LokalSettingRow.toggle(
+              label: 'Last.fm',
+              description: lastFm
+                  ? 'Connected'
+                  : 'Scrobble what you play and power Discovery',
+              icon: Icons.graphic_eq_rounded,
+              value: lastFm,
+              onChanged: (_) => _open(context, LokalOnlineSections.accounts),
+            ),
+            LokalSettingLink(
+              label: 'All online sources',
+              description: 'Add-ons, servers, Spotify and ListenBrainz',
+              onTap: () => unawaited(
+                openLokalSettings(
+                  context,
+                  group: LokalSettingsGroup.integrations,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _DonePage extends StatelessWidget {
+  const _DonePage({required this.hasFolder});
+
+  final bool hasFolder;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        children: [
+          const Spacer(flex: 3),
+          const LokalLogo(size: 104),
+          const SizedBox(height: 32),
+          _Header(
+            eyebrow: 'Ready',
+            title: 'All Set!',
+            body: hasFolder
+                ? 'Your music library is ready. Enjoy your music with Lokal!'
+                : 'Add your music any time from Library or '
+                      'Settings › Library. Enjoy Lokal!',
+            center: true,
+          ),
+          const Spacer(flex: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.notifications_none_rounded, size: 18, color: t.muted2),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Lokal may ask to show playback controls in your '
+                  'notifications.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: LokalTheme.sans,
+                    fontSize: 13,
+                    height: 1.4,
+                    color: t.muted2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+}

@@ -81,10 +81,24 @@ class LokalQueueRevealMotion extends ChangeNotifier {
       return;
     }
     if (controller.value == target && velocity == 0) return;
-    controller.animateWith(
-      SpringSimulation(spring, controller.value, target, velocity),
-    );
+    controller
+        .animateWith(
+          SpringSimulation(spring, controller.value, target, velocity),
+        )
+        // A spring counts as settled within a hair of its target (1e-6
+        // short after a fling down): land exactly, or the player still
+        // sees the queue as part-way out and keeps the pull-up blocked.
+        // Not on a cancel: a finger that takes over keeps its place.
+        .then((_) {
+          if (_open == open && !controller.isAnimating) {
+            controller.value = target;
+          }
+        });
   }
+
+  /// Whether the reveal is out or on its way, so the sheet under it should
+  /// leave vertical drags alone.
+  bool get engaged => _open || controller.isAnimating;
 
   void toggle({bool animate = true}) => setOpen(!_open, animate: animate);
 }

@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:isar_community/isar.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../core/constants/app_constants.dart';
-import '../../../core/theme/adaptive_color_provider.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../data/database.dart';
 import '../../../data/repositories/song_repository.dart';
 import '../../../services/library_scanner_service.dart' show ScanProgress;
 import '../../../services/sources/network_source_service.dart';
-import '../widgets/settings_widgets.dart';
 import 'network_server_edit_screen.dart';
+
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 /// Manage configured network music servers (Subsonic, Jellyfin, WebDAV,
 /// UPnP/DLNA, SMB, Tidal).
@@ -37,7 +36,9 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
 
   Future<void> _loadServers() async {
     final servers = await Database.networkServers.where().findAll();
-    servers.sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+    servers.sort(
+      (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
+    );
     final repo = SongRepository();
     final counts = <int, int>{};
     for (final s in servers) {
@@ -94,8 +95,9 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
       _syncProgress = null;
     });
     try {
-      await for (final progress
-          in networkSourceServiceFor(server.protocol).syncLibrary(server)) {
+      await for (final progress in networkSourceServiceFor(
+        server.protocol,
+      ).syncLibrary(server)) {
         if (mounted && _syncingId == server.id) {
           setState(() => _syncProgress = progress);
         }
@@ -132,175 +134,136 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsScaffold(
+    return LokalSettingsScaffold(
       title: l10n.networkSources,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      subtitle: 'Your own music servers, synced into your library.',
+      children: [
+        if (_servers.isEmpty)
+          LokalSettingsBlock(child: _buildEmptyState(context))
+        else
+          LokalSettingsSection(
+            title: 'Servers',
+            children: [
+              for (final server in _servers) _buildServerRow(context, server),
+            ],
+          ),
+        if (_servers.isNotEmpty)
+          LokalSettingsSection(
+            title: 'Add',
+            children: [
+              LokalSettingRow(
+                label: l10n.addServer,
+                description: l10n.connectAMusicServer,
+                icon: Icons.add_rounded,
+                onTap: () => _openEditor(),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    final t = context.lokal;
+    return LokalSettingsCard(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (_servers.isEmpty)
-            _buildEmptyState(context)
-          else ...[
-            SettingsCard(
-              children: [
-                for (var i = 0; i < _servers.length; i++) ...[
-                  if (i > 0) const SettingsDivider(),
-                  _buildServerRow(context, _servers[i]),
-                ],
-              ],
+          Icon(Icons.dns_rounded, size: 36, color: t.muted),
+          const SizedBox(height: 14),
+          Text(
+            l10n.noServersConnected,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: LokalTheme.sans,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: t.text,
             ),
-            const SizedBox(height: AppConstants.spacingMd),
-            ActionButton(
-              icon: LucideIcons.plus,
-              title: l10n.addServer,
-              subtitle: l10n.connectAMusicServer,
-              onTap: () => _openEditor(),
-            ),
-          ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            l10n.connectASubsonicJellyfinWebdavUpnp,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, height: 1.4, color: t.muted),
+          ),
+          const SizedBox(height: 20),
+          LokalSettingsActionButton(
+            label: l10n.addServer,
+            icon: Icons.add_rounded,
+            expand: true,
+            onPressed: () => _openEditor(),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingLg,
-        vertical: AppConstants.spacingXxl,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.glassBackground,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.glassBorder),
-              ),
-              child: Icon(
-                LucideIcons.server,
-                size: 32,
-                color: context.adaptiveTextTertiary,
-              ),
-            ),
-            const SizedBox(height: AppConstants.spacingLg),
-            Text(
-              l10n.noServersConnected,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: context.adaptiveTextPrimary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppConstants.spacingXs),
-            Text(
-              l10n.connectASubsonicJellyfinWebdavUpnp,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: context.adaptiveTextTertiary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: AppConstants.spacingXl),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _openEditor(),
-                icon: const Icon(LucideIcons.plus, size: 18),
-                label: Text(l10n.addServer),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildServerRow(BuildContext context, NetworkServerEntity server) {
+    final t = context.lokal;
     final isSyncing = _syncingId == server.id;
     final songCount = _songCounts[server.id] ?? 0;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isSyncing ? null : () => _openEditor(server: server),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  ColoredSettingsIcon(
-                    icon: LucideIcons.server,
-                    backgroundColor: AppColors.glassBackgroundStrong,
-                    iconColor: context.adaptiveTextSecondary,
-                  ),
-                  const SizedBox(width: AppConstants.spacingMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                server.label,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      color: context.adaptiveTextPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+    return InkWell(
+      onTap: isSyncing ? null : () => _openEditor(server: server),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              server.label,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: LokalTheme.sans,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: t.text,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            _ProtocolChip(server.protocol),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          server.baseUrl,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.adaptiveTextTertiary,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isSyncing)
-                    IconButton(
-                      tooltip: l10n.syncNow,
-                      onPressed: () {
-                        AppHaptics.tap();
-                        _syncServer(server);
-                      },
-                      icon: Icon(
-                        LucideIcons.refreshCw,
-                        size: 18,
-                        color: context.adaptiveTextSecondary,
+                          const SizedBox(width: 8),
+                          LokalStatusPill(label: server.protocol),
+                        ],
                       ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppConstants.spacingSm),
-              if (isSyncing)
-                _buildSyncPanel(context)
-              else
-                _buildMetaRow(context, server, songCount),
-            ],
-          ),
+                      const SizedBox(height: 3),
+                      Text(
+                        server.baseUrl,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12.5, color: t.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isSyncing)
+                  IconButton(
+                    tooltip: l10n.syncNow,
+                    onPressed: () {
+                      AppHaptics.tap();
+                      _syncServer(server);
+                    },
+                    icon: Icon(Icons.sync_rounded, size: 20, color: t.muted),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: isSyncing
+                  ? _buildSyncPanel(context)
+                  : _buildMetaRow(context, server, songCount),
+            ),
+          ],
         ),
       ),
     );
@@ -311,6 +274,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
     NetworkServerEntity server,
     int songCount,
   ) {
+    final t = context.lokal;
     final synced = server.lastSyncedAt;
     final parts = <String>[
       if (songCount > 0) l10n.song2(songCount),
@@ -324,16 +288,14 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
           margin: const EdgeInsets.only(right: 8),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: synced == null ? AppColors.textTertiary : AppColors.accent,
+            color: synced == null ? t.muted2 : t.accent,
           ),
         ),
         Flexible(
           child: Text(
-            parts.join('  ·  '),
+            parts.join('  ·  ').toUpperCase(),
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.adaptiveTextTertiary,
-            ),
+            style: LokalTheme.label(t, size: 10.5),
           ),
         ),
       ],
@@ -341,6 +303,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
   }
 
   Widget _buildSyncPanel(BuildContext context) {
+    final t = context.lokal;
     final p = _syncProgress;
     final fraction = p?.progressFraction ?? 0.0;
     final total = p?.totalFiles ?? 0;
@@ -355,7 +318,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
               height: 12,
               child: CircularProgressIndicator(
                 strokeWidth: 1.5,
-                valueColor: AlwaysStoppedAnimation(context.adaptiveAccent),
+                color: t.accent,
               ),
             ),
             const SizedBox(width: 8),
@@ -363,19 +326,15 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
               child: Text(
                 p?.phase ?? l10n.syncing,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.adaptiveAccent,
-                  fontWeight: FontWeight.w500,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: t.accent,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             if (total > 0)
-              Text(
-                '$done / $total',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.adaptiveTextTertiary,
-                ),
-              ),
+              Text('$done / $total', style: LokalTheme.label(t, size: 11)),
           ],
         ),
         if (p?.currentFile != null && p!.currentFile!.isNotEmpty) ...[
@@ -384,28 +343,24 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
             p.currentFile!,
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.adaptiveTextTertiary,
-            ),
+            style: TextStyle(fontSize: 12, color: t.muted),
           ),
         ],
-        const SizedBox(height: AppConstants.spacingXs),
+        const SizedBox(height: 6),
         ClipRRect(
-          borderRadius: BorderRadius.circular(AppConstants.radiusRound),
+          borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
             value: fraction,
             minHeight: 4,
-            backgroundColor: AppColors.glassBackground,
-            valueColor: AlwaysStoppedAnimation(context.adaptiveAccent),
+            backgroundColor: t.surface3,
+            color: t.accent,
           ),
         ),
         if ((p?.songsFound ?? 0) > 0) ...[
           const SizedBox(height: 4),
           Text(
             l10n.songsFound(p!.songsFound),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.adaptiveTextTertiary,
-            ),
+            style: TextStyle(fontSize: 12, color: t.muted),
           ),
         ],
       ],
@@ -417,32 +372,5 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
     final month = local.month.toString().padLeft(2, '0');
     final day = local.day.toString().padLeft(2, '0');
     return '${local.year}-$month-$day ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-  }
-}
-
-class _ProtocolChip extends StatelessWidget {
-  const _ProtocolChip(this.protocol);
-
-  final String protocol;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXs),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Text(
-        protocol.toUpperCase(),
-        style: TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8,
-          color: context.adaptiveTextTertiary,
-        ),
-      ),
-    );
   }
 }

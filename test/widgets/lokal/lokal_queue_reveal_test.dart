@@ -45,7 +45,7 @@ class _HarnessState extends State<_Harness>
               onDismiss: () {},
               onPullUpUpdate: motion.dragBy,
               onPullUpEnd: (v) => motion.release(v, animate: animate),
-              isBlocked: () => motion.isOpen || progress.value > 0,
+              isBlocked: () => motion.engaged,
               child: LokalQueueReveal(
                 progress: progress,
                 open: motion.isOpen,
@@ -186,6 +186,32 @@ void main() {
     expect(h.progress.value, 0);
   });
 
+  testWidgets('after a drag puts the queue away, a pull up opens it again', (
+    tester,
+  ) async {
+    final h = await pump(tester);
+    Future<void> pullUp() async {
+      final gesture = await tester.startGesture(const Offset(200, 400));
+      await gesture.moveBy(const Offset(0, -20));
+      await gesture.moveBy(const Offset(0, -150));
+      await gesture.up();
+      await tester.pumpAndSettle();
+    }
+
+    final header = find.byKey(const ValueKey('lokal-queue-reveal-header'));
+    for (var round = 0; round < 3; round++) {
+      await pullUp();
+      expect(h.motion.isOpen, isTrue, reason: 'round $round');
+      expect(h.progress.value, 1);
+
+      // A quick swipe down, as a thumb puts it away.
+      await tester.fling(header, const Offset(0, 160), 1400);
+      await tester.pumpAndSettle();
+      expect(h.motion.isOpen, isFalse, reason: 'round $round');
+      expect(h.progress.value, 0);
+    }
+  });
+
   testWidgets('the queue list still scrolls while it is open', (tester) async {
     final h = await pump(tester);
     await tester.tap(find.text('queue'));
@@ -207,6 +233,32 @@ void main() {
     await tester.tap(find.text('queue'));
     await tester.pump();
     expect(h.progress.value, 0);
+  });
+
+  testWidgets('a spring always lands exactly at either end', (tester) async {
+    // A settled spring stops within a tolerance of its target; anything
+    // left over (0.0004 open) kept the sheet's pull-up blocked for good.
+    final c = AnimationController(vsync: tester);
+    final m = LokalQueueRevealMotion(c)..travel = 287;
+    final misses = <String>[];
+    for (final start in [.12, .31, .5, .77, .93]) {
+      for (final velocity in [-1400.0, -600.0, -120.0, 0.0, 300.0, 900.0]) {
+        for (final open in [false, true]) {
+          m.setOpen(!open, animate: false);
+          c.value = start;
+          m.setOpen(open, velocity: velocity / m.travel);
+          for (var frame = 0; frame < 300 && c.isAnimating; frame++) {
+            await tester.pump(const Duration(milliseconds: 16));
+          }
+          if (c.value != (open ? 1.0 : 0.0)) {
+            misses.add('$start $velocity $open → ${c.value}');
+          }
+        }
+      }
+    }
+    expect(misses, isEmpty);
+    m.dispose();
+    c.dispose();
   });
 
   test('a flick decides on its own, either way', () {

@@ -124,20 +124,6 @@ final konnektedMadeForYouProvider =
       (ref) => ref.watch(konnektedMixesProvider).whenData(lokalMadeForYou),
     );
 
-/// The three Cover Flow shelves on Home.
-enum KonnektedCoverShelf {
-  recent('Recent'),
-  madeForYou('Made for you'),
-  added('New');
-
-  const KonnektedCoverShelf(this.label);
-
-  final String label;
-}
-
-/// How many songs Home's New Cover Flow shelf shows.
-const konnektedCoverAddedLimit = 40;
-
 /// Wraps one song as a Cover Flow entry: each cover is a song, not an
 /// album, so a single tap plays it.
 AlbumGroup konnektedSongCover(Song song) => AlbumGroup(
@@ -147,43 +133,17 @@ AlbumGroup konnektedSongCover(Song song) => AlbumGroup(
   songs: [song],
 );
 
-/// Songs for Home's Cover Flow, one cover each: the ones played lately,
-/// Made for you, or the newest added. Tapping one plays it with the whole
-/// shelf as the queue.
-final konnektedCoverAlbumsProvider =
-    Provider.family<AsyncValue<List<AlbumGroup>>, KonnektedCoverShelf>((
-      ref,
-      shelf,
-    ) {
-      List<AlbumGroup> covers(Iterable<Song> songs) {
-        final seen = <String>{};
-        return [
-          for (final song in songs)
-            if (seen.add(song.id)) konnektedSongCover(song),
-        ];
-      }
-
-      switch (shelf) {
-        case KonnektedCoverShelf.recent:
-          return ref.watch(konnektedRecentSongsProvider).whenData(covers);
-        case KonnektedCoverShelf.madeForYou:
-          return ref
-              .watch(konnektedMadeForYouProvider)
-              .whenData((picks) => covers(picks.map((pick) => pick.song)));
-        case KonnektedCoverShelf.added:
-          return ref
-              .watch(konnektedLibraryProvider)
-              .whenData(
-                (songs) => covers(
-                  _newestFirst(
-                    songs.where(
-                      (song) => !song.isNetworkSource && !song.isExternal,
-                    ),
-                  ).take(konnektedCoverAddedLimit),
-                ),
-              );
-      }
-    });
+/// Home's Cover Flow: Made for you, one cover per song. Tapping one plays it
+/// with the whole shelf as the queue.
+final konnektedCoverAlbumsProvider = Provider<AsyncValue<List<AlbumGroup>>>(
+  (ref) => ref.watch(konnektedMadeForYouProvider).whenData((picks) {
+    final seen = <String>{};
+    return [
+      for (final pick in picks)
+        if (seen.add(pick.song.id)) konnektedSongCover(pick.song),
+    ];
+  }),
+);
 
 List<Song> _newestFirst(Iterable<Song> songs) =>
     List<Song>.of(songs)..sort((a, b) {

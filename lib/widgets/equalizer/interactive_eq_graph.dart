@@ -2,11 +2,11 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/widgets/equalizer/eq_graph_utils.dart' as equtils;
@@ -40,7 +40,7 @@ class _InteractiveEqGraphScreenState
     final enabled = ref.watch(eqEnabledProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.lokal.bg,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -60,7 +60,8 @@ class _InteractiveEqGraphScreenState
                     return Listener(
                       behavior: HitTestBehavior.opaque,
                       onPointerDown: (event) => _onPointerDown(event, size),
-                      onPointerMove: (event) => _onPointerMoveOrHover(event, size),
+                      onPointerMove: (event) =>
+                          _onPointerMoveOrHover(event, size),
                       onPointerUp: _onPointerUp,
                       onPointerCancel: _onPointerUp,
                       child: Stack(
@@ -71,10 +72,13 @@ class _InteractiveEqGraphScreenState
                               mode: widget.mode,
                               enabled: enabled,
                               state: ref.read(equalizerProvider),
-                              selectedHandleIndex: _draggedHandleIndex ??
-                                  _qAdjustHandleIndex ?? _hoveredHandleIndex,
+                              selectedHandleIndex:
+                                  _draggedHandleIndex ??
+                                  _qAdjustHandleIndex ??
+                                  _hoveredHandleIndex,
                               handleRadius: _handleRadius,
-                              textScale: MediaQuery.textScalerOf(context).scale(1),
+                              textScale: MediaQuery.textScalerOf(context)
+                                  .scale(1),
                             ),
                           ),
                           if (_draggedHandleIndex != null ||
@@ -111,7 +115,7 @@ class _InteractiveEqGraphScreenState
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
             icon: const Icon(LucideIcons.x),
-            color: context.adaptiveTextPrimary,
+            color: context.lokal.text,
           ),
           const SizedBox(width: AppConstants.spacingSm),
           Expanded(
@@ -121,7 +125,7 @@ class _InteractiveEqGraphScreenState
                 Text(
                   l10n.interactiveEq,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: context.adaptiveTextPrimary,
+                    color: context.lokal.text,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -129,9 +133,8 @@ class _InteractiveEqGraphScreenState
                   widget.mode == EqMode.graphic
                       ? l10n.dragBandsUpOrDown
                       : l10n.dragToMovePinchToWiden,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: context.lokal.muted2),
                 ),
               ],
             ),
@@ -150,9 +153,9 @@ class _InteractiveEqGraphScreenState
           vertical: AppConstants.spacingSm,
         ),
         decoration: BoxDecoration(
-          color: AppColors.background.withValues(alpha: 0.92),
+          color: context.lokal.bg,
           borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-          border: Border.all(color: AppColors.glassBorderStrong.withValues(alpha: 0.5)),
+          border: Border.all(color: context.lokal.border2),
         ),
         child: Text(
           isQ
@@ -162,7 +165,7 @@ class _InteractiveEqGraphScreenState
               : l10n.dragToChangeFrequencyGain,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: context.adaptiveTextPrimary.withValues(alpha: 0.85),
+            color: context.lokal.text,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -171,7 +174,8 @@ class _InteractiveEqGraphScreenState
   }
 
   Widget _buildDetailPanel() {
-    final index = _draggedHandleIndex ?? _qAdjustHandleIndex ?? _hoveredHandleIndex;
+    final index =
+        _draggedHandleIndex ?? _qAdjustHandleIndex ?? _hoveredHandleIndex;
     if (index == null) return const SizedBox.shrink();
 
     if (widget.mode == EqMode.graphic) {
@@ -187,12 +191,12 @@ class _InteractiveEqGraphScreenState
           bottom: AppConstants.spacingLg,
         ),
         decoration: BoxDecoration(
-          color: AppColors.background.withValues(alpha: 0.95),
+          color: context.lokal.bg,
           borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-          border: Border.all(color: AppColors.glassBorderStrong.withValues(alpha: 0.6)),
+          border: Border.all(color: context.lokal.border2),
           boxShadow: [
             BoxShadow(
-              color: AppColors.background.withValues(alpha: 0.5),
+              color: context.lokal.bg,
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -208,14 +212,10 @@ class _InteractiveEqGraphScreenState
                   label: l10n.frequency,
                   value: equtils.hzLabel(freq),
                 ),
-                _DetailItem(
-                  label: l10n.band,
-                  value: bandFamily,
-                ),
+                _DetailItem(label: l10n.band, value: bandFamily),
                 _DetailItem(
                   label: l10n.gain,
-                  value:
-                      '${gain >= 0 ? '+' : ''}${gain.toStringAsFixed(1)} dB',
+                  value: '${gain >= 0 ? '+' : ''}${gain.toStringAsFixed(1)} dB',
                 ),
               ],
             ),
@@ -234,12 +234,12 @@ class _InteractiveEqGraphScreenState
           bottom: AppConstants.spacingLg,
         ),
         decoration: BoxDecoration(
-          color: AppColors.background.withValues(alpha: 0.95),
+          color: context.lokal.bg,
           borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-          border: Border.all(color: AppColors.glassBorderStrong.withValues(alpha: 0.6)),
+          border: Border.all(color: context.lokal.border2),
           boxShadow: [
             BoxShadow(
-              color: AppColors.background.withValues(alpha: 0.5),
+              color: context.lokal.bg,
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -288,8 +288,12 @@ class _InteractiveEqGraphScreenState
 
     String summaryText;
     if (widget.mode == EqMode.graphic) {
-      final adjustedCount = state.graphicGainsDb.where((g) => g.abs() > 0.05).length;
-      summaryText = adjustedCount == 0 ? l10n.flat : l10n.bandsAdjusted2(adjustedCount, state.graphicGainsDb.length);
+      final adjustedCount = state.graphicGainsDb
+          .where((g) => g.abs() > 0.05)
+          .length;
+      summaryText = adjustedCount == 0
+          ? l10n.flat
+          : l10n.bandsAdjusted2(adjustedCount, state.graphicGainsDb.length);
     } else {
       final activeCount = state.parametricBands.where((b) => b.enabled).length;
       summaryText = l10n.bandsActive(activeCount, state.parametricBands.length);
@@ -306,9 +310,9 @@ class _InteractiveEqGraphScreenState
         bottom: AppConstants.spacingMd,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.9),
+        color: context.lokal.surface,
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorderStrong.withValues(alpha: 0.4)),
+        border: Border.all(color: context.lokal.border2),
       ),
       child: Row(
         children: [
@@ -316,13 +320,13 @@ class _InteractiveEqGraphScreenState
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.glassBackgroundStrong.withValues(alpha: 0.3),
+              color: context.lokal.surface3,
               borderRadius: BorderRadius.circular(AppConstants.radiusRound),
             ),
             child: Text(
               widget.mode == EqMode.graphic ? l10n.graphic : l10n.parametric,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.adaptiveTextPrimary,
+                color: context.lokal.text,
                 fontWeight: FontWeight.w600,
                 fontSize: 10,
               ),
@@ -339,7 +343,7 @@ class _InteractiveEqGraphScreenState
                   Text(
                     presetName,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.adaptiveTextSecondary,
+                      color: context.lokal.muted,
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
@@ -347,10 +351,8 @@ class _InteractiveEqGraphScreenState
                   ),
                 Text(
                   summaryText,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                    fontSize: 10,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: context.lokal.muted2, fontSize: 10),
                 ),
               ],
             ),
@@ -363,7 +365,7 @@ class _InteractiveEqGraphScreenState
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color: isEnabled ? AppColors.textPrimary : AppColors.inactiveState,
+                  color: isEnabled ? context.lokal.text : context.lokal.muted2,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -371,7 +373,7 @@ class _InteractiveEqGraphScreenState
               Text(
                 isEnabled ? 'ON' : 'OFF',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isEnabled ? context.adaptiveTextPrimary : context.adaptiveTextTertiary,
+                  color: isEnabled ? context.lokal.text : context.lokal.muted2,
                   fontWeight: FontWeight.w700,
                   fontSize: 10,
                 ),
@@ -384,7 +386,7 @@ class _InteractiveEqGraphScreenState
             Text(
               '${state.preampDb >= 0 ? '+' : ''}${state.preampDb.toStringAsFixed(1)} dB',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: context.adaptiveTextSecondary,
+                color: context.lokal.muted,
                 fontWeight: FontWeight.w600,
                 fontSize: 10,
               ),
@@ -434,7 +436,9 @@ class _InteractiveEqGraphScreenState
     _activePointers[event.pointer] = event.localPosition;
 
     // Handle hover when not dragging
-    if (_activePointers.length == 1 && _draggedHandleIndex == null && _qAdjustHandleIndex == null) {
+    if (_activePointers.length == 1 &&
+        _draggedHandleIndex == null &&
+        _qAdjustHandleIndex == null) {
       _onPointerHover(event, size);
       return;
     }
@@ -486,12 +490,16 @@ class _InteractiveEqGraphScreenState
       final bmt = ref.read(equalizerProvider);
 
       for (var i = 0; i < freqs.length; i++) {
-        final combinedGain = (gains[i] + equtils.bmtOffsetDbAtHz(
-          freqs[i],
-          bassDb: bmt.bassDb,
-          midDb: bmt.midDb,
-          trebleDb: bmt.trebleDb,
-        )).clamp(equtils.eqMinDb, equtils.eqMaxDb).toDouble();
+        final combinedGain =
+            (gains[i] +
+                    equtils.bmtOffsetDbAtHz(
+                      freqs[i],
+                      bassDb: bmt.bassDb,
+                      midDb: bmt.midDb,
+                      trebleDb: bmt.trebleDb,
+                    ))
+                .clamp(equtils.eqMinDb, equtils.eqMaxDb)
+                .toDouble();
         final center = _dataToPixel(
           equtils.hzToX(freqs[i]),
           combinedGain,
@@ -534,11 +542,10 @@ class _InteractiveEqGraphScreenState
   Offset _dataToPixel(double logX, double db, Size size) {
     final plotW = size.width - _paddingLeft - _paddingRight;
     final plotH = size.height - _paddingTop - _paddingBottom;
-    final tX = (logX - equtils.eqLogMin) /
-        (equtils.eqLogMax - equtils.eqLogMin);
-    final tY = 1.0 -
-        (db - equtils.eqMinDb) /
-            (equtils.eqMaxDb - equtils.eqMinDb);
+    final tX =
+        (logX - equtils.eqLogMin) / (equtils.eqLogMax - equtils.eqLogMin);
+    final tY =
+        1.0 - (db - equtils.eqMinDb) / (equtils.eqMaxDb - equtils.eqMinDb);
     return Offset(
       _paddingLeft + tX.clamp(0.0, 1.0) * plotW,
       _paddingTop + tY.clamp(0.0, 1.0) * plotH,
@@ -550,10 +557,8 @@ class _InteractiveEqGraphScreenState
     final plotH = size.height - _paddingTop - _paddingBottom;
     final tX = ((pixel.dx - _paddingLeft) / plotW).clamp(0.0, 1.0);
     final tY = ((pixel.dy - _paddingTop) / plotH).clamp(0.0, 1.0);
-    final logX = equtils.eqLogMin +
-        tX * (equtils.eqLogMax - equtils.eqLogMin);
-    final db = equtils.eqMaxDb -
-        tY * (equtils.eqMaxDb - equtils.eqMinDb);
+    final logX = equtils.eqLogMin + tX * (equtils.eqLogMax - equtils.eqLogMin);
+    final db = equtils.eqMaxDb - tY * (equtils.eqMaxDb - equtils.eqMinDb);
     return (logX: logX, db: db);
   }
 
@@ -563,22 +568,16 @@ class _InteractiveEqGraphScreenState
 
   void _updateGraphicGain(int index, Offset position, Size size) {
     final data = _pixelToData(position, size);
-    ref
-        .read(equalizerProvider.notifier)
-        .setGraphicGainDb(index, data.db);
+    ref.read(equalizerProvider.notifier).setGraphicGainDb(index, data.db);
   }
 
   void _updateParametricBand(int index, Offset position, Size size) {
     final data = _pixelToData(position, size);
     final hz = equtils.xToHz(data.logX);
-    ref
-        .read(equalizerProvider.notifier)
-        .setParamBandFreqHz(index, hz);
+    ref.read(equalizerProvider.notifier).setParamBandFreqHz(index, hz);
     final band = ref.read(eqParamBandProvider(index));
     if (band.type.supportsGain) {
-      ref
-          .read(equalizerProvider.notifier)
-          .setParamBandGainDb(index, data.db);
+      ref.read(equalizerProvider.notifier).setParamBandGainDb(index, data.db);
     }
   }
 
@@ -587,8 +586,7 @@ class _InteractiveEqGraphScreenState
     if (pointers.length < 2) return;
     _qPointerStartDist = (pointers[0] - pointers[1]).distance;
     if (_qAdjustHandleIndex != null) {
-      _qStartValue =
-          ref.read(eqParamBandProvider(_qAdjustHandleIndex!)).q;
+      _qStartValue = ref.read(eqParamBandProvider(_qAdjustHandleIndex!)).q;
     }
   }
 
@@ -626,15 +624,14 @@ class _DetailItem extends StatelessWidget {
       children: [
         Text(
           label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: context.adaptiveTextTertiary,
-          ),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: context.lokal.muted2),
         ),
         const SizedBox(height: 2),
         Text(
           value,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: context.adaptiveTextPrimary,
+            color: context.lokal.text,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -673,12 +670,7 @@ class _EqCurvePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final plotW = size.width - _paddingLeft - _paddingRight;
     final plotH = size.height - _paddingTop - _paddingBottom;
-    final plotRect = Rect.fromLTWH(
-      _paddingLeft,
-      _paddingTop,
-      plotW,
-      plotH,
-    );
+    final plotRect = Rect.fromLTWH(_paddingLeft, _paddingTop, plotW, plotH);
 
     final lineColor = enabled
         ? AppColors.textPrimary.withValues(alpha: 0.90)
@@ -703,13 +695,13 @@ class _EqCurvePainter extends CustomPainter {
     // Horizontal lines (dB)
     for (double db = equtils.eqMinDb; db <= equtils.eqMaxDb; db += 3.0) {
       final isZero = db.abs() < 0.001;
-      final tY = 1.0 -
-          (db - equtils.eqMinDb) /
-              (equtils.eqMaxDb - equtils.eqMinDb);
+      final tY =
+          1.0 - (db - equtils.eqMinDb) / (equtils.eqMaxDb - equtils.eqMinDb);
       final y = plotRect.top + tY.clamp(0.0, 1.0) * plotRect.height;
 
-      gridPaint.color = (isZero ? AppColors.glassBorderStrong : AppColors.glassBorder)
-          .withValues(alpha: isZero ? 0.8 : 0.35);
+      gridPaint.color =
+          (isZero ? AppColors.glassBorderStrong : AppColors.glassBorder)
+              .withValues(alpha: isZero ? 0.8 : 0.35);
       if (isZero) gridPaint.strokeWidth = 1.2;
 
       canvas.drawLine(
@@ -720,7 +712,9 @@ class _EqCurvePainter extends CustomPainter {
       gridPaint.strokeWidth = 1.0;
 
       // dB label
-      final label = isZero ? '0 dB' : '${db >= 0 ? '+' : ''}${db.toStringAsFixed(0)}';
+      final label = isZero
+          ? '0 dB'
+          : '${db >= 0 ? '+' : ''}${db.toStringAsFixed(0)}';
       final textPainter = TextPainter(
         text: TextSpan(
           text: label,
@@ -741,10 +735,20 @@ class _EqCurvePainter extends CustomPainter {
 
     // Vertical lines (freqs)
     const guideFreqs = <double>[
-      20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000,
+      20,
+      50,
+      100,
+      200,
+      500,
+      1000,
+      2000,
+      5000,
+      10000,
+      20000,
     ];
     for (final hz in guideFreqs) {
-      final tX = (equtils.hzToX(hz) - equtils.eqLogMin) /
+      final tX =
+          (equtils.hzToX(hz) - equtils.eqLogMin) /
           (equtils.eqLogMax - equtils.eqLogMin);
       final x = plotRect.left + tX.clamp(0.0, 1.0) * plotRect.width;
 
@@ -812,11 +816,10 @@ class _EqCurvePainter extends CustomPainter {
     final path = Path();
     var first = true;
     for (final p in points) {
-      final tX = (p.x - equtils.eqLogMin) /
-          (equtils.eqLogMax - equtils.eqLogMin);
-      final tY = 1.0 -
-          (p.db - equtils.eqMinDb) /
-              (equtils.eqMaxDb - equtils.eqMinDb);
+      final tX =
+          (p.x - equtils.eqLogMin) / (equtils.eqLogMax - equtils.eqLogMin);
+      final tY =
+          1.0 - (p.db - equtils.eqMinDb) / (equtils.eqMaxDb - equtils.eqMinDb);
       final x = plotRect.left + tX.clamp(0.0, 1.0) * plotRect.width;
       final y = plotRect.top + tY.clamp(0.0, 1.0) * plotRect.height;
       if (first) {
@@ -845,10 +848,7 @@ class _EqCurvePainter extends CustomPainter {
       ..shader = ui.Gradient.linear(
         Offset(plotRect.left, plotRect.top),
         Offset(plotRect.left, plotRect.bottom),
-        [
-          lineColor.withValues(alpha: 0.08),
-          lineColor.withValues(alpha: 0.00),
-        ],
+        [lineColor.withValues(alpha: 0.08), lineColor.withValues(alpha: 0.00)],
       );
     canvas.drawPath(fillPath, fillPaint);
 
@@ -866,15 +866,21 @@ class _EqCurvePainter extends CustomPainter {
     final gains = state.graphicGainsDb;
 
     for (var i = 0; i < freqs.length; i++) {
-      final combinedGain = (gains[i] + equtils.bmtOffsetDbAtHz(
-        freqs[i],
-        bassDb: state.bassDb,
-        midDb: state.midDb,
-        trebleDb: state.trebleDb,
-      )).clamp(equtils.eqMinDb, equtils.eqMaxDb).toDouble();
-      final tX = (equtils.hzToX(freqs[i]) - equtils.eqLogMin) /
+      final combinedGain =
+          (gains[i] +
+                  equtils.bmtOffsetDbAtHz(
+                    freqs[i],
+                    bassDb: state.bassDb,
+                    midDb: state.midDb,
+                    trebleDb: state.trebleDb,
+                  ))
+              .clamp(equtils.eqMinDb, equtils.eqMaxDb)
+              .toDouble();
+      final tX =
+          (equtils.hzToX(freqs[i]) - equtils.eqLogMin) /
           (equtils.eqLogMax - equtils.eqLogMin);
-      final tY = 1.0 -
+      final tY =
+          1.0 -
           (combinedGain - equtils.eqMinDb) /
               (equtils.eqMaxDb - equtils.eqMinDb);
       final center = Offset(
@@ -889,22 +895,21 @@ class _EqCurvePainter extends CustomPainter {
     final bands = state.parametricBands;
     for (var i = 0; i < bands.length; i++) {
       if (!bands[i].enabled) continue;
-      final db = (parametricResponseDbAtHz(
-            hz: bands[i].frequencyHz,
-            bands: bands,
-          ) + equtils.bmtOffsetDbAtHz(
-            bands[i].frequencyHz,
-            bassDb: state.bassDb,
-            midDb: state.midDb,
-            trebleDb: state.trebleDb,
-          ))
-          .clamp(equtils.eqMinDb, equtils.eqMaxDb)
-          .toDouble();
-      final tX = (equtils.hzToX(bands[i].frequencyHz) - equtils.eqLogMin) /
+      final db =
+          (parametricResponseDbAtHz(hz: bands[i].frequencyHz, bands: bands) +
+                  equtils.bmtOffsetDbAtHz(
+                    bands[i].frequencyHz,
+                    bassDb: state.bassDb,
+                    midDb: state.midDb,
+                    trebleDb: state.trebleDb,
+                  ))
+              .clamp(equtils.eqMinDb, equtils.eqMaxDb)
+              .toDouble();
+      final tX =
+          (equtils.hzToX(bands[i].frequencyHz) - equtils.eqLogMin) /
           (equtils.eqLogMax - equtils.eqLogMin);
-      final tY = 1.0 -
-          (db - equtils.eqMinDb) /
-              (equtils.eqMaxDb - equtils.eqMinDb);
+      final tY =
+          1.0 - (db - equtils.eqMinDb) / (equtils.eqMaxDb - equtils.eqMinDb);
       final center = Offset(
         plotRect.left + tX.clamp(0.0, 1.0) * plotRect.width,
         plotRect.top + tY.clamp(0.0, 1.0) * plotRect.height,
@@ -931,8 +936,7 @@ class _EqCurvePainter extends CustomPainter {
       ..color = lineColor.withValues(alpha: selected ? 1.0 : 0.75);
     canvas.drawCircle(center, handleRadius, fillPaint);
 
-    final innerPaint = Paint()
-      ..color = AppColors.background;
+    final innerPaint = Paint()..color = AppColors.background;
     canvas.drawCircle(center, handleRadius * 0.45, innerPaint);
   }
 

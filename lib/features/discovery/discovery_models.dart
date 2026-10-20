@@ -15,6 +15,7 @@ class DiscoveryTrack {
     this.addonId,
     this.sourceName,
     this.inlineStream,
+    this.artwork,
   });
 
   final String id;
@@ -30,6 +31,30 @@ class DiscoveryTrack {
   final String? addonId;
   final String? sourceName;
   final Map<String, dynamic>? inlineStream;
+
+  /// The cover's https address, when the source has one: downloaded next
+  /// to the audio so Now Playing, the mini player and the notification
+  /// show it.
+  final String? artwork;
+
+  /// This track with [cover] as its artwork when it has none of its own.
+  DiscoveryTrack withArtwork(String? cover) =>
+      artwork != null || cover == null || cover.isEmpty
+      ? this
+      : DiscoveryTrack(
+          id: id,
+          title: title,
+          artist: artist,
+          source: source,
+          duration: duration,
+          album: album,
+          sourceUrl: sourceUrl,
+          addonBase: addonBase,
+          addonId: addonId,
+          sourceName: sourceName,
+          inlineStream: inlineStream,
+          artwork: cover,
+        );
 
   String get key => '${source.name}:$addonId:$addonBase:$id';
 }

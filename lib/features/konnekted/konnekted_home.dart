@@ -4,6 +4,7 @@ import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/konnekted/lokal_home_greeting.dart';
 import 'package:flick/features/konnekted/lokal_mixes.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
+import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
@@ -522,9 +523,14 @@ class KonnektedSongShelf extends StatelessWidget {
                     button: true,
                     label: 'Play ${song.title} by ${song.artist}',
                     onTap: () => onPlay(song, items),
+                    onLongPressHint: 'Song actions',
+                    onLongPress: () =>
+                        SongActionsBottomSheet.show(context, song),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
                       onTap: () => onPlay(song, items),
+                      onLongPress: () =>
+                          SongActionsBottomSheet.show(context, song),
                       excludeFromSemantics: true,
                       child: ExcludeSemantics(
                         child: Column(

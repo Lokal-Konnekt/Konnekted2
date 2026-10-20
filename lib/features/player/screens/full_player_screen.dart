@@ -16,15 +16,14 @@ import 'package:flick/widgets/lokal/lokal_like_burst.dart';
 import 'package:flick/widgets/lokal/lokal_pull_to_dismiss.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/widgets/lokal/lokal_queue_reveal.dart';
-import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/player/screens/classic_full_player_screen.dart';
 import 'package:flick/features/player/widgets/loop_mode_sheet.dart';
 import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
-import 'package:flick/features/player/widgets/player_navigation.dart';
 import 'package:flick/features/player/screens/lyrics_sync_screen.dart';
 import 'package:flick/features/player/widgets/shuffle_mode_sheet.dart';
 import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
-import 'package:flick/features/player/widgets/song_actions_sheet.dart';
+import 'package:flick/features/player/widgets/pitch_bottom_sheet.dart';
+import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/speed_bottom_sheet.dart';
 import 'package:flick/features/settings/screens/casting_settings_screen.dart';
 import 'package:flick/features/settings/screens/equalizer_screen.dart';
@@ -59,11 +58,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   final PlayerService _player = PlayerService();
   final FavoritesService _favorites = FavoritesService();
   final LyricsService _lyricsService = LyricsService();
-  final SongRepository _songRepository = SongRepository();
-  late final PlayerNavigation _navigation = PlayerNavigation(
-    playerService: _player,
-    songRepository: _songRepository,
-  );
 
   bool _showLyrics = false;
   bool _lyricsLoading = false;
@@ -227,19 +221,48 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     MaterialPageRoute<void>(builder: (_) => const CastingSettingsScreen()),
   );
 
+  /// The shared song menu for [song], plus what only Now Playing has.
   void _openMore(Song song) {
-    SongActionsSheet.show(
+    SongActionsBottomSheet.show(
       context,
-      playerService: _player,
-      song: song,
-      isVisualizationMode: false,
-      onShowLyrics: () {
-        if (!_showLyrics) _toggleLyrics();
-      },
-      onToggleVisualization: (_) {},
-      // "Player layout" now flips back to the previous player design.
-      onShowPlayerLayout: (_) => _openClassic(),
-      navigation: _navigation,
+      song,
+      extras: [
+        LokalSongMenuAction(
+          icon: Icons.lyrics_outlined,
+          label: 'Lyrics',
+          onTap: () {
+            if (mounted && !_showLyrics) _toggleLyrics();
+          },
+        ),
+        LokalSongMenuAction(
+          icon: Icons.speed_rounded,
+          label: 'Playback speed',
+          onTap: () {
+            if (mounted) SpeedBottomSheet.show(context, _player);
+          },
+        ),
+        LokalSongMenuAction(
+          icon: Icons.graphic_eq_rounded,
+          label: 'Pitch',
+          onTap: () {
+            if (mounted) PitchBottomSheet.show(context, _player);
+          },
+        ),
+        LokalSongMenuAction(
+          icon: Icons.bedtime_outlined,
+          label: 'Sleep timer',
+          onTap: () {
+            if (mounted) SleepTimerBottomSheet.show(context, _player);
+          },
+        ),
+        LokalSongMenuAction(
+          icon: Icons.dashboard_customize_outlined,
+          label: 'Classic player',
+          onTap: () {
+            if (mounted) _openClassic();
+          },
+        ),
+      ],
     );
   }
 

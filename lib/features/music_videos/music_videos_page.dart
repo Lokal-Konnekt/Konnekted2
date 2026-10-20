@@ -123,7 +123,7 @@ class MusicVideosPage extends ConsumerWidget {
                 return _VideoTile(
                   song: song,
                   videoId: id,
-                  onTap: () => openMusicVideo(context, ref, song, id),
+                  onTap: () => openMusicVideo(context, song, id),
                 );
               },
             ),
@@ -203,15 +203,12 @@ class _VideoTile extends StatelessWidget {
 
 /// "Watch video" for a song menu: finds the video (remembered or a search)
 /// and opens it, or says there is none. Only offered while videos are on.
-Future<void> watchMusicVideo(
-  BuildContext context,
-  WidgetRef ref,
-  Song song,
-) async {
+Future<void> watchMusicVideo(BuildContext context, Song song) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
+  final container = ProviderScope.containerOf(context, listen: false);
   String? id;
   try {
-    id = await ref.read(musicVideoIndexProvider.notifier).find(song);
+    id = await container.read(musicVideoIndexProvider.notifier).find(song);
   } catch (_) {
     messenger?.showSnackBar(
       const SnackBar(content: Text('Couldn’t reach YouTube Music.')),
@@ -225,5 +222,5 @@ Future<void> watchMusicVideo(
     return;
   }
   if (!context.mounted) return;
-  await openMusicVideo(context, ref, song, id);
+  await openMusicVideo(context, song, id);
 }

@@ -42,16 +42,17 @@ iframe{position:absolute;inset:0;width:100%;height:100%;border:0}</style>
 /// Opens [song]'s music video, pausing what is playing first.
 Future<void> openMusicVideo(
   BuildContext context,
-  WidgetRef ref,
   Song song,
   String videoId,
 ) async {
   if (!_videoId.hasMatch(videoId)) return;
-  if (ref.read(isPlayingProvider)) {
-    await ref.read(playerProvider.notifier).pause();
+  // The container outlives the menu or row this was opened from.
+  final container = ProviderScope.containerOf(context, listen: false);
+  if (container.read(isPlayingProvider)) {
+    await container.read(playerProvider.notifier).pause();
   }
-  if (ref.read(radioPlayerProvider).station != null) {
-    await ref.read(radioPlayerProvider.notifier).stop();
+  if (container.read(radioPlayerProvider).station != null) {
+    await container.read(radioPlayerProvider.notifier).stop();
   }
   if (!context.mounted) return;
   await pushLokal(context, MusicVideoPlayerPage(song: song, videoId: videoId));

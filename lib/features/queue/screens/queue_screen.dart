@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/blurred_song_background.dart';
@@ -718,12 +719,33 @@ class _UpcomingTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (!isSelectionMode)
+                if (!isSelectionMode) ...[
                   Text(
                     song.formattedDuration,
                     style: Theme.of(context).textTheme.bodySmall
                         ?.copyWith(color: context.adaptiveTextTertiary),
                   ),
+                  IconButton(
+                    tooltip: 'More',
+                    onPressed: () => SongActionsBottomSheet.show(
+                      context,
+                      song,
+                      extras: [
+                        if (onRemove != null)
+                          LokalSongMenuAction(
+                            icon: Icons.playlist_remove_rounded,
+                            label: 'Remove from up next',
+                            destructive: true,
+                            onTap: onRemove!,
+                          ),
+                      ],
+                    ),
+                    icon: Icon(
+                      LucideIcons.ellipsis,
+                      color: context.adaptiveTextTertiary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -851,30 +873,29 @@ class _QueueTile extends StatelessWidget {
                   ),
                 ),
                 if (!isSelectionMode)
-                  PopupMenuButton<_QueueAction>(
-                    onSelected: (action) {
-                      switch (action) {
-                        case _QueueAction.playNext:
-                          onMoveToNext?.call();
-                          break;
-                        case _QueueAction.remove:
-                          onRemove();
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      if (onMoveToNext != null)
-                        PopupMenuItem(
-                          value: _QueueAction.playNext,
-                          child: Text(l10n.playNext),
+                  IconButton(
+                    tooltip: 'More',
+                    onPressed: () => SongActionsBottomSheet.show(
+                      context,
+                      song,
+                      queueActions: false,
+                      extras: [
+                        if (onMoveToNext != null)
+                          LokalSongMenuAction(
+                            icon: Icons.playlist_play_rounded,
+                            label: l10n.playNext,
+                            onTap: onMoveToNext!,
+                          ),
+                        LokalSongMenuAction(
+                          icon: Icons.playlist_remove_rounded,
+                          label: 'Remove from queue',
+                          destructive: true,
+                          onTap: onRemove,
                         ),
-                      PopupMenuItem(
-                        value: _QueueAction.remove,
-                        child: Text(l10n.remove),
-                      ),
-                    ],
+                      ],
+                    ),
                     icon: Icon(
-                      LucideIcons.ellipsisVertical,
+                      LucideIcons.ellipsis,
                       color: context.adaptiveTextTertiary,
                     ),
                   ),
@@ -938,8 +959,6 @@ class _Artwork extends StatelessWidget {
     );
   }
 }
-
-enum _QueueAction { playNext, remove }
 
 BoxDecoration _tileDecoration(bool glass) {
   if (glass) {

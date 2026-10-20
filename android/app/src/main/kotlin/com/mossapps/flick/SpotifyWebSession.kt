@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.Base64
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -209,7 +210,7 @@ internal class SpotifyWebSession(private val activity: Activity) {
 
         val deferred = CompletableDeferred<HarvestedToken?>()
         var webView: WebView? = null
-        try {
+        return try {
             webView = WebView(activity).apply {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true

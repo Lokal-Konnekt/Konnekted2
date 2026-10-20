@@ -176,6 +176,7 @@ Object? _at(Object? value, List<Object> path) {
 String _text(Object? value) {
   if (value is String) return value;
   if (value is! Map) return '';
+  if (value['text'] != null) return value['text'].toString();
   if (value['simpleText'] != null) return value['simpleText'].toString();
   return [
     for (final run in _list(value['runs']))

@@ -1,0 +1,1664 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:archive/archive.dart';
+import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as p;
+
+import 'spotiflac_host.dart';
+import 'spotiflac_network.dart';
+import 'spotiflac_runtime.dart';
+import 'spotiflac_session.dart';
+import 'spotiflac_storage.dart';
+
+/// SpotiFLAC add-on packages (.sflx), as desktop's
+/// electron/spotiflac/packages.js: repositories to install from, installed
+/// packages with their settings and logins, and searching and downloading
+/// through them. The same packages run on desktop and phone.
+
+const spotiflacRegistry =
+    'https://raw.githubusercontent.com/spotiflacapp/SpotiFLAC-Extension/main/registry.json';
+const spotiflacCompatVersion = '5.1.0';
+const spotiflacFeatures = {
+  'signedSession': 3,
+  'sessionRefresh': 1,
+  'sessionGrant': 1,
+  'globalAction': 1,
+  'webviewAuth': 1,
+  'downloadSegments': 1,
+  'patternedFileTransform': 1,
+  'preparedContext': 1,
+  'accountForms': 1,
+  'accountDownloadMode': 1,
+  'directMedia': 1,
+};
+
+String _sha256(List<int> value) => sha256.convert(value).toString();
+
+/// The installed package's stable key (also its storage namespace).
+String spotiflacKeyOf(String name) =>
+    sha1.convert(utf8.encode('spotiflac:$name')).toString().substring(0, 10);
+
+int spotiflacCompareVersions(Object? a, Object? b) {
+  List<int> parts(Object? v) =>
+      '${v ?? '0'}'.split('.').map((x) => int.tryParse(x) ?? 0).toList();
+  final left = parts(a), right = parts(b);
+  for (
+    var i = 0;
+    i < (left.length > right.length ? left.length : right.length);
+    i++
+  ) {
+    final d =
+        (i < left.length ? left[i] : 0) - (i < right.length ? right[i] : 0);
+    if (d != 0) return d.sign;
+  }
+  return 0;
+}
+
+class SpotiflacPackageError implements Exception {
+  const SpotiflacPackageError(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
+Map<String, Object?> spotiflacValidateManifest(Object? json) {
+  if (json is! Map ||
+      !RegExp(r'^[a-z0-9][a-z0-9_-]{0,99}$')
+          .hasMatch('${json['name'] ?? ''}') ||
+      json['displayName'] is! String ||
+      !RegExp(r'^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$')
+          .hasMatch('${json['version'] ?? ''}')) {
+    throw const SpotiflacPackageError('Invalid SpotiFLAC package manifest');
+  }
+  final manifest = json.cast<String, Object?>();
+  final type = manifest['type'];
+  final urlHandler = manifest['urlHandler'];
+  final linkReader = urlHandler is Map && urlHandler['enabled'] == true;
+  if (type is! List ||
+      !(type.contains('download_provider') ||
+          (type.contains('metadata_provider') && linkReader))) {
+    throw const SpotiflacPackageError(
+      'Only download-capable or playlist-link SpotiFLAC addons can be installed',
+    );
+  }
+  if (spotiflacCompareVersions(
+        manifest['minAppVersion'],
+        spotiflacCompatVersion,
+      ) >
+      0) {
+    throw SpotiflacPackageError(
+      'This addon requires SpotiFLAC compatibility ${manifest['minAppVersion']}',
+    );
+  }
+  for (final required
+      in manifest['requiredRuntimeFeatures'] is List
+          ? manifest['requiredRuntimeFeatures'] as List
+          : const []) {
+    final match = RegExp(r'^([A-Za-z]+)@(\d+)$').firstMatch('$required');
+    final have = match == null ? null : spotiflacFeatures[match.group(1)];
+    if (have == null || have < int.parse(match!.group(2)!)) {
+      throw SpotiflacPackageError('Unsupported runtime feature: $required');
+    }
+  }
+  final permissions = manifest['permissions'];
+  final network = permissions is Map ? permissions['network'] : null;
+  if (network is! List ||
+      network.length > 100 ||
+      network.any(
+        (d) =>
+            d is! String ||
+            !RegExp(
+              r'^(?:\*\.)?[a-z0-9.-]+$',
+              caseSensitive: false,
+            ).hasMatch(d),
+      )) {
+    throw const SpotiflacPackageError('Invalid addon network permissions');
+  }
+  final signed = manifest['signedSession'];
+  if (signed is Map) {
+    spotiflacValidateUrl(
+      '${signed['baseUrl']}',
+      SpotiflacPermissions.fromJson(permissions),
+    );
+    if ((permissions as Map)['storage'] != true) {
+      throw const SpotiflacPackageError(
+        'Signed sessions require storage permission',
+      );
+    }
+  }
+  if ((manifest['settings'] is List &&
+          (manifest['settings'] as List).length > 100) ||
+      (manifest['qualityOptions'] is List &&
+          (manifest['qualityOptions'] as List).length > 30)) {
+    throw const SpotiflacPackageError('Addon manifest is too large');
+  }
+  return manifest;
+}
+
+class SpotiflacArchive {
+  const SpotiflacArchive(this.files, this.manifest, this.code);
+  final Map<String, Uint8List> files;
+  final Map<String, Object?> manifest;
+  final String code;
+}
+
+/// Opens and checks a package's zip.
+SpotiflacArchive spotiflacReadArchive(Uint8List bytes) {
+  if (bytes.length > 32 * 1024 * 1024) {
+    throw const SpotiflacPackageError('Addon package exceeds 32 MB');
+  }
+  final Archive zip;
+  try {
+    zip = ZipDecoder().decodeBytes(bytes);
+  } catch (_) {
+    throw const SpotiflacPackageError('This isn’t a SpotiFLAC package');
+  }
+  if (zip.files.length > 100) {
+    throw const SpotiflacPackageError('Addon package contains too many files');
+  }
+  final files = <String, Uint8List>{};
+  var total = 0;
+  for (final entry in zip.files) {
+    final name = entry.name;
+    if (files.containsKey(name) ||
+        name.isEmpty ||
+        name.contains('\\') ||
+        name.startsWith('/') ||
+        RegExp(r'^[A-Za-z]:').hasMatch(name) ||
+        name.split('/').any((part) => part == '..' || part == '.') ||
+        entry.isSymbolicLink) {
+      throw const SpotiflacPackageError(
+        'Addon package contains an unsafe archive path',
+      );
+    }
+    total += entry.size;
+    if (total > 64 * 1024 * 1024) {
+      throw const SpotiflacPackageError('Unpacked addon package exceeds 64 MB');
+    }
+    if (entry.isFile) files[name] = entry.content;
+  }
+  final manifestBytes = files['manifest.json'];
+  final codeBytes = files['index.js'];
+  if (manifestBytes == null || codeBytes == null) {
+    throw const SpotiflacPackageError(
+      'A SpotiFLAC package needs manifest.json and index.js at its root',
+    );
+  }
+  final manifest = spotiflacValidateManifest(
+    jsonDecode(utf8.decode(manifestBytes)),
+  );
+  if (codeBytes.length > 8 * 1024 * 1024) {
+    throw const SpotiflacPackageError('Addon script exceeds 8 MB');
+  }
+  return SpotiflacArchive(files, manifest, utf8.decode(codeBytes));
+}
+
+bool _placeholderAlbum(Object? value) {
+  final album = value is String ? value.trim() : '';
+  return album.isEmpty ||
+      RegExp(
+        r'^(?:unknown(?:\s+album)?|untitled(?:\s+album)?|n/?a|none|null|undefined)$',
+        caseSensitive: false,
+      ).hasMatch(album);
+}
+
+String? spotiflacAlbumName(Map track) {
+  final album = track['album'];
+  final candidates = [
+    track['album_name'],
+    track['albumName'],
+    track['album_title'],
+    track['albumTitle'],
+    if (album is String) album,
+    if (album is Map)
+      album['name'] ??
+          album['title'] ??
+          album['album_name'] ??
+          album['albumName'],
+  ];
+  for (final value in candidates) {
+    if (value is String && !_placeholderAlbum(value)) return value.trim();
+  }
+  return null;
+}
+
+/// A song an add-on found.
+class SpotiflacTrack {
+  const SpotiflacTrack({
+    required this.provider,
+    required this.id,
+    required this.title,
+    required this.artist,
+    this.album,
+    this.duration,
+    this.isrc,
+    this.thumbnail,
+    this.trackNumber,
+    this.discNumber,
+    this.year,
+    this.quality,
+  });
+
+  /// `a-<package key>`.
+  final String provider;
+  final String id;
+  final String title;
+  final String artist;
+  final String? album;
+  final Duration? duration;
+  final String? isrc;
+  final String? thumbnail;
+  final int? trackNumber;
+  final int? discNumber;
+  final int? year;
+  final String? quality;
+
+  String get key => provider.substring(2);
+
+  static SpotiflacTrack of(Map track, String provider) {
+    final rawArtists = track['artists'];
+    final artists = rawArtists is List
+        ? [
+            for (final a in rawArtists)
+              if ((a is String ? a : (a is Map ? a['name'] : null))
+                  case final String n when n.isNotEmpty)
+                n,
+          ]
+        : ['${rawArtists ?? track['artist'] ?? ''}']
+              .where((a) => a.isNotEmpty)
+              .toList();
+    final title = '${track['name'] ?? track['title'] ?? ''}';
+    final ms = (track['duration_ms'] ?? track['durationMs']) as num?;
+    final images = track['images'];
+    return SpotiflacTrack(
+      provider: provider,
+      id: '${track['id']}',
+      title: title.length > 500 ? title.substring(0, 500) : title,
+      artist: artists.join(', '),
+      album: spotiflacAlbumName(track),
+      duration: ms != null && ms > 0
+          ? Duration(milliseconds: ms.toInt())
+          : null,
+      isrc: track['isrc'] as String?,
+      thumbnail:
+          (track['cover_url'] ??
+                  track['coverUrl'] ??
+                  (images is String ? images : null))
+              as String?,
+      trackNumber: (track['track_number'] ?? track['trackNumber']) is num
+          ? ((track['track_number'] ?? track['trackNumber']) as num).toInt()
+          : null,
+      discNumber: (track['disc_number'] ?? track['discNumber']) is num
+          ? ((track['disc_number'] ?? track['discNumber']) as num).toInt()
+          : null,
+      year: int.tryParse(
+        '${track['release_date'] ?? ''}'.padRight(4).substring(0, 4).trim(),
+      ),
+      quality: track['audio_quality'] as String?,
+    );
+  }
+}
+
+/// An installed package.
+class SpotiflacAddon {
+  SpotiflacAddon({
+    required this.key,
+    required this.name,
+    required this.manifest,
+    required this.digest,
+    required this.installedAt,
+    required this.methods,
+    this.repositoryId,
+    this.enabled = true,
+  });
+
+  final String key;
+  final String name;
+  Map<String, Object?> manifest;
+  String digest;
+  final int installedAt;
+  List<String> methods;
+  String? repositoryId;
+  bool enabled;
+
+  String get displayName => '${manifest['displayName'] ?? name}';
+  String get version => '${manifest['version'] ?? ''}';
+  String get description => '${manifest['description'] ?? ''}';
+  List get settingsSchema =>
+      manifest['settings'] is List ? manifest['settings'] as List : const [];
+  List get qualityOptions => manifest['qualityOptions'] is List
+      ? manifest['qualityOptions'] as List
+      : const [];
+  List get globalActions => manifest['globalActions'] is List
+      ? manifest['globalActions'] as List
+      : const [];
+  Map? get signedSession => manifest['signedSession'] is Map
+      ? manifest['signedSession'] as Map
+      : null;
+  bool get downloads =>
+      (manifest['type'] as List).contains('download_provider');
+  bool get searches =>
+      methods.contains('searchTracks') || methods.contains('customSearch');
+
+  SpotiflacAddonInfo get info =>
+      SpotiflacAddonInfo(key: key, name: name, manifest: manifest);
+
+  Map<String, Object?> toJson() => {
+    'key': key,
+    'name': name,
+    'manifest': manifest,
+    'digest': digest,
+    'installed_at': installedAt,
+    'methods': methods,
+    'repository_id': repositoryId,
+    'enabled': enabled,
+  };
+
+  static SpotiflacAddon? fromJson(Object? json) {
+    if (json is! Map || json['key'] is! String || json['manifest'] is! Map) {
+      return null;
+    }
+    return SpotiflacAddon(
+      key: json['key'] as String,
+      name: '${json['name']}',
+      manifest: (json['manifest'] as Map).cast<String, Object?>(),
+      digest: '${json['digest'] ?? ''}',
+      installedAt: (json['installed_at'] as num?)?.toInt() ?? 0,
+      methods: [
+        for (final m
+            in json['methods'] is List ? json['methods'] as List : const [])
+          '$m',
+      ],
+      repositoryId: json['repository_id'] as String?,
+      enabled: json['enabled'] != false,
+    );
+  }
+}
+
+class SpotiflacRepository {
+  SpotiflacRepository({
+    required this.id,
+    required this.url,
+    required this.name,
+    this.refreshedAt,
+    this.entries = const [],
+    this.error,
+  });
+
+  final String id;
+  final String url;
+  String name;
+  int? refreshedAt;
+  List<Map<String, Object?>> entries;
+  String? error;
+
+  bool get official => url == spotiflacRegistry;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'url': url,
+    'name': name,
+    'refreshed_at': refreshedAt,
+    'entries': entries,
+    'error': error,
+  };
+
+  static SpotiflacRepository? fromJson(Object? json) {
+    if (json is! Map || json['id'] is! String || json['url'] is! String) {
+      return null;
+    }
+    return SpotiflacRepository(
+      id: json['id'] as String,
+      url: json['url'] as String,
+      name: '${json['name'] ?? ''}',
+      refreshedAt: (json['refreshed_at'] as num?)?.toInt(),
+      entries: [
+        for (final e
+            in json['entries'] is List ? json['entries'] as List : const [])
+          if (e is Map) e.cast<String, Object?>(),
+      ],
+      error: json['error'] as String?,
+    );
+  }
+}
+
+/// A repository package as offered, with how it relates to what's installed.
+class SpotiflacCatalogueEntry {
+  const SpotiflacCatalogueEntry(
+    this.entry,
+    this.repositoryId, {
+    this.installed,
+    required this.compatible,
+  });
+
+  final Map<String, Object?> entry;
+  final String repositoryId;
+  final SpotiflacAddon? installed;
+  final bool compatible;
+
+  String get id => '${entry['id']}';
+  String get name =>
+      '${entry['display_name'] ?? entry['displayName'] ?? entry['name'] ?? id}';
+  String get version => '${entry['version']}';
+  String get description => '${entry['description'] ?? ''}';
+  String get category => '${entry['category'] ?? ''}';
+  bool get updateAvailable =>
+      installed != null &&
+      spotiflacCompareVersions(version, installed!.version) > 0;
+}
+
+/// What an add-on still needs before it can download.
+class SpotiflacAccess {
+  const SpotiflacAccess(
+    this.kind, {
+    required this.ready,
+    required this.verified,
+    this.missing = const [],
+  });
+
+  /// `verification`, `login`, `settings` or `none`.
+  final String kind;
+  final bool ready;
+  final bool verified;
+  final List<String> missing;
+}
+
+/// The finished download.
+class SpotiflacDownload {
+  SpotiflacDownload(this.file, this.metadata, this.info, this._staging);
+
+  final File file;
+  final Map<String, Object?> metadata;
+  final Map<String, Object?> info;
+  final Directory _staging;
+
+  Future<void> cleanup() async {
+    if (_staging.existsSync()) await _staging.delete(recursive: true);
+  }
+}
+
+/// Fetches a document from a repository host (and only that host).
+typedef SpotiflacDocumentFetch = Future<Uint8List> Function(
+  String url,
+  int maxBytes,
+);
+
+class SpotiflacPackages {
+  SpotiflacPackages(
+    this.root, {
+    required this.storage,
+    this._native = const NativeSpotiflac(),
+    this._starter = startNativeSpotiflacGuest,
+    this._fetch,
+    this.isrcLookup,
+    this.appVersion = '1.0.0',
+  });
+
+  final Directory root;
+  final SpotiflacStorage storage;
+  final SpotiflacNative _native;
+  final SpotiflacGuestStarter _starter;
+  final SpotiflacDocumentFetch? _fetch;
+  final SpotiflacIsrcLookup? isrcLookup;
+  final String appVersion;
+
+  final _repos = <SpotiflacRepository>[];
+  final _addons = <String, SpotiflacAddon>{};
+  final _runtimes = <String, SpotiflacRuntime>{};
+  final _networks = <String, SpotiflacNetwork>{};
+  final _sessions = <String, SpotiflacSignedSession>{};
+  final _tracks = <String, Map>{};
+  final _locks = <String, Future<void>>{};
+  final _forms =
+      <String, ({String key, String action, int steps, DateTime expires})>{};
+  bool _loaded = false;
+
+  File get _index => File(p.join(root.path, 'index.json'));
+
+  /// Reads what's installed; safe to call more than once.
+  Future<void> load() async {
+    if (_loaded) return;
+    await storage.open();
+    if (_index.existsSync()) {
+      try {
+        final json = jsonDecode(await _index.readAsString()) as Map;
+        _repos.addAll([
+          for (final r in json['repositories'] as List? ?? const [])
+            ?SpotiflacRepository.fromJson(r),
+        ]);
+        for (final a in json['packages'] as List? ?? const []) {
+          final addon = SpotiflacAddon.fromJson(a);
+          if (addon != null) _addons[addon.key] = addon;
+        }
+      } catch (_) {
+        // An unreadable index starts empty rather than failing every screen.
+      }
+    }
+    if (!_repos.any((r) => r.url == spotiflacRegistry)) {
+      _repos.insert(
+        0,
+        SpotiflacRepository(
+          id: _sha256(utf8.encode(spotiflacRegistry)).substring(0, 16),
+          url: spotiflacRegistry,
+          name: 'SpotiFLAC official',
+        ),
+      );
+    }
+    _loaded = true;
+  }
+
+  void _save() => spotiflacAtomicWrite(
+    _index,
+    utf8.encode(
+      jsonEncode({
+        'repositories': [for (final r in _repos) r.toJson()],
+        'packages': [for (final a in _addons.values) a.toJson()],
+      }),
+    ),
+  );
+
+  List<SpotiflacAddon> get addons =>
+      _addons.values.toList()
+        ..sort((a, b) => a.installedAt.compareTo(b.installedAt));
+  List<SpotiflacRepository> get repositories => List.unmodifiable(_repos);
+  SpotiflacAddon? find(String key) => _addons[key];
+
+  // ---------------------------------------------------------------- settings
+
+  Map<String, Object?> settings(SpotiflacAddon addon) {
+    Map<String, Object?> values = {};
+    try {
+      values = storage.read(addon.key, 'settings');
+    } catch (_) {
+      // Unreadable (a reset key): the add-on shows its defaults.
+    }
+    final defaults = <String, Object?>{
+      for (final field in addon.settingsSchema)
+        if (field is Map && field.containsKey('default'))
+          '${field['key']}': field['default'],
+    };
+    final quality = <String, Object?>{
+      for (final option in addon.qualityOptions)
+        if (option is Map)
+          '${option['id']}': {
+            for (final field
+                in option['settings'] is List
+                    ? option['settings'] as List
+                    : const [])
+              if (field is Map && field.containsKey('default'))
+                '${field['key']}': field['default'],
+          },
+    };
+    return {...defaults, 'qualitySettings': quality, ...values};
+  }
+
+  /// Saves [values] the add-on's schema allows; secrets left empty keep theirs.
+  void setSettings(String key, Map<String, Object?> values) {
+    final addon = _addons[key];
+    if (addon == null) throw const SpotiflacPackageError('Addon not found');
+    final current = storage.read(key, 'settings');
+    void assign(List schema, Map? input, Map<String, Object?> target) {
+      if (input == null) return;
+      for (final field in schema) {
+        if (field is! Map ||
+            field['type'] == 'button' ||
+            !input.containsKey(field['key'])) {
+          continue;
+        }
+        final name = '${field['key']}';
+        final value = input[name];
+        if (field['secret'] == true && value == '') continue;
+        final type = field['type'];
+        final options = [
+          for (final o
+              in field['options'] is List ? field['options'] as List : const [])
+            o is Map ? o['value'] : o,
+        ];
+        if ((type == 'boolean' && value is! bool) ||
+            (type == 'number' && num.tryParse('$value') == null) ||
+            (type == 'select' && !options.contains(value))) {
+          throw SpotiflacPackageError('Invalid setting: $name');
+        }
+        final text = '${value ?? ''}';
+        target[name] = type == 'number'
+            ? num.parse('$value')
+            : type == 'boolean'
+            ? value
+            : (text.length > 8000 ? text.substring(0, 8000) : text);
+      }
+    }
+
+    assign(addon.settingsSchema, values, current);
+    final quality = values['qualitySettings'];
+    if (quality is Map) {
+      final saved =
+          (current['qualitySettings'] as Map?)?.cast<String, Object?>() ?? {};
+      for (final option in addon.qualityOptions) {
+        if (option is! Map) continue;
+        final id = '${option['id']}';
+        final target = (saved[id] as Map?)?.cast<String, Object?>() ?? {};
+        assign(
+          option['settings'] is List ? option['settings'] as List : const [],
+          quality[id] as Map?,
+          target,
+        );
+        saved[id] = target;
+      }
+      current['qualitySettings'] = saved;
+    }
+    final downloadQuality = values['downloadQuality'];
+    if (downloadQuality != null &&
+        addon.qualityOptions.any(
+          (q) => q is Map && q['id'] == downloadQuality,
+        )) {
+      current['downloadQuality'] = downloadQuality;
+    }
+    storage.write(key, 'settings', current);
+    _retire(key);
+  }
+
+  SpotiflacAccess access(SpotiflacAddon addon) {
+    final values = settings(addon);
+    final missing = [
+      for (final field in addon.settingsSchema)
+        if (field is Map &&
+            field['required'] == true &&
+            field['type'] != 'button' &&
+            (values[field['key']] == null || values[field['key']] == ''))
+          '${field['label'] ?? field['key']}',
+    ];
+    final signed = addon.signedSession;
+    if (signed != null) {
+      var verified = false;
+      try {
+        verified = _sessionFor(addon, null).status()['authenticated'] == true;
+      } catch (_) {}
+      return SpotiflacAccess(
+        'verification',
+        ready: verified && missing.isEmpty,
+        verified: verified,
+        missing: missing,
+      );
+    }
+    final login = addon.globalActions.any(
+      (item) =>
+          item is Map &&
+          RegExp(
+            r'log\s*in|sign\s*in|connect|auth|account',
+            caseSensitive: false,
+          ).hasMatch('${item['action']} ${item['label'] ?? ''}'),
+    );
+    if (login) {
+      var auth = _networks[addon.key]?.auth;
+      if (auth == null) {
+        try {
+          auth = (storage.read(addon.key, 'connection')['auth'] as Map?)
+              ?.cast<String, Object?>();
+        } catch (_) {}
+      }
+      final tokens =
+          auth != null &&
+          (auth['access_token'] != null ||
+              auth['refresh_token'] != null ||
+              auth['code'] != null);
+      var account = false;
+      try {
+        account = storage.read(addon.key, 'credentials').isNotEmpty;
+      } catch (_) {}
+      final verified = tokens || account;
+      return SpotiflacAccess(
+        'login',
+        ready: verified && missing.isEmpty,
+        verified: verified,
+        missing: missing,
+      );
+    }
+    return SpotiflacAccess(
+      missing.isEmpty ? 'none' : 'settings',
+      ready: missing.isEmpty,
+      verified: true,
+      missing: missing,
+    );
+  }
+
+  // ------------------------------------------------------------ repositories
+
+  Future<Uint8List> _document(String url, int maxBytes) async {
+    final fetch = _fetch;
+    if (fetch != null) return fetch(url, maxBytes);
+    final uri = Uri.parse(url);
+    final network = SpotiflacNetwork(
+      SpotiflacPermissions(network: [uri.host]),
+      userAgent: 'Lokal/$appVersion',
+    );
+    try {
+      final response = await network.request(url);
+      try {
+        if (response.status != 200) {
+          throw SpotiflacPackageError(
+            'Repository returned HTTP ${response.status}',
+          );
+        }
+        return await spotiflacReadAll(
+          response.body,
+          maxBytes,
+        ).timeout(const Duration(seconds: 60));
+      } finally {
+        await response.close();
+      }
+    } finally {
+      network.close();
+    }
+  }
+
+  /// Refreshes repositories not refreshed within [maxAge].
+  Future<void> refreshDue({Duration maxAge = const Duration(hours: 6)}) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await Future.wait([
+      for (final repo in _repos)
+        if (repo.refreshedAt == null ||
+            now - repo.refreshedAt! > maxAge.inMilliseconds)
+          refreshRepo(repo.id).then((_) {}, onError: (_) {}),
+    ]);
+  }
+
+  Future<SpotiflacRepository> addRepo(String raw) async {
+    var url = Uri.tryParse(raw.trim());
+    if (url == null ||
+        url.scheme != 'https' ||
+        url.userInfo.isNotEmpty ||
+        url.host.isEmpty) {
+      throw const SpotiflacPackageError('Repository URLs must use HTTPS');
+    }
+    if (!url.path.toLowerCase().endsWith('.json')) {
+      url = url.replace(
+        path: '${url.path.replaceFirst(RegExp(r'/$'), '')}/registry.json',
+      );
+    }
+    url = url.removeFragment();
+    final href = url.toString();
+    final id = _sha256(utf8.encode(href)).substring(0, 16);
+    if (!_repos.any((r) => r.id == id)) {
+      _repos.add(SpotiflacRepository(id: id, url: href, name: url.host));
+      _save();
+    }
+    await refreshRepo(id);
+    return _repos.firstWhere((r) => r.id == id);
+  }
+
+  Future<List<SpotiflacCatalogueEntry>> refreshRepo(String id) async {
+    final repo = _repos.where((r) => r.id == id).firstOrNull;
+    if (repo == null) throw const SpotiflacPackageError('Repository not found');
+    try {
+      final index = jsonDecode(
+        utf8.decode(await _document(repo.url, 2 * 1024 * 1024)),
+      );
+      if (index is! Map ||
+          index['version'] != 1 ||
+          index['extensions'] is! List ||
+          (index['extensions'] as List).length > 2000) {
+        throw const SpotiflacPackageError('Invalid SpotiFLAC registry');
+      }
+      bool valid(Map e) {
+        try {
+          return RegExp(r'^[a-z0-9][a-z0-9_-]{0,99}$')
+                  .hasMatch('${e['id'] ?? e['name'] ?? ''}') &&
+              e['version'] is String &&
+              RegExp(
+                r'^[a-f0-9]{64}$',
+                caseSensitive: false,
+              ).hasMatch('${e['sha256'] ?? ''}') &&
+              Uri.parse('${e['download_url']}').scheme == 'https';
+        } catch (_) {
+          return false;
+        }
+      }
+
+      final entries = <Map<String, Object?>>[];
+      for (final e in index['extensions'] as List) {
+        if (e is! Map) continue;
+        if (e['category'] != 'download' &&
+            !(e['category'] == 'integration' && valid(e))) {
+          continue;
+        }
+        if (!valid(e)) {
+          throw const SpotiflacPackageError('Invalid registry package entry');
+        }
+        entries.add({...e.cast<String, Object?>(), 'id': e['id'] ?? e['name']});
+      }
+      if (entries.map((e) => e['id']).toSet().length != entries.length) {
+        throw const SpotiflacPackageError('Duplicate registry package IDs');
+      }
+      repo
+        ..entries = entries
+        ..refreshedAt = DateTime.now().millisecondsSinceEpoch
+        ..error = null;
+      final title = index['name'] is String
+          ? (index['name'] as String)
+                .replaceAll(RegExp(r'[\u0000-\u001f]'), '')
+                .trim()
+          : '';
+      if (title.isNotEmpty && !repo.official) {
+        repo.name = title.length > 80 ? title.substring(0, 80) : title;
+      }
+      _save();
+    } catch (error) {
+      repo.error = '$error';
+      _save();
+      rethrow;
+    }
+    return catalogue(id);
+  }
+
+  List<SpotiflacCatalogueEntry> catalogue([String? id]) => [
+    for (final repo in _repos)
+      if (id == null || repo.id == id)
+        for (final entry in repo.entries)
+          SpotiflacCatalogueEntry(
+            entry,
+            repo.id,
+            installed: _addons[spotiflacKeyOf('${entry['id']}')],
+            compatible:
+                spotiflacCompareVersions(
+                  entry['min_app_version'],
+                  spotiflacCompatVersion,
+                ) <=
+                0,
+          ),
+  ];
+
+  void removeRepo(String id) {
+    _repos.removeWhere((r) => r.id == id && !r.official);
+    _save();
+  }
+
+  // ---------------------------------------------------------------- packages
+
+  Future<T> _locked<T>(String key, Future<T> Function() action) async {
+    final previous = _locks[key] ?? Future.value();
+    final result = previous.then((_) => action());
+    final done = result.then((_) {}, onError: (_) {});
+    _locks[key] = done;
+    try {
+      return await result;
+    } finally {
+      if (identical(_locks[key], done)) _locks.remove(key);
+    }
+  }
+
+  Directory _packageDir(String key) =>
+      Directory(p.join(root.path, 'packages', key));
+
+  /// Installs or updates from a repository entry, a URL, or package [bytes].
+  Future<SpotiflacAddon> install({
+    String? repositoryId,
+    String? id,
+    String? url,
+    Uint8List? bytes,
+  }) async {
+    Map<String, Object?>? entry;
+    if (repositoryId != null) {
+      entry = catalogue(repositoryId)
+          .where((e) => e.id == id)
+          .firstOrNull
+          ?.entry;
+      if (entry == null) {
+        throw const SpotiflacPackageError(
+          'Package not found in this repository',
+        );
+      }
+      url = '${entry['download_url']}';
+    }
+    if (bytes == null) {
+      final path = url == null ? '' : Uri.parse(url).path;
+      if (!RegExp(
+        r'\.(sflx|spotiflac-ext)$',
+        caseSensitive: false,
+      ).hasMatch(path)) {
+        throw const SpotiflacPackageError(
+          'Choose a .sflx or .spotiflac-ext package',
+        );
+      }
+      bytes = await _document(url!, 32 * 1024 * 1024);
+    }
+    final digest = _sha256(bytes);
+    if (entry != null && digest != '${entry['sha256']}'.toLowerCase()) {
+      throw const SpotiflacPackageError(
+        'Package SHA-256 does not match its repository',
+      );
+    }
+    final archive = spotiflacReadArchive(bytes);
+    final manifest = archive.manifest;
+    final name = manifest['name'] as String;
+    if (entry != null &&
+        (name != entry['id'] || manifest['version'] != entry['version'])) {
+      throw const SpotiflacPackageError(
+        'Package identity/version does not match its registry entry',
+      );
+    }
+    final key = spotiflacKeyOf(name);
+    return _locked(key, () async {
+      final existing = _addons[key];
+      if (existing != null && existing.name != name) {
+        throw const SpotiflacPackageError('Addon identity collision');
+      }
+      if (existing != null &&
+          spotiflacCompareVersions(manifest['version'], existing.version) < 0) {
+        throw const SpotiflacPackageError(
+          'Cannot downgrade an installed addon',
+        );
+      }
+      final staged = Directory(
+        p.join(
+          root.path,
+          'staging',
+          '${DateTime.now().microsecondsSinceEpoch}',
+        ),
+      );
+      SpotiflacRuntime? runtime;
+      try {
+        for (final file in archive.files.entries) {
+          final target = File(p.join(staged.path, file.key));
+          if (!p.isWithin(staged.path, target.path)) {
+            throw const SpotiflacPackageError(
+              'Addon package contains an unsafe archive path',
+            );
+          }
+          await target.parent.create(recursive: true);
+          await target.writeAsBytes(file.value);
+        }
+        final candidate = SpotiflacAddon(
+          key: key,
+          name: name,
+          manifest: manifest,
+          digest: digest,
+          installedAt: 0,
+          methods: const [],
+        );
+        runtime = await _createRuntime(
+          candidate,
+          archive.code,
+          root: p.join(staged.path, 'validation-data'),
+        );
+        final methods = runtime.methods;
+        final types = manifest['type'] as List;
+        final urlHandler = manifest['urlHandler'];
+        if (types.contains('download_provider') &&
+            !methods.contains('download')) {
+          throw const SpotiflacPackageError(
+            'Download provider has no registered download() method',
+          );
+        }
+        if (((urlHandler is Map && urlHandler['enabled'] == true) ||
+                !types.contains('download_provider')) &&
+            !methods.contains('handleUrl')) {
+          throw const SpotiflacPackageError(
+            'Playlist-link addon has no registered handleUrl() method',
+          );
+        }
+        runtime.close();
+        runtime = null;
+        final validation = Directory(p.join(staged.path, 'validation-data'));
+        if (validation.existsSync()) await validation.delete(recursive: true);
+        _retire(key);
+        final target = _packageDir(key);
+        final backup = Directory('${target.path}.previous');
+        await target.parent.create(recursive: true);
+        if (backup.existsSync()) await backup.delete(recursive: true);
+        if (target.existsSync()) await target.rename(backup.path);
+        try {
+          await staged.rename(target.path);
+          final addon =
+              existing ??
+              SpotiflacAddon(
+                key: key,
+                name: name,
+                manifest: manifest,
+                digest: digest,
+                installedAt: DateTime.now().millisecondsSinceEpoch,
+                methods: methods,
+              );
+          addon
+            ..manifest = manifest
+            ..digest = digest
+            ..methods = methods
+            ..repositoryId = repositoryId;
+          _addons[key] = addon;
+          _save();
+        } catch (error) {
+          if (target.existsSync()) await target.delete(recursive: true);
+          if (backup.existsSync()) await backup.rename(target.path);
+          rethrow;
+        }
+        if (backup.existsSync()) await backup.delete(recursive: true);
+        return _addons[key]!;
+      } finally {
+        runtime?.close();
+        if (staged.existsSync()) await staged.delete(recursive: true);
+      }
+    });
+  }
+
+  Future<void> remove(String key) => _locked(key, () async {
+    _retire(key);
+    _addons.remove(key);
+    _save();
+    final dir = _packageDir(key);
+    if (dir.existsSync()) await dir.delete(recursive: true);
+    storage.forget(key);
+  });
+
+  void setEnabled(String key, bool enabled) {
+    _retire(key);
+    _addons[key]?.enabled = enabled;
+    _save();
+  }
+
+  // ---------------------------------------------------------------- runtimes
+
+  SpotiflacNetwork _networkFor(SpotiflacAddon addon) {
+    final existing = _networks[addon.key];
+    if (existing != null) return existing;
+    final network = SpotiflacNetwork(
+      SpotiflacPermissions.fromJson(addon.manifest['permissions']),
+      userAgent: 'Lokal/$appVersion',
+    );
+    try {
+      final saved = storage.read(addon.key, 'connection');
+      if (saved['auth'] is Map) {
+        network.auth = (saved['auth'] as Map).cast<String, Object?>();
+      }
+      if (saved['cookies'] != null) {
+        network.cookies = SpotiflacCookieJar.fromJson(saved['cookies']);
+      }
+    } catch (_) {}
+    Timer? timer;
+    network.persist = () {
+      timer?.cancel();
+      timer = Timer(
+        const Duration(milliseconds: 250),
+        () => _saveConnection(addon.key, network),
+      );
+    };
+    return _networks[addon.key] = network;
+  }
+
+  void _saveConnection(String key, SpotiflacNetwork network) {
+    if (!_addons.containsKey(key)) return;
+    try {
+      final auth = Map<String, Object?>.of(network.auth)..remove('pending');
+      storage.write(key, 'connection', {
+        'auth': auth,
+        'cookies': network.cookies.toJson(),
+      });
+    } catch (_) {}
+  }
+
+  SpotiflacSignedSession _sessionFor(
+    SpotiflacAddon addon,
+    SpotiflacNetwork? network,
+  ) {
+    final config = addon.signedSession!.cast<String, Object?>();
+    final scope = _sha256(utf8.encode(jsonEncode(config)));
+    final existing = _sessions[scope];
+    if (existing != null &&
+        (network == null || identical(existing.network, network))) {
+      return existing;
+    }
+    final session = SpotiflacSignedSession(config, storage, network, addon.key);
+    if (network != null) _sessions[scope] = session;
+    return session;
+  }
+
+  Future<SpotiflacRuntime> _createRuntime(
+    SpotiflacAddon addon,
+    String code, {
+    String? root,
+    List<String> grants = const [],
+    void Function({double? percent, String? message})? onProgress,
+    void Function(SpotiflacTransfer)? onTransfer,
+  }) {
+    final network = _networkFor(addon);
+    final session = addon.signedSession != null
+        ? _sessionFor(addon, network)
+        : null;
+    final host = SpotiflacHost(
+      addon: addon.info,
+      storage: storage,
+      network: network,
+      session: session,
+      native: _native,
+      root: root ?? p.join(this.root.path, 'data', addon.key, 'files'),
+      grants: grants,
+      isrcLookup: isrcLookup,
+      onProgress: onProgress,
+      onTransfer: onTransfer,
+      appVersion: appVersion,
+    );
+    return SpotiflacRuntime.start(
+      code,
+      {
+        'permissions': addon.manifest['permissions'],
+        'signedSession': addon.manifest['signedSession'],
+        'settings': settings(addon),
+        'rawFfmpeg': (addon.manifest['capabilities'] as Map?)?['rawFfmpeg'],
+      },
+      host,
+      starter: _starter,
+    );
+  }
+
+  String _code(String key) =>
+      File(p.join(_packageDir(key).path, 'index.js')).readAsStringSync();
+
+  /// The add-on's shared runtime (for browsing, logins and actions).
+  Future<SpotiflacRuntime> runtime(String key) async {
+    final addon = _addons[key];
+    if (addon == null || !addon.enabled) {
+      throw const SpotiflacPackageError(
+        'This addon is not installed or is turned off',
+      );
+    }
+    var runtime = _runtimes[key];
+    if (runtime == null || runtime.closed) {
+      runtime = await _createRuntime(addon, _code(key));
+      _runtimes[key] = runtime;
+      final started = runtime;
+      started.initialized = started
+          .invoke('initialize', [settings(addon)])
+          .then((_) {});
+    }
+    await runtime.initialized;
+    return runtime;
+  }
+
+  void _retire(String key) {
+    final network = _networks.remove(key);
+    if (network != null) _saveConnection(key, network);
+    _runtimes.remove(key)?.close();
+  }
+
+  /// Stops every add-on (the app is closing or the service is replaced).
+  void shutdown() {
+    for (final key in [..._runtimes.keys, ..._networks.keys]) {
+      _retire(key);
+    }
+  }
+
+  // --------------------------------------------------------------- browsing
+
+  void _remember(String key, Iterable tracks) {
+    for (final track in tracks) {
+      if (track is Map && track['id'] != null) {
+        _tracks['$key:${track['id']}'] = track;
+      }
+    }
+    if (_tracks.length > 2000) {
+      for (final stale in _tracks.keys.take(_tracks.length - 2000).toList()) {
+        _tracks.remove(stale);
+      }
+    }
+  }
+
+  /// Songs matching [query] (or a link, for add-ons that read links).
+  Future<List<SpotiflacTrack>> search(
+    String key,
+    String query, {
+    int limit = 20,
+  }) async {
+    final runtime = await this.runtime(key);
+    final addon = _addons[key]!;
+    final urlHandler = addon.manifest['urlHandler'];
+    Object? results;
+    if (urlHandler is Map &&
+        urlHandler['enabled'] == true &&
+        RegExp(r'^(https?:|[a-z]+:)', caseSensitive: false).hasMatch(query)) {
+      results = await runtime.invoke('handleUrl', [query]);
+    } else if (runtime.methods.contains('searchTracks')) {
+      results = await runtime.invoke('searchTracks', [query, limit]);
+    } else {
+      final behavior = addon.manifest['searchBehavior'];
+      final filters = behavior is Map && behavior['filters'] is List
+          ? behavior['filters'] as List
+          : const [];
+      final filter = filters
+          .where(
+            (f) =>
+                f is Map &&
+                RegExp(r'^(songs?|tracks?)$').hasMatch('${f['id']}'),
+          )
+          .firstOrNull;
+      results = await runtime.invoke('customSearch', [
+        query,
+        {'limit': limit, 'filter': filter is Map ? filter['id'] : 'tracks'},
+      ]);
+    }
+    List tracks;
+    if (results is List) {
+      tracks = results;
+    } else if (results is Map) {
+      final album = results['album'], artist = results['artist'];
+      tracks =
+          (results['tracks'] ??
+                  (album is Map ? album['tracks'] : null) ??
+                  (artist is Map ? artist['top_tracks'] : null) ??
+                  (results['track'] != null ? [results['track']] : const []))
+              as List? ??
+          const [];
+    } else {
+      tracks = const [];
+    }
+    final songs = [
+      for (final t in tracks)
+        if (t is Map &&
+            t['id'] != null &&
+            (t['name'] ?? t['title']) != null &&
+            (t['item_type'] == null || t['item_type'] == 'track'))
+          t,
+    ];
+    _remember(key, songs);
+    return [for (final t in songs.take(limit)) SpotiflacTrack.of(t, 'a-$key')];
+  }
+
+  // ----------------------------------------------------------------- logins
+
+  Future<Map<String, Object?>> authStatus(String key) async {
+    final runtime = await this.runtime(key);
+    final addon = _addons[key]!;
+    final access = this.access(addon);
+    final session = runtime.host.session;
+    final status = session?.status();
+    final pending = runtime.host.network.auth['pending'];
+    return {
+      ...?status,
+      'authenticated': status != null
+          ? status['authenticated']
+          : access.verified,
+      'open_auth_url':
+          session?.pending?.url ??
+          (pending is Map ? pending['url'] : null) ??
+          '',
+    };
+  }
+
+  /// Starts verification or login; the page to open, or null when none is needed.
+  Future<String?> verify(String key) async {
+    final runtime = await this.runtime(key);
+    final session = runtime.host.session;
+    if (session != null) await session.bootstrap();
+    final status = await authStatus(key);
+    if (status['authenticated'] == true) return null;
+    final url = '${status['open_auth_url'] ?? ''}';
+    return url.isEmpty ? null : url;
+  }
+
+  /// Whether [url] is where the open login page hands back to the add-on.
+  Future<bool> isAuthCallback(String key, String url) async {
+    final runtime = await this.runtime(key);
+    final session = runtime.host.session;
+    if (session?.pending != null) return session!.isCallback(url);
+    final pending = runtime.host.network.auth['pending'];
+    final callback = pending is Map ? '${pending['callback'] ?? ''}' : '';
+    if (callback.isEmpty) return false;
+    final expected = Uri.tryParse(callback), actual = Uri.tryParse(url);
+    return expected != null &&
+        actual != null &&
+        actual.scheme == expected.scheme &&
+        actual.authority == expected.authority &&
+        actual.path == expected.path;
+  }
+
+  Future<Map<String, Object?>> authCallback(String key, String raw) async {
+    final runtime = await this.runtime(key);
+    final session = runtime.host.session;
+    if (session?.pending != null) return session!.callback(raw);
+    final network = runtime.host.network;
+    final pending = network.auth['pending'];
+    final url = Uri.parse(raw);
+    if (pending is! Map ||
+        DateTime.now().millisecondsSinceEpoch - (pending['createdAt'] as num) >
+            180000 ||
+        url.queryParameters['state'] != pending['state']) {
+      throw const SpotiflacPackageError('Invalid or expired OAuth callback');
+    }
+    network.auth['code'] = url.queryParameters['code'] ?? '';
+    network.auth['pending'] = null;
+    network.persist?.call();
+    return {'success': true};
+  }
+
+  Future<void> logout(String key) async {
+    final runtime = await this.runtime(key);
+    runtime.host.session?.clear();
+    try {
+      await runtime.invoke('clearAuth');
+    } catch (_) {
+      // Few add-ons define it.
+    }
+    final network = _networks[key];
+    if (network != null) {
+      network.generation++;
+      network.auth.clear();
+      network.cookies = SpotiflacCookieJar();
+    }
+    try {
+      storage.write(key, 'connection', {});
+      storage.write(key, 'credentials', {});
+    } catch (_) {}
+  }
+
+  /// Runs a button or global action the add-on declared.
+  Future<Map<String, Object?>> invokeAction(
+    String key,
+    String action, {
+    Object? input,
+    String? token,
+  }) async {
+    final runtime = await this.runtime(key);
+    final addon = _addons[key]!;
+    final form = token == null ? null : _forms[token];
+    final declared = [
+      for (final s in addon.settingsSchema)
+        if (s is Map && s['type'] == 'button') '${s['action']}',
+      for (final a in addon.globalActions)
+        if (a is Map) '${a['action']}',
+    ];
+    if (form != null) {
+      if (form.key != key ||
+          form.action != action ||
+          form.expires.isBefore(DateTime.now()) ||
+          form.steps >= 8) {
+        throw const SpotiflacPackageError('Invalid or expired addon form');
+      }
+      _forms.remove(token);
+    } else if (!declared.contains(action) &&
+        !(action == 'completeGrant' && addon.signedSession != null)) {
+      throw const SpotiflacPackageError(
+        'This action is not declared by the addon',
+      );
+    }
+    final seconds =
+        (((addon.manifest['capabilities'] as Map?)?['actionTimeoutSeconds']
+                    as num?) ??
+                30)
+            .clamp(1, 120);
+    final result = await runtime.invoke(
+      action,
+      input != null ? [input] : const [],
+      Duration(seconds: seconds.toInt()),
+    );
+    final payload = <String, Object?>{
+      ...(((result is Map ? result['result'] ?? result : null) as Map?)
+              ?.cast<String, Object?>() ??
+          {}),
+    };
+    final schema = payload['action_form'] ?? payload['byoa_form'];
+    if (schema is Map) {
+      if (schema['version'] != 1 ||
+          !runtime.methods.contains(schema['submit_action']) ||
+          schema['fields'] is! List ||
+          (schema['fields'] as List).length > 12) {
+        throw const SpotiflacPackageError('Invalid addon account form');
+      }
+      final next = _sha256(spotiflacRandomBytes(16));
+      _forms[next] = (
+        key: key,
+        action: '${schema['submit_action']}',
+        steps: (form?.steps ?? 0) + 1,
+        expires: DateTime.now().add(const Duration(minutes: 5)),
+      );
+      payload['formToken'] = next;
+    }
+    return payload;
+  }
+
+  // -------------------------------------------------------------- downloads
+
+  static const _playable = {
+    'flac',
+    'alac',
+    'aac',
+    'mp3',
+    'opus',
+    'vorbis',
+    'wavpack',
+    'pcm_s16le',
+    'pcm_s24le',
+    'pcm_s32le',
+    'pcm_f32le',
+  };
+  static const _extensions = {
+    'flac': 'flac',
+    'mp3': 'mp3',
+    'isomp4': 'm4a',
+    'ogg': 'ogg',
+    'wave': 'wav',
+    'adts': 'aac',
+    'mkv': 'webm',
+    'webm': 'webm',
+    'wv': 'wv',
+    'wavpack': 'wv',
+  };
+
+  /// Downloads song [id] through add-on [key] into a staging folder; call
+  /// [SpotiflacDownload.cleanup] once its file has been moved or copied.
+  Future<SpotiflacDownload> download(
+    String key,
+    String id, {
+    String? quality,
+    void Function({double? percent, String? message})? onProgress,
+    void Function(SpotiflacTransfer)? onTransfer,
+    Future<void>? cancel,
+  }) async {
+    final addon = _addons[key];
+    if (addon == null || !addon.enabled) {
+      throw const SpotiflacPackageError('Addon is not available');
+    }
+    final staged = Directory(
+      p.join(root.path, 'work', '${DateTime.now().microsecondsSinceEpoch}'),
+    );
+    await staged.create(recursive: true);
+    final hooks =
+        addon.manifest['postProcessing'] is Map &&
+        (addon.manifest['postProcessing'] as Map)['enabled'] == true &&
+        ((addon.manifest['postProcessing'] as Map)['hooks'] as List? ??
+                const [])
+            .any((h) => h is Map && h['defaultEnabled'] == true);
+    final runtime = await _createRuntime(
+      addon,
+      _code(key),
+      grants: [staged.path],
+      onProgress: onProgress,
+      onTransfer: hooks ? null : onTransfer,
+    );
+    unawaited(cancel?.then((_) => runtime.close()));
+    try {
+      await runtime.invoke('initialize', [settings(addon)]);
+      Map track = _tracks['$key:$id'] ?? const {};
+      if (track.isEmpty && runtime.methods.contains('getTrack')) {
+        final found = await runtime.invoke('getTrack', [id]);
+        if (found is Map) track = found;
+      }
+      if (track.isEmpty) {
+        track = {
+          'id': id,
+          'name': '',
+          'artists': '',
+          'duration_ms': 0,
+          'provider_id': addon.name,
+        };
+      }
+      track = Map.of(track);
+      if (runtime.methods.contains('enrichTrack')) {
+        try {
+          final enriched = await runtime.invoke('enrichTrack', [
+            track,
+          ], const Duration(seconds: 60));
+          if (enriched is Map) {
+            enriched.forEach((field, value) {
+              if (value != null &&
+                  value != '' &&
+                  value != 0 &&
+                  !(value is String && value.trim().isEmpty) &&
+                  !(value is List && value.isEmpty)) {
+                track[field] = value;
+              }
+            });
+          }
+        } catch (error) {
+          if (runtime.closed) rethrow;
+        }
+      }
+      final provider = addon.name.replaceFirst(RegExp(r'-web$'), '');
+      final options = <String, Object?>{
+        'track': track,
+        'duration_ms': track['duration_ms'] ?? 0,
+      };
+      const directFields = {
+        'qobuz': 'qobuz_id',
+        'tidal': 'tidal_id',
+        'deezer': 'deezer_id',
+        'soundcloud': 'spotify_id',
+        'amazon': 'spotify_id',
+      };
+      final directField = directFields[provider];
+      if (directField != null) {
+        options[directField] =
+            '${track[directField] ?? (provider == 'amazon' || provider == 'soundcloud' ? track['id'] : id)}';
+      }
+      final available = runtime.methods.contains('checkAvailability')
+          ? await runtime.invoke('checkAvailability', [
+              track['isrc'] ?? '',
+              track['name'] ?? '',
+              track['artists'] ?? '',
+              options,
+            ])
+          : {'available': true, 'track_id': id};
+      if (available is! Map || available['available'] != true) {
+        throw SpotiflacPackageError(
+          available is Map && available['reason'] != null
+              ? '${available['reason']}'
+              : 'The addon cannot download this track',
+        );
+      }
+      final prepared = {
+        ...((available['prepared_context'] ?? available['preparedContext'])
+                as Map? ??
+            const {}),
+        'host_track': track,
+        if (provider == 'amazon') 'web_metadata': track,
+      };
+      final values = settings(addon);
+      String? lossless;
+      for (final q in addon.qualityOptions) {
+        if (q is Map && q['kind'] == 'lossless') {
+          lossless = '${q['id']}';
+          break;
+        }
+      }
+      final first =
+          addon.qualityOptions.isNotEmpty && addon.qualityOptions.first is Map
+          ? '${(addon.qualityOptions.first as Map)['id']}'
+          : null;
+      final chosen =
+          quality ??
+          values['downloadQuality'] as String? ??
+          lossless ??
+          first ??
+          'default';
+      final result = await runtime.invoke('download', [
+        '${available['track_id'] ?? available['trackId'] ?? id}',
+        chosen,
+        p.join(staged.path, 'audio.flac'),
+        {'preparedContext': prepared, 'resolutionTimeoutMs': 60000},
+      ], const Duration(hours: 24));
+      if (result is! Map || result['success'] != true) {
+        final message = result is Map
+            ? (result['error_message'] ?? result['error'])
+            : null;
+        throw SpotiflacPackageError('${message ?? 'Addon download failed'}');
+      }
+      final host = runtime.host;
+      var file = host.file(
+        '${result['file_path'] ?? result['filePath'] ?? result['path']}',
+      );
+      if (!File(file).existsSync() || File(file).lengthSync() == 0) {
+        throw const SpotiflacPackageError('Addon produced an empty file');
+      }
+      if (result['decryption'] != null ||
+          result['decryption_key'] != null ||
+          result['requires_container_conversion'] == true ||
+          result['requiresContainerConversion'] == true) {
+        throw const SpotiflacPackageError(
+          'This add-on sends audio that needs converting, which the phone can’t do yet',
+        );
+      }
+      final postProcessing = addon.manifest['postProcessing'];
+      if (postProcessing is Map && postProcessing['enabled'] == true) {
+        for (final hook in postProcessing['hooks'] as List? ?? const []) {
+          if (hook is! Map || hook['defaultEnabled'] != true) continue;
+          final formats =
+              (hook['supportedFormats'] ?? hook['formats']) as List?;
+          if (formats != null &&
+              formats.isNotEmpty &&
+              !formats.contains(p.extension(file).replaceFirst('.', ''))) {
+            continue;
+          }
+          final processed = await runtime.invoke('postProcessV2', [
+            {'path': file},
+            track,
+            hook['id'],
+          ], const Duration(minutes: 2));
+          if (processed is! Map || processed['success'] != true) {
+            throw SpotiflacPackageError(
+              '${(processed is Map ? processed['error'] : null) ?? 'Addon post-processing failed'}',
+            );
+          }
+          if (processed['new_file_uri'] != null ||
+              processed['newFileUri'] != null) {
+            throw const SpotiflacPackageError(
+              'Addon post-processing cannot replace destination URIs',
+            );
+          }
+          final moved = processed['new_file_path'] ?? processed['newFilePath'];
+          if (moved != null) file = host.file('$moved');
+        }
+      }
+      var info = await _native.mediaInfo(file);
+      final codec = '${info['codec']}';
+      final expected = (track['duration_ms'] as num?)?.toInt() ?? 0;
+      final actual = (info['duration_ms'] as num?)?.toInt() ?? 0;
+      if (expected > 0 && actual > 0 && (actual - expected).abs() > 12000) {
+        throw const SpotiflacPackageError(
+          'Downloaded audio does not match the track duration',
+        );
+      }
+      if (!_playable.contains(codec)) {
+        throw SpotiflacPackageError('The phone can’t play $codec audio');
+      }
+      // The player goes by the file name: give it the extension its container needs.
+      final extension = _extensions['${info['format']}'.toLowerCase()];
+      if (extension != null &&
+          p.extension(file).toLowerCase() != '.$extension') {
+        final renamed = p.join(staged.path, 'playable.$extension');
+        await File(file).rename(renamed);
+        file = renamed;
+        info = {...info};
+      }
+      return SpotiflacDownload(
+        File(file),
+        {...track.cast<String, Object?>(), ...result.cast<String, Object?>()},
+        info,
+        staged,
+      );
+    } catch (error) {
+      if (staged.existsSync()) await staged.delete(recursive: true);
+      rethrow;
+    } finally {
+      runtime.close();
+    }
+  }
+}

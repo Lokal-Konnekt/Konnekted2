@@ -8,13 +8,14 @@ import '../audio/dsd_engine/dsd.dart';
 import '../audio/engine.dart';
 import '../audio/equalizer.dart';
 import '../frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'audio_api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `ensure_audio_engine_excluded`, `ensure_audio_engine`, `plan_track_engine_config`, `prepare_decoder_source`, `queue_compatible_with_engine`, `read_audio_engine`, `record_dsd_native_failure`, `resolve_dsd_engine_sample_rate`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `verify_dop_passthrough`, `verify_dsd_engine_rate`, `with_audio_engine`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `TrackEnginePlan`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These functions are ignored because they are not marked as `pub`: `decide_queue_plan`, `dsd_callback_debug_json`, `effective_dsd_output_mode_for_rate_and_channels`, `ensure_audio_engine_excluded`, `ensure_audio_engine`, `plan_track_engine_config`, `prepare_decoder_source`, `queue_compatible_with_engine`, `read_audio_engine`, `record_dsd_native_failure`, `resolve_dsd_engine_sample_rate`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `verify_dop_passthrough`, `verify_dsd_engine_rate`, `with_audio_engine`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `QueuePlanDecision`, `TrackEnginePlan`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
 Future<DsdOutputMode> currentDsdOutputMode() =>
     RustLib.instance.api.crateApiAudioApiCurrentDsdOutputMode();
@@ -25,6 +26,8 @@ Future<DsdOutputMode> effectiveDsdOutputMode({
   requested: requested,
 );
 
+/// FRB-exported wrapper kept signature-stable. Callers that know the source
+/// channel count should use `effective_dsd_output_mode_for_rate_and_channels`.
 Future<DsdOutputMode> effectiveDsdOutputModeForRate({
   required DsdOutputMode requested,
   DsdRate? dsdRate,
@@ -47,6 +50,14 @@ Future<void> clearDsdTrackRate() =>
 
 Future<int?> currentDsdTrackRate() =>
     RustLib.instance.api.crateApiAudioApiCurrentDsdTrackRate();
+
+Future<void> setDsdSourceChannels({required int channels}) => RustLib
+    .instance
+    .api
+    .crateApiAudioApiSetDsdSourceChannels(channels: channels);
+
+Future<int?> currentDsdSourceChannels() =>
+    RustLib.instance.api.crateApiAudioApiCurrentDsdSourceChannels();
 
 Future<void> setPendingVolume({required double volume}) =>
     RustLib.instance.api.crateApiAudioApiSetPendingVolume(volume: volume);

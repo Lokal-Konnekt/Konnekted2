@@ -29,6 +29,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  archive: ^4.0.9
   audio_session: ^0.2.4
   crypto: ^3.0.3
   connectivity_plus: ^7.0.0

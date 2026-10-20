@@ -11,6 +11,9 @@ import 'package:flick/features/discovery/recommendation_match.dart';
 import 'package:flick/features/discovery/youtube_audio.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_store.dart';
+import 'package:flick/features/spotiflac/spotiflac_packages.dart';
+import 'package:flick/features/spotiflac/spotiflac_runtime.dart';
+import 'package:flick/features/spotiflac/spotiflac_service.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
@@ -44,7 +47,8 @@ final konnektedYoutubeMusicSessionProvider =
       KonnektedYoutubeMusicNotifier.new,
     );
 
-class KonnektedYoutubeMusicNotifier extends AsyncNotifier<YoutubeMusicSession?> {
+class KonnektedYoutubeMusicNotifier
+    extends AsyncNotifier<YoutubeMusicSession?> {
   @override
   Future<YoutubeMusicSession?> build() =>
       ref.read(konnektedYoutubeMusicStoreProvider).read();
@@ -71,7 +75,9 @@ class KonnektedYoutubeMusicNotifier extends AsyncNotifier<YoutubeMusicSession?> 
   }
 }
 
-final konnektedYoutubeMusicAccountProvider = Provider<YoutubeMusicAccount?>((ref) {
+final konnektedYoutubeMusicAccountProvider = Provider<YoutubeMusicAccount?>((
+  ref,
+) {
   final session = ref.watch(konnektedYoutubeMusicSessionProvider).value;
   if (session == null || !session.signedIn) return null;
   final client = http.Client();
@@ -80,7 +86,11 @@ final konnektedYoutubeMusicAccountProvider = Provider<YoutubeMusicAccount?>((ref
     client,
     session,
     onSessionChanged: (updated) {
-      unawaited(ref.read(konnektedYoutubeMusicSessionProvider.notifier).rotated(updated));
+      unawaited(
+        ref
+            .read(konnektedYoutubeMusicSessionProvider.notifier)
+            .rotated(updated),
+      );
     },
   );
 });
@@ -242,9 +252,7 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
         if (generation != _generation) return;
         state = KonnektedDiscoveryState(
           data: previous,
-          error: error is LokalDiscoveryFailure
-              ? error.message
-              : 'YouTube Music couldn’t be reached. Check your connection and try again.',
+          error: error is LokalDiscoveryFailure ? error.message : 'YouTube Music couldn’t be reached. Check your connection and try again.',
           source: source,
         );
       }
@@ -287,9 +295,7 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
       if (generation != _generation) return;
       state = KonnektedDiscoveryState(
         data: previous,
-        error: error is LokalDiscoveryFailure
-            ? error.message
-            : 'Last.fm couldn’t be reached. Check your connection and try again.',
+        error: error is LokalDiscoveryFailure ? error.message : 'Last.fm couldn’t be reached. Check your connection and try again.',
         source: KonnektedDiscoverySource.lastfm,
       );
     }
@@ -406,11 +412,76 @@ class KonnektedLibraryIndex {
 
 /// A place a song you don't own can be played from.
 class _PlaybackSource {
-  const _PlaybackSource(this.name, this.search, this.resolve);
+  const _PlaybackSource(this.name, this.search, this.play);
 
   final String name;
   final Future<List<DiscoveryTrack>> Function(String query) search;
-  final Future<ResolvedDiscoveryAudio> Function(DiscoveryTrack track) resolve;
+
+  /// Gets [track] ready to play (downloaded and checked).
+  final Future<Song> Function(DiscoveryTrack track) play;
+}
+
+/// Your SpotiFLAC add-ons that can play songs right now, as playback sources.
+Future<List<_PlaybackSource>> _spotiflacSources(
+  SpotiflacService service,
+  DiscoveryPlaybackCache Function() cache,
+  void Function(String status)? onStatus,
+) async {
+  final List<SpotiflacAddon> addons;
+  final SpotiflacPackages packages;
+  try {
+    packages = await service.packages;
+    addons = await service.playable();
+  } catch (_) {
+    return const []; // Add-ons unavailable: the other sources still play.
+  }
+  return [
+    for (final addon in addons)
+      _PlaybackSource(
+        addon.displayName,
+        (query) async => [
+          for (final song in await packages.search(addon.key, query))
+            DiscoveryTrack(
+              id: song.id,
+              title: song.title,
+              artist: song.artist,
+              album: song.album,
+              duration: song.duration,
+              source: DiscoverySource.spotiflac,
+              addonId: addon.key,
+              sourceName: addon.displayName,
+            ),
+        ],
+        (found) async {
+          final SpotiflacDownload download;
+          try {
+            download = await packages.download(
+              addon.key,
+              found.id,
+              onProgress: ({percent, message}) {
+                if (message != null && message.isNotEmpty) {
+                  onStatus?.call(message);
+                } else if (percent != null && percent > 0) {
+                  onStatus?.call(
+                    'Getting ${found.title} from ${addon.displayName}… '
+                    '${percent.clamp(0, 100).round()}%',
+                  );
+                }
+              },
+            );
+          } on SpotiflacPackageError catch (error) {
+            throw DiscoveryException(error.message);
+          } on SpotiflacRuntimeError catch (error) {
+            throw DiscoveryException(error.message);
+          }
+          try {
+            return await cache().adopt(found, download.file);
+          } finally {
+            await download.cleanup();
+          }
+        },
+      ),
+  ];
 }
 
 /// Finds [track] somewhere to play it and downloads it, as desktop does for
@@ -422,6 +493,7 @@ Future<Song?> findDiscoverySong(
   DiscoverySettingsStore? store,
   http.Client? client,
   Set<String> Function()? additionalProtectedPaths,
+  SpotiflacService? spotiflac,
 }) async {
   var settings = const DiscoverySettings();
   try {
@@ -452,7 +524,8 @@ Future<Song?> findDiscoverySong(
         protectedPaths: () {
           final player = PlayerService();
           return {
-            if (player.currentSongNotifier.value?.filePath case final String path)
+            if (player.currentSongNotifier.value?.filePath
+                case final String path)
               path,
             ...player.queue.map((s) => s.filePath).whereType<String>(),
             ...player.upNext.map((s) => s.filePath).whereType<String>(),
@@ -461,14 +534,38 @@ Future<Song?> findDiscoverySong(
         },
       ).prepare(direct, audio);
     }
+    DiscoveryPlaybackCache cache() => DiscoveryPlaybackCache(
+      http: web,
+      protectedPaths: () {
+        final player = PlayerService();
+        return {
+          if (player.currentSongNotifier.value?.filePath case final String path)
+            path,
+          ...player.queue.map((s) => s.filePath).whereType<String>(),
+          ...player.upNext.map((s) => s.filePath).whereType<String>(),
+          ...(additionalProtectedPaths?.call() ?? const <String>{}),
+        };
+      },
+    );
     final sources = [
       _PlaybackSource(
         'YouTube Music',
         YoutubeMusicCatalog(web).search,
-        (found) => youtube.resolve(found.id),
+        (found) async =>
+            cache().prepare(found, await youtube.resolve(found.id)),
       ),
       for (final addon in registry.addons)
-        _PlaybackSource(addon.displayName, addon.search, registry.resolve),
+        _PlaybackSource(
+          addon.displayName,
+          addon.search,
+          (found) async =>
+              cache().prepare(found, await registry.resolve(found)),
+        ),
+      ...await _spotiflacSources(
+        spotiflac ?? SpotiflacService.instance,
+        cache,
+        onStatus,
+      ),
     ];
     final candidate = discoveryCandidate(track);
     final queries = recommendationQueries(candidate).take(3).toList();
@@ -494,21 +591,7 @@ Future<Song?> findDiscoverySong(
         if (found == null) continue;
         onStatus?.call('Getting ${track.title} from ${source.name}…');
         try {
-          final audio = await source.resolve(found);
-          return await DiscoveryPlaybackCache(
-            http: web,
-            protectedPaths: () {
-              final player = PlayerService();
-              return {
-                if (player.currentSongNotifier.value?.filePath
-                    case final String path)
-                  path,
-                ...player.queue.map((s) => s.filePath).whereType<String>(),
-                ...player.upNext.map((s) => s.filePath).whereType<String>(),
-                ...(additionalProtectedPaths?.call() ?? const <String>{}),
-              };
-            },
-          ).prepare(found, audio);
+          return await source.play(found);
         } on DiscoveryException catch (error) {
           // This source found it but couldn't play it: try the next one.
           failure = error;

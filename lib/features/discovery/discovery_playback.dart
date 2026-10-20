@@ -13,8 +13,9 @@ import 'discovery_http.dart';
 import 'discovery_models.dart';
 import 'discovery_sources.dart';
 
-typedef DiscoveryAudioProbe =
-    Future<native.AudioProbeFormat> Function(String path);
+typedef DiscoveryAudioProbe = Future<native.AudioProbeFormat> Function(
+  String path,
+);
 
 /// Downloads actual media before engine handoff. Never treats a URL as a File.
 /// The native probe is mandatory; provider file/quality labels are ignored.
@@ -140,44 +141,8 @@ class DiscoveryPlaybackCache {
       final format = sniffAudioContainer(prefix);
       ready = await partial.rename(p.setExtension(partial.path, '.$format'));
       partial = null;
-      native.AudioProbeFormat metadata;
-      try {
-        metadata = await _probe(
-          ready.path,
-        ).timeout(const Duration(seconds: 15));
-      } catch (_) {
-        throw const DiscoveryException(
-          'The native engine could not verify this audio file. Its codec may be unsupported.',
-        );
-      }
-      if (metadata.sampleRate <= 0 ||
-          metadata.channels <= 0 ||
-          metadata.channels > 32) {
-        throw const DiscoveryException(
-          'The downloaded file has no valid audio format.',
-        );
-      }
+      final song = await _verified(track, ready, format, hash);
       if (cancelled) throw const DiscoveryException('Request cancelled.');
-      // A lossy decoder's output sample width is not source bit depth.
-      final bits = format == 'flac' && (metadata.bitsPerSample ?? 0) > 0
-          ? metadata.bitsPerSample
-          : null;
-      final song = Song(
-        id: 'discovery:$hash',
-        title: track.title,
-        artist: track.artist,
-        album: track.album,
-        duration: track.duration ?? Duration.zero,
-        fileType: format.toUpperCase(),
-        sampleRate: metadata.sampleRate,
-        bitDepth: bits,
-        filePath: ready.path,
-        // Keep canonical source metadata separate from the local cache path.
-        // Signed media URLs remain in memory, never in the playback queue.
-        remoteId: track.sourceUrl?.toString() ?? track.id,
-        sourcePackage: 'konnekted.discovery',
-        isExternal: true,
-      );
       ready = null; // Ownership passes to bounded cache / PlayerService.
       return song;
     } finally {
@@ -189,6 +154,102 @@ class DiscoveryPlaybackCache {
         _busy = false;
       }
     }
+  }
+
+  /// Moves [source], a file an add-on already downloaded, into the cache
+  /// and checks it like a downloaded one.
+  Future<Song> adopt(DiscoveryTrack track, File source) async {
+    if (_busy) {
+      throw const DiscoveryException('Another recording is being prepared.');
+    }
+    _busy = true;
+    File? ready;
+    try {
+      final size = await source.length();
+      if (size <= 0 || size > maxFileBytes) {
+        throw const DiscoveryException(
+          'The recording exceeds the download size limit.',
+        );
+      }
+      final root = await _directory();
+      await root.create(recursive: true);
+      await _reserve(root, size);
+      final prefix = await source
+          .openRead(0, 64)
+          .fold<List<int>>([], (all, chunk) => all..addAll(chunk));
+      String format;
+      try {
+        format = sniffAudioContainer(prefix);
+      } on DiscoveryException {
+        // Containers only the add-on's own probe knows: it named the file.
+        format = p.extension(source.path).replaceFirst('.', '').toLowerCase();
+        if (!const {'aac', 'webm', 'wv', 'opus'}.contains(format)) rethrow;
+      }
+      final hash = sha256.convert(utf8.encode(track.key)).toString();
+      final target = p.join(
+        root.path,
+        '$hash-${DateTime.now().microsecondsSinceEpoch}.$format',
+      );
+      try {
+        ready = await source.rename(target);
+      } on FileSystemException {
+        // Another volume: copy instead.
+        ready = await source.copy(target);
+      }
+      final song = await _verified(track, ready, format, hash);
+      ready = null; // Ownership passes to bounded cache / PlayerService.
+      return song;
+    } finally {
+      try {
+        if (ready != null && await ready.exists()) await ready.delete();
+      } finally {
+        _busy = false;
+      }
+    }
+  }
+
+  /// The native probe's verdict on [ready], as a song to play.
+  Future<Song> _verified(
+    DiscoveryTrack track,
+    File ready,
+    String format,
+    String hash,
+  ) async {
+    native.AudioProbeFormat metadata;
+    try {
+      metadata = await _probe(ready.path).timeout(const Duration(seconds: 15));
+    } catch (_) {
+      throw const DiscoveryException(
+        'The native engine could not verify this audio file. Its codec may be unsupported.',
+      );
+    }
+    if (metadata.sampleRate <= 0 ||
+        metadata.channels <= 0 ||
+        metadata.channels > 32) {
+      throw const DiscoveryException(
+        'The downloaded file has no valid audio format.',
+      );
+    }
+    // A lossy decoder's output sample width is not source bit depth.
+    final bits = format == 'flac' && (metadata.bitsPerSample ?? 0) > 0
+        ? metadata.bitsPerSample
+        : null;
+    return Song(
+      id: 'discovery:$hash',
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      duration: track.duration ?? Duration.zero,
+      fileType: format.toUpperCase(),
+      sampleRate: metadata.sampleRate,
+      bitDepth: bits,
+      filePath: ready.path,
+      // Keep canonical source metadata separate from the local cache path.
+      // Signed media URLs remain in memory, never in the playback queue.
+      remoteId: track.sourceUrl?.toString() ?? track.id,
+      sourcePackage: 'konnekted.discovery',
+      isExternal: true,
+    );
   }
 
   Future<void> _reserve(Directory root, int reservation) async {

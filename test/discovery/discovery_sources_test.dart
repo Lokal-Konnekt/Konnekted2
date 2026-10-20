@@ -128,9 +128,8 @@ void main() {
           );
         });
         addTearDown(client.close);
-        final tracks = await YoutubeMusicCatalog(
-          DiscoveryHttp(client),
-        ).search(' fixture artist ');
+        final tracks = await YoutubeMusicCatalog(DiscoveryHttp(client))
+            .search(' fixture artist ');
         expect(tracks, hasLength(1));
         final track = tracks.single;
         expect(track.title, 'Fixture recording');
@@ -145,6 +144,54 @@ void main() {
         expect(track.addonBase, isNull);
       },
     );
+
+    test('search rows carry their largest https cover, enlarged', () {
+      final row = catalogRow();
+      (row['musicResponsiveListItemRenderer'] as Map)['thumbnail'] = {
+        'musicThumbnailRenderer': {
+          'thumbnail': {
+            'thumbnails': [
+              {
+                'url': 'https://lh3.googleusercontent.com/abc=w60-h60-l90-rj',
+                'width': 60,
+              },
+              {
+                'url': 'https://lh3.googleusercontent.com/abc=w120-h120-l90-rj',
+                'width': 120,
+              },
+              {'url': 'http://insecure.example/big.jpg', 'width': 999},
+            ],
+          },
+        },
+      };
+      final track = YoutubeMusicCatalog.parse(catalogResponse([row])).single;
+      expect(
+        track.artwork,
+        'https://lh3.googleusercontent.com/abc=w544-h544-l90-rj',
+      );
+
+      // Video thumbnails aren't resized; rows without one have no cover.
+      expect(
+        YoutubeMusicCatalog.thumbnail({
+          'thumbnail': {
+            'musicThumbnailRenderer': {
+              'thumbnail': {
+                'thumbnails': [
+                  {'url': 'https://i.ytimg.com/vi/x/sddefault.jpg'},
+                ],
+              },
+            },
+          },
+        }),
+        'https://i.ytimg.com/vi/x/sddefault.jpg',
+      );
+      expect(
+        YoutubeMusicCatalog.parse(catalogResponse([catalogRow()]))
+            .single
+            .artwork,
+        isNull,
+      );
+    });
 
     test('empty contents is empty; malformed response is an error', () {
       expect(YoutubeMusicCatalog.parse(catalogResponse([])), isEmpty);
@@ -546,9 +593,8 @@ void main() {
       addTearDown(client.close);
       final cancel = Completer<void>()..complete();
       await expectLater(
-        DiscoveryHttp(
-          client,
-        ).json(Uri.parse('https://addon.example'), cancel: cancel.future),
+        DiscoveryHttp(client)
+            .json(Uri.parse('https://addon.example'), cancel: cancel.future),
         throwsA(discoveryFailure),
       );
     });

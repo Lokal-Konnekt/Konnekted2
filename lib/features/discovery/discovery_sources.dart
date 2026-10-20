@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'discovery_http.dart';
 import 'discovery_models.dart';
 
@@ -155,6 +157,7 @@ class YoutubeMusicCatalog {
                   }),
                   album: album,
                   duration: duration,
+                  artwork: thumbnail(row),
                 ),
               );
             }
@@ -172,6 +175,37 @@ class YoutubeMusicCatalog {
 
     walk(response['contents'], 0);
     return results.values.toList(growable: false);
+  }
+
+  /// The row's cover: the largest https thumbnail, asked for at 544 px when
+  /// it is a resizable Google image (YouTube Music sends 60 or 120 px).
+  @visibleForTesting
+  static String? thumbnail(Map row) {
+    final list = _path(row, [
+      'thumbnail',
+      'musicThumbnailRenderer',
+      'thumbnail',
+      'thumbnails',
+    ]);
+    if (list is! List) return null;
+    String? best;
+    var width = -1;
+    for (final item in list.whereType<Map>()) {
+      final url = discoveryText(item['url'], maxLength: 2000);
+      final uri = url == null ? null : Uri.tryParse(url);
+      if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) continue;
+      final w = item['width'] is num ? (item['width'] as num).toInt() : 0;
+      if (w > width) {
+        width = w;
+        best = url;
+      }
+    }
+    if (best == null) return null;
+    final host = Uri.parse(best).host;
+    if (RegExp(r'(^|\.)googleusercontent\.com$').hasMatch(host)) {
+      return best.replaceFirst(RegExp(r'=w\d+-h\d+'), '=w544-h544');
+    }
+    return best;
   }
 
   static Object? _path(Object? value, List<String> keys) {

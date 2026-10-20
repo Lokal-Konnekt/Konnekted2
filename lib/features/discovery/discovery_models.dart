@@ -15,6 +15,7 @@ class DiscoveryTrack {
     this.addonId,
     this.sourceName,
     this.inlineStream,
+    this.artwork,
   });
 
   final String id;
@@ -30,6 +31,9 @@ class DiscoveryTrack {
   final String? addonId;
   final String? sourceName;
   final Map<String, dynamic>? inlineStream;
+
+  /// The cover the source showed with the song (https), when it had one.
+  final String? artwork;
 
   String get key => '${source.name}:$addonId:$addonBase:$id';
 }

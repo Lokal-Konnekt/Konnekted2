@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `classify_scan_work`, `collect_file_entries`, `collect_playlist_file_entries`, `collect_scan_file_entries_with_progress`, `collect_scan_file_entries`, `directory_is_nomedia_blocked`, `extract_ape_artwork`, `extract_dff_artwork`, `extract_dff_metadata`, `extract_dsf_artwork`, `extract_dsf_metadata`, `extract_lofty_artwork`, `extract_lofty_metadata`, `extract_text_metadata_only`, `extract_wavpack_metadata`, `find_dff_id3_tag`, `id3_replaygains`, `is_in_nomedia_subtree`, `is_supported_audio_path`, `is_supported_playlist_path`, `lofty_replaygains`, `parse_rg_db`, `parse_rg_peak`, `wavpack_dsd_properties`

@@ -35,8 +35,7 @@ class _YoutubeMusicSignInSheetState extends State<YoutubeMusicSignInSheet> {
   Uri get _signInUri => Uri.https('accounts.google.com', '/ServiceLogin', {
     'ltmpl': 'music',
     'service': 'youtube',
-    'continue':
-        'https://www.youtube.com/signin?action_handle_signin=true&app=desktop&next=https://music.youtube.com/',
+    'continue': 'https://www.youtube.com/signin?action_handle_signin=true&app=desktop&next=https://music.youtube.com/',
   });
 
   Future<void> _capture(InAppWebViewController controller, WebUri? uri) async {
@@ -79,14 +78,14 @@ class _YoutubeMusicSignInSheetState extends State<YoutubeMusicSignInSheet> {
         Navigator.of(context).pop(session);
       } else if (mounted) {
         setState(() {
-          _error =
-              'Finish signing in on the page. The sheet will close when YouTube Music confirms your session.';
+          _error = 'Finish signing in on the page. The sheet will close when YouTube Music confirms your session.';
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error = 'Could not read the YouTube Music session. Try signing in again.';
+          _error =
+              'Could not read the YouTube Music session. Try signing in again.';
         });
       }
     } finally {
@@ -113,11 +112,18 @@ class _YoutubeMusicSignInSheetState extends State<YoutubeMusicSignInSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Sign in to YouTube Music',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Sign in to YouTube Music',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       SizedBox(height: 4),
-                      Text('Your session is stored securely on this device.',
-                          style: TextStyle(fontSize: 12)),
+                      Text(
+                        'Your session is stored securely on this device.',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ],
                   ),
                 ),
@@ -132,10 +138,13 @@ class _YoutubeMusicSignInSheetState extends State<YoutubeMusicSignInSheet> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: Text(_error!, style: TextStyle(
-                color: Theme.of(context).colorScheme.error,
-                fontSize: 12,
-              )),
+              child: Text(
+                _error!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
+                ),
+              ),
             ),
           Expanded(
             child: InAppWebView(
@@ -145,14 +154,17 @@ class _YoutubeMusicSignInSheetState extends State<YoutubeMusicSignInSheet> {
                 javaScriptEnabled: true,
                 thirdPartyCookiesEnabled: true,
                 domStorageEnabled: true,
-                useShouldOverrideUrlLoading: true,
                 mediaPlaybackRequiresUserGesture: true,
+                // Drawn as a texture: as a hybrid-composition view the page
+                // stays black under Impeller on Android 12 and later.
+                useHybridComposition: false,
               ),
               onLoadStop: _capture,
               onReceivedError: (controller, request, error) {
                 if (!mounted || request.isForMainFrame != true) return;
-                setState(() => _error =
-                    'The sign-in page could not be loaded. Check your connection and try again.');
+                setState(
+                  () => _error = 'The sign-in page could not be loaded. Check your connection and try again.',
+                );
               },
             ),
           ),

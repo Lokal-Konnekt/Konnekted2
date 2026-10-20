@@ -35,6 +35,7 @@ class KonnektedDiscoveryView extends ConsumerStatefulWidget {
   final Future<Song?> Function(
     LokalDiscoveryTrack track, {
     void Function(String status)? onStatus,
+    Set<String> Function()? additionalProtectedPaths,
   })
   findSong;
 
@@ -105,6 +106,7 @@ class _KonnektedDiscoveryViewState
       // their video IDs directly, with a conservative queue bound for cache use.
       final songs = <Song>[];
       final seen = <String>{};
+      final stagedPaths = <String>{};
       for (final track in tracks.take(8)) {
         final own = _library().match(track);
         if (own != null) {
@@ -117,8 +119,12 @@ class _KonnektedDiscoveryViewState
             onStatus: (status) {
               if (mounted) _say(status);
             },
+            additionalProtectedPaths: () => stagedPaths,
           );
-          if (song != null && seen.add(song.id)) songs.add(song);
+          if (song != null) {
+            if (song.filePath case final String path) stagedPaths.add(path);
+            if (seen.add(song.id)) songs.add(song);
+          }
         } catch (_) {
           // Keep valid tracks in the mix when one recording is unavailable.
         }

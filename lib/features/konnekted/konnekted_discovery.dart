@@ -17,6 +17,7 @@ import 'package:flick/features/spotiflac/spotiflac_service.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/queue_pre_resolver.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -451,8 +452,9 @@ typedef _PlaybackSource = OnlineSource;
 Future<List<_PlaybackSource>> _spotiflacSources(
   SpotiflacService service,
   DiscoveryPlaybackCache Function() cache,
-  void Function(String status)? onStatus,
-) async {
+  void Function(String status)? onStatus, {
+  Future<void>? cancel,
+}) async {
   final List<SpotiflacAddon> addons;
   final SpotiflacPackages packages;
   try {
@@ -499,6 +501,7 @@ Future<List<_PlaybackSource>> _spotiflacSources(
                   );
                 }
               },
+              cancel: cancel,
             );
           } on SpotiflacPackageError catch (error) {
             throw DiscoveryException(error.message);
@@ -540,8 +543,9 @@ Future<List<OnlineSource>> _playbackSources(
   DiscoverySettings settings,
   DiscoveryPlaybackCache Function() cache,
   void Function(String status)? onStatus,
-  SpotiflacService spotiflac,
-) async {
+  SpotiflacService spotiflac, {
+  Future<void>? cancel,
+}) async {
   final registry = DiscoverySourceRegistry(web, settings);
   final youtube = YoutubeAudio(web);
   return [
@@ -552,8 +556,11 @@ Future<List<OnlineSource>> _playbackSources(
         for (final track in await YoutubeMusicCatalog(web).search(query))
           OnlineResult(track),
       ],
-      play: (found) async =>
-          cache().prepare(found, await youtube.resolve(found.id)),
+      play: (found) async => cache().prepare(
+        found,
+        await youtube.resolve(found.id),
+        cancel: cancel,
+      ),
     ),
     for (final addon in registry.addons)
       OnlineSource(
@@ -563,10 +570,13 @@ Future<List<OnlineSource>> _playbackSources(
         results: (query) async => [
           for (final track in await addon.search(query)) OnlineResult(track),
         ],
-        play: (found) async =>
-            cache().prepare(found, await registry.resolve(found)),
+        play: (found) async => cache().prepare(
+          found,
+          await registry.resolve(found),
+          cancel: cancel,
+        ),
       ),
-    ...await _spotiflacSources(spotiflac, cache, onStatus),
+    ...await _spotiflacSources(spotiflac, cache, onStatus, cancel: cancel),
   ];
 }
 
@@ -596,7 +606,8 @@ Future<List<OnlineSource>> onlineSources(
 
 /// Finds [track] somewhere to play it and downloads it, as desktop does for
 /// songs you don't own: YouTube Music first (desktop's default order), then
-/// your add-ons. Null when none has it. [onStatus] hears what's happening.
+/// your add-ons. Null when none has it. [onStatus] hears what's happening;
+/// once [cancel] completes the search stops and an add-on's download with it.
 Future<Song?> findDiscoverySong(
   LokalDiscoveryTrack track, {
   void Function(String status)? onStatus,
@@ -604,7 +615,14 @@ Future<Song?> findDiscoverySong(
   http.Client? client,
   Set<String> Function()? additionalProtectedPaths,
   SpotiflacService? spotiflac,
+  Future<void>? cancel,
 }) async {
+  var cancelled = false;
+  if (cancel != null) unawaited(cancel.then((_) => cancelled = true));
+  void check() {
+    if (cancelled) throw const DiscoveryException('Request cancelled.');
+  }
+
   var settings = const DiscoverySettings();
   try {
     settings = await (store ?? DiscoverySettingsStore()).load();
@@ -619,6 +637,7 @@ Future<Song?> findDiscoverySong(
     if (track.videoId case final videoId?) {
       onStatus?.call('Getting ${track.title} directly from YouTube Music…');
       final audio = await youtube.resolve(videoId);
+      check();
       final direct = DiscoveryTrack(
         id: videoId,
         title: track.title,
@@ -631,7 +650,7 @@ Future<Song?> findDiscoverySong(
       return await _playbackCache(
         web,
         additionalProtectedPaths,
-      ).prepare(direct, audio);
+      ).prepare(direct, audio, cancel: cancel);
     }
     DiscoveryPlaybackCache cache() =>
         _playbackCache(web, additionalProtectedPaths);
@@ -641,12 +660,14 @@ Future<Song?> findDiscoverySong(
       cache,
       onStatus,
       spotiflac ?? SpotiflacService.instance,
+      cancel: cancel,
     );
     final candidate = discoveryCandidate(track);
     final queries = recommendationQueries(candidate).take(3).toList();
     DiscoveryException? failure;
     for (final source in sources) {
       for (final query in queries) {
+        check();
         List<DiscoveryTrack> results;
         try {
           results = await source.search(query);
@@ -664,10 +685,12 @@ Future<Song?> findDiscoverySong(
           ),
         );
         if (found == null) continue;
+        check();
         onStatus?.call('Getting ${track.title} from ${source.name}…');
         try {
           return await source.play(found);
         } on DiscoveryException catch (error) {
+          check();
           // This source found it but couldn't play it: try the next one.
           failure = error;
           break;
@@ -679,4 +702,23 @@ Future<Song?> findDiscoverySong(
   } finally {
     if (owned) transport.close();
   }
+}
+
+/// A queue placeholder for [track], a song you don't own: found on YouTube
+/// Music or your add-ons and downloaded once it's coming up (QueuePreResolver).
+Song discoveryPendingSong(LokalDiscoveryTrack track) {
+  final resolver = QueuePreResolver.shared;
+  return resolver.pending(
+    key: track.key,
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    duration: track.duration,
+    resolve: ({onStatus, cancel}) => findDiscoverySong(
+      track,
+      onStatus: onStatus,
+      cancel: cancel,
+      additionalProtectedPaths: () => resolver.resolvedPaths,
+    ),
+  );
 }

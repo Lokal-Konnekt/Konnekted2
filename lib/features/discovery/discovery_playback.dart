@@ -266,6 +266,12 @@ class DiscoveryPlaybackCache {
     for (final entry in files) {
       if (total + reservation <= maxCacheBytes) break;
       if (protected.contains(entry.file.path)) continue;
+      // Another lookup's download still under way (songs coming up are
+      // looked up side by side).
+      if (p.extension(entry.file.path) == '.part' &&
+          DateTime.now().difference(entry.stat.modified) < downloadTimeout) {
+        continue;
+      }
       await entry.file.delete();
       total -= entry.stat.size;
     }

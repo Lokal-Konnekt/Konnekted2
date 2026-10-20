@@ -26,6 +26,7 @@ class KonnektedDiscoveryView extends ConsumerStatefulWidget {
     required this.onNavigate,
     required this.onPlay,
     this.findSong = findDiscoverySong,
+    this.pendingSong = discoveryPendingSong,
   });
 
   final ValueChanged<KonnektedDestination> onNavigate;
@@ -39,6 +40,10 @@ class KonnektedDiscoveryView extends ConsumerStatefulWidget {
     Set<String> Function()? additionalProtectedPaths,
   })
   findSong;
+
+  /// A queue placeholder for a song you don't have, looked up once it's
+  /// coming up; replaced in tests.
+  final Song Function(LokalDiscoveryTrack track) pendingSong;
 
   @override
   ConsumerState<KonnektedDiscoveryView> createState() =>
@@ -105,15 +110,19 @@ class _KonnektedDiscoveryViewState
         _say('This mix did not return any playable tracks.');
         return;
       }
-      // A local copy costs nothing to stage. Provider tracks are prepared by
-      // their video IDs directly, with a conservative queue bound for cache use.
+      // Plays as soon as the first track is ready (your copy costs nothing;
+      // otherwise it's found by its video ID). The rest are queued as
+      // placeholders, each looked up shortly before its turn.
+      final library = _library();
       final songs = <Song>[];
       final seen = <String>{};
-      final stagedPaths = <String>{};
-      for (final track in tracks.take(8)) {
-        final own = _library().match(track);
+      var index = 0;
+      for (; index < tracks.length && songs.isEmpty; index++) {
+        final track = tracks[index];
+        final own = library.match(track);
         if (own != null) {
-          if (seen.add(own.id)) songs.add(own);
+          songs.add(own);
+          seen.add(own.id);
           continue;
         }
         try {
@@ -122,16 +131,19 @@ class _KonnektedDiscoveryViewState
             onStatus: (status) {
               if (mounted) _say(status);
             },
-            additionalProtectedPaths: () => stagedPaths,
           );
           if (song != null) {
-            if (song.filePath case final String path) stagedPaths.add(path);
-            if (seen.add(song.id)) songs.add(song);
+            songs.add(song);
+            seen.add(song.id);
           }
         } catch (_) {
-          // Keep valid tracks in the mix when one recording is unavailable.
+          // Unavailable: start from the next track instead.
         }
         if (!mounted) return;
+      }
+      for (final track in tracks.skip(index)) {
+        final song = library.match(track) ?? widget.pendingSong(track);
+        if (seen.add(song.id)) songs.add(song);
       }
       if (songs.isEmpty) {
         _say('No tracks from this mix could be prepared.');
@@ -183,13 +195,37 @@ class _KonnektedDiscoveryViewState
         _say('Couldn’t find ${track.title} on YouTube Music or your add-ons.');
       } else {
         ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
-        widget.onPlay(song, [song]);
+        widget.onPlay(song, _shelfQueue(track, song, shelf, library));
       }
     } catch (error) {
       if (mounted) _say(discoveryError(error));
     } finally {
       if (mounted) setState(() => _busy = null);
     }
+  }
+
+  /// The shelf in order with [found] in [track]'s place: your copies of the
+  /// others, else placeholders looked up once they're coming up.
+  List<Song> _shelfQueue(
+    LokalDiscoveryTrack track,
+    Song found,
+    List<LokalDiscoveryTrack> shelf,
+    KonnektedLibraryIndex library,
+  ) {
+    final seen = <String>{found.id};
+    final queue = <Song>[];
+    var placed = false;
+    for (final other in shelf) {
+      if (!placed && other.key == track.key) {
+        queue.add(found);
+        placed = true;
+        continue;
+      }
+      final song = library.match(other) ?? widget.pendingSong(other);
+      if (seen.add(song.id)) queue.add(song);
+    }
+    if (!placed) queue.insert(0, found);
+    return queue;
   }
 
   void _playSongs(List<Song> songs, String missing) {

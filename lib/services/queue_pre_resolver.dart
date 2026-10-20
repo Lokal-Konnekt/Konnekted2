@@ -1,0 +1,379 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flick/models/song.dart';
+import 'package:flick/services/player_service.dart';
+import 'package:flutter/foundation.dart';
+
+// Predictive pre-resolving, as desktop's src/queuePrefetch.js: songs you
+// don't own sit in the queue as placeholders ([Song.isPending]) and the next
+// [QueuePreResolver.lookahead] of them in play order (the shuffle order when
+// shuffled, round again on repeat-all) are found and downloaded ahead of
+// time, the first at once and the rest [QueuePreResolver.stagger] apart, so
+// each starts at once when its turn comes. Songs looked up lately aren't
+// asked for again; a lookup for a song no longer coming up (an add-on's
+// download included) is cancelled. Run when the song changes (a crossfade
+// included) and, once it settles, when the queue does.
+
+/// Finds and downloads a placeholder's song; null when no source has it.
+/// [cancel] completes when the song is no longer wanted.
+typedef PendingResolve = Future<Song?> Function({
+  void Function(String status)? onStatus,
+  Future<void>? cancel,
+});
+
+/// What the pre-resolver needs from the player.
+abstract class PreResolveHost {
+  /// The songs in play order (already shuffled when shuffle is on).
+  List<Song> get playlist;
+  int get currentIndex;
+  bool get repeatAll;
+
+  /// Fires when the song playing changes.
+  Listenable get songChanges;
+
+  /// Fires when the queue, shuffle or repeat changes.
+  Listenable get queueChanges;
+
+  /// Puts [resolved] in place of the placeholder [pendingId], wherever it is
+  /// queued, without interrupting playback.
+  void replacePending(String pendingId, Song resolved);
+}
+
+/// The next [count] songs in play order after the one at [currentIndex],
+/// round again from the start when [repeatAll]. The current song itself is
+/// never among them.
+List<Song> upcomingSongs(
+  List<Song> playlist,
+  int currentIndex, {
+  required bool repeatAll,
+  int count = QueuePreResolver.defaultLookahead,
+}) {
+  if (playlist.isEmpty || currentIndex < 0 || currentIndex >= playlist.length) {
+    return const [];
+  }
+  final current = playlist[currentIndex].id;
+  final out = <Song>[];
+  for (var step = 1; out.length < count && step < playlist.length; step++) {
+    final index = currentIndex + step;
+    if (index >= playlist.length && !repeatAll) break;
+    final song = playlist[index % playlist.length];
+    if (song.id != current) out.add(song);
+  }
+  return out;
+}
+
+class _Lookup {
+  _Lookup({required this.onDemand});
+
+  bool onDemand;
+  bool cancelled = false;
+  final cancel = Completer<void>();
+  final result = Completer<Song?>();
+
+  void stop() {
+    if (cancelled) return;
+    cancelled = true;
+    cancel.complete();
+  }
+}
+
+class QueuePreResolver {
+  QueuePreResolver({
+    this.lookahead = defaultLookahead,
+    this.stagger = const Duration(seconds: 2),
+    this.ttl = const Duration(minutes: 20),
+    this.queueSettle = const Duration(milliseconds: 600),
+    DateTime Function()? now,
+    bool Function(Song song)? stillUsable,
+  }) : _now = now ?? DateTime.now,
+       _stillUsable = stillUsable ?? _fileExists;
+
+  static const defaultLookahead = 4;
+  static const _maxRecent = 100;
+  static const _maxRegistered = 500;
+
+  final int lookahead;
+  final Duration stagger;
+
+  /// How long a song looked up stays good (desktop: 20 minutes).
+  final Duration ttl;
+
+  /// Queue edits come in bursts: look ahead once they settle.
+  final Duration queueSettle;
+  final DateTime Function() _now;
+  final bool Function(Song song) _stillUsable;
+
+  static QueuePreResolver? _shared;
+
+  /// The app's pre-resolver, attached to the [PlayerService] on first use.
+  static QueuePreResolver get shared =>
+      _shared ??= QueuePreResolver()
+        ..attach(PlayerServiceHost(PlayerService()));
+
+  /// What an on-demand lookup is doing ("Getting X from Y…"), else null.
+  final status = ValueNotifier<String?>(null);
+
+  final _registered = <String, PendingResolve>{};
+  final _recent = <String, ({Song song, DateTime at})>{};
+  final _running = <String, _Lookup>{};
+  final _timers = <Timer>[];
+  Timer? _settle;
+  PreResolveHost? _host;
+
+  static bool _fileExists(Song song) {
+    final path = song.filePath;
+    return path != null && File(path).existsSync();
+  }
+
+  /// Placeholder ids being looked up right now (tests, diagnostics).
+  Set<String> get running => Set.unmodifiable(_running.keys);
+
+  /// Files of songs looked up lately: kept by the playback cache.
+  Set<String> get resolvedPaths => {
+    for (final entry in _recent.values)
+      if (entry.song.filePath case final String path) path,
+  };
+
+  void attach(PreResolveHost host) {
+    _host = host;
+    host.songChanges.addListener(_onSongChanged);
+    host.queueChanges.addListener(_onQueueChanged);
+    if (host is PlayerServiceHost) {
+      host.player.pendingSongResolver = resolveNow;
+    }
+  }
+
+  void detach() {
+    final host = _host;
+    if (host == null) return;
+    host.songChanges.removeListener(_onSongChanged);
+    host.queueChanges.removeListener(_onQueueChanged);
+    if (host is PlayerServiceHost &&
+        host.player.pendingSongResolver == resolveNow) {
+      host.player.pendingSongResolver = null;
+    }
+    _host = null;
+  }
+
+  void _onSongChanged() {
+    _settle?.cancel();
+    schedule();
+  }
+
+  void _onQueueChanged() {
+    _settle?.cancel();
+    _settle = Timer(queueSettle, schedule);
+  }
+
+  /// A placeholder for a song still to be found; [resolve] finds it.
+  Song pending({
+    required String key,
+    required String title,
+    required String artist,
+    String? album,
+    Duration? duration,
+    required PendingResolve resolve,
+  }) {
+    final id = 'pending:$key';
+    _registered.remove(id);
+    _registered[id] = resolve;
+    while (_registered.length > _maxRegistered) {
+      _registered.remove(_registered.keys.first);
+    }
+    return Song(
+      id: id,
+      title: title,
+      artist: artist,
+      album: album == null || album.isEmpty ? null : album,
+      duration: duration ?? Duration.zero,
+      fileType: 'ONLINE',
+      sourcePackage: Song.pendingSourcePackage,
+      isExternal: true,
+    );
+  }
+
+  Song? _recentSong(String id) {
+    final entry = _recent[id];
+    if (entry == null) return null;
+    if (_now().difference(entry.at) >= ttl || !_stillUsable(entry.song)) {
+      _recent.remove(id);
+      return null;
+    }
+    return entry.song;
+  }
+
+  void _remember(String id, Song song) {
+    _recent.remove(id);
+    _recent[id] = (song: song, at: _now());
+    while (_recent.length > _maxRecent) {
+      _recent.remove(_recent.keys.first);
+    }
+  }
+
+  void _pruneRecent() {
+    final now = _now();
+    _recent.removeWhere((_, entry) => now.difference(entry.at) >= ttl);
+  }
+
+  List<Song> _upcomingPending() {
+    final host = _host;
+    if (host == null) return const [];
+    final seen = <String>{};
+    return [
+      for (final song in upcomingSongs(
+        host.playlist,
+        host.currentIndex,
+        repeatAll: host.repeatAll,
+        count: lookahead,
+      ))
+        if (song.isPending && seen.add(song.id)) song,
+    ];
+  }
+
+  String? _currentId() {
+    final host = _host;
+    if (host == null) return null;
+    final playlist = host.playlist;
+    final index = host.currentIndex;
+    return index >= 0 && index < playlist.length ? playlist[index].id : null;
+  }
+
+  /// Looks up the placeholders coming up. Returns the ids asked for, in
+  /// order (for the tests).
+  List<String> schedule() {
+    final host = _host;
+    if (host == null) return const [];
+    _pruneRecent();
+    for (final timer in _timers) {
+      timer.cancel();
+    }
+    _timers.clear();
+    final upcoming = _upcomingPending();
+    final keep = {for (final song in upcoming) song.id, ?_currentId()};
+    // No longer coming up: its lookup (an add-on's download, say) stops.
+    for (final id in _running.keys.toList()) {
+      if (!keep.contains(id)) _running.remove(id)?.stop();
+    }
+    final asked = <String>[];
+    var delay = Duration.zero;
+    for (final song in upcoming) {
+      final id = song.id;
+      if (_recentSong(id) case final ready?) {
+        // Looked up lately (queued again, say): no need to ask again.
+        host.replacePending(id, ready);
+        continue;
+      }
+      if (_running.containsKey(id) || !_registered.containsKey(id)) continue;
+      asked.add(id);
+      void start() {
+        if (_running.containsKey(id)) return;
+        // Started later: still coming up in the queue as it is now?
+        if (!_upcomingPending().any((other) => other.id == id)) return;
+        _start(id, onDemand: false);
+      }
+
+      if (delay == Duration.zero) {
+        start();
+      } else {
+        _timers.add(Timer(delay, start));
+      }
+      delay += stagger;
+    }
+    return asked;
+  }
+
+  /// Gets [pending] ready now: playback has reached it. Reuses a lookup
+  /// already under way or done lately. Null when it can't be found.
+  Future<Song?> resolveNow(Song pending) {
+    final id = pending.id;
+    if (_recentSong(id) case final ready?) {
+      _host?.replacePending(id, ready);
+      return Future.value(ready);
+    }
+    final running = _running[id];
+    if (running != null) {
+      running.onDemand = true;
+      return running.result.future;
+    }
+    final lookup = _start(id, onDemand: true);
+    return lookup?.result.future ?? Future.value(null);
+  }
+
+  _Lookup? _start(String id, {required bool onDemand}) {
+    final resolve = _registered[id];
+    if (resolve == null) return null;
+    final lookup = _Lookup(onDemand: onDemand);
+    _running[id] = lookup;
+    unawaited(_run(id, resolve, lookup));
+    return lookup;
+  }
+
+  Future<void> _run(String id, PendingResolve resolve, _Lookup lookup) async {
+    Song? song;
+    try {
+      song = await resolve(
+        cancel: lookup.cancel.future,
+        onStatus: (message) {
+          if (lookup.onDemand && !lookup.cancelled) status.value = message;
+        },
+      );
+    } catch (_) {
+      song = null;
+    }
+    if (identical(_running[id], lookup)) _running.remove(id);
+    if (lookup.cancelled) song = null;
+    if (song != null) {
+      _remember(id, song);
+      _host?.replacePending(id, song);
+    }
+    if (lookup.onDemand) status.value = null;
+    lookup.result.complete(song);
+  }
+
+  /// Forgets everything (tests; another account).
+  void reset() {
+    _settle?.cancel();
+    for (final timer in _timers) {
+      timer.cancel();
+    }
+    _timers.clear();
+    for (final lookup in _running.values) {
+      lookup.stop();
+    }
+    _running.clear();
+    _recent.clear();
+    status.value = null;
+  }
+}
+
+/// The [PlayerService] as a [PreResolveHost].
+class PlayerServiceHost implements PreResolveHost {
+  PlayerServiceHost(this.player);
+
+  final PlayerService player;
+
+  @override
+  List<Song> get playlist => player.playlist;
+
+  @override
+  int get currentIndex => player.currentIndex;
+
+  @override
+  bool get repeatAll => player.loopModeNotifier.value == LoopMode.all;
+
+  @override
+  Listenable get songChanges => player.currentSongNotifier;
+
+  @override
+  late final Listenable queueChanges = Listenable.merge([
+    player.upNextNotifier,
+    player.queueNotifier,
+    player.loopModeNotifier,
+    player.shuffleModeNotifier,
+  ]);
+
+  @override
+  void replacePending(String pendingId, Song resolved) =>
+      player.replacePendingSong(pendingId, resolved);
+}

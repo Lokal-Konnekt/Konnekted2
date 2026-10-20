@@ -120,7 +120,9 @@ void main() {
       label: 'Home music',
       enabled: true,
     );
-    final store = _MemoryStore(const DiscoverySettings(addons: [existing]));
+    final store = _MemoryStore(
+      const DiscoverySettings(youtubeEnabled: true, addons: [existing]),
+    );
     final client = MockClient((_) async => fail('No network request expected'));
     addTearDown(client.close);
 
@@ -134,7 +136,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Home music'), findsOneWidget);
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byKey(const ValueKey('youtube-catalog-enabled')));
+    await tester.pumpAndSettle();
+    expect(store.settings.youtubeEnabled, isFalse);
+    expect(store.settings.addons, hasLength(1));
+
+    await tester.tap(find.byKey(const ValueKey('http-addon-enabled-home')));
     await tester.pumpAndSettle();
     expect(store.settings.addons.single.enabled, isFalse);
 

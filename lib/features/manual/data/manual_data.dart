@@ -31,7 +31,7 @@ const List<ManualSection> kManualSections = [
     entries: [
       ManualEntry(
         title: 'Browsing your library',
-        body: 'The Songs tab lists every track Flick has scanned. Scroll to browse, or use the search bar to filter by title or artist.',
+        body: 'The Songs tab lists every track Lokal has scanned. Scroll to browse, or use the search bar to filter by title or artist.',
       ),
       ManualEntry(
         title: 'Sort & Filter',
@@ -288,7 +288,7 @@ const List<ManualSection> kManualSections = [
       ),
       ManualEntry(
         title: 'Manual bands',
-        body: 'Drag each frequency band slider to shape the sound. The EQ applies system-wide to Flick\'s output.',
+        body: 'Drag each frequency band slider to shape the sound. The EQ applies system-wide to Lokal\'s output.',
       ),
       ManualEntry(
         title: 'Enable / Disable',
@@ -307,7 +307,7 @@ const List<ManualSection> kManualSections = [
       ),
       ManualEntry(
         title: 'Fetching lyrics',
-        body: 'Flick fetches lyrics automatically when available. You can also paste or edit them manually.',
+        body: 'Lokal fetches lyrics automatically when available. You can also paste or edit them manually.',
       ),
       ManualEntry(
         title: 'Sync Studio',
@@ -432,7 +432,7 @@ const List<ManualSection> kManualSections = [
     entries: [
       ManualEntry(
         title: 'Adding the widget',
-        body: 'Long-press your home screen \u2192 Add widget \u2192 Flick. Choose a size and drop it on the home screen.',
+        body: 'Long-press your home screen \u2192 Add widget \u2192 Lokal. Choose a size and drop it on the home screen.',
       ),
       ManualEntry(
         title: 'Controls',

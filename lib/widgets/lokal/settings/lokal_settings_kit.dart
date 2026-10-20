@@ -125,6 +125,7 @@ class LokalSettingRow extends StatelessWidget implements LokalSearchable {
     this.stacked = false,
     this.icon,
     this.toggled,
+    this.selected,
   });
 
   /// An on/off row: an [LokalOnOffPill] that the whole row flips.
@@ -147,6 +148,26 @@ class LokalSettingRow extends StatelessWidget implements LokalSearchable {
     onTap: () => onChanged(!value),
   );
 
+  /// One choice of a list shown as rows: a check on the [selected] one.
+  factory LokalSettingRow.option({
+    Key? key,
+    required String label,
+    String? description,
+    required bool selected,
+    required VoidCallback? onTap,
+    IconData? icon,
+    bool enabled = true,
+  }) => LokalSettingRow(
+    key: key,
+    label: label,
+    description: description,
+    icon: icon,
+    enabled: enabled,
+    onTap: onTap,
+    selected: selected,
+    trailing: _OptionMark(selected: selected),
+  );
+
   final String label;
   final String? description;
   final Widget? trailing;
@@ -157,6 +178,9 @@ class LokalSettingRow extends StatelessWidget implements LokalSearchable {
 
   /// Set for an on/off row, so screen readers announce it as a switch.
   final bool? toggled;
+
+  /// Set for one choice of several, so screen readers announce it.
+  final bool? selected;
 
   @override
   String get searchText => _searchText(label, description);
@@ -228,6 +252,7 @@ class LokalSettingRow extends StatelessWidget implements LokalSearchable {
       child: Semantics(
         button: tap != null && toggled == null,
         toggled: toggled,
+        selected: selected,
         enabled: enabled,
         child: tap == null
             ? body
@@ -292,10 +317,13 @@ class LokalOnOffPill extends StatelessWidget {
 
 /// One choice of a [LokalSegmented].
 class LokalSegment<T> {
-  const LokalSegment(this.value, this.label);
+  const LokalSegment(this.value, this.label, {this.description});
 
   final T value;
   final String label;
+
+  /// Shown under [label] in a [LokalSettingChoice]'s sheet.
+  final String? description;
 }
 
 /// Desktop's segmented control, for three choices or fewer.
@@ -393,6 +421,8 @@ class LokalSettingSlider extends StatefulWidget implements LokalSearchable {
     required this.valueLabel,
     required this.onChanged,
     this.semanticFormatter,
+    this.live = false,
+    this.onValueTap,
   });
 
   final String label;
@@ -404,6 +434,13 @@ class LokalSettingSlider extends StatefulWidget implements LokalSearchable {
   final String Function(double value) valueLabel;
   final ValueChanged<double>? onChanged;
   final String Function(double value)? semanticFormatter;
+
+  /// Calls [onChanged] on every step of a drag too, for a value you hear
+  /// change, like an equalizer band.
+  final bool live;
+
+  /// Tapping the value, e.g. to type an exact one.
+  final VoidCallback? onValueTap;
 
   @override
   String get searchText => _searchText(label, description);
@@ -460,9 +497,25 @@ class _LokalSettingSliderState extends State<LokalSettingSlider> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  widget.valueLabel(value),
-                  style: LokalTheme.label(t, size: 12, color: t.text),
+                GestureDetector(
+                  onTap: widget.onValueTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: widget.onValueTap == null
+                        ? null
+                        : BoxDecoration(
+                            color: t.surface3,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: t.border2),
+                          ),
+                    child: Text(
+                      widget.valueLabel(value),
+                      style: LokalTheme.label(t, size: 12, color: t.text),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -482,7 +535,10 @@ class _LokalSettingSliderState extends State<LokalSettingSlider> {
                 semanticFormatterCallback:
                     widget.semanticFormatter ?? widget.valueLabel,
                 onChanged: enabled
-                    ? (v) => setState(() => _dragging = v)
+                    ? (v) {
+                        setState(() => _dragging = v);
+                        if (widget.live) widget.onChanged!(v);
+                      }
                     : null,
                 onChangeEnd: enabled
                     ? (v) {
@@ -576,6 +632,7 @@ class LokalSettingChoice<T> extends StatelessWidget implements LokalSearchable {
           for (final option in options)
             LokalSheetOption(
               label: option.label,
+              description: option.description,
               selected: option.value == value,
               onTap: () => Navigator.of(context).pop(option),
             ),
@@ -689,10 +746,14 @@ class LokalSettingsSearchField extends StatelessWidget {
     super.key,
     required this.controller,
     this.onChanged,
+    this.hintText = 'Search settings',
+    this.autofocus = false,
   });
 
   final TextEditingController controller;
   final ValueChanged<String>? onChanged;
+  final String hintText;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -710,6 +771,7 @@ class LokalSettingsSearchField extends StatelessWidget {
           builder: (context, value, _) => TextField(
             controller: controller,
             onChanged: onChanged,
+            autofocus: autofocus,
             textInputAction: TextInputAction.search,
             style: TextStyle(
               fontFamily: LokalTheme.sans,
@@ -717,7 +779,7 @@ class LokalSettingsSearchField extends StatelessWidget {
               color: t.text,
             ),
             decoration: InputDecoration(
-              hintText: 'Search settings',
+              hintText: hintText,
               hintStyle: TextStyle(color: t.muted),
               prefixIcon: Icon(Icons.search_rounded, color: t.muted),
               suffixIcon: value.text.isEmpty
@@ -877,4 +939,20 @@ class LokalSettingsHeaderAction extends StatelessWidget {
       child: Icon(icon, size: 20, color: context.lokal.text),
     ),
   );
+}
+
+class _OptionMark extends StatelessWidget {
+  const _OptionMark({required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return Icon(
+      selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+      size: 22,
+      color: selected ? t.accent : t.muted2,
+    );
+  }
 }

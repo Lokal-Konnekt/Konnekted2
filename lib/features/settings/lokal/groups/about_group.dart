@@ -10,12 +10,12 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/manual/screens/manual_screen.dart';
+import 'package:flick/features/settings/lokal/lokal_licences_page.dart';
 import 'package:flick/features/settings/screens/logs_screen.dart';
 import 'package:flick/features/settings/screens/privacy_policy_screen.dart';
 import 'package:flick/features/whats_new/widgets/whats_new_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/tutorial_provider.dart';
-import 'package:flick/widgets/lokal/lokal_logo.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 void _push(BuildContext context, Widget page) => unawaited(
@@ -27,34 +27,22 @@ const lokalReleasesUrl = 'https://github.com/Lokal-Konnekt/Konnekted2/releases';
 
 bool _licencesRegistered = false;
 
-/// The open-source licences, with Flick's MIT licence (this app grew from
-/// Flick) and the bundled Chinese font's added to the packages' own.
+/// The open-source licences, with Flick's MIT licence (the upstream project
+/// this app grew from) and the bundled Chinese font's added to the packages'
+/// own.
 void openLokalLicences(BuildContext context) {
   if (!_licencesRegistered) {
     _licencesRegistered = true;
     LicenseRegistry.addLicense(() async* {
       yield LicenseEntryWithLineBreaks([
-        'Flick',
+        lokalUpstreamPackage,
       ], l10n.mitLicenseCopyrightC2026Flick);
       yield LicenseEntryWithLineBreaks([
         'Noto Sans SC',
       ], await rootBundle.loadString('assets/fonts/NotoSansSC-OFL.txt'));
     });
   }
-  unawaited(
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const LicensePage(
-          applicationName: 'Lokal',
-          applicationVersion: kAppVersion,
-          applicationIcon: Padding(
-            padding: EdgeInsets.all(8),
-            child: LokalLogo(size: 48),
-          ),
-        ),
-      ),
-    ),
-  );
+  _push(context, const LokalLicencesPage());
 }
 
 Future<void> _open(BuildContext context, String url) async {

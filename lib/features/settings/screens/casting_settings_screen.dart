@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/features/settings/widgets/settings_widgets.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/casting/cast_device.dart';
 import 'package:flick/services/casting/chromecast_backend.dart';
@@ -27,25 +27,15 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
     });
   }
 
-  List<Widget> _withDividers(List<Widget> rows) {
-    if (rows.length <= 1) return rows;
-    return [
-      for (var i = 0; i < rows.length; i++) ...[
-        if (i > 0) const SettingsDivider(),
-        rows[i],
-      ],
-    ];
-  }
-
   IconData _iconFor(CastDevice d) => switch (d.backend) {
-        CastBackend.dlna => LucideIcons.radio,
-        CastBackend.chromecast => LucideIcons.cast,
-      };
+    CastBackend.dlna => LucideIcons.radio,
+    CastBackend.chromecast => LucideIcons.cast,
+  };
 
   String _subtitleFor(CastDevice d) => switch (d.backend) {
-        CastBackend.dlna => l10n.dlnaUpnp,
-        CastBackend.chromecast => l10n.chromecast,
-      };
+    CastBackend.dlna => l10n.dlnaUpnp,
+    CastBackend.chromecast => l10n.chromecast,
+  };
 
   Future<void> _onSelect(CastDevice device) async {
     await ref.read(castProvider.notifier).connect(device);
@@ -62,77 +52,55 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final castState = ref.watch(castProvider);
+    final active = castState.activeDevice;
 
-    return SettingsScaffold(
+    return LokalSettingsScaffold(
       title: l10n.casting,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SettingsSectionHeader(l10n.availableDevices),
-          SettingsCard(
-            children: [
-              ActionButton(
-                icon: LucideIcons.refreshCw,
-                title: castState.isDiscovering ? l10n.searching : l10n.scanForDevices,
-                subtitle: l10n.discoversDlnaUpnpAndChromecastReceivers,
-                onTap: castState.isDiscovering
-                    ? null
-                    : () => ref.read(castProvider.notifier).discover(),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          if (castState.devices.isEmpty)
-            SettingsCard(
-              children: [
-                _EmptyState(visible: !castState.isDiscovering),
-              ],
-            )
-          else ...[
-            SettingsCard(
-              children: _withDividers(
-                castState.devices
-                    .map((d) => SelectionSetting(
-                          icon: _iconFor(d),
-                          title: d.name,
-                          subtitle: _subtitleFor(d),
-                          selected: castState.activeDevice?.id == d.id,
-                          onTap: () => _onSelect(d),
-                        ))
-                    .toList(),
-              ),
+      subtitle: l10n.discoversDlnaUpnpAndChromecastReceivers,
+      children: [
+        LokalSettingsSection(
+          title: l10n.availableDevices,
+          children: [
+            LokalSettingRow(
+              label: castState.isDiscovering
+                  ? l10n.searching
+                  : l10n.scanForDevices,
+              icon: Icons.refresh_rounded,
+              enabled: !castState.isDiscovering,
+              onTap: () => ref.read(castProvider.notifier).discover(),
             ),
-          ],
-          if (castState.activeDevice != null) ...[
-            const SizedBox(height: AppConstants.spacingLg),
-            SettingsSectionHeader(l10n.session),
-            SettingsCard(
-              children: [
-                ActionButton(
-                  icon: LucideIcons.powerOff,
-                  title: l10n.stopCasting,
-                  subtitle: l10n.disconnectFrom(castState.activeDevice!.name),
-                  onTap: () => ref.read(castProvider.notifier).disconnect(),
+            if (castState.devices.isEmpty)
+              _EmptyState(visible: !castState.isDiscovering)
+            else
+              for (final d in castState.devices)
+                LokalSettingRow.option(
+                  icon: _iconFor(d),
+                  label: d.name,
+                  description: _subtitleFor(d),
+                  selected: active?.id == d.id,
+                  onTap: () => _onSelect(d),
                 ),
-              ],
-            ),
           ],
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.outputDevice, tag: l10n.android),
-          SettingsCard(
-            children: [_OutputSection()],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.about, tag: l10n.info2),
-          SettingsCard(
+        ),
+        if (active != null)
+          LokalSettingsSection(
+            title: l10n.session,
             children: [
-              _AboutBody(),
+              LokalSettingRow(
+                label: l10n.stopCasting,
+                description: l10n.disconnectFrom(active.name),
+                icon: Icons.power_settings_new_rounded,
+                onTap: () => ref.read(castProvider.notifier).disconnect(),
+              ),
             ],
           ),
-          const SizedBox(height: AppConstants.spacingLg),
-          const SizedBox(height: AppConstants.navBarHeight + 40),
-        ],
-      ),
+        LokalSettingsSection(
+          title: l10n.outputDevice,
+          heading: '${l10n.outputDevice} · ${l10n.android}',
+          children: [_OutputSection()],
+        ),
+        LokalSettingsSection(title: l10n.about, children: [_AboutBody()]),
+      ],
     );
   }
 }
@@ -184,31 +152,28 @@ class _EmptyStateState extends State<_EmptyState>
             turns: _spinner,
             child: Icon(
               LucideIcons.loaderCircle,
-              color: context.adaptiveTextTertiary,
+              color: context.lokal.muted,
               size: 28,
             ),
           )
-        : Icon(
-            LucideIcons.wifiOff,
-            color: context.adaptiveTextTertiary,
-            size: 28,
-          );
+        : Icon(LucideIcons.wifiOff, color: context.lokal.muted, size: 28);
     return Padding(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
+      padding: const EdgeInsets.all(20),
       child: Center(
         child: Column(
           children: [
             icon,
-            const SizedBox(height: AppConstants.spacingSm),
+            const SizedBox(height: 10),
             Text(
               widget.visible
                   ? l10n.noCastingDevicesFoundMakeSure
                   : l10n.searchingTheLocalNetwork,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                    height: 1.4,
-                  ),
+              style: TextStyle(
+                fontSize: 13,
+                color: context.lokal.muted,
+                height: 1.4,
+              ),
             ),
           ],
         ),
@@ -238,12 +203,12 @@ class _OutputSectionState extends State<_OutputSection> {
   }
 
   IconData _iconFor(String? type) => switch (type) {
-        'Speaker' => LucideIcons.speaker,
-        'Wired Headset / AUX' => LucideIcons.headphones,
-        'Bluetooth' => LucideIcons.bluetooth,
-        'System' => LucideIcons.smartphone,
-        _ => LucideIcons.usb,
-      };
+    'Speaker' => LucideIcons.speaker,
+    'Wired Headset / AUX' => LucideIcons.headphones,
+    'Bluetooth' => LucideIcons.bluetooth,
+    'System' => LucideIcons.smartphone,
+    _ => LucideIcons.usb,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -252,22 +217,27 @@ class _OutputSectionState extends State<_OutputSection> {
       builder: (context, snapshot) {
         final routes = snapshot.data ?? const [];
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ActionButton(
-              icon: LucideIcons.refreshCw,
-              title: l10n.refreshOutputs,
-              subtitle: l10n.listAvailableLocalAudioOutputDevices,
+            LokalSettingRow(
+              label: l10n.refreshOutputs,
+              description: l10n.listAvailableLocalAudioOutputDevices,
+              icon: Icons.refresh_rounded,
               onTap: _refresh,
             ),
-            if (routes.isEmpty)
+            if (routes.isEmpty) ...[
+              const LokalSettingsDivider(),
               Padding(
-                padding: EdgeInsets.all(AppConstants.spacingLg),
-                child: Text(l10n.noOutputDevicesAvailable),
-              )
-            else
-              for (var i = 0; i < routes.length; i++) ...[
-                const SettingsDivider(),
-                _outputTile(routes[i]),
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  l10n.noOutputDevicesAvailable,
+                  style: TextStyle(fontSize: 13, color: context.lokal.muted),
+                ),
+              ),
+            ] else
+              for (final route in routes) ...[
+                const LokalSettingsDivider(),
+                _outputTile(route),
               ],
           ],
         );
@@ -277,10 +247,10 @@ class _OutputSectionState extends State<_OutputSection> {
 
   Widget _outputTile(Map<String, dynamic> r) {
     final selected = r['selected'] == true;
-    return SelectionSetting(
+    return LokalSettingRow.option(
       icon: _iconFor(r['type'] as String?),
-      title: r['name'] as String? ?? l10n.output,
-      subtitle: r['type'] as String? ?? '',
+      label: r['name'] as String? ?? l10n.output,
+      description: r['type'] as String? ?? '',
       selected: selected,
       onTap: selected
           ? null
@@ -296,13 +266,15 @@ class _AboutBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
+      padding: const EdgeInsets.all(16),
       child: Text(
         l10n.dlnaAndUpnpReceiversAreControlled,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: context.adaptiveTextSecondary,
-              height: 1.4,
-            ),
+        style: TextStyle(
+          fontFamily: LokalTheme.sans,
+          fontSize: 13.5,
+          color: context.lokal.muted,
+          height: 1.45,
+        ),
       ),
     );
   }

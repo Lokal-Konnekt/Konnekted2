@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/features/manual/data/manual_data.dart';
-import 'package:flick/features/player/widgets/ambient_background.dart';
-import 'package:flick/providers/providers.dart';
-import 'package:flick/widgets/common/glass_search_bar.dart';
-import 'package:flick/l10n/l10n.dart';
 
+import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/features/manual/data/manual_data.dart';
+import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
+
+/// Help: every control, explained, in Lokal's settings look, with a search
+/// across every entry.
 class ManualScreen extends ConsumerStatefulWidget {
   final String? initialSection;
 
@@ -22,7 +23,6 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
   final ScrollController _scrollController = ScrollController();
   final Map<String, GlobalKey> _sectionKeys = {};
   final TextEditingController _searchController = TextEditingController();
-  bool _searching = false;
   String _query = '';
 
   @override
@@ -75,189 +75,54 @@ class _ManualScreenState extends ConsumerState<ManualScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentSong = ref.watch(currentSongProvider);
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
-          ),
-          Positioned.fill(child: AmbientBackground(song: currentSong)),
-          SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: _query.isNotEmpty
-                      ? _buildSearchResults()
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppConstants.spacingMd,
-                            vertical: AppConstants.spacingMd,
-                          ),
-                          itemCount: kManualSections.length,
-                          itemBuilder: (context, i) {
-                            final section = kManualSections[i];
-                            final initiallyExpanded =
-                                widget.initialSection == section.id;
-                            return _ManualSectionCard(
-                              key: _sectionKeys[section.id],
-                              section: section,
-                              initiallyExpanded: initiallyExpanded,
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingMd,
-        vertical: AppConstants.spacingSm,
-      ),
-      child: _searching
-          ? _buildSearchBar()
-          : Stack(
-              alignment: Alignment.center,
-              children: [
-                Center(
-                  child: Text(
-                    l10n.manual,
-                    style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    icon: const Icon(LucideIcons.chevronLeft, size: 22),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: IconButton(
-                    icon: const Icon(LucideIcons.search, size: 20),
-                    onPressed: () => setState(() => _searching = true),
-                  ),
-                ),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Row(
+    final t = context.lokal;
+    final searching = _query.trim().isNotEmpty;
+    final hits = searching ? _searchHits() : const <_SearchHit>[];
+    return LokalSettingsScaffold(
+      title: 'Help',
+      subtitle: 'Every control in Lokal, explained.',
+      controller: _scrollController,
       children: [
-        IconButton(
-          icon: const Icon(LucideIcons.chevronLeft, size: 22),
-          onPressed: () => setState(() {
-            _searching = false;
-            _query = '';
-            _searchController.clear();
-          }),
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.surfaceLight.withValues(alpha: .75),
-                  AppColors.surface.withValues(alpha: .85),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              border: Border.all(color: AppColors.glassBorder),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x33000000),
-                  blurRadius: 16,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: GlassSearchBar(
-              controller: _searchController,
-              autofocus: true,
-              textInputAction: TextInputAction.search,
-              hintText: l10n.searchTheManual,
-              showBackground: false,
-              onChanged: (v) => setState(() => _query = v),
-            ),
+        LokalSettingsBlock(
+          top: 12,
+          child: LokalSettingsSearchField(
+            controller: _searchController,
+            hintText: l10n.searchTheManual,
+            onChanged: (v) => setState(() => _query = v),
           ),
         ),
+        if (!searching)
+          for (final section in kManualSections)
+            LokalSettingsBlock(
+              top: 12,
+              child: _ManualSectionCard(
+                key: _sectionKeys[section.id],
+                section: section,
+                initiallyExpanded: widget.initialSection == section.id,
+              ),
+            )
+        else if (hits.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 40, 24, 0),
+            child: Text(
+              l10n.noMatchesFor(_query),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: t.muted),
+            ),
+          )
+        else
+          for (final hit in hits)
+            LokalSettingsBlock(
+              top: 12,
+              child: LokalSettingsCard(
+                padding: const EdgeInsets.all(16),
+                child: _ManualEntryContent(
+                  sectionLabel: hit.section.title,
+                  entry: hit.entry,
+                ),
+              ),
+            ),
       ],
-    );
-  }
-
-  Widget _buildSearchResults() {
-    final hits = _searchHits();
-    if (hits.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingXl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                LucideIcons.searchX,
-                size: 40,
-                color: AppColors.textTertiary,
-              ),
-              const SizedBox(height: AppConstants.spacingMd),
-              Text(
-                l10n.noMatchesFor(_query),
-                style: TextStyle(
-                  fontFamily: 'GoogleSansFlex',
-                  color: AppColors.textSecondary,
-                  fontSize: 15,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingMd,
-        vertical: AppConstants.spacingMd,
-      ),
-      itemCount: hits.length,
-      itemBuilder: (context, i) {
-        final hit = hits[i];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ManualEntryContent(
-              sectionLabel: hit.section.title,
-              entry: hit.entry,
-            ),
-            if (i < hits.length - 1) ...[
-              const SizedBox(height: AppConstants.spacingMd),
-              Divider(color: AppColors.glassBorder, height: 1),
-              const SizedBox(height: AppConstants.spacingMd),
-            ],
-          ],
-        );
-      },
     );
   }
 }
@@ -287,58 +152,53 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppConstants.spacingMd),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      clipBehavior: Clip.antiAlias,
+    final t = context.lokal;
+    final entries = widget.section.entries;
+    return LokalSettingsCard(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GestureDetector(
-            onTap: () => setState(() => _expanded = !_expanded),
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.spacingLg,
-                vertical: AppConstants.spacingMd,
-              ),
-              child: Row(
-                children: [
-                  Icon(widget.section.icon, size: 20, color: AppColors.accent),
-                  const SizedBox(width: AppConstants.spacingMd),
-                  Expanded(
-                    child: Text(
-                      widget.section.title,
-                      style: TextStyle(
-                        fontFamily: 'GoogleSansFlex',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+          Semantics(
+            button: true,
+            expanded: _expanded,
+            child: InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 15,
+                ),
+                child: Row(
+                  children: [
+                    Icon(widget.section.icon, size: 20, color: t.accent),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        widget.section.title,
+                        style: TextStyle(
+                          fontFamily: LokalTheme.sans,
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: t.text,
+                        ),
                       ),
                     ),
-                  ),
-                  Text(
-                    '${widget.section.entries.length}',
-                    style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
-                      fontSize: 13,
-                      color: AppColors.textTertiary,
+                    Text(
+                      '${entries.length}',
+                      style: LokalTheme.label(t, size: 11.5),
                     ),
-                  ),
-                  const SizedBox(width: AppConstants.spacingSm),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.25 : 0,
-                    duration: AppConstants.animationNormal,
-                    child: Icon(
-                      LucideIcons.chevronRight,
-                      size: 18,
-                      color: AppColors.textTertiary,
+                    const SizedBox(width: 6),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.25 : 0,
+                      duration: AppConstants.animationNormal,
+                      child: Icon(
+                        Icons.chevron_right_rounded,
+                        size: 22,
+                        color: t.muted,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -346,50 +206,23 @@ class _ManualSectionCardState extends State<_ManualSectionCard> {
             duration: AppConstants.animationNormal,
             curve: Curves.easeOutCubic,
             alignment: Alignment.topCenter,
-            child: AnimatedOpacity(
-              duration: AppConstants.animationNormal,
-              opacity: _expanded ? 1.0 : 0.0,
-              child: _expanded
-                  ? Padding(
-                      padding: const EdgeInsets.only(
-                        left: AppConstants.spacingLg,
-                        right: AppConstants.spacingLg,
-                        bottom: AppConstants.spacingMd,
-                      ),
-                      child: Column(
-                        children: [
-                          for (final entry in widget.section.entries) ...[
-                            _ManualEntryCard(entry: entry),
-                            const SizedBox(height: AppConstants.spacingSm),
-                          ],
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
+            child: _expanded
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final entry in entries) ...[
+                        const LokalSettingsDivider(),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: _ManualEntryContent(entry: entry),
+                        ),
+                      ],
+                    ],
+                  )
+                : const SizedBox(width: double.infinity),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ManualEntryCard extends StatelessWidget {
-  final ManualEntry entry;
-
-  const _ManualEntryCard({required this.entry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: _ManualEntryContent(entry: entry),
     );
   }
 }
@@ -402,70 +235,63 @@ class _ManualEntryContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.lokal;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (sectionLabel != null) ...[
-          Text(
-            sectionLabel!.toUpperCase(),
-            style: TextStyle(
-              fontFamily: 'GoogleSansFlex',
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.1,
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(height: 4),
+          Text(sectionLabel!.toUpperCase(), style: LokalTheme.label(t)),
+          const SizedBox(height: 6),
         ],
         Text(
           entry.title,
           style: TextStyle(
-            fontFamily: 'GoogleSansFlex',
+            fontFamily: LokalTheme.sans,
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+            color: t.text,
           ),
         ),
         const SizedBox(height: 6),
         Text(
           entry.body,
           style: TextStyle(
-            fontFamily: 'GoogleSansFlex',
+            fontFamily: LokalTheme.sans,
             fontSize: 13.5,
-            color: AppColors.textSecondary,
+            color: t.muted,
             height: 1.5,
           ),
         ),
         if (entry.tips != null && entry.tips!.isNotEmpty) ...[
-          const SizedBox(height: AppConstants.spacingSm),
-          for (final tip in entry.tips!) ...[
-            Text.rich(
-              TextSpan(
+          const SizedBox(height: 8),
+          for (final tip in entry.tips!)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const WidgetSpan(
-                    alignment: PlaceholderAlignment.middle,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, right: 6),
                     child: Icon(
-                      LucideIcons.lightbulb,
-                      size: 13,
-                      color: AppColors.milestoneAmethyst,
+                      Icons.lightbulb_outline_rounded,
+                      size: 14,
+                      color: t.accent,
                     ),
                   ),
-                  const TextSpan(text: ' '),
-                  TextSpan(
-                    text: tip,
-                    style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
-                      fontSize: 12.5,
-                      color: AppColors.textTertiary,
-                      height: 1.45,
+                  Expanded(
+                    child: Text(
+                      tip,
+                      style: TextStyle(
+                        fontFamily: LokalTheme.sans,
+                        fontSize: 12.5,
+                        color: t.muted,
+                        height: 1.45,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 4),
-          ],
         ],
       ],
     );

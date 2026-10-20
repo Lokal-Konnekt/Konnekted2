@@ -106,6 +106,7 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
   var _page = 0;
   var _generation = 0;
   var _sourceLoaded = false;
+  Future<void>? _sourceRestore;
   String? _account;
 
   static const _sourceKey = 'lokal_discovery_source';
@@ -129,20 +130,26 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
     await load();
   }
 
-  Future<void> _restoreSource() async {
-    if (_sourceLoaded) return;
-    _sourceLoaded = true;
+  Future<void> _restoreSource() {
+    if (_sourceLoaded) return Future<void>.value();
+    return _sourceRestore ??= _restoreSavedSource();
+  }
+
+  Future<void> _restoreSavedSource() async {
     try {
       final preferences = await SharedPreferences.getInstance();
       final value = preferences.getString(_sourceKey);
       final saved = KonnektedDiscoverySource.values
           .where((source) => source.name == value)
           .firstOrNull;
-      if (saved != null) {
+      // A manual source change may have happened while preferences loaded.
+      if (!_sourceLoaded && saved != null) {
         state = KonnektedDiscoveryState(source: saved);
       }
     } catch (_) {
       // Last.fm remains the default.
+    } finally {
+      _sourceLoaded = true;
     }
   }
 

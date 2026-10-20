@@ -411,15 +411,41 @@ class KonnektedLibraryIndex {
 }
 
 /// A place a song you don't own can be played from.
-class _PlaybackSource {
-  const _PlaybackSource(this.name, this.search, this.play);
+/// A song a source found, with its cover when the source has one.
+class OnlineResult {
+  const OnlineResult(this.track, {this.artwork});
 
-  final String name;
-  final Future<List<DiscoveryTrack>> Function(String query) search;
-
-  /// Gets [track] ready to play (downloaded and checked).
-  final Future<Song> Function(DiscoveryTrack track) play;
+  final DiscoveryTrack track;
+  final String? artwork;
 }
+
+/// A place to find songs you don't have: YouTube Music or one of your
+/// add-ons, as desktop's Search page offers them.
+class OnlineSource {
+  const OnlineSource({
+    required this.id,
+    required this.name,
+    required this.results,
+    required this.play,
+    this.addon = false,
+  });
+
+  final String id;
+  final String name;
+  final bool addon;
+
+  /// Songs matching a query, with covers.
+  final Future<List<OnlineResult>> Function(String query) results;
+
+  /// Gets a track ready to play (downloaded and checked).
+  final Future<Song> Function(DiscoveryTrack track) play;
+
+  Future<List<DiscoveryTrack>> search(String query) async => [
+    for (final result in await results(query)) result.track,
+  ];
+}
+
+typedef _PlaybackSource = OnlineSource;
 
 /// Your SpotiFLAC add-ons that can play songs right now, as playback sources.
 Future<List<_PlaybackSource>> _spotiflacSources(
@@ -437,22 +463,27 @@ Future<List<_PlaybackSource>> _spotiflacSources(
   }
   return [
     for (final addon in addons)
-      _PlaybackSource(
-        addon.displayName,
-        (query) async => [
+      OnlineSource(
+        id: 'a-${addon.key}',
+        name: addon.displayName,
+        addon: true,
+        results: (query) async => [
           for (final song in await packages.search(addon.key, query))
-            DiscoveryTrack(
-              id: song.id,
-              title: song.title,
-              artist: song.artist,
-              album: song.album,
-              duration: song.duration,
-              source: DiscoverySource.spotiflac,
-              addonId: addon.key,
-              sourceName: addon.displayName,
+            OnlineResult(
+              DiscoveryTrack(
+                id: song.id,
+                title: song.title,
+                artist: song.artist,
+                album: song.album,
+                duration: song.duration,
+                source: DiscoverySource.spotiflac,
+                addonId: addon.key,
+                sourceName: addon.displayName,
+              ),
+              artwork: song.thumbnail,
             ),
         ],
-        (found) async {
+        play: (found) async {
           final SpotiflacDownload download;
           try {
             download = await packages.download(
@@ -484,6 +515,85 @@ Future<List<_PlaybackSource>> _spotiflacSources(
   ];
 }
 
+/// Where found songs are kept while they play; never deletes what's queued.
+DiscoveryPlaybackCache _playbackCache(
+  DiscoveryHttp web,
+  Set<String> Function()? additionalProtectedPaths,
+) => DiscoveryPlaybackCache(
+  http: web,
+  protectedPaths: () {
+    final player = PlayerService();
+    return {
+      if (player.currentSongNotifier.value?.filePath case final String path)
+        path,
+      ...player.queue.map((s) => s.filePath).whereType<String>(),
+      ...player.upNext.map((s) => s.filePath).whereType<String>(),
+      ...(additionalProtectedPaths?.call() ?? const <String>{}),
+    };
+  },
+);
+
+/// YouTube Music, then your web add-ons, then your SpotiFLAC add-ons:
+/// desktop's order.
+Future<List<OnlineSource>> _playbackSources(
+  DiscoveryHttp web,
+  DiscoverySettings settings,
+  DiscoveryPlaybackCache Function() cache,
+  void Function(String status)? onStatus,
+  SpotiflacService spotiflac,
+) async {
+  final registry = DiscoverySourceRegistry(web, settings);
+  final youtube = YoutubeAudio(web);
+  return [
+    OnlineSource(
+      id: 'yt',
+      name: 'YouTube Music',
+      results: (query) async => [
+        for (final track in await YoutubeMusicCatalog(web).search(query))
+          OnlineResult(track),
+      ],
+      play: (found) async =>
+          cache().prepare(found, await youtube.resolve(found.id)),
+    ),
+    for (final addon in registry.addons)
+      OnlineSource(
+        id: 'w-${addon.displayName}',
+        name: addon.displayName,
+        addon: true,
+        results: (query) async => [
+          for (final track in await addon.search(query)) OnlineResult(track),
+        ],
+        play: (found) async =>
+            cache().prepare(found, await registry.resolve(found)),
+      ),
+    ...await _spotiflacSources(spotiflac, cache, onStatus),
+  ];
+}
+
+/// The sources Search offers for songs you don't have. [onStatus] hears
+/// download progress; [client] stays open until the caller closes it.
+Future<List<OnlineSource>> onlineSources(
+  http.Client client, {
+  void Function(String status)? onStatus,
+  DiscoverySettingsStore? store,
+  SpotiflacService? spotiflac,
+}) async {
+  var settings = const DiscoverySettings();
+  try {
+    settings = await (store ?? DiscoverySettingsStore()).load();
+  } catch (_) {
+    // Unreadable add-on settings still leave YouTube Music.
+  }
+  final web = DiscoveryHttp(client);
+  return _playbackSources(
+    web,
+    settings,
+    () => _playbackCache(web, null),
+    onStatus,
+    spotiflac ?? SpotiflacService.instance,
+  );
+}
+
 /// Finds [track] somewhere to play it and downloads it, as desktop does for
 /// songs you don't own: YouTube Music first (desktop's default order), then
 /// your add-ons. Null when none has it. [onStatus] hears what's happening.
@@ -505,7 +615,6 @@ Future<Song?> findDiscoverySong(
   final transport = client ?? http.Client();
   try {
     final web = DiscoveryHttp(transport);
-    final registry = DiscoverySourceRegistry(web, settings);
     final youtube = YoutubeAudio(web);
     if (track.videoId case final videoId?) {
       onStatus?.call('Getting ${track.title} directly from YouTube Music…');
@@ -519,54 +628,20 @@ Future<Song?> findDiscoverySong(
         source: DiscoverySource.youtubeMusic,
         sourceUrl: Uri.tryParse(track.url),
       );
-      return await DiscoveryPlaybackCache(
-        http: web,
-        protectedPaths: () {
-          final player = PlayerService();
-          return {
-            if (player.currentSongNotifier.value?.filePath
-                case final String path)
-              path,
-            ...player.queue.map((s) => s.filePath).whereType<String>(),
-            ...player.upNext.map((s) => s.filePath).whereType<String>(),
-            ...(additionalProtectedPaths?.call() ?? const <String>{}),
-          };
-        },
+      return await _playbackCache(
+        web,
+        additionalProtectedPaths,
       ).prepare(direct, audio);
     }
-    DiscoveryPlaybackCache cache() => DiscoveryPlaybackCache(
-      http: web,
-      protectedPaths: () {
-        final player = PlayerService();
-        return {
-          if (player.currentSongNotifier.value?.filePath case final String path)
-            path,
-          ...player.queue.map((s) => s.filePath).whereType<String>(),
-          ...player.upNext.map((s) => s.filePath).whereType<String>(),
-          ...(additionalProtectedPaths?.call() ?? const <String>{}),
-        };
-      },
+    DiscoveryPlaybackCache cache() =>
+        _playbackCache(web, additionalProtectedPaths);
+    final sources = await _playbackSources(
+      web,
+      settings,
+      cache,
+      onStatus,
+      spotiflac ?? SpotiflacService.instance,
     );
-    final sources = [
-      _PlaybackSource(
-        'YouTube Music',
-        YoutubeMusicCatalog(web).search,
-        (found) async =>
-            cache().prepare(found, await youtube.resolve(found.id)),
-      ),
-      for (final addon in registry.addons)
-        _PlaybackSource(
-          addon.displayName,
-          addon.search,
-          (found) async =>
-              cache().prepare(found, await registry.resolve(found)),
-        ),
-      ...await _spotiflacSources(
-        spotiflac ?? SpotiflacService.instance,
-        cache,
-        onStatus,
-      ),
-    ];
     final candidate = discoveryCandidate(track);
     final queries = recommendationQueries(candidate).take(3).toList();
     DiscoveryException? failure;

@@ -19,6 +19,7 @@ import 'package:flick/features/search/models/search_category.dart';
 import 'package:flick/features/search/models/global_search_results.dart';
 import 'package:flick/features/search/providers/global_search_provider.dart';
 import 'package:flick/features/search/providers/search_filter_provider.dart';
+import 'package:flick/features/search/widgets/online_search_section.dart';
 import 'package:flick/features/search/widgets/search_filter_chips.dart';
 import 'package:flick/features/artists/screens/artist_detail_screen.dart';
 import 'package:flick/features/albums/screens/album_detail_screen.dart';
@@ -94,13 +95,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     });
 
     final enabled = ref.watch(searchFilterProvider);
-    final isAllEnabled =
-        enabled.length == SearchCategory.values.length;
+    final isAllEnabled = enabled.length == SearchCategory.values.length;
     final repoQuery = _debouncedQuery;
     final hasInput = _controller.text.trim().isNotEmpty;
     final hasQuery = repoQuery.isNotEmpty;
-    final resultsAsync =
-        hasQuery ? ref.watch(globalSearchResultsProvider(repoQuery)) : null;
+    final resultsAsync = hasQuery
+        ? ref.watch(globalSearchResultsProvider(repoQuery))
+        : null;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -204,7 +205,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           (c) => enabled.contains(c) && results.hasResultsFor(c),
         );
         if (!anyEnabledHasResults) {
-          return _buildNoResults(context, results.query);
+          // Nothing in the library: what's online still shows under it.
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: _buildNoResults(context, results.query),
+                ),
+              ),
+              OnlineSearchSection(query: results.query),
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+            ],
+          );
         }
         return _buildGroupedResults(context, results, enabled);
       },
@@ -348,13 +361,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (!enabled.contains(cat) || count == 0) return;
       final expanded = _isExpanded(cat);
       final showSeeAll = count > _previewLimit;
-      slivers.add(_SectionHeader(
-        category: cat,
-        count: count,
-        showSeeAll: showSeeAll,
-        expanded: expanded,
-        onToggle: () => _toggleExpanded(cat),
-      ));
+      slivers.add(
+        _SectionHeader(
+          category: cat,
+          count: count,
+          showSeeAll: showSeeAll,
+          expanded: expanded,
+          onToggle: () => _toggleExpanded(cat),
+        ),
+      );
       slivers.addAll(buildItems());
       if (showSeeAll && !expanded) {
         slivers.add(
@@ -548,6 +563,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return CustomScrollView(
       slivers: [
         ...slivers,
+        OnlineSearchSection(query: results.query),
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
       ],
     );
@@ -599,7 +615,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _openPlaylist(BuildContext context, dynamic playlist) {
     Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => PlaylistDetailScreen(playlist: playlist)),
+      MaterialPageRoute(
+        builder: (_) => PlaylistDetailScreen(playlist: playlist),
+      ),
     );
   }
 }
@@ -667,7 +685,10 @@ class _SectionHeader extends StatelessWidget {
                 onTap: onToggle,
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
                   child: Text(
                     expanded ? l10n.showLess : l10n.seeAll,
                     style: TextStyle(
@@ -951,7 +972,11 @@ class _FolderTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.glassBorder),
         ),
-        child: Icon(LucideIcons.folder, size: 22, color: AppColors.accent.withValues(alpha: 0.9)),
+        child: Icon(
+          LucideIcons.folder,
+          size: 22,
+          color: AppColors.accent.withValues(alpha: 0.9),
+        ),
       ),
       title: Text(
         name,
@@ -998,8 +1023,9 @@ class _PlaylistTile extends ConsumerWidget {
     Widget leading;
     if (songsState != null) {
       final ids = (playlist.songIds as List).cast<String>().toSet();
-      final playlistSongs =
-          songsState.songs.where((s) => ids.contains(s.id)).toList();
+      final playlistSongs = songsState.songs
+          .where((s) => ids.contains(s.id))
+          .toList();
       final arts = playlistSongs
           .map((s) => s.albumArt)
           .where((a) => a != null && a.isNotEmpty)

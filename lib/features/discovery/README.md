@@ -1,29 +1,13 @@
 # T3: opt-in online discovery
 
-## Shell integration / exported entry points
+## Shell integration
 
-```dart
-import 'package:flick/features/discovery/discovery_screen.dart';
-
-const DiscoveryScreen()
-// Also exported from the same file:
-const SourceSettingsScreen()
-```
-
-Add `const DiscoveryScreen()` to the shell's destinations. It owns its Scaffold,
-app bar, source configuration route and search state. The host must initialize
-the existing app normally (`RustLib.init()`, database and player infrastructure)
-and retain its normal player controls/mini-player. No PlayerService patch is
-needed for this cached-playback implementation. The account Discovery path also
-uses `flutter_inappwebview` for interactive Google sign-in. The guest catalog
-and addon search paths continue to use the existing `http`, secure storage,
+The old standalone Discovery search/settings screen has been removed. New Search
+is `package:flick/features/search/screens/search_screen.dart`; its online results
+use the canonical `Settings → Online sources → HTTP music add-ons` editor and the
+same secure `DiscoverySettingsStore` record. The guest catalog and HTTP add-on
+search/playback paths continue to use the existing `http`, secure storage,
 path_provider, crypto, path and url_launcher dependencies.
-
-`DiscoveryScreen` accepts optional `http.Client` and `DiscoverySettingsStore`
-injections; injected clients remain caller-owned. `SourceSettingsScreen` accepts
-optional initial settings/store/client and returns saved `DiscoverySettings` through
-`Navigator.pop`. Reopening discovery loads persisted settings. An already mounted
-discovery screen applies changes made through its own settings route immediately.
 
 ## Account Discovery (Konnekted Home)
 

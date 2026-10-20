@@ -79,7 +79,6 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
           SliverToBoxAdapter(
             child: KonnektedHomeTopBar(
               greeting: ref.watch(konnektedGreetingProvider).value,
-              onSearch: () => onNavigate(KonnektedDestination.search),
               onSettings: () => onNavigate(KonnektedDestination.settings),
               onAppearance: () => onNavigate(
                 const KonnektedDestination.settingsAt(
@@ -205,14 +204,12 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
 class KonnektedHomeTopBar extends StatelessWidget {
   const KonnektedHomeTopBar({
     super.key,
-    required this.onSearch,
     required this.onSettings,
     required this.onAppearance,
     this.greeting,
     this.now,
   });
 
-  final VoidCallback onSearch;
   final VoidCallback onSettings;
 
   /// Opens Appearance, from the logo.
@@ -250,12 +247,6 @@ class KonnektedHomeTopBar extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              LokalGlassButton(
-                semanticLabel: 'Search your music',
-                onPressed: onSearch,
-                child: Icon(Icons.search_rounded, color: context.lokal.text),
-              ),
-              const SizedBox(width: 8),
               Tooltip(
                 message: 'Settings',
                 excludeFromSemantics: true,

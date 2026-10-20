@@ -62,8 +62,10 @@ uses the existing double-back-to-exit convention.
   `favoritesProvider`, and unfiltered `songsProvider` library data sorted by
   added date. Tapping a song passes the real shelf as the playback queue.
 - Flow hero → `package:flick/features/flow/flow_screen.dart`, `const FlowScreen()`.
-- Explore → `package:flick/features/discovery/discovery_screen.dart`,
-  `const DiscoveryScreen()`; mounted only after selecting Explore.
+- Explore → `package:flick/features/search/screens/search_screen.dart`,
+  `const SearchScreen()`; mounted only after selecting Explore. Its online
+  section uses the canonical Online sources settings, including HTTP music
+  add-ons.
 - Library → inherited songs, albums, artists, folders, playlists, favorites,
   recently played, recently added, scanning/library settings, and the inherited
   listening hub (smart mixes and recaps remain accessible).

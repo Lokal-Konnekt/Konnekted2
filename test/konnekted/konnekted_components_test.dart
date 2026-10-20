@@ -173,6 +173,7 @@ void main() {
         findsOneWidget,
       );
       // Top right opens Settings; the logo, top left, opens Appearance.
+      expect(find.bySemanticsLabel('Search your music'), findsNothing);
       await tester.tap(find.bySemanticsLabel('Settings'));
       await tester.tap(find.bySemanticsLabel('Appearance'));
       expect(find.byTooltip('Settings'), findsOneWidget);

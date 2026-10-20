@@ -134,4 +134,14 @@ void main() {
     expect(find.text('Licences'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('canonical Online sources exposes HTTP add-ons', (tester) async {
+    await tester.pumpWidget(
+      _app(const LokalSettingsGroupPage(group: LokalSettingsGroup.integrations)),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('HTTP music add-ons'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

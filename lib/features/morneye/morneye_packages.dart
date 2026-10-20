@@ -547,18 +547,34 @@ class MorneyePackages {
       }
     }
     const legacyRegistryUrl = 'https://raw.githubusercontent.com/spotiflacapp/SpotiFLAC-Extension/main/registry.json';
-    final hadLegacyRegistry = _repos.any((r) => r.url == legacyRegistryUrl);
-    final hasCurrentRegistry = _repos.any((r) => r.url == morneyeRegistry);
-    if (hadLegacyRegistry) _repos.removeWhere((r) => r.url == legacyRegistryUrl);
-    if (!hasCurrentRegistry) {
+    String? oldDefaultId;
+    String? currentDefaultId;
+    for (final repository in _repos) {
+      if (repository.url == legacyRegistryUrl) oldDefaultId = repository.id;
+      if (repository.url == morneyeRegistry) currentDefaultId = repository.id;
+    }
+    if (oldDefaultId != null) {
+      _repos.removeWhere((r) => r.url == legacyRegistryUrl);
+    }
+    if (currentDefaultId == null) {
+      currentDefaultId = _sha256(utf8.encode(morneyeRegistry)).substring(0, 16);
       _repos.insert(0, MorneyeRepository(
-        id: _sha256(utf8.encode(morneyeRegistry)).substring(0, 16),
+        id: currentDefaultId,
         url: morneyeRegistry,
         name: 'Morneye official',
       ));
     }
+    var migratedAddonRepositoryIds = false;
+    if (oldDefaultId != null) {
+      for (final addon in _addons.values) {
+        if (addon.repositoryId == oldDefaultId) {
+          addon.repositoryId = currentDefaultId;
+          migratedAddonRepositoryIds = true;
+        }
+      }
+    }
     _loaded = true;
-    if (hadLegacyRegistry) _save();
+    if (oldDefaultId != null || migratedAddonRepositoryIds) _save();
   }
 
   void _save() => morneyeAtomicWrite(

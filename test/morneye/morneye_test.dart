@@ -584,7 +584,18 @@ void main() {
           'repositories': [
             {'id': 'old-default', 'url': oldRegistry, 'name': 'Old registry'},
           ],
-          'packages': [],
+          'packages': [
+            {
+              'key': morneyeKeyOf('qobuz'),
+              'name': 'qobuz',
+              'manifest': manifestFor('qobuz'),
+              'digest': 'test-digest',
+              'installed_at': 1,
+              'methods': ['initialize', 'searchTracks', 'download'],
+              'repository_id': 'old-default',
+              'enabled': true,
+            },
+          ],
         }),
       );
       final migrated = MorneyePackages(
@@ -598,6 +609,10 @@ void main() {
       expect(migrated.repositories, hasLength(1));
       expect(migrated.repositories.single.url, morneyeRegistry);
       expect(migrated.repositories.single.name, 'Morneye official');
+      expect(
+        migrated.find(morneyeKeyOf('qobuz'))?.repositoryId,
+        migrated.repositories.single.id,
+      );
       await migrated.shutdown();
     });
 

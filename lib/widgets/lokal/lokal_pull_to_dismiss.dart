@@ -6,19 +6,30 @@ import 'package:flutter/services.dart';
 /// (design flow §5.2): it follows the finger 1:1, with 0.5x resistance past
 /// 40% of its height, closes past 25% or a 700 dp/s fling, and otherwise
 /// springs back with desktop's full-screen spring. What is behind it dims
-/// less the further it is pulled. Pulling up instead calls [onPullUp].
+/// less the further it is pulled. Pulling up instead calls [onPullUp], or,
+/// when [onPullUpUpdate] is given, hands the whole upward gesture over so what
+/// sits above can follow the finger (Now Playing's queue reveal).
 class LokalPullToDismiss extends StatefulWidget {
   const LokalPullToDismiss({
     super.key,
     required this.child,
     required this.onDismiss,
     this.onPullUp,
+    this.onPullUpUpdate,
+    this.onPullUpEnd,
     this.isBlocked,
   });
 
   final Widget child;
   final VoidCallback onDismiss;
   final VoidCallback? onPullUp;
+
+  /// A drag that starts upward is passed on here, every movement of it
+  /// (logical px, positive upward), instead of moving the sheet.
+  final ValueChanged<double>? onPullUpUpdate;
+
+  /// The end of such a drag, with its velocity (logical px/s, positive up).
+  final ValueChanged<double>? onPullUpEnd;
 
   /// While this returns true (another gesture owns the finger, such as the
   /// cover carousel) drags are ignored.
@@ -35,6 +46,10 @@ class _LokalPullToDismissState extends State<LokalPullToDismiss>
   );
   double _upTravel = 0;
 
+  /// Whether the current drag was handed to [LokalPullToDismiss.onPullUpUpdate]
+  /// (true), moves the sheet (false), or has not shown a direction yet.
+  bool? _handedUp;
+
   bool get _blocked => widget.isBlocked?.call() ?? false;
 
   @override
@@ -46,9 +61,19 @@ class _LokalPullToDismissState extends State<LokalPullToDismiss>
   void _start(DragStartDetails _) {
     _offset.stop();
     _upTravel = 0;
+    _handedUp = null;
   }
 
   void _update(DragUpdateDetails d) {
+    if (_handedUp == null) {
+      if (_blocked) return;
+      _handedUp =
+          widget.onPullUpUpdate != null && d.delta.dy < 0 && _offset.value <= 0;
+    }
+    if (_handedUp!) {
+      widget.onPullUpUpdate?.call(-d.delta.dy);
+      return;
+    }
     if (_blocked) return;
     final height = context.size?.height ?? MediaQuery.sizeOf(context).height;
     final resistance = _offset.value > height * .4 ? .5 : 1.0;
@@ -62,6 +87,12 @@ class _LokalPullToDismissState extends State<LokalPullToDismiss>
   }
 
   void _end(DragEndDetails d) {
+    final handedUp = _handedUp ?? false;
+    _handedUp = null;
+    if (handedUp) {
+      widget.onPullUpEnd?.call(-(d.primaryVelocity ?? 0));
+      return;
+    }
     if (_blocked) return;
     final height = context.size?.height ?? MediaQuery.sizeOf(context).height;
     final velocity = d.primaryVelocity ?? 0;
@@ -120,6 +151,10 @@ class _LokalPullToDismissState extends State<LokalPullToDismiss>
         onVerticalDragStart: _start,
         onVerticalDragUpdate: _update,
         onVerticalDragEnd: _end,
+        onVerticalDragCancel: () {
+          if (_handedUp ?? false) widget.onPullUpEnd?.call(0);
+          _handedUp = null;
+        },
         child: widget.child,
       ),
     );

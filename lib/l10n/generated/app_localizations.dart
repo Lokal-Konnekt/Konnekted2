@@ -98,12 +98,6 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:85
-  ///
-  /// In en, this message translates to:
-  /// **'A draggable overlay shows while using other apps'**
-  String get aDraggableOverlayShowsWhileUsing;
-
   /// lib/features/recap/screens/listening_recap_screen.dart:476
   ///
   /// In en, this message translates to:
@@ -121,12 +115,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A playlist with this name already exists'**
   String get aPlaylistWithThisNameAlready;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:470
-  ///
-  /// In en, this message translates to:
-  /// **'A premium music player with custom UAC 2.0 powered by Rust for the best audio experience.'**
-  String get aPremiumMusicPlayerWithCustom;
 
   /// lib/features/settings/screens/visualizer_settings_screen.dart:87
   ///
@@ -175,12 +163,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'About'**
   String get about;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:419
-  ///
-  /// In en, this message translates to:
-  /// **'About Flick Player'**
-  String get aboutFlickPlayer;
 
   /// lib/features/albums/screens/album_detail_screen.dart:519
   ///
@@ -241,18 +223,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Active days'**
   String get activeDays;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:276
-  ///
-  /// In en, this message translates to:
-  /// **'Active Queue'**
-  String get activeQueue;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:211
-  ///
-  /// In en, this message translates to:
-  /// **'Adaptive'**
-  String get adaptive;
 
   /// lib/features/settings/screens/equalizer_screen.dart:3016
   ///
@@ -440,12 +410,6 @@ abstract class AppLocalizations {
   /// **'Adds pre-drive and catches peaks against a final output ceiling.'**
   String get addsPreDriveAndCatchesPeaks;
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:63
-  ///
-  /// In en, this message translates to:
-  /// **'Adjust audio frequencies'**
-  String get adjustAudioFrequencies;
-
   /// lib/features/settings/screens/player_layout_settings_screen.dart:256
   ///
   /// In en, this message translates to:
@@ -458,29 +422,11 @@ abstract class AppLocalizations {
   /// **'Adjust metadata text size in immersive mode'**
   String get adjustMetadataTextSizeInImmersive;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:275
-  ///
-  /// In en, this message translates to:
-  /// **'Adjust spacing between buttons'**
-  String get adjustSpacingBetweenButtons;
-
   /// lib/features/settings/widgets/mini_player_customization.dart:198
   ///
   /// In en, this message translates to:
   /// **'Adjust the mini player surface'**
   String get adjustTheMiniPlayerSurface;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:259
-  ///
-  /// In en, this message translates to:
-  /// **'Adjust the size of the bottom bar'**
-  String get adjustTheSizeOfTheBottom;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:291
-  ///
-  /// In en, this message translates to:
-  /// **'Adjust the size of the icons'**
-  String get adjustTheSizeOfTheIcons;
 
   /// lib/models/advance_list_order.dart:15
   ///
@@ -644,24 +590,6 @@ abstract class AppLocalizations {
   /// **'{arg1} albums • {arg2} songs'**
   String albumsSongs(Object arg1, Object arg2);
 
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:69
-  ///
-  /// In en, this message translates to:
-  /// **'Align lyric text to the center'**
-  String get alignLyricTextToTheCenter;
-
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:57
-  ///
-  /// In en, this message translates to:
-  /// **'Align lyric text to the left edge'**
-  String get alignLyricTextToTheLeft;
-
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:81
-  ///
-  /// In en, this message translates to:
-  /// **'Align lyric text to the right edge'**
-  String get alignLyricTextToTheRight;
-
   /// lib/features/search/widgets/search_filter_chips.dart:60
   ///
   /// In en, this message translates to:
@@ -745,12 +673,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Alphabetical'**
   String get alphabetical;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:193
-  ///
-  /// In en, this message translates to:
-  /// **'Alphabetical index rail on the songs screen'**
-  String get alphabeticalIndexRailOnTheSongs;
 
   /// lib/features/settings/widgets/mini_player_customization.dart:234
   ///
@@ -842,47 +764,17 @@ abstract class AppLocalizations {
   /// **'Android USB route'**
   String get androidUsbRoute;
 
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:166
-  ///
-  /// In en, this message translates to:
-  /// **'Animated Album Art'**
-  String get animatedAlbumArt;
-
   /// lib/features/settings/screens/visualizer_settings_screen.dart:65
   ///
   /// In en, this message translates to:
   /// **'Animation Style'**
   String get animationStyle;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:194
-  ///
-  /// In en, this message translates to:
-  /// **'Animation style and frequency focus'**
-  String get animationStyleAndFrequencyFocus;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:87
-  ///
-  /// In en, this message translates to:
-  /// **'Animations'**
-  String get animations;
-
-  /// lib/features/settings/screens/settings_screen.dart:187
-  ///
-  /// In en, this message translates to:
-  /// **'Animations and haptic feedback'**
-  String get animationsAndHapticFeedback;
-
   /// lib/features/settings/widgets/lastfm_settings_tile.dart:447
   ///
   /// In en, this message translates to:
   /// **'API Key'**
   String get apiKey;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:598
-  ///
-  /// In en, this message translates to:
-  /// **'App Info'**
-  String get appInfo;
 
   /// Application name. Used by MaterialApp.onGenerateTitle and shown in the Android task switcher.
   ///
@@ -895,12 +787,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Appearance'**
   String get appearance;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:394
-  ///
-  /// In en, this message translates to:
-  /// **'Appears in the overflow menu'**
-  String get appearsInTheOverflowMenu;
 
   /// lib/features/albums/screens/album_detail_screen.dart:417
   ///
@@ -919,12 +805,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Apple Music lookup failed. Check your connection.'**
   String get appleMusicLookupFailedCheckYour;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:168
-  ///
-  /// In en, this message translates to:
-  /// **'Apple Music Motion Art on albums plus pan/zoom, ambient glow and smooth fade on heroes'**
-  String get appleMusicMotionArtOnAlbums;
 
   /// lib/features/settings/screens/equalizer_screen.dart:497
   ///
@@ -997,12 +877,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Are you sure you want to reset all UAC2 preferences? This action cannot be undone.'**
   String get areYouSureYouWantTo3;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:137
-  ///
-  /// In en, this message translates to:
-  /// **'Art Resolution'**
-  String get artResolution;
 
   /// lib/features/albums/widgets/identify_album_sheet.dart:254
   ///
@@ -1112,12 +986,6 @@ abstract class AppLocalizations {
   /// **'Attack'**
   String get attack;
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:40
-  ///
-  /// In en, this message translates to:
-  /// **'Audio'**
-  String get audio;
-
   /// lib/features/settings/screens/uac2_settings_screen.dart:714
   ///
   /// In en, this message translates to:
@@ -1141,12 +1009,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Audio Signal Path'**
   String get audioSignalPath;
-
-  /// lib/features/settings/screens/support_flick_screen.dart:173
-  ///
-  /// In en, this message translates to:
-  /// **'Audio Testing Equipment'**
-  String get audioTestingEquipment;
 
   /// lib/features/milestone/screens/milestones_screen.dart:509
   ///
@@ -1178,35 +1040,17 @@ abstract class AppLocalizations {
   /// **'Auto Bit-perfect for USB DACs'**
   String get autoBitPerfectForUsbDacs;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:77
-  ///
-  /// In en, this message translates to:
-  /// **'Auto Collapse'**
-  String get autoCollapse;
-
   /// lib/features/player/screens/lyrics_sync_screen.dart:1689
   ///
   /// In en, this message translates to:
   /// **'Auto-fill'**
   String get autoFill;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:137
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-Focus Search'**
-  String get autoFocusSearch;
-
   /// lib/features/settings/screens/player_layout_settings_screen.dart:216
   ///
   /// In en, this message translates to:
   /// **'Auto Full View'**
   String get autoFullView;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:205
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-hide Timeout'**
-  String get autoHideTimeout;
 
   /// lib/features/settings/widgets/apple_music_settings_tile.dart:38
   ///
@@ -1232,12 +1076,6 @@ abstract class AppLocalizations {
   /// **'Auto-show full view after inactivity'**
   String get autoShowFullViewAfterInactivity;
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:170
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-show the Spotify-style immersive full view after inactivity'**
-  String get autoShowTheSpotifyStyleImmersive;
-
   /// lib/features/settings/screens/uac2_preferences_screen.dart:1731
   ///
   /// In en, this message translates to:
@@ -1261,24 +1099,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Automatic'**
   String get automatic;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:173
-  ///
-  /// In en, this message translates to:
-  /// **'Automatic Update Checks'**
-  String get automaticUpdateChecks;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:138
-  ///
-  /// In en, this message translates to:
-  /// **'Automatically open keyboard when switching to search'**
-  String get automaticallyOpenKeyboardWhenSwitchingTo;
-
-  /// lib/features/settings/screens/queue_settings_screen.dart:73
-  ///
-  /// In en, this message translates to:
-  /// **'Autoplay on Queue End'**
-  String get autoplayOnQueueEnd;
 
   /// lib/features/settings/screens/casting_settings_screen.dart:70
   ///
@@ -1333,12 +1153,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Background Opacity'**
   String get backgroundOpacity;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:49
-  ///
-  /// In en, this message translates to:
-  /// **'Background Playback Anchor'**
-  String get backgroundPlaybackAnchor;
 
   /// lib/features/settings/screens/equalizer_screen.dart:3563
   ///
@@ -1424,23 +1238,11 @@ abstract class AppLocalizations {
   /// **'{arg1} bands · preamp {arg2} dB · {arg3}'**
   String bandsPreampDb(Object arg1, Object arg2, Object arg3);
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:258
-  ///
-  /// In en, this message translates to:
-  /// **'Bar Height'**
-  String get barHeight;
-
   /// lib/features/settings/screens/visualizer_settings_screen.dart:70
   ///
   /// In en, this message translates to:
   /// **'Bars'**
   String get bars;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:80
-  ///
-  /// In en, this message translates to:
-  /// **'Base album-art size for each song card'**
-  String get baseAlbumArtSizeForEach;
 
   /// lib/features/settings/screens/equalizer_screen.dart:1665
   ///
@@ -1652,12 +1454,6 @@ abstract class AppLocalizations {
   /// **'Bold, saturated colors from album art.'**
   String get boldSaturatedColorsFromAlbumArt;
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:121
-  ///
-  /// In en, this message translates to:
-  /// **'Boost beyond 100% (up to 200%)'**
-  String get boostBeyond100UpTo200;
-
   /// lib/features/settings/widgets/mini_player_customization.dart:208
   ///
   /// In en, this message translates to:
@@ -1676,18 +1472,6 @@ abstract class AppLocalizations {
   /// **'Bottom'**
   String get bottom;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:27
-  ///
-  /// In en, this message translates to:
-  /// **'Bottom Bar'**
-  String get bottomBar;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:142
-  ///
-  /// In en, this message translates to:
-  /// **'Bottom Bar Always Visible'**
-  String get bottomBarAlwaysVisible;
-
   /// lib/features/settings/screens/visualizer_settings_screen.dart:169
   ///
   /// In en, this message translates to:
@@ -1699,18 +1483,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Browse by artwork, open any album, and jump straight into the tracklist.'**
   String get browseByArtworkOpenAnyAlbum;
-
-  /// lib/features/menu/screens/menu_screen.dart:1033
-  ///
-  /// In en, this message translates to:
-  /// **'Browse More'**
-  String get browseMore;
-
-  /// lib/features/settings/screens/settings_screen.dart:238
-  ///
-  /// In en, this message translates to:
-  /// **'Browse the full controls guide'**
-  String get browseTheFullControlsGuide;
 
   /// lib/features/menu/screens/menu_screen.dart:1438
   ///
@@ -1736,24 +1508,6 @@ abstract class AppLocalizations {
   /// **'{kAppVersion} (build {kAppBuild})'**
   String build(Object kAppVersion, Object kAppBuild);
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:655
-  ///
-  /// In en, this message translates to:
-  /// **'Build Flavor'**
-  String get buildFlavor;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:83
-  ///
-  /// In en, this message translates to:
-  /// **'full — direct download build'**
-  String get buildFlavorFull;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:84
-  ///
-  /// In en, this message translates to:
-  /// **'play — Google Play build'**
-  String get buildFlavorPlay;
-
   /// lib/features/menu/screens/menu_screen.dart:2252
   ///
   /// In en, this message translates to:
@@ -1765,24 +1519,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Built-in'**
   String get builtIn;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:274
-  ///
-  /// In en, this message translates to:
-  /// **'Button Spacing'**
-  String get buttonSpacing;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:110
-  ///
-  /// In en, this message translates to:
-  /// **'Buttons'**
-  String get buttons;
-
-  /// Buy Me a Coffee donation option label on the Support Flick screen.
-  ///
-  /// In en, this message translates to:
-  /// **'Buy Me a Coffee'**
-  String get buyMeACoffee;
 
   /// lib/features/songs/widgets/song_actions_bottom_sheet.dart:726
   ///
@@ -1862,12 +1598,6 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get cancel;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:224
-  ///
-  /// In en, this message translates to:
-  /// **'Cap at 60Hz — balanced smoothness and battery'**
-  String get capAt60hzBalancedSmoothnessAnd;
-
   /// lib/features/player/widgets/bit_perfect_indicator.dart:1027
   ///
   /// In en, this message translates to:
@@ -1891,18 +1621,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Capability State'**
   String get capabilityState;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:79
-  ///
-  /// In en, this message translates to:
-  /// **'Card Size'**
-  String get cardSize;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:91
-  ///
-  /// In en, this message translates to:
-  /// **'Card Width'**
-  String get cardWidth;
 
   /// lib/features/player/widgets/player_action_button_row.dart:843
   ///
@@ -1952,18 +1670,6 @@ abstract class AppLocalizations {
   /// **'Center'**
   String get center;
 
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:193
-  ///
-  /// In en, this message translates to:
-  /// **'Center the title and info in the detail header'**
-  String get centerTheTitleAndInfoIn;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:192
-  ///
-  /// In en, this message translates to:
-  /// **'Centered Header Title'**
-  String get centeredHeaderTitle;
-
   /// lib/features/settings/widgets/mini_player_customization.dart:91
   ///
   /// In en, this message translates to:
@@ -2012,12 +1718,6 @@ abstract class AppLocalizations {
   /// **'{ch} channels'**
   String channels3(Object ch);
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:609
-  ///
-  /// In en, this message translates to:
-  /// **'Check Again'**
-  String get checkAgain;
-
   /// lib/features/settings/screens/duplicate_cleaner_screen.dart:1265
   ///
   /// In en, this message translates to:
@@ -2035,18 +1735,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checking…'**
   String get checking;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:133
-  ///
-  /// In en, this message translates to:
-  /// **'Checking for Updates'**
-  String get checkingForUpdates;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:608
-  ///
-  /// In en, this message translates to:
-  /// **'Checking for Updates...'**
-  String get checkingForUpdates2;
 
   /// lib/features/settings/screens/privacy_policy_screen.dart:79
   ///
@@ -2234,12 +1922,6 @@ abstract class AppLocalizations {
   /// **'Codec & Audio'**
   String get codecU0026Audio;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:91
-  ///
-  /// In en, this message translates to:
-  /// **'Collapse After'**
-  String get collapseAfter;
-
   /// lib/features/settings/widgets/mini_player_customization.dart:334
   ///
   /// In en, this message translates to:
@@ -2276,12 +1958,6 @@ abstract class AppLocalizations {
   /// **'Compatible with Poweramp EQ'**
   String get compatibleWithPowerampEq;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:393
-  ///
-  /// In en, this message translates to:
-  /// **'Completely hidden from the bottom bar'**
-  String get completelyHiddenFromTheBottomBar;
-
   /// lib/features/settings/screens/equalizer_screen.dart:3303
   ///
   /// In en, this message translates to:
@@ -2299,18 +1975,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Compressor on'**
   String get compressorOn;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:50
-  ///
-  /// In en, this message translates to:
-  /// **'Configure USB DAC/AMP devices'**
-  String get configureUsbDacAmpDevices;
-
-  /// lib/features/settings/screens/settings_screen.dart:312
-  ///
-  /// In en, this message translates to:
-  /// **'Configure your music experience'**
-  String get configureYourMusicExperience;
 
   /// lib/features/settings/widgets/listenbrainz_settings_tile.dart:785
   ///
@@ -2360,12 +2024,6 @@ abstract class AppLocalizations {
   /// **'Connect to submit your listening history'**
   String get connectToSubmitYourListeningHistory;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:80
-  ///
-  /// In en, this message translates to:
-  /// **'Connect to the internet to check for updates.'**
-  String get connectToTheInternetToCheck;
-
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:110
   ///
   /// In en, this message translates to:
@@ -2414,18 +2072,6 @@ abstract class AppLocalizations {
   /// **'Connection Management'**
   String get connectionManagement;
 
-  /// Connection notice visibility setting in Interface settings
-  ///
-  /// In en, this message translates to:
-  /// **'Connection notices'**
-  String get connectionNotices;
-
-  /// Description of the connection notice visibility setting
-  ///
-  /// In en, this message translates to:
-  /// **'Show offline and back-online notices'**
-  String get connectionNoticesDescription;
-
   /// lib/features/settings/screens/network_server_edit_screen.dart:353
   ///
   /// In en, this message translates to:
@@ -2473,18 +2119,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Continue'**
   String get continueLabel;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:253
-  ///
-  /// In en, this message translates to:
-  /// **'Continue through the search results'**
-  String get continueThroughTheSearchResults;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:265
-  ///
-  /// In en, this message translates to:
-  /// **'Continue through your entire library'**
-  String get continueThroughYourEntireLibrary;
 
   /// lib/widgets/alac_conversion_indicator.dart:249
   ///
@@ -2564,12 +2198,6 @@ abstract class AppLocalizations {
   /// **'Cosmic Orchestra'**
   String get cosmicOrchestra;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:151
-  ///
-  /// In en, this message translates to:
-  /// **'Could Not Check for Updates'**
-  String get couldNotCheckForUpdates;
-
   /// lib/features/settings/widgets/lastfm_settings_tile.dart:81
   ///
   /// In en, this message translates to:
@@ -2624,12 +2252,6 @@ abstract class AppLocalizations {
   /// **'Could not open Ko-fi. Please try again.'**
   String get couldNotOpenKoFiPlease;
 
-  /// lib/features/settings/screens/support_flick_screen.dart:110
-  ///
-  /// In en, this message translates to:
-  /// **'Could not open link'**
-  String get couldNotOpenLink;
-
   /// lib/features/settings/widgets/listenbrainz_settings_tile.dart:692
   ///
   /// In en, this message translates to:
@@ -2642,18 +2264,6 @@ abstract class AppLocalizations {
   /// **'Could not open that photo. Try another image.'**
   String get couldNotOpenThatPhotoTry;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:584
-  ///
-  /// In en, this message translates to:
-  /// **'Could not open the link'**
-  String get couldNotOpenTheLink;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:588
-  ///
-  /// In en, this message translates to:
-  /// **'Could not open the link: {e}'**
-  String couldNotOpenTheLink2(Object e);
-
   /// lib/features/menu/screens/menu_screen.dart:229
   ///
   /// In en, this message translates to:
@@ -2665,12 +2275,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open the Play Store: {error}'**
   String couldNotOpenThePlayStore2(Object error);
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:117
-  ///
-  /// In en, this message translates to:
-  /// **'Could not open the Play Store'**
-  String get couldNotOpenThePlayStore3;
 
   /// lib/features/recap/screens/replay_studio_screen.dart:103
   ///
@@ -2828,48 +2432,6 @@ abstract class AppLocalizations {
   /// **'Credentials saved successfully!'**
   String get credentialsSavedSuccessfully;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:167
-  ///
-  /// In en, this message translates to:
-  /// **'Crispest — heavier during fast scrolling'**
-  String get crispestHeavierDuringFastScrolling;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:318
-  ///
-  /// In en, this message translates to:
-  /// **'Crossfade'**
-  String get crossfade;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:372
-  ///
-  /// In en, this message translates to:
-  /// **'Crossfade is most reliable on the Standard engine. On the high-quality (Rust) engine it can be unstable — switch to Standard for consistent crossfades.'**
-  String get crossfadeIsMostReliableOnThe;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:395
-  ///
-  /// In en, this message translates to:
-  /// **'Crossfeed'**
-  String get crossfeed;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:428
-  ///
-  /// In en, this message translates to:
-  /// **'Crossfeed (BS2B)'**
-  String get crossfeedBs2b;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:396
-  ///
-  /// In en, this message translates to:
-  /// **'Crossfeed easy'**
-  String get crossfeedEasy;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:453
-  ///
-  /// In en, this message translates to:
-  /// **'Crossfeed runs on the high-quality (Rust) engine only. The Standard engine plays without it.'**
-  String get crossfeedRunsOnTheHighQuality;
-
   /// lib/models/song.dart:348
   ///
   /// In en, this message translates to:
@@ -2923,30 +2485,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Current Streak'**
   String get currentStreak;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:26
-  ///
-  /// In en, this message translates to:
-  /// **'Curvature'**
-  String get curvature;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:129
-  ///
-  /// In en, this message translates to:
-  /// **'Curvature, sizing, depth, and visuals'**
-  String get curvatureSizingDepthAndVisuals;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:571
-  ///
-  /// In en, this message translates to:
-  /// **'Curve'**
-  String get curve;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:27
-  ///
-  /// In en, this message translates to:
-  /// **'Curve of the orbit arc — higher is gentler'**
-  String get curveOfTheOrbitArcHigher;
 
   /// lib/features/settings/screens/equalizer_screen.dart:1778
   ///
@@ -3007,24 +2545,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Customize Bottom Bar'**
   String get customizeBottomBar;
-
-  /// lib/features/settings/screens/settings_screen.dart:223
-  ///
-  /// In en, this message translates to:
-  /// **'Customize home screen widgets'**
-  String get customizeHomeScreenWidgets;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:17
-  ///
-  /// In en, this message translates to:
-  /// **'Customize Orbital'**
-  String get customizeOrbital;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:181
-  ///
-  /// In en, this message translates to:
-  /// **'Customize which tabs appear and their size'**
-  String get customizeWhichTabsAppearAndTheir;
 
   /// lib/features/recently_added/screens/recently_added_screen.dart:494
   ///
@@ -3242,12 +2762,6 @@ abstract class AppLocalizations {
   /// **'Default Android player — plays everything reliably. The safest choice for most listeners.'**
   String get defaultAndroidPlayerPlaysEverything;
 
-  /// lib/features/recap/screens/listening_recap_screen.dart:859
-  ///
-  /// In en, this message translates to:
-  /// **'Default'**
-  String get defaultLabel;
-
   /// lib/features/settings/screens/library_settings_screen.dart:1019
   ///
   /// In en, this message translates to:
@@ -3350,12 +2864,6 @@ abstract class AppLocalizations {
   /// **'Deleted {arg1} songs'**
   String deletedSongs(Object arg1);
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:125
-  ///
-  /// In en, this message translates to:
-  /// **'Depth'**
-  String get depth;
-
   /// lib/features/songs/screens/songs_screen.dart:1574
   ///
   /// In en, this message translates to:
@@ -3367,12 +2875,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Designed'**
   String get designed;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:137
-  ///
-  /// In en, this message translates to:
-  /// **'Detail Screens'**
-  String get detailScreens;
 
   /// lib/features/recap/screens/replay_studio_screen.dart:522
   ///
@@ -3500,12 +3002,6 @@ abstract class AppLocalizations {
   /// **'Disabled'**
   String get disabled;
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:274
-  ///
-  /// In en, this message translates to:
-  /// **'Disabled in bit-perfect mode'**
-  String get disabledInBitPerfectMode;
-
   /// lib/features/settings/screens/uac2_preferences_screen.dart:235
   ///
   /// In en, this message translates to:
@@ -3554,12 +3050,6 @@ abstract class AppLocalizations {
   /// **'Disconnect'**
   String get disconnect;
 
-  /// lib/features/settings/screens/settings_screen.dart:148
-  ///
-  /// In en, this message translates to:
-  /// **'Disconnect behavior and codec info'**
-  String get disconnectBehaviorAndCodecInfo;
-
   /// lib/features/settings/screens/casting_settings_screen.dart:113
   ///
   /// In en, this message translates to:
@@ -3578,12 +3068,6 @@ abstract class AppLocalizations {
   /// **'Disconnect ListenBrainz?'**
   String get disconnectListenbrainz;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:501
-  ///
-  /// In en, this message translates to:
-  /// **'Discord'**
-  String get discord;
-
   /// lib/features/settings/screens/casting_settings_screen.dart:76
   ///
   /// In en, this message translates to:
@@ -3596,12 +3080,6 @@ abstract class AppLocalizations {
   /// **'Dismiss'**
   String get dismiss;
 
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:38
-  ///
-  /// In en, this message translates to:
-  /// **'Display'**
-  String get display;
-
   /// lib/features/settings/screens/player_layout_settings_screen.dart:205
   ///
   /// In en, this message translates to:
@@ -3613,12 +3091,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Display file format and bitrate in artwork card mode'**
   String get displayFileFormatAndBitrateIn2;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:307
-  ///
-  /// In en, this message translates to:
-  /// **'Display text labels below icons'**
-  String get displayTextLabelsBelowIcons;
 
   /// lib/features/settings/screens/player_layout_settings_screen.dart:330
   ///
@@ -3650,12 +3122,6 @@ abstract class AppLocalizations {
   /// **'Display the track title in immersive mode'**
   String get displayTheTrackTitleInImmersive;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:63
-  ///
-  /// In en, this message translates to:
-  /// **'Distance between songs along the arc'**
-  String get distanceBetweenSongsAlongTheArc;
-
   /// lib/features/settings/screens/casting_settings_screen.dart:300
   ///
   /// In en, this message translates to:
@@ -3668,29 +3134,11 @@ abstract class AppLocalizations {
   /// **'DLNA / UPnP'**
   String get dlnaUpnp;
 
-  /// lib/features/settings/screens/settings_screen.dart:160
-  ///
-  /// In en, this message translates to:
-  /// **'DLNA, UPnP and Chromecast receivers'**
-  String get dlnaUpnpAndChromecastReceivers;
-
   /// lib/features/milestone/widgets/streak_popup.dart:287
   ///
   /// In en, this message translates to:
   /// **'Don\'t show again today'**
   String get donTShowAgainToday;
-
-  /// lib/features/settings/screens/support_flick_screen.dart:198
-  ///
-  /// In en, this message translates to:
-  /// **'Donate'**
-  String get donate;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:718
-  ///
-  /// In en, this message translates to:
-  /// **'Donate, fund features, and keep the app alive'**
-  String get donateFundFeaturesAndKeepThe;
 
   /// lib/features/player/screens/lyrics_sync_screen.dart:634
   ///
@@ -3733,18 +3181,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{arg1} down'**
   String down(Object arg1);
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:145
-  ///
-  /// In en, this message translates to:
-  /// **'Download the latest APK from flick-player.site'**
-  String get downloadTheLatestApkFromFlick;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:638
-  ///
-  /// In en, this message translates to:
-  /// **'Download Update'**
-  String get downloadUpdate;
 
   /// lib/features/settings/widgets/mini_player_customization.dart:107
   ///
@@ -3794,23 +3230,11 @@ abstract class AppLocalizations {
   /// **'Drag vertically to change gain'**
   String get dragVerticallyToChangeGain;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:180
-  ///
-  /// In en, this message translates to:
-  /// **'Draw the curved arc behind the songs'**
-  String get drawTheCurvedArcBehindThe;
-
   /// lib/features/player/widgets/bit_perfect_indicator.dart:1040
   ///
   /// In en, this message translates to:
   /// **'Drift {arg1} ms'**
   String driftMs(Object arg1);
-
-  /// lib/features/settings/screens/support_flick_screen.dart:180
-  ///
-  /// In en, this message translates to:
-  /// **'DSD / DSF Playback'**
-  String get dsdDsfPlayback;
 
   /// lib/features/player/widgets/bit_perfect_indicator.dart:713
   ///
@@ -3829,12 +3253,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'DSD stream'**
   String get dsdStream;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:243
-  ///
-  /// In en, this message translates to:
-  /// **'Duck on Notifications'**
-  String get duckOnNotifications;
 
   /// lib/features/settings/screens/duplicate_cleaner_screen.dart:429
   ///
@@ -3956,12 +3374,6 @@ abstract class AppLocalizations {
   /// **'Enable 432 Hz Tuning?'**
   String get enable432HzTuning;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:88
-  ///
-  /// In en, this message translates to:
-  /// **'Enable animated transitions and effects'**
-  String get enableAnimatedTransitionsAndEffects;
-
   /// lib/features/settings/screens/equalizer_screen.dart:384
   ///
   /// In en, this message translates to:
@@ -3973,12 +3385,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enable Full Library Access'**
   String get enableFullLibraryAccess;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:101
-  ///
-  /// In en, this message translates to:
-  /// **'Enable vibration on interactions'**
-  String get enableVibrationOnInteractions;
 
   /// lib/features/settings/screens/equalizer_screen.dart:1200
   ///
@@ -3997,18 +3403,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Engine'**
   String get engine;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:101
-  ///
-  /// In en, this message translates to:
-  /// **'Engine Selector'**
-  String get engineSelector;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:68
-  ///
-  /// In en, this message translates to:
-  /// **'English'**
-  String get english;
 
   /// lib/features/songs/screens/metadata_editor_screen.dart:126
   ///
@@ -4051,12 +3445,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'EQ & Dynamics'**
   String get eqDynamics;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:245
-  ///
-  /// In en, this message translates to:
-  /// **'Equal Power'**
-  String get equalPower;
 
   /// lib/features/player/widgets/player_action_button_row.dart:756
   ///
@@ -4178,12 +3566,6 @@ abstract class AppLocalizations {
   /// **'Expanded'**
   String get expanded;
 
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:179
-  ///
-  /// In en, this message translates to:
-  /// **'Expanded Header Art'**
-  String get expandedHeaderArt;
-
   /// lib/features/settings/screens/uac2_preferences_screen.dart:96
   ///
   /// In en, this message translates to:
@@ -4261,12 +3643,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exported {arg1} songs to \"{arg2}\".'**
   String exportedSongsTo(Object arg1, Object arg2);
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:120
-  ///
-  /// In en, this message translates to:
-  /// **'Extended Volume'**
-  String get extendedVolume;
 
   /// lib/features/folders/screens/folders_screen.dart:782
   ///
@@ -4418,23 +3794,11 @@ abstract class AppLocalizations {
   /// **'Fast direct tracking — immediate response'**
   String get fastDirectTrackingImmediateResponse;
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:192
-  ///
-  /// In en, this message translates to:
-  /// **'Fast Index Scrolling'**
-  String get fastIndexScrolling;
-
   /// lib/widgets/common/detail_header.dart:257
   ///
   /// In en, this message translates to:
   /// **'Favorite all'**
   String get favoriteAll;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:289
-  ///
-  /// In en, this message translates to:
-  /// **'Favorite Removal'**
-  String get favoriteRemoval;
 
   /// lib/features/menu/screens/menu_screen.dart:1408
   ///
@@ -4465,18 +3829,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Feedback'**
   String get feedback;
-
-  /// lib/features/settings/screens/lyrics_settings_screen.dart
-  ///
-  /// In en, this message translates to:
-  /// **'Fetch Lyrics Automatically'**
-  String get fetchLyricsAutomatically;
-
-  /// lib/features/settings/screens/lyrics_settings_screen.dart
-  ///
-  /// In en, this message translates to:
-  /// **'Off: songs only show the lyrics they carry themselves (in their tags or a .lrc next to them). Searching online from the lyrics view still works.'**
-  String get fetchLyricsAutomaticallyDescription;
 
   /// lib/features/player/widgets/bit_perfect_indicator.dart:909
   ///
@@ -4562,12 +3914,6 @@ abstract class AppLocalizations {
   /// **'Find songs, artists, albums, folders…'**
   String get findSongsArtistsAlbumsFolders;
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:214
-  ///
-  /// In en, this message translates to:
-  /// **'Fine-tune the overall gain'**
-  String get fineTuneTheOverallGain;
-
   /// lib/features/settings/screens/library_settings_screen.dart:1170
   ///
   /// In en, this message translates to:
@@ -4628,12 +3974,6 @@ abstract class AppLocalizations {
   /// **'Flat response'**
   String get flatResponse;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:547
-  ///
-  /// In en, this message translates to:
-  /// **'Flick'**
-  String get flick;
-
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:604
   ///
   /// In en, this message translates to:
@@ -4646,29 +3986,11 @@ abstract class AppLocalizations {
   /// **'Flick can receive playback handoffs from Locker (another Moss app). Playback intents contain only song file paths/metadata. No personal data is exchanged. The integration is entirely local.'**
   String get flickCanReceivePlaybackHandoffsFrom;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:176
-  ///
-  /// In en, this message translates to:
-  /// **'Flick checks flick-player.site for updates whenever you are online'**
-  String get flickChecksFlickPlayerSiteFor;
-
-  /// lib/features/settings/screens/support_flick_screen.dart:138
-  ///
-  /// In en, this message translates to:
-  /// **'Flick is built and maintained by one person with zero budget. No team, no funding, no ads.'**
-  String get flickIsBuiltAndMaintainedBy;
-
   /// lib/features/settings/screens/logs_screen.dart:110
   ///
   /// In en, this message translates to:
   /// **'Flick logs'**
   String get flickLogs;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:444
-  ///
-  /// In en, this message translates to:
-  /// **'Flick Player'**
-  String get flickPlayer;
 
   /// lib/features/settings/screens/privacy_policy_screen.dart:36
   ///
@@ -4688,18 +4010,6 @@ abstract class AppLocalizations {
   /// **'Flick Replay'**
   String get flickReplay;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:175
-  ///
-  /// In en, this message translates to:
-  /// **'Flick scans for Play Store updates whenever you are online'**
-  String get flickScansForPlayStoreUpdates;
-
-  /// lib/features/settings/screens/support_flick_screen.dart:145
-  ///
-  /// In en, this message translates to:
-  /// **'Flick will always be free. Donations keep the project alive without paywalls or subscriptions.'**
-  String get flickWillAlwaysBeFreeDonations;
-
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:343
   ///
   /// In en, this message translates to:
@@ -4711,18 +4021,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'FlickPlayer'**
   String get flickplayer;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:154
-  ///
-  /// In en, this message translates to:
-  /// **'Floating Island'**
-  String get floatingIsland;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:83
-  ///
-  /// In en, this message translates to:
-  /// **'Floating Mini-Player'**
-  String get floatingMiniPlayer;
 
   /// lib/models/playback_context.dart:13
   ///
@@ -4771,12 +4069,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{arg1} folders'**
   String folders2(Object arg1);
-
-  /// lib/features/settings/screens/settings_screen.dart:84
-  ///
-  /// In en, this message translates to:
-  /// **'Folders, scanning, and duplicates'**
-  String get foldersScanningAndDuplicates;
 
   /// lib/features/folders/screens/folders_screen.dart:2267
   ///
@@ -4868,12 +4160,6 @@ abstract class AppLocalizations {
   /// **'{arg1} fr/pkt'**
   String frPkt(Object arg1);
 
-  /// lib/features/settings/screens/support_flick_screen.dart:143
-  ///
-  /// In en, this message translates to:
-  /// **'Free & Open Source'**
-  String get freeOpenSource;
-
   /// lib/features/settings/screens/equalizer_screen.dart:2623
   ///
   /// In en, this message translates to:
@@ -4915,12 +4201,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Full-bleed album art with the current cinematic look.'**
   String get fullBleedAlbumArtWithThe;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:264
-  ///
-  /// In en, this message translates to:
-  /// **'Full Library'**
-  String get fullLibrary;
 
   /// lib/features/settings/screens/library_settings_screen.dart:1884
   ///
@@ -4964,12 +4244,6 @@ abstract class AppLocalizations {
   /// **'Fullscreen'**
   String get fullscreen;
 
-  /// lib/features/settings/screens/support_flick_screen.dart:182
-  ///
-  /// In en, this message translates to:
-  /// **'Funding native DSD/DSF playback development — a highly requested feature for audiophiles.'**
-  String get fundingNativeDsdDsfPlaybackDevelopment;
-
   /// lib/features/settings/screens/equalizer_screen.dart:3511
   ///
   /// In en, this message translates to:
@@ -5000,18 +4274,6 @@ abstract class AppLocalizations {
   /// **'Gap Above Navigation'**
   String get gapAboveNavigation;
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:272
-  ///
-  /// In en, this message translates to:
-  /// **'Gapless Playback'**
-  String get gaplessPlayback;
-
-  /// lib/features/settings/screens/settings_screen.dart:104
-  ///
-  /// In en, this message translates to:
-  /// **'Gapless, view mode, and appearance'**
-  String get gaplessViewModeAndAppearance;
-
   /// lib/features/settings/screens/duplicate_cleaner_screen.dart:26
   ///
   /// In en, this message translates to:
@@ -5030,35 +4292,17 @@ abstract class AppLocalizations {
   /// **'Genre'**
   String get genre;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:21
-  ///
-  /// In en, this message translates to:
-  /// **'Geometry'**
-  String get geometry;
-
   /// lib/features/onboarding/screens/onboarding_screen.dart:269
   ///
   /// In en, this message translates to:
   /// **'Get Started'**
   String get getStarted;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:639
-  ///
-  /// In en, this message translates to:
-  /// **'Get the latest APK from flick-player.site'**
-  String get getTheLatestApkFromFlick;
-
   /// lib/features/settings/widgets/lastfm_settings_tile.dart:404
   ///
   /// In en, this message translates to:
   /// **'Get your API credentials'**
   String get getYourApiCredentials;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:489
-  ///
-  /// In en, this message translates to:
-  /// **'GitHub'**
-  String get github;
 
   /// lib/features/player/widgets/song_actions_sheet.dart:324
   ///
@@ -5162,12 +4406,6 @@ abstract class AppLocalizations {
   /// **'{arg1}h ago'**
   String hAgo(Object arg1);
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:100
-  ///
-  /// In en, this message translates to:
-  /// **'Haptic Feedback'**
-  String get hapticFeedback;
-
   /// lib/features/player/widgets/bit_perfect_indicator.dart:1153
   ///
   /// In en, this message translates to:
@@ -5186,12 +4424,6 @@ abstract class AppLocalizations {
   /// **'Has artwork'**
   String get hasArtwork;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:241
-  ///
-  /// In en, this message translates to:
-  /// **'Having more than 4 buttons may cause text labels to compress. Consider reducing the button spacing below.'**
-  String get havingMoreThan4ButtonsMay;
-
   /// lib/features/menu/screens/menu_screen.dart:1765
   ///
   /// In en, this message translates to:
@@ -5204,41 +4436,17 @@ abstract class AppLocalizations {
   /// **'Held'**
   String get held;
 
-  /// lib/features/settings/screens/settings_screen.dart:230
-  ///
-  /// In en, this message translates to:
-  /// **'Help'**
-  String get help;
-
-  /// lib/features/settings/screens/settings_screen.dart:237
-  ///
-  /// In en, this message translates to:
-  /// **'Help & Manual'**
-  String get helpManual;
-
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:417
   ///
   /// In en, this message translates to:
   /// **'Hi-Res Direct'**
   String get hiResDirect;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:202
-  ///
-  /// In en, this message translates to:
-  /// **'Hidden'**
-  String get hidden;
-
   /// lib/features/player/widgets/player_action_button_row.dart:440
   ///
   /// In en, this message translates to:
   /// **'Hide lyrics'**
   String get hideLyrics;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:79
-  ///
-  /// In en, this message translates to:
-  /// **'Hide navigation buttons after being idle'**
-  String get hideNavigationButtonsAfterBeingIdle;
 
   /// lib/features/settings/screens/network_server_edit_screen.dart:765
   ///
@@ -5252,18 +4460,6 @@ abstract class AppLocalizations {
   /// **'Hide short stingers, ringtones, and voice fragments'**
   String get hideShortStingersRingtonesAndVoice;
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:157
-  ///
-  /// In en, this message translates to:
-  /// **'Hide the floating mini-player pill'**
-  String get hideTheFloatingMiniPlayerPill;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:206
-  ///
-  /// In en, this message translates to:
-  /// **'Hide the index rail after inactivity'**
-  String get hideTheIndexRailAfterInactivity;
-
   /// lib/features/player/widgets/player_action_button_row.dart:551
   ///
   /// In en, this message translates to:
@@ -5275,18 +4471,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide Visualizer'**
   String get hideVisualizer2;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:158
-  ///
-  /// In en, this message translates to:
-  /// **'High'**
-  String get high;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:235
-  ///
-  /// In en, this message translates to:
-  /// **'High (120Hz)'**
-  String get high120hz;
 
   /// lib/features/settings/screens/visualizer_settings_screen.dart:149
   ///
@@ -5348,53 +4532,11 @@ abstract class AppLocalizations {
   /// **'History cleared'**
   String get historyCleared;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:307
-  ///
-  /// In en, this message translates to:
-  /// **'Hold a song to unfavorite'**
-  String get holdASongToUnfavorite;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:24
-  ///
-  /// In en, this message translates to:
-  /// **'Home Screen Sections'**
-  String get homeScreenSections;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:50
-  ///
-  /// In en, this message translates to:
-  /// **'Horizontal Reach'**
-  String get horizontalReach;
-
   /// lib/services/milestone_service.dart:226
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{hour} other{hours}}'**
   String hourUnit(int count);
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:51
-  ///
-  /// In en, this message translates to:
-  /// **'How far the arc opens from the left edge'**
-  String get howFarTheArcOpensFrom;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:126
-  ///
-  /// In en, this message translates to:
-  /// **'How much side cards shrink away from center'**
-  String get howMuchSideCardsShrinkAway;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:667
-  ///
-  /// In en, this message translates to:
-  /// **'How we handle your data'**
-  String get howWeHandleYourData;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:92
-  ///
-  /// In en, this message translates to:
-  /// **'How wide each card spans across the screen'**
-  String get howWideEachCardSpansAcross;
 
   /// lib/features/settings/screens/network_server_edit_screen.dart:77
   ///
@@ -5431,12 +4573,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'432 Hz Tuning'**
   String get hzTuning;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:290
-  ///
-  /// In en, this message translates to:
-  /// **'Icon Size'**
-  String get iconSize;
 
   /// lib/features/albums/widgets/identify_album_sheet.dart:64
   ///
@@ -5491,12 +4627,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Immersive'**
   String get immersive;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:168
-  ///
-  /// In en, this message translates to:
-  /// **'Immersive Full View Timer'**
-  String get immersiveFullViewTimer;
 
   /// lib/features/playlists/screens/playlists_screen.dart:506
   ///
@@ -5618,35 +4748,17 @@ abstract class AppLocalizations {
   /// **'Instrumental'**
   String get instrumental;
 
-  /// lib/features/settings/screens/integrations_settings_screen.dart:14
-  ///
-  /// In en, this message translates to:
-  /// **'Integrations'**
-  String get integrations;
-
   /// lib/widgets/equalizer/interactive_eq_graph.dart:121
   ///
   /// In en, this message translates to:
   /// **'Interactive EQ'**
   String get interactiveEq;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:693
-  ///
-  /// In en, this message translates to:
-  /// **'Interactive Tutorial'**
-  String get interactiveTutorial;
-
   /// lib/features/player/widgets/bit_perfect_indicator.dart:693
   ///
   /// In en, this message translates to:
   /// **'Interface claimed'**
   String get interfaceClaimed;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:36
-  ///
-  /// In en, this message translates to:
-  /// **'Interface'**
-  String get interfaceLabel;
 
   /// lib/features/settings/screens/library_settings_screen.dart:1254
   ///
@@ -5659,12 +4771,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Isochronous USB'**
   String get isochronousUsb;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:62
-  ///
-  /// In en, this message translates to:
-  /// **'Item Spacing'**
-  String get itemSpacing;
 
   /// lib/features/folders/screens/folders_screen.dart:1185
   ///
@@ -5702,12 +4808,6 @@ abstract class AppLocalizations {
   /// **'Jump Back In'**
   String get jumpBackIn;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:632
-  ///
-  /// In en, this message translates to:
-  /// **'Jump to the Flick listing and update from there'**
-  String get jumpToTheFlickListingAnd;
-
   /// lib/features/milestone/screens/milestones_screen.dart:507
   ///
   /// In en, this message translates to:
@@ -5731,12 +4831,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Just now'**
   String get justNow;
-
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:43
-  ///
-  /// In en, this message translates to:
-  /// **'Karaoke effect'**
-  String get karaokeEffect;
 
   /// lib/features/player/screens/lyrics_sync_screen.dart:1623
   ///
@@ -5774,29 +4868,11 @@ abstract class AppLocalizations {
   /// **'Keep listening with Flick'**
   String get keepListeningWithFlick;
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:143
-  ///
-  /// In en, this message translates to:
-  /// **'Keep mini player and nav visible'**
-  String get keepMiniPlayerAndNavVisible;
-
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:274
   ///
   /// In en, this message translates to:
   /// **'Keep playback paused when a device reconnects'**
   String get keepPlaybackPausedWhenADevice;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:35
-  ///
-  /// In en, this message translates to:
-  /// **'Keep Playing on Quit'**
-  String get keepPlayingOnQuit;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:206
-  ///
-  /// In en, this message translates to:
-  /// **'Keep relative levels inside each album'**
-  String get keepRelativeLevelsInsideEachAlbum;
 
   /// lib/features/menu/screens/menu_screen.dart:1313
   ///
@@ -5827,12 +4903,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keeping this version'**
   String get keepingThisVersion;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:51
-  ///
-  /// In en, this message translates to:
-  /// **'Keeps bit-perfect audio alive in the background'**
-  String get keepsBitPerfectAudioAliveIn;
 
   /// lib/features/settings/screens/uac2_preferences_screen.dart:796
   ///
@@ -5882,12 +4952,6 @@ abstract class AppLocalizations {
   /// **'{arg1}kHz / {arg2}bit / {arg3}ch'**
   String khzBitCh(Object arg1, Object arg2, Object arg3);
 
-  /// Ko-fi donation option label on the Support Flick screen.
-  ///
-  /// In en, this message translates to:
-  /// **'Ko-fi'**
-  String get koFi;
-
   /// lib/features/settings/screens/network_server_edit_screen.dart:434
   ///
   /// In en, this message translates to:
@@ -5899,24 +4963,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Label / Organization'**
   String get labelOrganization;
-
-  /// Settings entry label and the title of the language picker.
-  ///
-  /// In en, this message translates to:
-  /// **'Language'**
-  String get language;
-
-  /// Helper text under the language setting.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose the language used across the app.'**
-  String get languageSectionDescription;
-
-  /// Language option that follows the device locale.
-  ///
-  /// In en, this message translates to:
-  /// **'System default'**
-  String get languageSystemDefault;
 
   /// lib/features/settings/widgets/lastfm_settings_tile.dart:730
   ///
@@ -5941,12 +4987,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Last.fm connected!'**
   String get lastFmConnected2;
-
-  /// lib/features/settings/screens/settings_screen.dart:211
-  ///
-  /// In en, this message translates to:
-  /// **'Last.fm & ListenBrainz scrobbling'**
-  String get lastFmListenbrainzScrobbling;
 
   /// lib/features/settings/screens/privacy_policy_screen.dart:59
   ///
@@ -5984,12 +5024,6 @@ abstract class AppLocalizations {
   /// **'Latest arrivals from your library'**
   String get latestArrivalsFromYourLibrary;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:250
-  ///
-  /// In en, this message translates to:
-  /// **'Latest Update'**
-  String get latestUpdate;
-
   /// lib/features/recap/screens/replay_studio_screen.dart:580
   ///
   /// In en, this message translates to:
@@ -6001,12 +5035,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Layout Mode'**
   String get layoutMode;
-
-  /// lib/features/settings/screens/settings_screen.dart:126
-  ///
-  /// In en, this message translates to:
-  /// **'Layout mode, sizing, and quick actions'**
-  String get layoutModeSizingAndQuickActions;
 
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:497
   ///
@@ -6056,12 +5084,6 @@ abstract class AppLocalizations {
   /// **'Leave empty to keep the current credentials'**
   String get leaveEmptyToKeepTheCurrent;
 
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:56
-  ///
-  /// In en, this message translates to:
-  /// **'Left'**
-  String get left;
-
   /// lib/features/player/widgets/player_layout_sheet.dart:349
   ///
   /// In en, this message translates to:
@@ -6091,12 +5113,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Length:'**
   String get length;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:331
-  ///
-  /// In en, this message translates to:
-  /// **'Length of the overlap'**
-  String get lengthOfTheOverlap;
 
   /// lib/features/player/screens/lyrics_sync_screen.dart:1799
   ///
@@ -6134,23 +5150,11 @@ abstract class AppLocalizations {
   /// **'Let\'s take a quick tour of your new music player.'**
   String get letSTakeAQuickTour;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:212
-  ///
-  /// In en, this message translates to:
-  /// **'Let the system decide — best battery life'**
-  String get letTheSystemDecideBestBattery;
-
   /// lib/features/settings/screens/library_settings_screen.dart:2057
   ///
   /// In en, this message translates to:
   /// **'Lets Flick scan your entire library directly, including DSD/DSF/WavPack files some devices hide from the system media index'**
   String get letsFlickScanYourEntireLibrary;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:511
-  ///
-  /// In en, this message translates to:
-  /// **'Level'**
-  String get level;
 
   /// lib/features/settings/screens/library_settings_screen.dart:443
   ///
@@ -6158,23 +5162,11 @@ abstract class AppLocalizations {
   /// **'Library emptied'**
   String get libraryEmptied;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:149
-  ///
-  /// In en, this message translates to:
-  /// **'Library Glance Card'**
-  String get libraryGlanceCard;
-
   /// lib/features/menu/screens/menu_screen.dart:1051
   ///
   /// In en, this message translates to:
   /// **'Library'**
   String get libraryLabel;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:659
-  ///
-  /// In en, this message translates to:
-  /// **'Licenses'**
-  String get licenses;
 
   /// lib/features/settings/screens/widget_settings_screen.dart:166
   ///
@@ -6205,12 +5197,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Limit'**
   String get limit;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:230
-  ///
-  /// In en, this message translates to:
-  /// **'Limit positive gain so the level never exceeds full scale'**
-  String get limitPositiveGainSoTheLevel;
 
   /// lib/features/settings/screens/equalizer_screen.dart:3391
   ///
@@ -6252,12 +5238,6 @@ abstract class AppLocalizations {
     Object captured,
     Object segmentCount,
   );
-
-  /// lib/features/player/widgets/bit_perfect_indicator.dart:919
-  ///
-  /// In en, this message translates to:
-  /// **'Linear'**
-  String get linear;
 
   /// lib/features/player/screens/lyrics_sync_screen.dart:865
   ///
@@ -6391,12 +5371,6 @@ abstract class AppLocalizations {
   /// **'Loading favorites, recent sessions, generated mixes, and playlists.'**
   String get loadingFavoritesRecentSessionsGenerated;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:276
-  ///
-  /// In en, this message translates to:
-  /// **'Loading patch notes...'**
-  String get loadingPatchNotes;
-
   /// lib/features/recap/screens/listening_recap_screen.dart:235
   ///
   /// In en, this message translates to:
@@ -6439,12 +5413,6 @@ abstract class AppLocalizations {
   /// **'Logs copied'**
   String get logsCopied;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:306
-  ///
-  /// In en, this message translates to:
-  /// **'Long Press'**
-  String get longPress;
-
   /// lib/features/settings/widgets/mini_player_customization.dart:244
   ///
   /// In en, this message translates to:
@@ -6463,18 +5431,6 @@ abstract class AppLocalizations {
   /// **'Looking for cover art from MusicBrainz and Cover Art Archive.'**
   String get lookingForCoverArtFromMusicbrainz;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:136
-  ///
-  /// In en, this message translates to:
-  /// **'Looking for the latest Flick release right now'**
-  String get lookingForTheLatestFlickRelease;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:135
-  ///
-  /// In en, this message translates to:
-  /// **'Looking for the latest Play Store update right now'**
-  String get lookingForTheLatestPlayStore;
-
   /// lib/widgets/common/detail_header.dart:157
   ///
   /// In en, this message translates to:
@@ -6486,12 +5442,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lossless quality preserved during conversion'**
   String get losslessQualityPreservedDuringConversion;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:142
-  ///
-  /// In en, this message translates to:
-  /// **'Low'**
-  String get low;
 
   /// lib/features/settings/screens/visualizer_settings_screen.dart:157
   ///
@@ -6558,12 +5508,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lyrics saved from LRCLib.'**
   String get lyricsSavedFromLrclib;
-
-  /// lib/features/settings/screens/settings_screen.dart:172
-  ///
-  /// In en, this message translates to:
-  /// **'Lyrics saving behavior'**
-  String get lyricsSavingBehavior;
 
   /// lib/features/player/screens/lyrics_sync_screen.dart:647
   ///
@@ -6649,12 +5593,6 @@ abstract class AppLocalizations {
   /// **'Master bypassed'**
   String get masterBypassed;
 
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:25
-  ///
-  /// In en, this message translates to:
-  /// **'Match Audio Filename'**
-  String get matchAudioFilename;
-
   /// lib/features/albums/widgets/identify_album_sheet.dart:225
   ///
   /// In en, this message translates to:
@@ -6691,12 +5629,6 @@ abstract class AppLocalizations {
   /// **'Maximum audio quality'**
   String get maximumAudioQuality;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:236
-  ///
-  /// In en, this message translates to:
-  /// **'Maximum smoothness — uses more battery'**
-  String get maximumSmoothnessUsesMoreBattery;
-
   /// lib/features/milestone/screens/milestones_screen.dart:506
   ///
   /// In en, this message translates to:
@@ -6709,23 +5641,11 @@ abstract class AppLocalizations {
   /// **'May 4, 2026'**
   String get may42026;
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:52
-  ///
-  /// In en, this message translates to:
-  /// **'May stop in the background on some devices'**
-  String get mayStopInTheBackgroundOn;
-
   /// lib/features/settings/screens/duplicate_cleaner_screen.dart:24
   ///
   /// In en, this message translates to:
   /// **'{arg1} MB'**
   String mb(Object arg1);
-
-  /// lib/features/settings/screens/settings_screen.dart:76
-  ///
-  /// In en, this message translates to:
-  /// **'Media'**
-  String get media;
 
   /// lib/features/settings/screens/orbit_settings_screen.dart:150
   ///
@@ -6967,12 +5887,6 @@ abstract class AppLocalizations {
   /// **'More from artist'**
   String get moreFromArtist;
 
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:142
-  ///
-  /// In en, this message translates to:
-  /// **'More from Artist'**
-  String get moreFromArtist2;
-
   /// lib/features/milestone/screens/milestones_screen.dart:794
   ///
   /// In en, this message translates to:
@@ -7008,24 +5922,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Most replayed · {arg1}'**
   String mostReplayed(Object arg1);
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:64
-  ///
-  /// In en, this message translates to:
-  /// **'Motion Art in Bit-Perfect'**
-  String get motionArtInBitPerfect;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:67
-  ///
-  /// In en, this message translates to:
-  /// **'Motion art is replaced while bit-perfect output is active'**
-  String get motionArtIsReplacedWhileBit;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:66
-  ///
-  /// In en, this message translates to:
-  /// **'Motion art plays during bit-perfect audio (may interrupt playback on some DAPs)'**
-  String get motionArtPlaysDuringBitPerfect;
 
   /// lib/features/player/widgets/song_actions_sheet.dart:255
   ///
@@ -7159,23 +6055,11 @@ abstract class AppLocalizations {
   /// **'Navidrome · Airsonic · Gonic'**
   String get navidromeAirsonicGonic;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:216
-  ///
-  /// In en, this message translates to:
-  /// **'Navigation Appearance'**
-  String get navigationAppearance;
-
   /// lib/providers/tutorial_provider.dart:11
   ///
   /// In en, this message translates to:
   /// **'Navigation Bar'**
   String get navigationBar;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:298
-  ///
-  /// In en, this message translates to:
-  /// **'Navigation defaults restored'**
-  String get navigationDefaultsRestored;
 
   /// lib/features/settings/screens/missing_metadata_screen.dart:87
   ///
@@ -7435,12 +6319,6 @@ abstract class AppLocalizations {
   /// **'No New Additions Yet'**
   String get noNewAdditionsYet;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:95
-  ///
-  /// In en, this message translates to:
-  /// **'No new update found.'**
-  String get noNewUpdateFound;
-
   /// lib/features/songs/widgets/album_art_picker_bottom_sheet.dart:489
   ///
   /// In en, this message translates to:
@@ -7452,12 +6330,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No output devices available.'**
   String get noOutputDevicesAvailable;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:251
-  ///
-  /// In en, this message translates to:
-  /// **'No patch notes available yet.'**
-  String get noPatchNotesAvailableYet;
 
   /// lib/features/menu/screens/menu_screen.dart:1362
   ///
@@ -7549,12 +6421,6 @@ abstract class AppLocalizations {
   /// **'No upcoming queue items yet.'**
   String get noUpcomingQueueItemsYet;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:165
-  ///
-  /// In en, this message translates to:
-  /// **'No Update Available'**
-  String get noUpdateAvailable;
-
   /// lib/features/player/widgets/bit_perfect_indicator.dart:965
   ///
   /// In en, this message translates to:
@@ -7579,23 +6445,11 @@ abstract class AppLocalizations {
   /// **'None'**
   String get none;
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:198
-  ///
-  /// In en, this message translates to:
-  /// **'Normalize each track to match loudness'**
-  String get normalizeEachTrackToMatchLoudness;
-
   /// lib/widgets/alac_conversion_indicator.dart:112
   ///
   /// In en, this message translates to:
   /// **'Not an ALAC file'**
   String get notAnAlacFile;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:308
-  ///
-  /// In en, this message translates to:
-  /// **'Not available in bit-perfect mode'**
-  String get notAvailableInBitPerfectMode;
 
   /// lib/features/settings/screens/widgets/autoeq_search_sheet.dart:123
   ///
@@ -7723,12 +6577,6 @@ abstract class AppLocalizations {
   /// **'Off crops to fill the square; on stretches the artwork edge-to-edge'**
   String get offCropsToFillTheSquare;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:158
-  ///
-  /// In en, this message translates to:
-  /// **'Offline'**
-  String get offline;
-
   /// lib/features/settings/screens/equalizer_screen.dart:3911
   ///
   /// In en, this message translates to:
@@ -7777,12 +6625,6 @@ abstract class AppLocalizations {
   /// **'Open Bluetooth Codec Settings'**
   String get openBluetoothCodecSettings;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:401
-  ///
-  /// In en, this message translates to:
-  /// **'Open Full Notes'**
-  String get openFullNotes;
-
   /// lib/features/albums/screens/album_detail_screen.dart:360
   ///
   /// In en, this message translates to:
@@ -7794,12 +6636,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open in browser'**
   String get openInBrowser;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:631
-  ///
-  /// In en, this message translates to:
-  /// **'Open in Play Store'**
-  String get openInPlayStore;
 
   /// lib/features/menu/screens/menu_screen.dart:1322
   ///
@@ -7824,24 +6660,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open Player'**
   String get openPlayer;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:312
-  ///
-  /// In en, this message translates to:
-  /// **'Open Release Notes'**
-  String get openReleaseNotes;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:660
-  ///
-  /// In en, this message translates to:
-  /// **'Open source licenses'**
-  String get openSourceLicenses;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:144
-  ///
-  /// In en, this message translates to:
-  /// **'Open the Play Store to install the latest Flick build'**
-  String get openThePlayStoreToInstall;
 
   /// lib/features/player/screens/full_player_screen.dart:616
   ///
@@ -7872,12 +6690,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Orbital'**
   String get orbital;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:205
-  ///
-  /// In en, this message translates to:
-  /// **'Orbital settings reset'**
-  String get orbitalSettingsReset;
 
   /// lib/features/playlists/screens/playlist_detail_screen.dart:604
   ///
@@ -7920,18 +6732,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Output rate'**
   String get outputRate;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:321
-  ///
-  /// In en, this message translates to:
-  /// **'Overlap the end of a track with the next'**
-  String get overlapTheEndOfATrack;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:299
-  ///
-  /// In en, this message translates to:
-  /// **'Overlay permission is required to show the floating player'**
-  String get overlayPermissionIsRequiredToShow;
 
   /// lib/features/recap/screens/replay_studio_screen.dart:643
   ///
@@ -7986,12 +6786,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paste your ListenBrainz token'**
   String get pasteYourListenbrainzToken;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:259
-  ///
-  /// In en, this message translates to:
-  /// **'Patch Notes'**
-  String get patchNotes;
 
   /// lib/widgets/common/mini_player_bar.dart:262
   ///
@@ -8119,12 +6913,6 @@ abstract class AppLocalizations {
   /// **'{semitones, plural, =1{{semitones} semitone} other{{semitones} semitones}}'**
   String pitchSemitones(int semitones);
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:143
-  ///
-  /// In en, this message translates to:
-  /// **'Pixelated — lightest on memory'**
-  String get pixelatedLightestOnMemory;
-
   /// lib/features/player/widgets/online_lyrics_search_sheet.dart:581
   ///
   /// In en, this message translates to:
@@ -8155,23 +6943,11 @@ abstract class AppLocalizations {
   /// **'Play a few tracks today to build your daily recap.'**
   String get playAFewTracksTodayTo;
 
-  /// lib/features/settings/screens/queue_settings_screen.dart:75
-  ///
-  /// In en, this message translates to:
-  /// **'Play a random library song when the queue ends'**
-  String get playARandomLibrarySongWhen;
-
   /// lib/features/menu/screens/menu_screen.dart:1321
   ///
   /// In en, this message translates to:
   /// **'Play Again'**
   String get playAgain;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:190
-  ///
-  /// In en, this message translates to:
-  /// **'Play at the recorded level'**
-  String get playAtTheRecordedLevel;
 
   /// lib/features/recap/screens/replay_studio_screen.dart:679
   ///
@@ -8202,12 +6978,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Play Store updates use Google Play In-App Update API (governed by Google\'s privacy policies). Patch notes are fetched from GitHub Releases API without sending personal data.'**
   String get playStoreUpdatesUseGooglePlay;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:28
-  ///
-  /// In en, this message translates to:
-  /// **'Playback'**
-  String get playback;
 
   /// lib/features/settings/screens/library_settings_screen.dart:336
   ///
@@ -8250,18 +7020,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Playback continues when audio output disconnects'**
   String get playbackContinuesWhenAudioOutput;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:37
-  ///
-  /// In en, this message translates to:
-  /// **'Playback continues when the app is swiped away'**
-  String get playbackContinuesWhenTheAppIs;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:24
-  ///
-  /// In en, this message translates to:
-  /// **'Playback & Display'**
-  String get playbackDisplay;
 
   /// lib/features/settings/screens/uac2_preferences_screen.dart:324
   ///
@@ -8317,12 +7075,6 @@ abstract class AppLocalizations {
   /// **'Playback pauses when Bluetooth or headphones disconnect'**
   String get playbackPausesWhenBluetoothOrHeadphones;
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:246
-  ///
-  /// In en, this message translates to:
-  /// **'Playback pauses while notification sounds play'**
-  String get playbackPausesWhileNotificationSoundsPlay;
-
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:273
   ///
   /// In en, this message translates to:
@@ -8334,12 +7086,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Playback Speed'**
   String get playbackSpeed;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:38
-  ///
-  /// In en, this message translates to:
-  /// **'Playback stops when the app is swiped away'**
-  String get playbackStopsWhenTheAppIs;
 
   /// lib/features/recently_played/screens/recently_played_screen.dart:268
   ///
@@ -8419,12 +7165,6 @@ abstract class AppLocalizations {
   /// **'{arg1} poster preview. {arg2} plays.'**
   String posterPreviewPlays(Object arg1, Object arg2);
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:213
-  ///
-  /// In en, this message translates to:
-  /// **'Pre-amp'**
-  String get preAmp;
-
   /// lib/features/settings/screens/equalizer_screen.dart:1262
   ///
   /// In en, this message translates to:
@@ -8503,12 +7243,6 @@ abstract class AppLocalizations {
   /// **'Presets'**
   String get presets;
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:228
-  ///
-  /// In en, this message translates to:
-  /// **'Prevent Clipping'**
-  String get preventClipping;
-
   /// lib/features/settings/screens/audio_settings_screen.dart:686
   ///
   /// In en, this message translates to:
@@ -8575,12 +7309,6 @@ abstract class AppLocalizations {
   /// **'Progress'**
   String get progress;
 
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:234
-  ///
-  /// In en, this message translates to:
-  /// **'Progress Bar'**
-  String get progressBar;
-
   /// lib/features/settings/screens/network_server_edit_screen.dart:372
   ///
   /// In en, this message translates to:
@@ -8634,12 +7362,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Queued {arg1} songs'**
   String queuedSongs3(Object arg1);
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:29
-  ///
-  /// In en, this message translates to:
-  /// **'Quick Access'**
-  String get quickAccess;
 
   /// lib/features/player/widgets/player_layout_sheet.dart:333
   ///
@@ -8773,18 +7495,6 @@ abstract class AppLocalizations {
   /// **'Reconnect Now'**
   String get reconnectNow;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:614
-  ///
-  /// In en, this message translates to:
-  /// **'Reconnect to the internet to scan for updates'**
-  String get reconnectToTheInternetToScan;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:159
-  ///
-  /// In en, this message translates to:
-  /// **'Reconnect to Wi-Fi or mobile data so Flick can scan again'**
-  String get reconnectToWiFiOrMobile;
-
   /// lib/widgets/uac2/uac2_connection_manager.dart:72
   ///
   /// In en, this message translates to:
@@ -8832,12 +7542,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Refresh outputs'**
   String get refreshOutputs;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:206
-  ///
-  /// In en, this message translates to:
-  /// **'Refresh Rate'**
-  String get refreshRate;
 
   /// lib/features/albums/screens/album_detail_screen.dart:402
   ///
@@ -9121,18 +7825,6 @@ abstract class AppLocalizations {
   /// **'Replay Studio'**
   String get replayStudio;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:680
-  ///
-  /// In en, this message translates to:
-  /// **'Replay the tutorial and feature guide'**
-  String get replayTheTutorialAndFeatureGuide;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:184
-  ///
-  /// In en, this message translates to:
-  /// **'ReplayGain'**
-  String get replaygain;
-
   /// lib/features/settings/screens/library_settings_screen.dart:812
   ///
   /// In en, this message translates to:
@@ -9229,12 +7921,6 @@ abstract class AppLocalizations {
   /// **'Reset Mini Player to Defaults'**
   String get resetMiniPlayerToDefaults;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:283
-  ///
-  /// In en, this message translates to:
-  /// **'Reset Navigation to Defaults'**
-  String get resetNavigationToDefaults;
-
   /// lib/features/settings/screens/uac2_preferences_screen.dart:557
   ///
   /// In en, this message translates to:
@@ -9258,12 +7944,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset to 0 dB'**
   String get resetTo0Db;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:199
-  ///
-  /// In en, this message translates to:
-  /// **'Reset to Defaults'**
-  String get resetToDefaults;
 
   /// lib/features/player/widgets/bit_perfect_indicator.dart:560
   ///
@@ -9307,12 +7987,6 @@ abstract class AppLocalizations {
   /// **'Restarting Flick'**
   String get restartingFlick;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:200
-  ///
-  /// In en, this message translates to:
-  /// **'Restore the original orbital layout'**
-  String get restoreTheOriginalOrbitalLayout;
-
   /// lib/features/artists/screens/artists_screen.dart:510
   ///
   /// In en, this message translates to:
@@ -9354,12 +8028,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Review before you clean'**
   String get reviewBeforeYouClean;
-
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:80
-  ///
-  /// In en, this message translates to:
-  /// **'Right'**
-  String get right;
 
   /// lib/features/player/widgets/player_layout_sheet.dart:373
   ///
@@ -9427,18 +8095,6 @@ abstract class AppLocalizations {
   /// **'Routes Bluetooth through the Rust engine'**
   String get routesBluetoothThroughTheRustEngine;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:612
-  ///
-  /// In en, this message translates to:
-  /// **'Run another Play Store update scan right now'**
-  String get runAnotherPlayStoreUpdateScan;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:613
-  ///
-  /// In en, this message translates to:
-  /// **'Run another update scan right now'**
-  String get runAnotherUpdateScanRightNow;
-
   /// lib/features/settings/screens/uac2_preferences_screen.dart:794
   ///
   /// In en, this message translates to:
@@ -9457,23 +8113,11 @@ abstract class AppLocalizations {
   /// **'{arg1}s'**
   String s(Object arg1);
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:734
-  ///
-  /// In en, this message translates to:
-  /// **'{arg1} s'**
-  String s2(Object arg1);
-
   /// lib/widgets/uac2/uac2_hotplug_monitor.dart:103
   ///
   /// In en, this message translates to:
   /// **'{arg1}s ago'**
   String sAgo(Object arg1);
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:248
-  ///
-  /// In en, this message translates to:
-  /// **'S-Curve'**
-  String get sCurve;
 
   /// lib/features/settings/screens/network_server_edit_screen.dart:90
   ///
@@ -9691,18 +8335,6 @@ abstract class AppLocalizations {
   /// **'Saving...'**
   String get saving;
 
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:20
-  ///
-  /// In en, this message translates to:
-  /// **'Saving'**
-  String get saving2;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:114
-  ///
-  /// In en, this message translates to:
-  /// **'Scale of the centered, focused song card'**
-  String get scaleOfTheCenteredFocusedSong;
-
   /// lib/features/settings/screens/player_layout_settings_screen.dart:240
   ///
   /// In en, this message translates to:
@@ -9799,12 +8431,6 @@ abstract class AppLocalizations {
   /// **'Scrolling pauses when reduced motion is enabled'**
   String get scrollingPausesWhenReducedMotionIs;
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:275
-  ///
-  /// In en, this message translates to:
-  /// **'Seamless transition between tracks'**
-  String get seamlessTransitionBetweenTracks;
-
   /// lib/providers/tutorial_provider.dart:21
   ///
   /// In en, this message translates to:
@@ -9883,18 +8509,6 @@ abstract class AppLocalizations {
   /// **'Search Online Lyrics'**
   String get searchOnlineLyrics;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:247
-  ///
-  /// In en, this message translates to:
-  /// **'Search Playback'**
-  String get searchPlayback;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:252
-  ///
-  /// In en, this message translates to:
-  /// **'Search Results'**
-  String get searchResults;
-
   /// lib/features/songs/screens/songs_screen.dart:206
   ///
   /// In en, this message translates to:
@@ -9937,12 +8551,6 @@ abstract class AppLocalizations {
   /// **'Searching the local network…'**
   String get searchingTheLocalNetwork;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:93
-  ///
-  /// In en, this message translates to:
-  /// **'Seconds of inactivity before collapsing'**
-  String get secondsOfInactivityBeforeCollapsing;
-
   /// lib/features/menu/screens/menu_screen.dart:939
   ///
   /// In en, this message translates to:
@@ -9954,12 +8562,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'See all {count}'**
   String seeAll2(Object count);
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:624
-  ///
-  /// In en, this message translates to:
-  /// **'See what is new in this update'**
-  String get seeWhatIsNewInThis;
 
   /// lib/features/favorites/screens/favorites_screen.dart:182
   ///
@@ -10014,12 +8616,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{selected} selected of {count, plural, =1{{count} song} other{{count} songs}}'**
   String selectedOfSong(Object selected, int count);
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:113
-  ///
-  /// In en, this message translates to:
-  /// **'Selected Size'**
-  String get selectedSize;
 
   /// lib/features/milestone/screens/milestones_screen.dart:510
   ///
@@ -10111,12 +8707,6 @@ abstract class AppLocalizations {
   /// **'Shared Secret'**
   String get sharedSecret;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:159
-  ///
-  /// In en, this message translates to:
-  /// **'Sharp (recommended)'**
-  String get sharpRecommended;
-
   /// lib/features/settings/screens/player_layout_settings_screen.dart:149
   ///
   /// In en, this message translates to:
@@ -10134,12 +8724,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shift only the song details up or down'**
   String get shiftOnlyTheSongDetailsUp;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:86
-  ///
-  /// In en, this message translates to:
-  /// **'Show a system overlay mini-player over other apps'**
-  String get showASystemOverlayMiniPlayer;
 
   /// lib/features/settings/widgets/mini_player_customization.dart:169
   ///
@@ -10213,18 +8797,6 @@ abstract class AppLocalizations {
   /// **'Show Frame'**
   String get showFrame2;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:187
-  ///
-  /// In en, this message translates to:
-  /// **'Show Glow'**
-  String get showGlow;
-
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:306
-  ///
-  /// In en, this message translates to:
-  /// **'Show Labels'**
-  String get showLabels;
-
   /// lib/features/search/screens/search_screen.dart:671
   ///
   /// In en, this message translates to:
@@ -10243,24 +8815,6 @@ abstract class AppLocalizations {
   /// **'Show more'**
   String get showMore;
 
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:181
-  ///
-  /// In en, this message translates to:
-  /// **'Show more art by fading only the bottom of the header and lowering body content'**
-  String get showMoreArtByFadingOnly;
-
-  /// lib/features/settings/screens/settings_screen.dart:199
-  ///
-  /// In en, this message translates to:
-  /// **'Show or hide home screen sections'**
-  String get showOrHideHomeScreenSections;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:179
-  ///
-  /// In en, this message translates to:
-  /// **'Show Orbit Path'**
-  String get showOrbitPath;
-
   /// lib/features/artists/screens/artists_screen.dart:763
   ///
   /// In en, this message translates to:
@@ -10273,29 +8827,11 @@ abstract class AppLocalizations {
   /// **'Show password'**
   String get showPassword;
 
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:78
-  ///
-  /// In en, this message translates to:
-  /// **'Show playlist previews on the home screen'**
-  String get showPlaylistPreviewsOnTheHome;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:54
-  ///
-  /// In en, this message translates to:
-  /// **'Show recently played artists on the home screen'**
-  String get showRecentlyPlayedArtistsOnThe;
-
   /// lib/features/artists/screens/artists_screen.dart:753
   ///
   /// In en, this message translates to:
   /// **'Show related albums on album pages'**
   String get showRelatedAlbumsOnAlbumPages;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:42
-  ///
-  /// In en, this message translates to:
-  /// **'Show smart mixes generated from your listening habits'**
-  String get showSmartMixesGeneratedFromYour;
 
   /// lib/features/settings/widgets/mini_player_customization.dart:161
   ///
@@ -10303,47 +8839,17 @@ abstract class AppLocalizations {
   /// **'Show the artist below the song title'**
   String get showTheArtistBelowTheSong;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:150
-  ///
-  /// In en, this message translates to:
-  /// **'Show the \"at a glance\" summary on Artists/Albums'**
-  String get showTheAtAGlanceSummary;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:102
-  ///
-  /// In en, this message translates to:
-  /// **'Show the audio engine picker card on the home screen'**
-  String get showTheAudioEnginePickerCard;
-
   /// lib/features/settings/screens/visualizer_settings_screen.dart:29
   ///
   /// In en, this message translates to:
   /// **'Show the audio visualizer (off saves battery)'**
   String get showTheAudioVisualizerOffSaves;
 
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:90
-  ///
-  /// In en, this message translates to:
-  /// **'Show the browse chips for library sections on the home screen'**
-  String get showTheBrowseChipsForLibrary;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:156
-  ///
-  /// In en, this message translates to:
-  /// **'Show the floating mini-player pill on screens'**
-  String get showTheFloatingMiniPlayerPill;
-
   /// lib/features/settings/screens/player_layout_settings_screen.dart:355
   ///
   /// In en, this message translates to:
   /// **'Show the glass frame around album art'**
   String get showTheGlassFrameAroundAlbum;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:30
-  ///
-  /// In en, this message translates to:
-  /// **'Show the grid of shortcut cards on the home screen'**
-  String get showTheGridOfShortcutCards;
 
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:61
   ///
@@ -10357,29 +8863,11 @@ abstract class AppLocalizations {
   /// **'Show the number over blurred art.'**
   String get showTheNumberOverBlurredArt;
 
-  /// lib/features/settings/screens/bottom_bar_settings_screen.dart:165
-  ///
-  /// In en, this message translates to:
-  /// **'Show the {arg1} tab in the bottom bar'**
-  String showTheTabInTheBottom(Object arg1);
-
   /// lib/models/song_tile_thumbnail_mode.dart:31
   ///
   /// In en, this message translates to:
   /// **'Show the track number.'**
   String get showTheTrackNumber;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:114
-  ///
-  /// In en, this message translates to:
-  /// **'Show the USB volume bar on the home screen'**
-  String get showTheUsbVolumeBarOn;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:126
-  ///
-  /// In en, this message translates to:
-  /// **'Show the USB volume bar on the UAC2 settings screen'**
-  String get showTheUsbVolumeBarOn2;
 
   /// lib/features/player/widgets/player_layout_sheet.dart:251
   ///
@@ -10404,12 +8892,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show visualizer'**
   String get showVisualizer;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:66
-  ///
-  /// In en, this message translates to:
-  /// **'Show your recent listening history on the home screen'**
-  String get showYourRecentListeningHistoryOn;
 
   /// lib/features/songs/screens/songs_screen.dart:3122
   ///
@@ -10789,12 +9271,6 @@ abstract class AppLocalizations {
   /// **'Simple mode'**
   String get simpleMode;
 
-  /// lib/features/settings/screens/interface_settings_screen.dart:59
-  ///
-  /// In en, this message translates to:
-  /// **'Simplified Chinese'**
-  String get simplifiedChinese;
-
   /// lib/features/recap/screens/replay_studio_screen.dart:575
   ///
   /// In en, this message translates to:
@@ -10806,12 +9282,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Size'**
   String get size;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:74
-  ///
-  /// In en, this message translates to:
-  /// **'Sizing'**
-  String get sizing;
 
   /// lib/features/onboarding/screens/onboarding_screen.dart:167
   ///
@@ -10879,18 +9349,6 @@ abstract class AppLocalizations {
   /// **'Snappy'**
   String get snappy;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:151
-  ///
-  /// In en, this message translates to:
-  /// **'Soft detail, balanced'**
-  String get softDetailBalanced;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:188
-  ///
-  /// In en, this message translates to:
-  /// **'Soft highlight behind the selected song'**
-  String get softHighlightBehindTheSelectedSong;
-
   /// lib/features/player/widgets/bit_perfect_indicator.dart:1155
   ///
   /// In en, this message translates to:
@@ -10902,12 +9360,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Solid'**
   String get solid;
-
-  /// lib/features/settings/screens/support_flick_screen.dart:136
-  ///
-  /// In en, this message translates to:
-  /// **'Solo Developer'**
-  String get soloDeveloper;
 
   /// lib/widgets/common/offline_notice.dart:185
   ///
@@ -10981,18 +9433,6 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{song} other{songs}}'**
   String songUnit(int count);
 
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:115
-  ///
-  /// In en, this message translates to:
-  /// **'Song View: List'**
-  String get songViewList;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:103
-  ///
-  /// In en, this message translates to:
-  /// **'Song View: Orbital'**
-  String get songViewOrbital;
-
   /// lib/features/albums/screens/album_detail_screen.dart:666
   ///
   /// In en, this message translates to:
@@ -11064,12 +9504,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{arg1} songs · {albumCount} albums'**
   String songsAlbums2(Object arg1, Object albumCount);
-
-  /// lib/features/settings/screens/queue_settings_screen.dart:50
-  ///
-  /// In en, this message translates to:
-  /// **'Songs before the tapped track queue at the end'**
-  String get songsBeforeTheTappedTrackQueue;
 
   /// lib/models/shuffle_mode.dart:13
   ///
@@ -11185,12 +9619,6 @@ abstract class AppLocalizations {
   /// **'Spring physics — energetic and reactive'**
   String get springPhysicsEnergeticAndReactive;
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:247
-  ///
-  /// In en, this message translates to:
-  /// **'Square Root'**
-  String get squareRoot;
-
   /// lib/features/player/screens/lyrics_sync_screen.dart:1202
   ///
   /// In en, this message translates to:
@@ -11214,12 +9642,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Standard'**
   String get standard;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:223
-  ///
-  /// In en, this message translates to:
-  /// **'Standard (60Hz)'**
-  String get standard60hz;
 
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:420
   ///
@@ -11287,12 +9709,6 @@ abstract class AppLocalizations {
   /// **'Status'**
   String get status;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:694
-  ///
-  /// In en, this message translates to:
-  /// **'Step-by-step walkthrough of the app'**
-  String get stepByStepWalkthroughOfThe;
-
   /// lib/features/player/widgets/bit_perfect_indicator.dart:621
   ///
   /// In en, this message translates to:
@@ -11304,12 +9720,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop'**
   String get stop;
-
-  /// lib/features/settings/screens/queue_settings_screen.dart:51
-  ///
-  /// In en, this message translates to:
-  /// **'Stop at the end of the current list'**
-  String get stopAtTheEndOfThe;
 
   /// lib/features/settings/screens/casting_settings_screen.dart:112
   ///
@@ -11328,12 +9738,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop USB on Quit'**
   String get stopUsbOnQuit;
-
-  /// lib/features/settings/screens/queue_settings_screen.dart:76
-  ///
-  /// In en, this message translates to:
-  /// **'Stop when the queue ends'**
-  String get stopWhenTheQueueEnds;
 
   /// lib/features/player/widgets/sleep_timer_bottom_sheet.dart:113
   ///
@@ -11461,35 +9865,11 @@ abstract class AppLocalizations {
   /// **'Subsonic'**
   String get subsonic;
 
-  /// lib/features/settings/screens/settings_screen.dart:94
-  ///
-  /// In en, this message translates to:
-  /// **'Subsonic servers, sync, and streaming'**
-  String get subsonicServersSyncAndStreaming;
-
   /// lib/models/album_color_mode.dart:22
   ///
   /// In en, this message translates to:
   /// **'Subtle'**
   String get subtle;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:703
-  ///
-  /// In en, this message translates to:
-  /// **'Support'**
-  String get support;
-
-  /// Buy Me a Coffee donation option subtitle on the Support Flick screen.
-  ///
-  /// In en, this message translates to:
-  /// **'Support development on Buy Me a Coffee'**
-  String get supportDevelopmentOnBuyMeACoffee;
-
-  /// lib/features/settings/screens/support_flick_screen.dart:213
-  ///
-  /// In en, this message translates to:
-  /// **'Support development on Ko-fi'**
-  String get supportDevelopmentOnKoFi;
 
   /// lib/features/menu/screens/menu_screen.dart:367
   ///
@@ -11509,24 +9889,6 @@ abstract class AppLocalizations {
   /// **'Surface shading'**
   String get surfaceShading;
 
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:45
-  ///
-  /// In en, this message translates to:
-  /// **'Sweep a highlight through words as they are sung'**
-  String get sweepAHighlightThroughWordsAs;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:294
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe'**
-  String get swipe;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:125
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe Actions'**
-  String get swipeActions;
-
   /// lib/features/settings/screens/equalizer_screen.dart:1823
   ///
   /// In en, this message translates to:
@@ -11538,18 +9900,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Swipe left/right to skip tracks'**
   String get swipeLeftRightToSkipTracks;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:295
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe left to unfavorite a song'**
-  String get swipeLeftToUnfavoriteASong;
-
-  /// lib/features/settings/screens/interface_settings_screen.dart:126
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe songs left to queue or right to favorite'**
-  String get swipeSongsLeftToQueueOr;
 
   /// lib/features/settings/screens/bottom_bar_settings_screen.dart:37
   ///
@@ -11640,12 +9990,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Synthwave City'**
   String get synthwaveCity;
-
-  /// lib/features/settings/screens/casting_settings_screen.dart:243
-  ///
-  /// In en, this message translates to:
-  /// **'System'**
-  String get system;
 
   /// lib/features/player/widgets/bit_perfect_indicator.dart:1151
   ///
@@ -12103,12 +10447,6 @@ abstract class AppLocalizations {
   /// **'Track Sample Rate'**
   String get trackSampleRate;
 
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:204
-  ///
-  /// In en, this message translates to:
-  /// **'Track Thumbnails'**
-  String get trackThumbnails;
-
   /// lib/features/recap/widgets/replay_card_options.dart:20
   ///
   /// In en, this message translates to:
@@ -12245,18 +10583,6 @@ abstract class AppLocalizations {
   /// **'Try picking a local image if the release metadata is uncommon.'**
   String get tryPickingALocalImageIf;
 
-  /// lib/features/settings/screens/audio_settings_screen.dart:307
-  ///
-  /// In en, this message translates to:
-  /// **'Turn off 432 Hz tuning to use crossfade'**
-  String get turnOff432HzTuningTo;
-
-  /// lib/features/settings/screens/audio_settings_screen.dart:421
-  ///
-  /// In en, this message translates to:
-  /// **'Turn off 432 Hz tuning to use crossfeed'**
-  String get turnOff432HzTuningTo2;
-
   /// lib/features/settings/screens/widgets/autoeq_search_sheet.dart:94
   ///
   /// In en, this message translates to:
@@ -12305,12 +10631,6 @@ abstract class AppLocalizations {
   /// **'U8 — byte-interleaved, recommended default'**
   String get u8ByteInterleavedRecommendedDefault;
 
-  /// lib/features/settings/screens/settings_screen.dart:138
-  ///
-  /// In en, this message translates to:
-  /// **'UAC2 and equalizer'**
-  String get uac2AndEqualizer;
-
   /// lib/features/settings/screens/uac2_settings_screen.dart:189
   ///
   /// In en, this message translates to:
@@ -12335,29 +10655,11 @@ abstract class AppLocalizations {
   /// **'UAC2 preferences reset successfully'**
   String get uac2PreferencesResetSuccessfully;
 
-  /// lib/features/settings/screens/settings_screen.dart:198
-  ///
-  /// In en, this message translates to:
-  /// **'UI Customization'**
-  String get uiCustomization;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:166
-  ///
-  /// In en, this message translates to:
-  /// **'Ultra'**
-  String get ultra;
-
   /// lib/providers/update_check_provider.dart:177
   ///
   /// In en, this message translates to:
   /// **'Unable to check for updates right now.'**
   String get unableToCheckForUpdatesRight;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:300
-  ///
-  /// In en, this message translates to:
-  /// **'Unable to load patch notes right now.'**
-  String get unableToLoadPatchNotesRight;
 
   /// lib/features/settings/screens/library_settings_screen.dart:220
   ///
@@ -12521,18 +10823,6 @@ abstract class AppLocalizations {
   /// **'Update Available'**
   String get updateAvailable;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:87
-  ///
-  /// In en, this message translates to:
-  /// **'Update available — download from flick-player.site'**
-  String get updateAvailableDownloadFromFlickPlayer;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:85
-  ///
-  /// In en, this message translates to:
-  /// **'Update available on the Play Store.'**
-  String get updateAvailableOnThePlayStore;
-
   /// lib/features/menu/screens/menu_screen.dart:1269
   ///
   /// In en, this message translates to:
@@ -12556,18 +10846,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Updated album art for \"{arg1}\".'**
   String updatedAlbumArtFor2(Object arg1);
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:602
-  ///
-  /// In en, this message translates to:
-  /// **'Updates'**
-  String get updates;
-
-  /// lib/features/settings/screens/settings_screen.dart:267
-  ///
-  /// In en, this message translates to:
-  /// **'Updates, about, and support'**
-  String get updatesAboutAndSupport;
 
   /// lib/features/settings/screens/logs_screen.dart:132
   ///
@@ -12653,12 +10931,6 @@ abstract class AppLocalizations {
   /// **'USB DAC auto bit-perfect offers reset.'**
   String get usbDacAutoBitPerfectOffers;
 
-  /// lib/features/settings/screens/support_flick_screen.dart:175
-  ///
-  /// In en, this message translates to:
-  /// **'USB DACs, headphones, and reference gear to test and improve playback quality.'**
-  String get usbDacsHeadphonesAndReferenceGear;
-
   /// lib/features/settings/screens/privacy_policy_screen.dart:54
   ///
   /// In en, this message translates to:
@@ -12688,18 +10960,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'USB Volume'**
   String get usbVolume;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:125
-  ///
-  /// In en, this message translates to:
-  /// **'USB Volume in Settings'**
-  String get usbVolumeInSettings;
-
-  /// lib/features/settings/screens/ui_customization_settings_screen.dart:113
-  ///
-  /// In en, this message translates to:
-  /// **'USB Volume on Home'**
-  String get usbVolumeOnHome;
 
   /// lib/features/settings/screens/uac2_preferences_screen.dart:1250
   ///
@@ -12755,12 +11015,6 @@ abstract class AppLocalizations {
   /// **'Use mm:ss.cc, e.g. 01:23.45'**
   String get useMmSsCcEG;
 
-  /// lib/features/settings/screens/lyrics_settings_screen.dart:27
-  ///
-  /// In en, this message translates to:
-  /// **'Use the current audio file\'s name when saving lyrics internally'**
-  String get useTheCurrentAudioFileS;
-
   /// lib/models/album_color_mode.dart:33
   ///
   /// In en, this message translates to:
@@ -12778,18 +11032,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use the legacy OpenSL ES backend. Troubleshooting fallback for older or problematic devices.'**
   String get useTheLegacyOpenslEsBackend;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:116
-  ///
-  /// In en, this message translates to:
-  /// **'Use the list songs browser'**
-  String get useTheListSongsBrowser;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:104
-  ///
-  /// In en, this message translates to:
-  /// **'Use the orbital songs browser'**
-  String get useTheOrbitalSongsBrowser;
 
   /// lib/features/settings/screens/uac2_preferences_screen.dart:399
   ///
@@ -12857,12 +11099,6 @@ abstract class AppLocalizations {
   /// **'Verified'**
   String get verified;
 
-  /// lib/features/settings/screens/app_info_settings_screen.dart:454
-  ///
-  /// In en, this message translates to:
-  /// **'Version {kAppVersion}'**
-  String version(Object kAppVersion);
-
   /// lib/features/whats_new/widgets/whats_new_bottom_sheet.dart:126
   ///
   /// In en, this message translates to:
@@ -12880,12 +11116,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Vertical bars that animate across the screen.'**
   String get verticalBarsThatAnimateAcrossThe;
-
-  /// lib/features/settings/screens/orbit_settings_screen.dart:38
-  ///
-  /// In en, this message translates to:
-  /// **'Vertical Position'**
-  String get verticalPosition;
 
   /// lib/models/album_color_mode.dart:26
   ///
@@ -12910,12 +11140,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'View Metadata'**
   String get viewMetadata;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:679
-  ///
-  /// In en, this message translates to:
-  /// **'View Onboarding'**
-  String get viewOnboarding;
 
   /// lib/features/albums/screens/album_detail_screen.dart:265
   ///
@@ -12977,12 +11201,6 @@ abstract class AppLocalizations {
   /// **'A spectrum of colors across the visualizer'**
   String get visualizerRainbowDescription;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:174
-  ///
-  /// In en, this message translates to:
-  /// **'Visuals'**
-  String get visuals;
-
   /// lib/features/player/widgets/bit_perfect_indicator.dart:646
   ///
   /// In en, this message translates to:
@@ -12994,12 +11212,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Volume Control'**
   String get volumeControl;
-
-  /// lib/features/settings/screens/playback_display_settings_screen.dart:245
-  ///
-  /// In en, this message translates to:
-  /// **'Volume dips while notification sounds play'**
-  String get volumeDipsWhileNotificationSoundsPlay;
 
   /// lib/features/player/widgets/volume_bottom_sheet.dart:112
   ///
@@ -13115,18 +11327,6 @@ abstract class AppLocalizations {
   /// **'Where should the .lrc file be saved?'**
   String get whereShouldTheLrcFileBe;
 
-  /// lib/features/settings/screens/orbit_settings_screen.dart:39
-  ///
-  /// In en, this message translates to:
-  /// **'Where the focal song sits vertically'**
-  String get whereTheFocalSongSitsVertically;
-
-  /// lib/features/settings/screens/support_flick_screen.dart:161
-  ///
-  /// In en, this message translates to:
-  /// **'Where Your Money Goes'**
-  String get whereYourMoneyGoes;
-
   /// lib/models/song.dart:371
   ///
   /// In en, this message translates to:
@@ -13150,12 +11350,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Whole album'**
   String get wholeAlbum;
-
-  /// lib/features/settings/screens/support_flick_screen.dart:131
-  ///
-  /// In en, this message translates to:
-  /// **'Why Donate'**
-  String get whyDonate;
 
   /// lib/features/settings/screens/equalizer_screen.dart:3493
   ///
@@ -13229,18 +11423,6 @@ abstract class AppLocalizations {
   /// **'Word Timeline · Line {arg1}'**
   String wordTimelineLine(Object arg1);
 
-  /// lib/features/settings/screens/settings_screen.dart:116
-  ///
-  /// In en, this message translates to:
-  /// **'Wrap-around and queue behavior'**
-  String get wrapAroundAndQueueBehavior;
-
-  /// lib/features/settings/screens/queue_settings_screen.dart:48
-  ///
-  /// In en, this message translates to:
-  /// **'Wrap-around Queue'**
-  String get wrapAroundQueue;
-
   /// lib/features/albums/screens/album_detail_screen.dart:314
   ///
   /// In en, this message translates to:
@@ -13288,18 +11470,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Yesterday'**
   String get yesterday;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:168
-  ///
-  /// In en, this message translates to:
-  /// **'You already have the latest Flick release'**
-  String get youAlreadyHaveTheLatestFlick;
-
-  /// lib/features/settings/screens/app_info_settings_screen.dart:167
-  ///
-  /// In en, this message translates to:
-  /// **'You already have the latest Play Store release'**
-  String get youAlreadyHaveTheLatestPlay;
 
   /// lib/features/settings/screens/bluetooth_settings_screen.dart:612
   ///

@@ -5,6 +5,7 @@ import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_sign_in.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flutter/material.dart';
@@ -311,8 +312,12 @@ class _KonnektedDiscoveryViewState
               message: 'Discovery recommends music from your Last.fm scrobbles. Sign in to Last.fm in Integrations to see your shelves.',
               icon: Icons.auto_awesome_rounded,
               actionLabel: 'Open Integrations',
-              onAction: () =>
-                  widget.onNavigate(KonnektedDestination.integrations),
+              onAction: () => widget.onNavigate(
+                const KonnektedDestination.settingsAt(
+                  LokalSettingsGroup.integrations,
+                  section: 'Scrobbling',
+                ),
+              ),
             ),
           )
         else if (source == KonnektedDiscoverySource.spotify)

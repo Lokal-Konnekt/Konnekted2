@@ -10,9 +10,6 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get aDraggableOverlayShowsWhileUsing => '使用其他应用时显示可拖动的悬浮窗';
-
-  @override
   String get aLittleRecordOfWhatStayed => '记录下那些被你反复播放的旋律。';
 
   @override
@@ -20,10 +17,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aPlaylistWithThisNameAlready => '已存在同名播放列表';
-
-  @override
-  String get aPremiumMusicPlayerWithCustom =>
-      '一款内置自定义 UAC 2.0、由 Rust 驱动的高品质音乐播放器，带来最佳音频体验。';
 
   @override
   String get aSmoothContinuousWaveAcrossFrequencies => '横跨各频率的平滑连续波形';
@@ -48,9 +41,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get about => '关于';
-
-  @override
-  String get aboutFlickPlayer => '关于 Flick Player';
 
   @override
   String get aboutThisAlbum => '关于这张专辑';
@@ -85,12 +75,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get activeDays => '活跃天数';
-
-  @override
-  String get activeQueue => '当前队列';
-
-  @override
-  String get adaptive => '自适应';
 
   @override
   String get add => '添加';
@@ -204,25 +188,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addsPreDriveAndCatchesPeaks => '增加前置驱动，并针对最终输出上限抑制峰值。';
 
   @override
-  String get adjustAudioFrequencies => '调整音频频率';
-
-  @override
   String get adjustMetadataTextSizeInArtwork => '调整封面卡片模式下的元数据文字大小';
 
   @override
   String get adjustMetadataTextSizeInImmersive => '调整沉浸模式下的元数据文字大小';
 
   @override
-  String get adjustSpacingBetweenButtons => '调整按钮之间的间距';
-
-  @override
   String get adjustTheMiniPlayerSurface => '调整迷你播放器的表面';
-
-  @override
-  String get adjustTheSizeOfTheBottom => '调整底部栏的大小';
-
-  @override
-  String get adjustTheSizeOfTheIcons => '调整图标的大小';
 
   @override
   String get advanceToARandomCategory => '随机切换到一个分类';
@@ -315,15 +287,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get alignLyricTextToTheCenter => '歌词文本居中对齐';
-
-  @override
-  String get alignLyricTextToTheLeft => '歌词文本左对齐';
-
-  @override
-  String get alignLyricTextToTheRight => '歌词文本靠右对齐';
-
-  @override
   String get all => '全部';
 
   @override
@@ -366,9 +329,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get alphabetical => '按字母顺序';
-
-  @override
-  String get alphabeticalIndexRailOnTheSongs => '歌曲界面的字母索引栏';
 
   @override
   String get alsoRespectsYourSystemTextSize => '同时遵循系统文字大小';
@@ -424,34 +384,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get androidUsbRoute => 'Android USB 路由';
 
   @override
-  String get animatedAlbumArt => '动态专辑封面';
-
-  @override
   String get animationStyle => '动画样式';
 
   @override
-  String get animationStyleAndFrequencyFocus => '动画样式与频率焦点';
-
-  @override
-  String get animations => '动画';
-
-  @override
-  String get animationsAndHapticFeedback => '动画与触感反馈';
-
-  @override
   String get apiKey => 'API 密钥';
-
-  @override
-  String get appInfo => '应用信息';
 
   @override
   String get appTitle => 'Lokal';
 
   @override
   String get appearance => '外观';
-
-  @override
-  String get appearsInTheOverflowMenu => '显示在溢出菜单中';
 
   @override
   String get appleMusicDataUnavailable => 'Apple Music 数据不可用';
@@ -461,10 +403,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get appleMusicLookupFailedCheckYour => 'Apple Music 查询失败，请检查网络连接。';
-
-  @override
-  String get appleMusicMotionArtOnAlbums =>
-      '专辑上的 Apple Music 动态封面，以及主视觉的平移/缩放、氛围光晕与平滑淡入淡出';
 
   @override
   String appliedAutoeqFor(Object arg1) {
@@ -507,9 +445,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get areYouSureYouWantTo3 => '确定要重置所有 UAC2 偏好设置吗？此操作无法撤销。';
-
-  @override
-  String get artResolution => '封面分辨率';
 
   @override
   String get artist => '艺术家';
@@ -572,9 +507,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get attack => '起音';
 
   @override
-  String get audio => '音频';
-
-  @override
   String get audioFocus => '音频焦点';
 
   @override
@@ -585,9 +517,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get audioSignalPath => '音频信号路径';
-
-  @override
-  String get audioTestingEquipment => '音频测试设备';
 
   @override
   String get aug => '8 月';
@@ -605,19 +534,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoBitPerfectForUsbDacs => 'USB DAC 自动位完美';
 
   @override
-  String get autoCollapse => '自动收起';
-
-  @override
   String get autoFill => '自动填充';
 
   @override
-  String get autoFocusSearch => '自动聚焦搜索';
-
-  @override
   String get autoFullView => '自动全屏视图';
-
-  @override
-  String get autoHideTimeout => '自动隐藏超时';
 
   @override
   String get autoIdentifyUntaggedAlbums => '自动识别无标签专辑';
@@ -633,9 +553,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoShowFullViewAfterInactivity => '无操作后自动显示全屏视图';
 
   @override
-  String get autoShowTheSpotifyStyleImmersive => '无操作后自动显示 Spotify 风格沉浸全屏视图';
-
-  @override
   String get autoU8ByteInterleavedRecommended => '自动 — U8 字节交错（推荐）';
 
   @override
@@ -646,15 +563,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get automatic => '自动';
-
-  @override
-  String get automaticUpdateChecks => '自动检查更新';
-
-  @override
-  String get automaticallyOpenKeyboardWhenSwitchingTo => '切到搜索时自动弹出键盘';
-
-  @override
-  String get autoplayOnQueueEnd => '队列结束时自动播放';
 
   @override
   String get availableDevices => '可用设备';
@@ -684,9 +592,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backgroundOpacity => '背景不透明度';
-
-  @override
-  String get backgroundPlaybackAnchor => '后台播放锚点';
 
   @override
   String get balance => '平衡';
@@ -746,13 +651,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get barHeight => '栏高度';
-
-  @override
   String get bars => '柱状';
-
-  @override
-  String get baseAlbumArtSizeForEach => '每张歌曲卡片的基础封面尺寸';
 
   @override
   String get bass => '低音';
@@ -870,9 +769,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get boldSaturatedColorsFromAlbumArt => '来自专辑封面的浓郁饱和色彩。';
 
   @override
-  String get boostBeyond100UpTo200 => '超过 100% 的增强（最高 200%）';
-
-  @override
   String get border => '边框';
 
   @override
@@ -883,22 +779,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bottom => '底部';
 
   @override
-  String get bottomBar => '底部栏';
-
-  @override
-  String get bottomBarAlwaysVisible => '底栏始终可见';
-
-  @override
   String get bouncy => '弹跳';
 
   @override
   String get browseByArtworkOpenAnyAlbum => '按封面浏览，打开任意专辑，直接进入曲目列表。';
-
-  @override
-  String get browseMore => '浏览更多';
-
-  @override
-  String get browseTheFullControlsGuide => '浏览完整的操作指南';
 
   @override
   String get browseYourArtistLibrary => '浏览你的艺术家库';
@@ -916,28 +800,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get buildFlavor => '发行渠道';
-
-  @override
-  String get buildFlavorFull => 'full — 直接下载版本';
-
-  @override
-  String get buildFlavorPlay => 'play — Google Play 版本';
-
-  @override
   String get buildingYourMusicHome => '正在构建你的音乐主页';
 
   @override
   String get builtIn => '内置';
-
-  @override
-  String get buttonSpacing => '按钮间距';
-
-  @override
-  String get buttons => '按钮';
-
-  @override
-  String get buyMeACoffee => '请我喝杯咖啡';
 
   @override
   String by(Object arg1, Object arg2) {
@@ -987,9 +853,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cancel => '取消';
 
   @override
-  String get capAt60hzBalancedSmoothnessAnd => '锁定 60Hz——流畅度与续航兼顾';
-
-  @override
   String capMs(Object arg1) {
     return '上限 $arg1 ms';
   }
@@ -1002,12 +865,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get capabilityState => '能力状态';
-
-  @override
-  String get cardSize => '卡片尺寸';
-
-  @override
-  String get cardWidth => '卡片宽度';
 
   @override
   String get cast => '投放';
@@ -1036,12 +893,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get center => '居中';
-
-  @override
-  String get centerTheTitleAndInfoIn => '在详情页头部居中显示标题与信息';
-
-  @override
-  String get centeredHeaderTitle => '头部标题居中';
 
   @override
   String get centeredWidensToFitYourControls => '居中；会加宽以容纳控件';
@@ -1079,9 +930,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get checkAgain => '再次检查';
-
-  @override
   String get checkTheVersionsYouWantTo => '勾选你要保留的版本 — 未勾选的将从音乐库中移除。至少需保留一个。';
 
   @override
@@ -1089,12 +937,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get checking => '检查中…';
-
-  @override
-  String get checkingForUpdates => '正在检查更新';
-
-  @override
-  String get checkingForUpdates2 => '正在检查更新…';
 
   @override
   String get childrenSPrivacy => '儿童隐私';
@@ -1193,9 +1035,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get codecU0026Audio => '编解码器与音频';
 
   @override
-  String get collapseAfter => '收起延时';
-
-  @override
   String get collapsed => '收起';
 
   @override
@@ -1214,9 +1053,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get compatibleWithPowerampEq => '兼容 Poweramp EQ';
 
   @override
-  String get completelyHiddenFromTheBottomBar => '已从底栏完全隐藏';
-
-  @override
   String get compressor => '压缩器';
 
   @override
@@ -1224,12 +1060,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get compressorOn => '压缩器开';
-
-  @override
-  String get configureUsbDacAmpDevices => '配置 USB DAC/AMP 设备';
-
-  @override
-  String get configureYourMusicExperience => '配置你的音乐体验';
 
   @override
   String get connect => '连接';
@@ -1255,9 +1085,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get connectToSubmitYourListeningHistory => '连接以提交你的收听记录';
-
-  @override
-  String get connectToTheInternetToCheck => '连接网络以检查更新。';
 
   @override
   String get connected => '已连接';
@@ -1286,12 +1113,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get connectionManagement => '连接管理';
 
   @override
-  String get connectionNotices => '网络连接提示';
-
-  @override
-  String get connectionNoticesDescription => '显示离线和恢复连接提示';
-
-  @override
   String get connectionOk => '连接正常';
 
   @override
@@ -1316,12 +1137,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get continueLabel => '继续';
-
-  @override
-  String get continueThroughTheSearchResults => '在搜索结果中继续播放';
-
-  @override
-  String get continueThroughYourEntireLibrary => '在整个音乐库中继续播放';
 
   @override
   String conversionFailed(Object error) {
@@ -1372,9 +1187,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cosmicOrchestra => '宇宙管弦乐团';
 
   @override
-  String get couldNotCheckForUpdates => '无法检查更新';
-
-  @override
   String get couldNotConnectToLastFm => '无法连接到 Last.fm。请检查 API 凭据后重试。';
 
   @override
@@ -1405,9 +1217,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get couldNotOpenKoFiPlease => '无法打开 Ko-fi，请重试。';
 
   @override
-  String get couldNotOpenLink => '无法打开链接';
-
-  @override
   String couldNotOpenLink2(Object e) {
     return '无法打开链接：$e';
   }
@@ -1416,23 +1225,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get couldNotOpenThatPhotoTry => '无法打开该照片，请换一张。';
 
   @override
-  String get couldNotOpenTheLink => '无法打开链接';
-
-  @override
-  String couldNotOpenTheLink2(Object e) {
-    return '无法打开链接：$e';
-  }
-
-  @override
   String get couldNotOpenThePlayStore => '无法打开 Play Store。';
 
   @override
   String couldNotOpenThePlayStore2(Object error) {
     return '无法打开 Play Store：$error';
   }
-
-  @override
-  String get couldNotOpenThePlayStore3 => '无法打开 Play Store';
 
   @override
   String get couldNotReadTheCoverColors => '无法读取封面配色。信号图仍可使用。';
@@ -1524,29 +1322,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get credentialsSavedSuccessfully => '凭据已成功保存！';
 
   @override
-  String get crispestHeavierDuringFastScrolling => '最清晰 — 快速滚动时负载更高';
-
-  @override
-  String get crossfade => '淡入淡出';
-
-  @override
-  String get crossfadeIsMostReliableOnThe =>
-      '淡入淡出在「标准」引擎上最可靠。在高质量（Rust）引擎上可能不稳定——想要稳定的淡入淡出请切到「标准」。';
-
-  @override
-  String get crossfeed => '交叉馈送';
-
-  @override
-  String get crossfeedBs2b => '交叉馈送（BS2B）';
-
-  @override
-  String get crossfeedEasy => '简易交叉馈送';
-
-  @override
-  String get crossfeedRunsOnTheHighQuality =>
-      '交叉馈送仅在高质量（Rust）引擎上可用。「标准」引擎不提供此功能。';
-
-  @override
   String get crystalCaverns => '水晶洞窟';
 
   @override
@@ -1574,18 +1349,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get currentStreak => '当前连续';
-
-  @override
-  String get curvature => '曲率';
-
-  @override
-  String get curvatureSizingDepthAndVisuals => '曲率、尺寸、深度与视觉效果';
-
-  @override
-  String get curve => '曲线';
-
-  @override
-  String get curveOfTheOrbitArcHigher => '轨道弧线曲率 — 越高越平缓';
 
   @override
   String get curvePreview => '曲线预览';
@@ -1618,15 +1381,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get customizeBottomBar => '自定义底部栏';
-
-  @override
-  String get customizeHomeScreenWidgets => '自定义主屏幕小组件';
-
-  @override
-  String get customizeOrbital => '自定义 Orbital';
-
-  @override
-  String get customizeWhichTabsAppearAndTheir => '自定义显示哪些标签页及其大小';
 
   @override
   String dAgo(Object arg1) {
@@ -1761,9 +1515,6 @@ class AppLocalizationsZh extends AppLocalizations {
       'Android 默认播放器，什么都能稳定播放。对大多数听众来说最稳妥。';
 
   @override
-  String get defaultLabel => '默认';
-
-  @override
   String get del => '删除';
 
   @override
@@ -1825,16 +1576,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get depth => '深度';
-
-  @override
   String get deselectAll => '取消全选';
 
   @override
   String get designed => '设计';
-
-  @override
-  String get detailScreens => '详情页面';
 
   @override
   String get details => '细节';
@@ -1902,9 +1647,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get disabled => '已禁用';
 
   @override
-  String get disabledInBitPerfectMode => '位完美模式下禁用';
-
-  @override
   String get disabledInBitPerfectUsbDac => '位完美（USB DAC）模式下禁用（需精确采样率）';
 
   @override
@@ -1929,9 +1671,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get disconnect => '断开';
 
   @override
-  String get disconnectBehaviorAndCodecInfo => '断连行为与编解码器信息';
-
-  @override
   String disconnectFrom(Object arg1) {
     return '断开与 $arg1 的连接';
   }
@@ -1943,9 +1682,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get disconnectListenbrainz => '断开 ListenBrainz 连接？';
 
   @override
-  String get discord => 'Discord';
-
-  @override
   String get discoversDlnaUpnpAndChromecastReceivers =>
       '发现网络中的 DLNA、UPnP 与 Chromecast 接收器';
 
@@ -1953,16 +1689,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dismiss => '忽略';
 
   @override
-  String get display => '显示';
-
-  @override
   String get displayFileFormatAndBitrateIn => '在沉浸模式下显示文件格式与码率';
 
   @override
   String get displayFileFormatAndBitrateIn2 => '在封面卡片模式下显示文件格式与码率';
-
-  @override
-  String get displayTextLabelsBelowIcons => '在图标下方显示文字标签';
 
   @override
   String get displayTheAlbumNameInArtwork => '在封面卡片模式下显示专辑名';
@@ -1980,9 +1710,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get displayTheTrackTitleInImmersive => '在沉浸模式下显示曲目标题';
 
   @override
-  String get distanceBetweenSongsAlongTheArc => '弧线上歌曲之间的距离';
-
-  @override
   String get dlnaAndUpnpReceiversAreControlled =>
       'DLNA 与 UPnP 接收端完全由纯 Dart 控制——不依赖额外组件。Chromecast 走原生 Cast SDK。网络音源（Subsonic、WebDAV、Jellyfin、UPnP）、本地文件和已缓存歌曲都能投放——本地文件直接从这台手机提供。投放期间，音量键与系统音量面板控制的是已连接的设备。';
 
@@ -1990,16 +1717,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dlnaUpnp => 'DLNA / UPnP';
 
   @override
-  String get dlnaUpnpAndChromecastReceivers => 'DLNA、UPnP 与 Chromecast 接收器';
-
-  @override
   String get donTShowAgainToday => '今天不再显示';
-
-  @override
-  String get donate => '捐赠';
-
-  @override
-  String get donateFundFeaturesAndKeepThe => '捐赠、支持新功能，让应用持续发展';
 
   @override
   String get done => '完成';
@@ -2023,12 +1741,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String down(Object arg1) {
     return '下移 $arg1';
   }
-
-  @override
-  String get downloadTheLatestApkFromFlick => '从 flick-player.site 下载最新的 APK';
-
-  @override
-  String get downloadUpdate => '下载更新';
 
   @override
   String dp(Object arg1) {
@@ -2061,15 +1773,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dragVerticallyToChangeGain => '垂直拖动调整增益';
 
   @override
-  String get drawTheCurvedArcBehindThe => '在歌曲后方绘制弧线';
-
-  @override
   String driftMs(Object arg1) {
     return '漂移 $arg1 ms';
   }
-
-  @override
-  String get dsdDsfPlayback => 'DSD / DSF 播放';
 
   @override
   String get dsdMode => 'DSD 模式';
@@ -2079,9 +1785,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dsdStream => 'DSD 流';
-
-  @override
-  String get duckOnNotifications => '通知时压低音量';
 
   @override
   String get duplicateCleaner => '重复项清理';
@@ -2144,16 +1847,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get enable432HzTuning => '启用 432 Hz 调音？';
 
   @override
-  String get enableAnimatedTransitionsAndEffects => '启用过渡动画与视觉效果';
-
-  @override
   String get enableEqToEdit => '启用均衡器后可编辑';
 
   @override
   String get enableFullLibraryAccess => '启用完整音乐库访问权限';
-
-  @override
-  String get enableVibrationOnInteractions => '交互时振动';
 
   @override
   String get enabled => '已启用';
@@ -2163,12 +1860,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get engine => '引擎';
-
-  @override
-  String get engineSelector => '引擎选择器';
-
-  @override
-  String get english => '英语';
 
   @override
   String enterAValidNumber(Object label) {
@@ -2196,9 +1887,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get eqDynamics => '均衡器与动态';
-
-  @override
-  String get equalPower => '等功率';
 
   @override
   String get equalizer => '均衡器';
@@ -2272,9 +1960,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get expanded => '展开';
 
   @override
-  String get expandedHeaderArt => '扩展头部封面';
-
-  @override
   String get experimental => '实验性';
 
   @override
@@ -2321,9 +2006,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String exportedSongsTo(Object arg1, Object arg2) {
     return '已导出 $arg1 首歌曲到“$arg2”。';
   }
-
-  @override
-  String get extendedVolume => '扩展音量';
 
   @override
   String get externalLabel => '外部';
@@ -2417,13 +2099,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fastDirectTrackingImmediateResponse => '快速直接跟随——即时响应';
 
   @override
-  String get fastIndexScrolling => '快速索引滚动';
-
-  @override
   String get favoriteAll => '全部收藏';
-
-  @override
-  String get favoriteRemoval => '取消收藏';
 
   @override
   String get favoriteSongs => '收藏的歌曲';
@@ -2439,13 +2115,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get feedback => '反馈';
-
-  @override
-  String get fetchLyricsAutomatically => '自动获取歌词';
-
-  @override
-  String get fetchLyricsAutomaticallyDescription =>
-      '关闭后，歌曲只显示自带的歌词（标签内或旁边的 .lrc 文件）。在歌词界面中仍可手动在线搜索。';
 
   @override
   String get file => '文件';
@@ -2496,9 +2165,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get findSongsArtistsAlbumsFolders => '查找歌曲、艺术家、专辑、文件夹…';
 
   @override
-  String get fineTuneTheOverallGain => '微调整体增益';
-
-  @override
   String get finishingMetadataEnrichment => '正在完成元数据补充…';
 
   @override
@@ -2533,9 +2199,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get flatResponse => '平直响应';
 
   @override
-  String get flick => 'Flick';
-
-  @override
   String get flickCanAttemptToPreferA =>
       'Flick 可以尝试优先使用上方的指定编解码器，但能否成功取决于你的设备、耳机与 Android 版本。强制指定编解码器使用隐藏的系统 API，在未 root 的设备上可能无效。';
 
@@ -2544,18 +2207,7 @@ class AppLocalizationsZh extends AppLocalizations {
       'Flick 可以接收来自 Locker（另一款 Moss 应用）的播放接力。播放意图仅包含歌曲文件路径/元数据。不交换任何个人数据。该集成完全在本地进行。';
 
   @override
-  String get flickChecksFlickPlayerSiteFor =>
-      '联网时 Flick 会检查 flick-player.site 的更新';
-
-  @override
-  String get flickIsBuiltAndMaintainedBy =>
-      'Flick 由一个人零预算开发与维护。没有团队，没有资金，没有广告。';
-
-  @override
   String get flickLogs => 'Flick 日志';
-
-  @override
-  String get flickPlayer => 'Flick 音乐播放器';
 
   @override
   String get flickPlayerDoesNotCollectStore =>
@@ -2568,23 +2220,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get flickReplay => 'Flick 回顾';
 
   @override
-  String get flickScansForPlayStoreUpdates => '联网时 Flick 会检查 Play Store 更新';
-
-  @override
-  String get flickWillAlwaysBeFreeDonations =>
-      'Flick 永远免费。捐赠让项目得以延续，没有付费墙，也没有订阅。';
-
-  @override
   String get flickWillForceYourChosenCodec => '连接时 Flick 将强制使用你选择的编解码器';
 
   @override
   String get flickplayer => 'FlickPlayer';
-
-  @override
-  String get floatingIsland => '浮动岛';
-
-  @override
-  String get floatingMiniPlayer => '浮动迷你播放器';
 
   @override
   String get folder => '文件夹';
@@ -2615,9 +2254,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String folders2(Object arg1) {
     return '$arg1 个文件夹';
   }
-
-  @override
-  String get foldersScanningAndDuplicates => '文件夹、扫描与重复项';
 
   @override
   String get foldersShownPerPage => '每页显示的文件夹数';
@@ -2670,9 +2306,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get freeOpenSource => '免费与开源';
-
-  @override
   String get freq => '频率';
 
   @override
@@ -2696,9 +2329,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fullBleedAlbumArtWithThe => '满幅专辑封面，呈现当前的电影质感。';
 
   @override
-  String get fullLibrary => '整个音乐库';
-
-  @override
   String get fullLibraryAccess => '完整音乐库访问权限';
 
   @override
@@ -2720,10 +2350,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fullscreen => '全屏';
 
   @override
-  String get fundingNativeDsdDsfPlaybackDevelopment =>
-      '资助原生 DSD/DSF 播放功能的开发——发烧友呼声极高的功能。';
-
-  @override
   String get fxOff => 'FX 关';
 
   @override
@@ -2739,12 +2365,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gapAboveNavigation => '导航栏上方间距';
 
   @override
-  String get gaplessPlayback => '无缝播放';
-
-  @override
-  String get gaplessViewModeAndAppearance => '无缝播放、视图模式与外观';
-
-  @override
   String gb(Object arg1) {
     return '$arg1 GB';
   }
@@ -2756,19 +2376,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get genre => '流派';
 
   @override
-  String get geometry => '几何';
-
-  @override
   String get getStarted => '开始使用';
 
   @override
-  String get getTheLatestApkFromFlick => '从 flick-player.site 获取最新 APK';
-
-  @override
   String get getYourApiCredentials => '获取你的 API 凭据';
-
-  @override
-  String get github => 'GitHub';
 
   @override
   String get goToAlbum => '前往专辑';
@@ -2829,9 +2440,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get hapticFeedback => '触感反馈';
-
-  @override
   String get hardwareUsbDac => '硬件（USB DAC）';
 
   @override
@@ -2842,31 +2450,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get hasArtwork => '有封面';
 
   @override
-  String get havingMoreThan4ButtonsMay => '超过 4 个按钮可能导致文字标签被压缩。建议减小下方的按钮间距。';
-
-  @override
   String get heavyRotation => '高频循环';
 
   @override
   String get held => '已持有';
 
   @override
-  String get help => '帮助';
-
-  @override
-  String get helpManual => '帮助与手册';
-
-  @override
   String get hiResDirect => '高解析直通';
 
   @override
-  String get hidden => '已隐藏';
-
-  @override
   String get hideLyrics => '隐藏歌词';
-
-  @override
-  String get hideNavigationButtonsAfterBeingIdle => '空闲后隐藏导航按钮';
 
   @override
   String get hidePassword => '隐藏密码';
@@ -2875,22 +2468,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get hideShortStingersRingtonesAndVoice => '隐藏短过门、铃声与语音片段';
 
   @override
-  String get hideTheFloatingMiniPlayerPill => '隐藏悬浮迷你播放条';
-
-  @override
-  String get hideTheIndexRailAfterInactivity => '无操作后隐藏索引栏';
-
-  @override
   String get hideVisualizer => '隐藏可视化';
 
   @override
   String get hideVisualizer2 => '隐藏可视化';
-
-  @override
-  String get high => '高';
-
-  @override
-  String get high120hz => '高（120Hz）';
 
   @override
   String get highFrequenciesOnly => '仅高频';
@@ -2923,30 +2504,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get historyCleared => '历史已清空';
 
   @override
-  String get holdASongToUnfavorite => '按住歌曲取消收藏';
-
-  @override
-  String get homeScreenSections => '主屏幕区块';
-
-  @override
-  String get horizontalReach => '水平延伸';
-
-  @override
   String hourUnit(int count) {
     return '小时';
   }
-
-  @override
-  String get howFarTheArcOpensFrom => '弧线从左边延伸的距离';
-
-  @override
-  String get howMuchSideCardsShrinkAway => '侧边卡片相对中心缩小的程度';
-
-  @override
-  String get howWeHandleYourData => '我们如何处理你的数据';
-
-  @override
-  String get howWideEachCardSpansAcross => '每张卡片在屏幕上的宽度';
 
   @override
   String get httpBasicNeedsItRecoverableStored => 'HTTP Basic 需要可还原的密码；以编码形式存储';
@@ -2971,9 +2531,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hzTuning => '432 Hz 调音';
-
-  @override
-  String get iconSize => '图标大小';
 
   @override
   String identified(int count, Object note) {
@@ -3004,9 +2561,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get immersive => '沉浸式';
-
-  @override
-  String get immersiveFullViewTimer => '沉浸全屏视图定时';
 
   @override
   String importFailed(Object e) {
@@ -3079,19 +2633,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get instrumental => '纯音乐';
 
   @override
-  String get integrations => '集成';
-
-  @override
   String get interactiveEq => '交互式均衡器';
 
   @override
-  String get interactiveTutorial => '交互式教程';
-
-  @override
   String get interfaceClaimed => '接口已占用';
-
-  @override
-  String get interfaceLabel => '界面';
 
   @override
   String isOfflineRetainedSongsStillListed(Object folder) {
@@ -3100,9 +2645,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get isochronousUsb => '等时 USB';
-
-  @override
-  String get itemSpacing => '项目间距';
 
   @override
   String items(Object count) {
@@ -3125,9 +2667,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get jumpBackIn => '继续收听';
 
   @override
-  String get jumpToTheFlickListingAnd => '前往 Flick 应用商店页面并在那里更新';
-
-  @override
   String get jun => '6 月';
 
   @override
@@ -3138,9 +2677,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get justNow => '刚刚';
-
-  @override
-  String get karaokeEffect => '卡拉 OK 效果';
 
   @override
   String get karaokePreview => '卡拉 OK 预览';
@@ -3163,16 +2699,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get keepListeningWithFlick => '继续用 Flick 听歌';
 
   @override
-  String get keepMiniPlayerAndNavVisible => '保持迷你播放器与导航栏可见';
-
-  @override
   String get keepPlaybackPausedWhenADevice => '设备重新连接时保持暂停播放';
-
-  @override
-  String get keepPlayingOnQuit => '退出后继续播放';
-
-  @override
-  String get keepRelativeLevelsInsideEachAlbum => '保持专辑内各曲目的相对音量';
 
   @override
   String get keepTheSessionMovingOrHead => '让音乐继续，或直接回到播放器。';
@@ -3192,9 +2719,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get keepingThisVersion => '保留此版本';
-
-  @override
-  String get keepsBitPerfectAudioAliveIn => '让位完美音频在后台保持运行';
 
   @override
   String get keepsSoftwareVolumeAndDspActive => '在 DAP 共享路径上保持软件音量与 DSP 启用。';
@@ -3233,22 +2757,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get koFi => 'Ko-fi';
-
-  @override
   String get label => '标签';
 
   @override
   String get labelOrganization => '厂牌 / 组织';
-
-  @override
-  String get language => '语言';
-
-  @override
-  String get languageSectionDescription => '选择应用界面使用的语言。';
-
-  @override
-  String get languageSystemDefault => '跟随系统';
 
   @override
   String get lastFm => 'Last.fm';
@@ -3261,9 +2773,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lastFmConnected2 => 'Last.fm 已连接！';
-
-  @override
-  String get lastFmListenbrainzScrobbling => 'Last.fm 与 ListenBrainz 记录收听';
 
   @override
   String get lastFmScrobbling => 'Last.fm 记录收听';
@@ -3284,16 +2793,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get latestArrivalsFromYourLibrary => '音乐库里的最新加入';
 
   @override
-  String get latestUpdate => '最新更新';
-
-  @override
   String get layered => '层叠';
 
   @override
   String get layoutMode => '布局模式';
-
-  @override
-  String get layoutModeSizingAndQuickActions => '布局模式、尺寸与快捷操作';
 
   @override
   String get ldac330Kbps => 'LDAC 330 kbps';
@@ -3320,9 +2823,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get leaveEmptyToKeepTheCurrent => '留空则保留当前凭据';
 
   @override
-  String get left => '左对齐';
-
-  @override
   String get leftBottom => '左侧（下）';
 
   @override
@@ -3336,9 +2836,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get length => '长度：';
-
-  @override
-  String get lengthOfTheOverlap => '重叠时长';
 
   @override
   String lengthS(Object arg1) {
@@ -3362,26 +2859,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get letSTakeAQuickTour => '快速了解你的新音乐播放器。';
 
   @override
-  String get letTheSystemDecideBestBattery => '由系统决定——最省电';
-
-  @override
   String get letsFlickScanYourEntireLibrary =>
       '让 Flick 直接扫描你的整个音乐库，包括部分设备对系统媒体索引隐藏的 DSD/DSF/WavPack 文件';
-
-  @override
-  String get level => '电平';
 
   @override
   String get libraryEmptied => '音乐库已清空';
 
   @override
-  String get libraryGlanceCard => '音乐库速览卡片';
-
-  @override
   String get libraryLabel => '音乐库';
-
-  @override
-  String get licenses => '许可证';
 
   @override
   String get light => '浅色';
@@ -3399,9 +2884,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get limit => '限制';
-
-  @override
-  String get limitPositiveGainSoTheLevel => '限制正向增益，使电平不超过满刻度';
 
   @override
   String get limiter => '限制器';
@@ -3429,9 +2911,6 @@ class AppLocalizationsZh extends AppLocalizations {
   ) {
     return '第 $arg1 行 / 共 $arg2 行  ·  $captured/$segmentCount 个词';
   }
-
-  @override
-  String get linear => '线性';
 
   @override
   String get lines => '歌词行';
@@ -3509,9 +2988,6 @@ class AppLocalizationsZh extends AppLocalizations {
       '正在加载收藏、最近播放、生成的混音和播放列表。';
 
   @override
-  String get loadingPatchNotes => '正在加载更新日志…';
-
-  @override
   String get loadingReplay => '正在载入回顾';
 
   @override
@@ -3533,9 +3009,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logsCopied => '日志已复制';
 
   @override
-  String get longPress => '长按';
-
-  @override
   String get longSongTitles => '长歌名';
 
   @override
@@ -3546,19 +3019,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '正在从 MusicBrainz 和 Cover Art Archive 查找封面。';
 
   @override
-  String get lookingForTheLatestFlickRelease => '正在检查最新的 Flick 版本';
-
-  @override
-  String get lookingForTheLatestPlayStore => '正在检查 Play Store 的最新更新';
-
-  @override
   String get lossless => ' 无损';
 
   @override
   String get losslessQualityPreservedDuringConversion => '转换过程中保持无损音质';
-
-  @override
-  String get low => '低';
 
   @override
   String get lowAndHighFrequenciesScoopedMids => '低频与高频突出，中频衰减';
@@ -3592,9 +3056,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get lyricsSavedFromLrclib => '已保存来自 LRCLib 的歌词。';
-
-  @override
-  String get lyricsSavingBehavior => '歌词保存行为';
 
   @override
   String get lyricsSyncHelp => '歌词同步帮助';
@@ -3645,9 +3106,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get masterBypassed => '主控已旁路';
 
   @override
-  String get matchAudioFilename => '与音频文件名一致';
-
-  @override
   String matchByArtistAlbumAndTrack(int count) {
     return '按艺术家、专辑和曲目长度匹配 $count 个文件';
   }
@@ -3670,24 +3128,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get maximumAudioQuality => '最高音质';
 
   @override
-  String get maximumSmoothnessUsesMoreBattery => '最流畅——更耗电';
-
-  @override
   String get may => '5 月';
 
   @override
   String get may42026 => '2026 年 5 月 4 日';
 
   @override
-  String get mayStopInTheBackgroundOn => '在某些设备上可能在后台停止';
-
-  @override
   String mb(Object arg1) {
     return '$arg1 MB';
   }
-
-  @override
-  String get media => '媒体';
 
   @override
   String get medium => '中';
@@ -3823,9 +3272,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get moreFromArtist => '艺术家的更多内容';
 
   @override
-  String get moreFromArtist2 => '该艺术家的更多作品';
-
-  @override
   String moreTo(Object arg1, Object arg2) {
     return '还差 $arg1 即可 $arg2';
   }
@@ -3848,16 +3294,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String mostReplayed(Object arg1) {
     return '播放最多 · $arg1';
   }
-
-  @override
-  String get motionArtInBitPerfect => '位完美模式下的动态封面';
-
-  @override
-  String get motionArtIsReplacedWhileBit => '位完美输出启用时动态封面会被替换';
-
-  @override
-  String get motionArtPlaysDuringBitPerfect =>
-      '位完美音频播放时播放动态封面（在某些 DAP 上可能中断播放）';
 
   @override
   String get motionArtRefreshed => '动态封面已刷新';
@@ -3944,13 +3380,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navidromeAirsonicGonic => 'Navidrome · Airsonic · Gonic';
 
   @override
-  String get navigationAppearance => '导航栏外观';
-
-  @override
   String get navigationBar => '导航栏';
-
-  @override
-  String get navigationDefaultsRestored => '导航栏默认设置已恢复';
 
   @override
   String get needsMetadata => '缺少元数据';
@@ -4094,16 +3524,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noNewAdditionsYet => '暂无新增内容';
 
   @override
-  String get noNewUpdateFound => '未发现新版本。';
-
-  @override
   String get noOnlineArtworkFound => '未找到在线封面';
 
   @override
   String get noOutputDevicesAvailable => '无可用输出设备。';
-
-  @override
-  String get noPatchNotesAvailableYet => '暂无更新说明。';
 
   @override
   String get noPlaybackYet => '暂无播放';
@@ -4155,9 +3579,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noUpcomingQueueItemsYet => '暂无待播曲目';
 
   @override
-  String get noUpdateAvailable => '无可用更新';
-
-  @override
   String get noUrbData => '无 URB 数据';
 
   @override
@@ -4171,13 +3592,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get none => '无';
 
   @override
-  String get normalizeEachTrackToMatchLoudness => '将每首曲目归一化到相同响度';
-
-  @override
   String get notAnAlacFile => '不是 ALAC 文件';
-
-  @override
-  String get notAvailableInBitPerfectMode => '位完美模式下不可用';
 
   @override
   String get notFoundOnlineTryADifferent => '在线未找到。请换个拼写再试。';
@@ -4245,9 +3660,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get offCropsToFillTheSquare => '关闭则裁剪填满方形；开启则把封面拉伸到边到边';
 
   @override
-  String get offline => '离线';
-
-  @override
   String get onAndroidTheStandardJustAudio =>
       '在 Android 上，标准的 just_audio 播放路径现在会在受支持的设备上应用 EQ、动态、平衡与空间音效的原生对应实现。Rust 引擎仍能提供这些控制最精确的版本，因此部分 Android 上的效果只是近似。';
 
@@ -4273,16 +3685,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openBluetoothCodecSettings => '打开蓝牙编解码器设置';
 
   @override
-  String get openFullNotes => '查看完整说明';
-
-  @override
   String get openInAppleMusic => '在 Apple Music 中打开';
 
   @override
   String get openInBrowser => '在浏览器中打开';
-
-  @override
-  String get openInPlayStore => '在 Play 商店中打开';
 
   @override
   String get openLibrary => '打开音乐库';
@@ -4295,15 +3701,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get openPlayer => '打开播放器';
-
-  @override
-  String get openReleaseNotes => '打开发行说明';
-
-  @override
-  String get openSourceLicenses => '开源许可证';
-
-  @override
-  String get openThePlayStoreToInstall => '打开 Play Store 安装最新的 Flick 版本';
 
   @override
   String get openedFromLocker => '从 Locker 打开';
@@ -4319,9 +3716,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get orbital => 'Orbital';
-
-  @override
-  String get orbitalSettingsReset => '轨道设置已重置';
 
   @override
   String get otherPlaylists => '其他播放列表';
@@ -4344,12 +3738,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get outputRate => '输出采样率';
-
-  @override
-  String get overlapTheEndOfATrack => '将曲目结尾与下一首重叠';
-
-  @override
-  String get overlayPermissionIsRequiredToShow => '显示浮动播放器需要悬浮窗权限';
 
   @override
   String get overviewMetricsChooseUpTo3 => '概览指标 · 最多选 3 项';
@@ -4379,9 +3767,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pasteYourListenbrainzToken => '粘贴你的 ListenBrainz 令牌';
-
-  @override
-  String get patchNotes => '更新日志';
 
   @override
   String get pause => '暂停';
@@ -4451,9 +3836,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get pixelatedLightestOnMemory => '像素化 — 内存占用最低';
-
-  @override
   String get plain => '纯文本';
 
   @override
@@ -4469,13 +3851,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playAFewTracksTodayTo => '今天播放几首曲目，即可生成你的每日回顾。';
 
   @override
-  String get playARandomLibrarySongWhen => '队列结束时随机播放音乐库中的歌曲';
-
-  @override
   String get playAgain => '再次播放';
-
-  @override
-  String get playAtTheRecordedLevel => '按录制时的音量播放';
 
   @override
   String get playBadges => '播放徽标';
@@ -4492,9 +3868,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get playStoreUpdatesUseGooglePlay =>
       'Play 商店更新使用 Google Play 应用内更新 API（受 Google 隐私政策约束）。补丁说明从 GitHub Releases API 获取，不会发送个人数据。';
-
-  @override
-  String get playback => '播放';
 
   @override
   String get playbackCacheLimit => '播放缓存上限';
@@ -4518,12 +3891,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get playbackContinuesWhenAudioOutput => '音频输出断开时继续播放';
-
-  @override
-  String get playbackContinuesWhenTheAppIs => '应用被划掉后仍继续播放';
-
-  @override
-  String get playbackDisplay => '播放与显示';
 
   @override
   String get playbackEngine => '播放引擎';
@@ -4554,16 +3921,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playbackPausesWhenBluetoothOrHeadphones => 'Bluetooth 或耳机断开时暂停播放';
 
   @override
-  String get playbackPausesWhileNotificationSoundsPlay => '通知音播放时暂停播放';
-
-  @override
   String get playbackResumesWhenADeviceReconnects => '设备在 30 秒内重新连接时恢复播放';
 
   @override
   String get playbackSpeed => '播放速度';
-
-  @override
-  String get playbackStopsWhenTheAppIs => '应用被划掉后停止播放';
 
   @override
   String played(int count) {
@@ -4617,9 +3978,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get preAmp => '前置放大';
-
-  @override
   String get preamp => '前置放大';
 
   @override
@@ -4663,9 +4021,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get presets => '预设';
 
   @override
-  String get preventClipping => '防止削波';
-
-  @override
   String get preview => '预览';
 
   @override
@@ -4697,9 +4052,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get progress => '进度';
-
-  @override
-  String get progressBar => '进度条';
 
   @override
   String get protocol => '协议';
@@ -4735,9 +4087,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String queuedSongs3(Object arg1) {
     return '已加入队列 $arg1 首歌曲';
   }
-
-  @override
-  String get quickAccess => '快速访问';
 
   @override
   String get quickActions => '快捷操作';
@@ -4813,12 +4162,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reconnectNow => '立即重连';
 
   @override
-  String get reconnectToTheInternetToScan => '重新连接网络以扫描更新';
-
-  @override
-  String get reconnectToWiFiOrMobile => '重新连接 Wi-Fi 或移动数据，以便 Flick 再次扫描';
-
-  @override
   String get reconnectionFailed => '重连失败';
 
   @override
@@ -4841,9 +4184,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get refreshOutputs => '刷新输出';
-
-  @override
-  String get refreshRate => '刷新率';
 
   @override
   String get refreshingAppleMusicData => '正在刷新 Apple Music 数据';
@@ -5011,12 +4351,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get replayStudio => '回顾工作室';
 
   @override
-  String get replayTheTutorialAndFeatureGuide => '重新观看教程与功能指南';
-
-  @override
-  String get replaygain => 'ReplayGain';
-
-  @override
   String get replaygainScan => 'ReplayGain 扫描';
 
   @override
@@ -5070,9 +4404,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resetMiniPlayerToDefaults => '将迷你播放器重置为默认值';
 
   @override
-  String get resetNavigationToDefaults => '恢复导航栏默认设置';
-
-  @override
   String get resetPreferences => '重置偏好设置';
 
   @override
@@ -5083,9 +4414,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get resetTo0Db => '重置为 0 dB';
-
-  @override
-  String get resetToDefaults => '恢复默认';
 
   @override
   String get resolution => '音频分辨率';
@@ -5109,9 +4437,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restartingFlick => '正在重启 Flick';
 
   @override
-  String get restoreTheOriginalOrbitalLayout => '恢复原始轨道布局';
-
-  @override
   String results(Object arg1) {
     return '结果（$arg1）';
   }
@@ -5133,9 +4458,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reviewBeforeYouClean => '清理前先确认';
-
-  @override
-  String get right => '右对齐';
 
   @override
   String get rightBottom => '右侧（下）';
@@ -5171,12 +4493,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get routesBluetoothThroughTheRustEngine => '通过 Rust 引擎路由 Bluetooth';
 
   @override
-  String get runAnotherPlayStoreUpdateScan => '立即再次扫描 Play Store 更新';
-
-  @override
-  String get runAnotherUpdateScanRightNow => '立即再次扫描更新';
-
-  @override
   String get rustViaOboe => '通过 Oboe 使用 Rust';
 
   @override
@@ -5188,17 +4504,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String s2(Object arg1) {
-    return '$arg1 秒';
-  }
-
-  @override
   String sAgo(Object arg1) {
     return '$arg1 秒前';
   }
-
-  @override
-  String get sCurve => 'S 曲线';
 
   @override
   String get sambaWindowsShareTransportPending => 'Samba · Windows 共享';
@@ -5316,12 +4624,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get saving => '保存中…';
 
   @override
-  String get saving2 => '保存中';
-
-  @override
-  String get scaleOfTheCenteredFocusedSong => '居中聚焦歌曲卡片的缩放';
-
-  @override
   String get scaleTheAlbumArtCard => '缩放专辑封面卡片';
 
   @override
@@ -5372,9 +4674,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scrollingPausesWhenReducedMotionIs => '启用“减弱动态效果”时暂停滚动';
 
   @override
-  String get seamlessTransitionBetweenTracks => '曲目间无缝衔接';
-
-  @override
   String get search => '搜索';
 
   @override
@@ -5418,12 +4717,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchOnlineLyrics => '在线搜索歌词';
 
   @override
-  String get searchPlayback => '搜索播放';
-
-  @override
-  String get searchResults => '搜索结果';
-
-  @override
   String get searchSongsArtists => '搜索歌曲、艺术家…';
 
   @override
@@ -5445,18 +4738,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchingTheLocalNetwork => '正在搜索本地网络…';
 
   @override
-  String get secondsOfInactivityBeforeCollapsing => '无操作多少秒后收起';
-
-  @override
   String get seeAll => '查看全部';
 
   @override
   String seeAll2(Object count) {
     return '查看全部 $count';
   }
-
-  @override
-  String get seeWhatIsNewInThis => '查看本次更新的新内容';
 
   @override
   String get select => '选择';
@@ -5489,9 +4776,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String selectedOfSong(Object selected, int count) {
     return '已选择 $selected 首，共 $count 首';
   }
-
-  @override
-  String get selectedSize => '选中尺寸';
 
   @override
   String get sep => '9 月';
@@ -5544,9 +4828,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sharedSecret => '共享密钥';
 
   @override
-  String get sharpRecommended => '锐利（推荐）';
-
-  @override
   String get shiftMetadataTextUpOrDown => '上下移动元数据文字';
 
   @override
@@ -5554,9 +4835,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shiftOnlyTheSongDetailsUp => '仅上下移动歌曲详情';
-
-  @override
-  String get showASystemOverlayMiniPlayer => '在其他应用上层显示系统悬浮迷你播放器';
 
   @override
   String get showAThinPlaybackProgressLine => '显示一条细播放进度线';
@@ -5595,12 +4873,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get showFrame2 => '显示边框';
 
   @override
-  String get showGlow => '显示辉光';
-
-  @override
-  String get showLabels => '显示标签';
-
-  @override
   String get showLess => '收起';
 
   @override
@@ -5610,55 +4882,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get showMore => '显示更多';
 
   @override
-  String get showMoreArtByFadingOnly => '仅淡化头部底部并下移正文内容，以展示更多封面';
-
-  @override
-  String get showOrHideHomeScreenSections => '显示或隐藏主屏幕板块';
-
-  @override
-  String get showOrbitPath => '显示轨道路径';
-
-  @override
   String get showOtherArtistsOnAlbumPages => '在专辑页显示其他艺术家';
 
   @override
   String get showPassword => '显示密码';
 
   @override
-  String get showPlaylistPreviewsOnTheHome => '在主屏幕显示播放列表预览';
-
-  @override
-  String get showRecentlyPlayedArtistsOnThe => '在主屏幕显示最近播放的艺术家';
-
-  @override
   String get showRelatedAlbumsOnAlbumPages => '在专辑页显示相关专辑';
-
-  @override
-  String get showSmartMixesGeneratedFromYour => '显示根据你的收听习惯生成的智能混音';
 
   @override
   String get showTheArtistBelowTheSong => '在歌名下方显示艺术家';
 
   @override
-  String get showTheAtAGlanceSummary => '在艺术家/专辑页显示速览摘要';
-
-  @override
-  String get showTheAudioEnginePickerCard => '在主屏幕显示音频引擎选择卡片';
-
-  @override
   String get showTheAudioVisualizerOffSaves => '显示音频可视化（关闭可省电）';
 
   @override
-  String get showTheBrowseChipsForLibrary => '在主屏幕显示音乐库各板块的浏览标签';
-
-  @override
-  String get showTheFloatingMiniPlayerPill => '在界面上显示悬浮迷你播放条';
-
-  @override
   String get showTheGlassFrameAroundAlbum => '显示专辑封面周围的玻璃边框';
-
-  @override
-  String get showTheGridOfShortcutCards => '在主屏幕显示快捷卡片网格';
 
   @override
   String get showTheMiniPlayerAsIts => '将迷你播放器显示为按钮上方的独立栏';
@@ -5667,18 +4906,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get showTheNumberOverBlurredArt => '在模糊封面上显示编号。';
 
   @override
-  String showTheTabInTheBottom(Object arg1) {
-    return '在底部栏显示 $arg1 标签页';
-  }
-
-  @override
   String get showTheTrackNumber => '显示曲目编号。';
-
-  @override
-  String get showTheUsbVolumeBarOn => '在主屏幕显示 USB 音量条';
-
-  @override
-  String get showTheUsbVolumeBarOn2 => '在 UAC2 设置界面显示 USB 音量条';
 
   @override
   String get showTitle => '显示标题';
@@ -5691,9 +4919,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get showVisualizer => '显示可视化';
-
-  @override
-  String get showYourRecentListeningHistoryOn => '在主屏幕显示你的最近收听记录';
 
   @override
   String showingAllAlbums(Object totalCount) {
@@ -5892,16 +5117,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get simpleMode => '简单模式';
 
   @override
-  String get simplifiedChinese => '简体中文';
-
-  @override
   String get single => '单张';
 
   @override
   String get size => '大小';
-
-  @override
-  String get sizing => '尺寸';
 
   @override
   String get skip => '跳过';
@@ -5941,19 +5160,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get snappy => '敏捷';
 
   @override
-  String get softDetailBalanced => '细节柔和，均衡';
-
-  @override
-  String get softHighlightBehindTheSelectedSong => '选中歌曲后方的柔和高光';
-
-  @override
   String get softwareAppControlled => '软件（应用控制）';
 
   @override
   String get solid => '纯色';
-
-  @override
-  String get soloDeveloper => '独立开发者';
 
   @override
   String get someOnlineFeaturesMayNotWork => '  ·  部分在线功能可能无法使用';
@@ -5996,12 +5206,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String songUnit(int count) {
     return '首';
   }
-
-  @override
-  String get songViewList => '歌曲视图：列表';
-
-  @override
-  String get songViewOrbital => '歌曲视图：Orbital';
 
   @override
   String songs(Object arg1, Object arg2) {
@@ -6060,9 +5264,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String songsAlbums2(Object arg1, Object albumCount) {
     return '$arg1 首歌曲 · $albumCount 张专辑';
   }
-
-  @override
-  String get songsBeforeTheTappedTrackQueue => '点按曲目之前的歌曲排到队列末尾';
 
   @override
   String get songsCategories => '歌曲与分类';
@@ -6132,9 +5333,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get springPhysicsEnergeticAndReactive => '弹簧物理效果——活泼灵敏';
 
   @override
-  String get squareRoot => '平方根';
-
-  @override
   String get stampNext => '标记并下一句';
 
   @override
@@ -6145,9 +5343,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get standard => '标准';
-
-  @override
-  String get standard60hz => '标准（60Hz）';
 
   @override
   String get standardBluetoothRoutingViaAndroid => '经 Android 的标准 Bluetooth 路由';
@@ -6183,16 +5378,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get status => '状态';
 
   @override
-  String get stepByStepWalkthroughOfThe => '逐步了解应用各项功能';
-
-  @override
   String get stereo => '立体声';
 
   @override
   String get stop => '停止';
-
-  @override
-  String get stopAtTheEndOfThe => '在当前列表播放完后停止';
 
   @override
   String get stopCasting => '停止投放';
@@ -6202,9 +5391,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get stopUsbOnQuit => '退出时停止 USB';
-
-  @override
-  String get stopWhenTheQueueEnds => '队列结束时停止';
 
   @override
   String stoppingIn(Object arg1) {
@@ -6277,19 +5463,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get subsonic => 'Subsonic';
 
   @override
-  String get subsonicServersSyncAndStreaming => 'Subsonic 服务器、同步与串流播放';
-
-  @override
   String get subtle => '淡雅';
-
-  @override
-  String get support => '支持';
-
-  @override
-  String get supportDevelopmentOnBuyMeACoffee => '在 Buy Me a Coffee 上支持开发';
-
-  @override
-  String get supportDevelopmentOnKoFi => '在 Ko-fi 上支持开发';
 
   @override
   String get supportFlick => '支持 Flick';
@@ -6301,25 +5475,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get surfaceShading => '表面阴影';
 
   @override
-  String get sweepAHighlightThroughWordsAs => '唱到每个词时扫过一道高亮';
-
-  @override
-  String get swipe => '滑动';
-
-  @override
-  String get swipeActions => '滑动操作';
-
-  @override
   String get swipeHorizontallyToFineTuneEach => '横向滑动可微调每个中心频段。';
 
   @override
   String get swipeLeftRightToSkipTracks => '左右滑动切换曲目';
-
-  @override
-  String get swipeLeftToUnfavoriteASong => '左滑取消收藏';
-
-  @override
-  String get swipeSongsLeftToQueueOr => '左滑加入队列，右滑收藏';
 
   @override
   String get swipeToShowOrHideThe => '滑动以显示或隐藏可视化';
@@ -6372,9 +5531,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get synthwaveCity => '合成波之城';
-
-  @override
-  String get system => '系统';
 
   @override
   String get systemAndroidMixer => '系统（Android 混音器）';
@@ -6624,9 +5780,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get trackSampleRate => '曲目采样率';
 
   @override
-  String get trackThumbnails => '曲目缩略图';
-
-  @override
   String get trackTime => '曲目时长';
 
   @override
@@ -6717,12 +5870,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tryPickingALocalImageIf => '如果发行版元数据较为少见，可尝试选择本地图片。';
 
   @override
-  String get turnOff432HzTuningTo => '关闭 432 Hz 调音才能使用淡入淡出';
-
-  @override
-  String get turnOff432HzTuningTo2 => '关闭 432 Hz 调音才能使用交叉馈送';
-
-  @override
   String get typeABrandAndModelTo => '输入品牌与型号以在线搜索。';
 
   @override
@@ -6753,9 +5900,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get u8ByteInterleavedRecommendedDefault => 'U8 — 字节交错，推荐默认';
 
   @override
-  String get uac2AndEqualizer => 'UAC2 与均衡器';
-
-  @override
   String get uac2IsNotAvailableOnThis => '此平台不支持 UAC2';
 
   @override
@@ -6768,16 +5912,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get uac2PreferencesResetSuccessfully => 'UAC2 偏好设置已重置';
 
   @override
-  String get uiCustomization => '界面自定义';
-
-  @override
-  String get ultra => '极致';
-
-  @override
   String get unableToCheckForUpdatesRight => '暂时无法检查更新。';
-
-  @override
-  String get unableToLoadPatchNotesRight => '暂时无法加载更新日志';
 
   @override
   String get unableToOpenAllFilesAccess => '无法打开所有文件访问权限设置';
@@ -6873,13 +6008,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateAvailable => '有可用更新';
 
   @override
-  String get updateAvailableDownloadFromFlickPlayer =>
-      '有可用更新 — 可从 flick-player.site 下载';
-
-  @override
-  String get updateAvailableOnThePlayStore => 'Play 商店有可用更新。';
-
-  @override
   String get updateNoticeHidden => '已隐藏更新提示。';
 
   @override
@@ -6896,12 +6024,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String updatedAlbumArtFor2(Object arg1) {
     return '已更新“$arg1”的专辑封面。';
   }
-
-  @override
-  String get updates => '更新';
-
-  @override
-  String get updatesAboutAndSupport => '更新、关于与支持';
 
   @override
   String get upload => '上传';
@@ -6951,10 +6073,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get usbDacAutoBitPerfectOffers => 'USB DAC 自动位完美提示已重置。';
 
   @override
-  String get usbDacsHeadphonesAndReferenceGear =>
-      'USB DAC、耳机与参考级设备，用于测试并提升播放质量。';
-
-  @override
   String get usbDeviceAccess => 'USB 设备访问';
 
   @override
@@ -6968,12 +6086,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get usbVolume => 'USB 音量';
-
-  @override
-  String get usbVolumeInSettings => '设置中的 USB 音量';
-
-  @override
-  String get usbVolumeOnHome => '主屏幕 USB 音量';
 
   @override
   String get useAFixed48khz16bitOutput => '使用固定的 48kHz/16bit 输出以获得更好的兼容性';
@@ -7006,9 +6118,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get useMmSsCcEG => '使用 mm:ss.cc 格式，例如 01:23.45';
 
   @override
-  String get useTheCurrentAudioFileS => '内部保存歌词时，使用当前音频文件的名称';
-
-  @override
   String get useTheDefaultMonochromeTheme => '使用默认的单色主题。';
 
   @override
@@ -7017,12 +6126,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get useTheLegacyOpenslEsBackend =>
       '使用旧版 OpenSL ES 后端。适用于老旧或有问题设备的排查回退方案。';
-
-  @override
-  String get useTheListSongsBrowser => '使用列表歌曲浏览器';
-
-  @override
-  String get useTheOrbitalSongsBrowser => '使用 Orbital 歌曲浏览器';
 
   @override
   String get useTheVerifiedDirectUsbPath =>
@@ -7063,11 +6166,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get verified => '已验证';
 
   @override
-  String version(Object kAppVersion) {
-    return '版本 $kAppVersion';
-  }
-
-  @override
   String version2(Object arg1) {
     return '版本 $arg1';
   }
@@ -7077,9 +6175,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get verticalBarsThatAnimateAcrossThe => '在屏幕上动画移动的垂直柱条。';
-
-  @override
-  String get verticalPosition => '垂直位置';
 
   @override
   String get vibrant => '鲜艳';
@@ -7092,9 +6187,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get viewMetadata => '查看元数据';
-
-  @override
-  String get viewOnboarding => '查看新手引导';
 
   @override
   String get viewQueue => '查看队列';
@@ -7127,16 +6219,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get visualizerRainbowDescription => '在可视化效果中呈现连续的彩虹色彩';
 
   @override
-  String get visuals => '视觉效果';
-
-  @override
   String get volume => '音量';
 
   @override
   String get volumeControl => '音量控制';
-
-  @override
-  String get volumeDipsWhileNotificationSoundsPlay => '通知音播放时音量降低';
 
   @override
   String get volumeIsFixedWhileBitPerfect => '位完美直通启用且此 DAC 没有硬件音量控制时，音量固定不变。';
@@ -7207,12 +6293,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get whereShouldTheLrcFileBe => '.lrc 文件保存在哪里？';
 
   @override
-  String get whereTheFocalSongSitsVertically => '焦点歌曲的垂直位置';
-
-  @override
-  String get whereYourMoneyGoes => '资金去向';
-
-  @override
   String get whisperWorld => '耳语世界';
 
   @override
@@ -7223,9 +6303,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get wholeAlbum => '整张专辑';
-
-  @override
-  String get whyDonate => '为何捐赠';
 
   @override
   String wide(Object amount) {
@@ -7272,12 +6349,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get wrapAroundAndQueueBehavior => '循环与队列行为';
-
-  @override
-  String get wrapAroundQueue => '队列循环';
-
-  @override
   String get writeADescription => '写点描述';
 
   @override
@@ -7308,12 +6379,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get yesterday => '昨天';
-
-  @override
-  String get youAlreadyHaveTheLatestFlick => '你已是最新的 Flick 版本';
-
-  @override
-  String get youAlreadyHaveTheLatestPlay => '你已是最新的 Play Store 版本';
 
   @override
   String get youCanAlsoChangeTheCodec =>

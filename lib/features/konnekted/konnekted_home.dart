@@ -3,6 +3,7 @@ import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/konnekted/lokal_home_greeting.dart';
 import 'package:flick/features/konnekted/lokal_mixes.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/providers/songs_provider.dart';
@@ -28,6 +29,12 @@ enum KonnektedHomeTab {
   const KonnektedHomeTab(this.label);
   final String label;
 }
+
+/// Where "Add your music" leads: Settings › Library › Folders.
+const _addMusic = KonnektedDestination.settingsAt(
+  LokalSettingsGroup.library,
+  section: 'Folders',
+);
 
 class KonnektedHome extends ConsumerStatefulWidget {
   const KonnektedHome({
@@ -73,8 +80,12 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
             child: KonnektedHomeTopBar(
               greeting: ref.watch(konnektedGreetingProvider).value,
               onSearch: () => onNavigate(KonnektedDestination.search),
-              onSettings: () => onNavigate(KonnektedDestination.allSettings),
-              onAppearance: () => onNavigate(KonnektedDestination.appearance),
+              onSettings: () => onNavigate(KonnektedDestination.settings),
+              onAppearance: () => onNavigate(
+                const KonnektedDestination.settingsAt(
+                  LokalSettingsGroup.appearance,
+                ),
+              ),
             ),
           ),
           SliverToBoxAdapter(
@@ -132,8 +143,7 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
                           message: 'Add a music folder to start your collection. Your albums, favorites, and listening history will live here.',
                           icon: Icons.library_music_rounded,
                           actionLabel: 'Add your music',
-                          onAction: () =>
-                              onNavigate(KonnektedDestination.librarySettings),
+                          onAction: () => onNavigate(_addMusic),
                         ),
                       )
                     : const SizedBox.shrink(),

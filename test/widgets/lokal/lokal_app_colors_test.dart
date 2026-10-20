@@ -1,11 +1,12 @@
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
-import 'package:flick/features/settings/screens/lyrics_settings_screen.dart';
-import 'package:flick/features/settings/screens/settings_screen.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/player_provider.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -83,13 +84,20 @@ void main() {
     ) async {
       tester.view.physicalSize = const Size(1080, 2340);
       addTearDown(tester.view.reset);
-      await pump(tester, entry.value, const SettingsScreen());
+      await pump(tester, entry.value, const LokalSettingsPage());
       await tester.pump(const Duration(milliseconds: 500));
       expect(tester.takeException(), isNull);
-      await pump(tester, entry.value, const LyricsSettingsScreen());
+      await pump(
+        tester,
+        entry.value,
+        const LokalSettingsGroupPage(
+          group: LokalSettingsGroup.appearance,
+          section: 'Interface',
+        ),
+      );
       await tester.pump(const Duration(milliseconds: 500));
       expect(tester.takeException(), isNull);
-      expect(find.byType(CustomSwitch), findsWidgets);
+      expect(find.byType(LokalOnOffPill), findsWidgets);
     });
   }
 }

@@ -43,7 +43,7 @@ class LokalAppearanceScreen extends ConsumerWidget {
               ),
             ),
             const _Label('Theme'),
-            _ThemeGrid(
+            LokalThemeGrid(
               selected: appearance.theme,
               onSelect: (id) {
                 HapticFeedback.selectionClick();
@@ -51,7 +51,7 @@ class LokalAppearanceScreen extends ConsumerWidget {
               },
             ),
             const _Label('Accent'),
-            _AccentRow(
+            LokalAccentRow(
               selected: appearance.accent,
               onSelect: (accent) {
                 HapticFeedback.selectionClick();
@@ -119,15 +119,21 @@ class _Group extends StatelessWidget {
 }
 
 /// The ten desktop themes as small previews of themselves.
-class _ThemeGrid extends StatelessWidget {
-  const _ThemeGrid({required this.selected, required this.onSelect});
+class LokalThemeGrid extends StatelessWidget {
+  const LokalThemeGrid({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+    this.padding = const EdgeInsets.symmetric(horizontal: 24),
+  });
 
   final LokalThemeId selected;
   final ValueChanged<LokalThemeId> onSelect;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 24),
+    padding: padding,
     child: GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -232,15 +238,21 @@ class _ThemeSwatch extends StatelessWidget {
 }
 
 /// "Theme" plus the twelve desktop accent presets.
-class _AccentRow extends StatelessWidget {
-  const _AccentRow({required this.selected, required this.onSelect});
+class LokalAccentRow extends StatelessWidget {
+  const LokalAccentRow({
+    super.key,
+    required this.selected,
+    required this.onSelect,
+    this.padding = const EdgeInsets.symmetric(horizontal: 24),
+  });
 
   final LokalAccent? selected;
   final ValueChanged<LokalAccent?> onSelect;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 24),
+    padding: padding,
     child: Wrap(
       spacing: 12,
       runSpacing: 12,

@@ -74,7 +74,7 @@ passed on a physical phone.
 | Bluetooth Hi-Res direct | Partial / hardware-unverified | Engine and codec preference paths exist, but OEM codec negotiation is not guaranteed by the app |
 | Bluetooth low latency | Partial / hardware-unverified | Preference/routing path exists; measured latency and dropout targets are not yet proven |
 | Casting | Partial / hardware-unverified | Chromecast/DLNA discovery, transport, and controls exist; real receiver queue/disconnect behavior remains to test |
-| Two-way remote with Lokal | Not yet ported | Konnekted2 has no client for Lokal's `/api/remote/state` and `/api/remote/command` protocol yet |
+| Two-way remote with Lokal | Delivered | Authenticated HTTP LAN state polling and commands, secure credentials, reconnect backoff and stale-state suppression; mDNS pairing and stronger multi-client revisions remain outside this slice |
 
 ## Explicit non-claims
 
@@ -92,8 +92,8 @@ passed on a physical phone.
 
 Remaining gaps include unported product features and real-device validation:
 
-1. Port two-way Lokal remote control with authenticated LAN state polling,
-   command delivery, reconnect handling, and conflict-safe state updates.
+1. Extend the Lokal remote with mDNS pairing and stronger multi-client
+   revision/acknowledgement semantics.
 2. Harden duplicate removal with duration/content identity checks and an
    explicit library-only versus filesystem-delete choice.
 3. Validate preload cache hits through MediaStore/SAF, including removable

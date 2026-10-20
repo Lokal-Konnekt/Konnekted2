@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../models/song.dart';
+import '../../services/metadata_editor_service.dart';
 import '../../src/rust/api/audio_api.dart' as native;
 import 'discovery_http.dart';
 import 'discovery_models.dart';
@@ -29,11 +30,14 @@ class DiscoveryPlaybackCache {
     this.maxCacheBytes = 384 * 1024 * 1024,
     this.downloadTimeout = const Duration(minutes: 2),
     this.rangeBytes = 10 * 1024 * 1024,
-  }) : _probe = probe ?? ((path) => native.audioProbeFormat(path: path)),
+    Future<void> Function(String audio, String cover)? embedCover,
+  }) : _embedCover = embedCover ?? _embedCoverInFile,
+       _probe = probe ?? ((path) => native.audioProbeFormat(path: path)),
        _directory = directory ?? _defaultDirectory,
        _protectedPaths = protectedPaths ?? (() => {});
 
   final DiscoveryHttp http;
+  final Future<void> Function(String audio, String cover) _embedCover;
   final DiscoveryAudioProbe _probe;
   final Future<Directory> Function() _directory;
   final Set<String> Function() _protectedPaths;
@@ -280,6 +284,11 @@ class DiscoveryPlaybackCache {
       );
       await out.close();
       sink = null;
+      // Also embed it in the audio's tags, so the file keeps its cover if
+      // it is saved to the library.
+      try {
+        await _embedCover(ready.path, file.path);
+      } catch (_) {}
       return file.path;
     } catch (_) {
       try {
@@ -290,6 +299,13 @@ class DiscoveryPlaybackCache {
       } catch (_) {}
       return null;
     }
+  }
+
+  static Future<void> _embedCoverInFile(String audio, String cover) async {
+    await MetadataEditorService.instance.writeCoverArtToPath(
+      audio,
+      await File(cover).readAsBytes(),
+    );
   }
 
   Future<void> _reserve(Directory root, int reservation) async {

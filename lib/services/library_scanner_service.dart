@@ -308,6 +308,7 @@ class LibraryScannerService {
     String folderUri,
     String displayName, {
     ScanMode mode = ScanMode.quick,
+    bool forceDeepScan = false,
   }) async* {
     final scanStopwatch = Stopwatch()..start();
     final scanKey = normalizeFolderIdentifier(folderUri);
@@ -329,7 +330,8 @@ class LibraryScannerService {
 
         final folderEntity = await _folderRepository.getFolderByUri(folderUri);
         final useDeepScan =
-            folderEntity?.useDeepScan ?? scanPreferences.useDeepScan;
+            forceDeepScan ||
+            (folderEntity?.useDeepScan ?? scanPreferences.useDeepScan);
 
         // Lazy migration: backfill volume metadata for pre-feature folders.
         if (folderEntity != null && folderEntity.mediaStoreVolume == null) {
@@ -2361,7 +2363,14 @@ class LibraryScannerService {
     );
   }
 
-  Stream<ScanProgress> scanAllFolders({ScanMode mode = ScanMode.quick}) async* {
+  /// Scans every saved folder concurrently.
+  ///
+  /// [forceDeepScan] reads every folder directly from storage for this run
+  /// (Android), whatever each folder's deep-scan setting says.
+  Stream<ScanProgress> scanAllFolders({
+    ScanMode mode = ScanMode.quick,
+    bool forceDeepScan = false,
+  }) async* {
     _isCancelled = false;
     final totalStopwatch = Stopwatch()..start();
     final folders = await _folderRepository.getAllFolders();
@@ -2421,7 +2430,12 @@ class LibraryScannerService {
       if (_isCancelled) break;
       started++;
 
-      _scanFolderInternal(folder.uri, folder.displayName, mode: mode).listen(
+      _scanFolderInternal(
+        folder.uri,
+        folder.displayName,
+        mode: mode,
+        forceDeepScan: forceDeepScan,
+      ).listen(
         (progress) {
           folderStates[folder.uri] = FolderScanProgress(
             displayName: folder.displayName,

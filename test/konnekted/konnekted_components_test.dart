@@ -202,28 +202,31 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(320, 568));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final opened = <KonnektedDestination>[];
+      var pickerOpened = 0;
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             konnektedLibraryProvider.overrideWithValue(const AsyncData([])),
           ],
-          child: _app(KonnektedLibrary(onNavigate: opened.add), scale: 2),
+          child: _app(
+            KonnektedLibrary(
+              onNavigate: opened.add,
+              onAddFolder: (_) => pickerOpened++,
+            ),
+            scale: 2,
+          ),
         ),
       );
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Add a music folder'), 160);
       await tester.pumpAndSettle();
+      // The empty state opens the folder picker itself, not a settings page.
       await tester.tap(find.text('Add a music folder'));
+      expect(pickerOpened, 1);
       await tester.scrollUntilVisible(find.text('Albums'), 180);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Albums'));
-      expect(opened, [
-        const KonnektedDestination.settingsAt(
-          LokalSettingsGroup.library,
-          section: 'Folders',
-        ),
-        KonnektedDestination.albums,
-      ]);
+      expect(opened, [KonnektedDestination.albums]);
       expect(tester.takeException(), isNull);
     },
   );

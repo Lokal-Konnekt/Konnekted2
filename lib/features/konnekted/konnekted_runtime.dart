@@ -62,23 +62,17 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
 
     ref.listenManual(currentSongProvider, (_, _) => _maybeOpenExternalPlayer());
     ref.listenManual(isPlayingProvider, (_, _) => _maybeOpenExternalPlayer());
+    // Songs a scan added still need their details (sample rate, disc,
+    // album artist) read in the background. That is not part of the scan:
+    // start it straight away and silently, instead of a snackbar per batch
+    // (they queued up and read as a scan that never ended).
     ref.listenManual<AsyncValue<int>>(libraryWarmupProvider, (previous, next) {
       final count = next.value ?? 0;
-      if (!mounted || count <= 0 || count == previous?.value) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Finishing metadata for $count songs'),
-          action: SnackBarAction(
-            label: 'Speed up',
-            onPressed: () {
-              final service = ref.read(backgroundMetadataServiceProvider);
-              if (service != null) {
-                _run('Metadata warmup', service.extractPendingMetadata);
-              }
-            },
-          ),
-        ),
-      );
+      if (!mounted || count <= (previous?.value ?? 0)) return;
+      final service = ref.read(backgroundMetadataServiceProvider);
+      if (service != null) {
+        _run('Metadata warmup', service.extractPendingMetadata);
+      }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

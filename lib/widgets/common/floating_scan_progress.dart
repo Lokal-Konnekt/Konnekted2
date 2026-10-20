@@ -15,10 +15,12 @@ import 'package:flick/l10n/l10n.dart';
 /// Pinned bubble (plus anchored details card) that keeps scan/preload progress
 /// visible after the full-screen overlay is minimized.
 ///
-/// Two sources, in priority order:
-/// 1. An active [ScanSessionController] session whose overlay was minimized
-///    (scan all folders, single folder, manual preload, ReplayGain scan).
-/// 2. A running post-scan auto preload pass (no active session).
+/// Shows an active [ScanSessionController] session whose sheet was hidden
+/// (scan all folders, single folder, manual preload, ReplayGain scan).
+///
+/// The silent post-scan auto preload pass is background work, not a scan: it
+/// is only shown when [showAutoPreload] is set. Presenting it as a running
+/// scan made finished scans look like they never ended.
 ///
 /// The bubble can be dragged anywhere and snaps to the nearest screen edge;
 /// its side and vertical position persist across launches.
@@ -27,7 +29,11 @@ class FloatingScanProgress extends StatefulWidget {
     super.key,
     this.autoPreloadProgress,
     this.onCancelAutoPreload,
+    this.showAutoPreload = false,
   });
+
+  /// Also show the silent auto preload pass when no session runs.
+  final bool showAutoPreload;
 
   /// Progress notifier for the silent post-scan auto preload pass. Defaults to
   /// the app-wide [AudioPreloadService] notifier; tests inject a local one to
@@ -82,6 +88,7 @@ class _FloatingScanProgressState extends State<FloatingScanProgress>
   bool get _sessionVisible => ScanSessionController.instance.isVisible;
 
   bool get _autoVisible =>
+      widget.showAutoPreload &&
       !ScanSessionController.instance.isActive &&
       _autoPreloadProgress.value != null &&
       !_autoStopped &&

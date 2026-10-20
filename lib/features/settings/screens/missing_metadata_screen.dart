@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/albums/widgets/identify_album_sheet.dart';
-import 'package:flick/features/settings/widgets/settings_widgets.dart';
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/apple_music/album_identification_service.dart';
 import 'package:flick/services/apple_music/auto_metadata_enricher.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 /// Lists album folders still missing artist or album tags and opens the
 /// identification sheet for each. Backed by the same grouping the background
@@ -60,50 +59,60 @@ class _MissingMetadataScreenState extends State<MissingMetadataScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsScaffold(
-      title: l10n.fixMissingMetadata,
-      body: FutureBuilder<List<_UntaggedAlbum>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Padding(
-              padding: EdgeInsets.all(AppConstants.spacingXl),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final albums = snapshot.data ?? const <_UntaggedAlbum>[];
-          if (albums.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.all(AppConstants.spacingXl),
-              child: Text(
-                l10n.everyAlbumHasArtistAndAlbum,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
+    final t = context.lokal;
+    return Scaffold(
+      backgroundColor: t.bg,
+      body: SafeArea(
+        bottom: false,
+        child: FutureBuilder<List<_UntaggedAlbum>>(
+          future: _future,
+          builder: (context, snapshot) {
+            final loading = snapshot.connectionState != ConnectionState.done;
+            final albums = snapshot.data ?? const <_UntaggedAlbum>[];
+            return ListView(
+              padding: EdgeInsets.only(
+                bottom: 40 + MediaQuery.paddingOf(context).bottom,
               ),
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SettingsSectionHeader(l10n.needsMetadata),
-              SettingsCard(
-                children: [
-                  for (var index = 0; index < albums.length; index++) ...[
-                    if (index > 0) const SettingsDivider(),
-                    NavigationSetting(
-                      icon: LucideIcons.disc3,
-                      title: albums[index].title,
-                      subtitle: albums[index].subtitle,
-                      onTap: () => _identify(albums[index]),
+              children: [
+                LokalSettingsHeader(
+                  title: l10n.fixMissingMetadata,
+                  subtitle: loading || albums.isEmpty
+                      ? null
+                      : 'Tap an album to identify it with Apple Music.',
+                ),
+                if (loading)
+                  Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Center(
+                      child: CircularProgressIndicator(color: t.accent),
                     ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: AppConstants.spacingLg),
-              const SizedBox(height: AppConstants.navBarHeight + 40),
-            ],
-          );
-        },
+                  )
+                else if (albums.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
+                    child: Text(
+                      l10n.everyAlbumHasArtistAndAlbum,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, color: t.muted),
+                    ),
+                  )
+                else
+                  LokalSettingsSection(
+                    title: l10n.needsMetadata,
+                    children: [
+                      for (final album in albums)
+                        LokalSettingLink(
+                          icon: Icons.album_rounded,
+                          label: album.title,
+                          description: album.subtitle,
+                          onTap: () => _identify(album),
+                        ),
+                    ],
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -127,6 +136,6 @@ class _UntaggedAlbum {
   String get subtitle {
     final count = songs.length;
     final files = l10n.files2(count);
-    return artist.isEmpty ? files : '$files • $artist';
+    return artist.isEmpty ? files : '$files · $artist';
   }
 }

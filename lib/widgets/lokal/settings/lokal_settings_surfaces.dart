@@ -452,6 +452,122 @@ Future<bool> showLokalConfirmSheet({
   return confirmed == true;
 }
 
+/// A settings sheet asking for one value: [title], [message], a field
+/// starting at [initialValue], Cancel and [confirmLabel]. Resolves to what
+/// was typed, or `null` when cancelled.
+Future<String?> showLokalInputSheet({
+  required BuildContext context,
+  required String title,
+  String? message,
+  String initialValue = '',
+  String? hint,
+  required String confirmLabel,
+  String cancelLabel = 'Cancel',
+  TextInputType? keyboardType,
+}) => showModalBottomSheet<String>(
+  context: context,
+  backgroundColor: context.lokal.surface,
+  barrierColor: Colors.black.withValues(
+    alpha: context.lokal.isLight ? .25 : .5,
+  ),
+  showDragHandle: true,
+  useSafeArea: true,
+  isScrollControlled: true,
+  shape: RoundedRectangleBorder(
+    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+    side: BorderSide(color: context.lokal.border),
+  ),
+  builder: (context) => _LokalInputSheet(
+    title: title,
+    message: message,
+    initialValue: initialValue,
+    hint: hint,
+    confirmLabel: confirmLabel,
+    cancelLabel: cancelLabel,
+    keyboardType: keyboardType,
+  ),
+);
+
+class _LokalInputSheet extends StatefulWidget {
+  const _LokalInputSheet({
+    required this.title,
+    required this.message,
+    required this.initialValue,
+    required this.hint,
+    required this.confirmLabel,
+    required this.cancelLabel,
+    required this.keyboardType,
+  });
+
+  final String title;
+  final String? message;
+  final String initialValue;
+  final String? hint;
+  final String confirmLabel;
+  final String cancelLabel;
+  final TextInputType? keyboardType;
+
+  @override
+  State<_LokalInputSheet> createState() => _LokalInputSheetState();
+}
+
+class _LokalInputSheetState extends State<_LokalInputSheet> {
+  late final _controller = TextEditingController(text: widget.initialValue);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.of(context).pop(_controller.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        child: LokalSheetBody(
+          title: widget.title,
+          message: widget.message,
+          children: [
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              keyboardType: widget.keyboardType,
+              style: TextStyle(color: t.text, fontFamily: LokalTheme.sans),
+              decoration: lokalInputDecoration(context, hint: widget.hint),
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: LokalSettingsActionButton(
+                    label: widget.cancelLabel,
+                    primary: false,
+                    expand: true,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: LokalSettingsActionButton(
+                    label: widget.confirmLabel,
+                    expand: true,
+                    onPressed: _submit,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The content of a settings sheet: a bold [title], an optional [message]
 /// and [children] below, padded like the rest of the sheet.
 class LokalSheetBody extends StatelessWidget {

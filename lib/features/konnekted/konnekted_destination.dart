@@ -36,7 +36,6 @@ final class KonnektedDestination {
   static const favorites = KonnektedDestination._('favorites');
   static const recentlyPlayed = KonnektedDestination._('recentlyPlayed');
   static const recentlyAdded = KonnektedDestination._('recentlyAdded');
-  static const inheritedHome = KonnektedDestination._('inheritedHome');
   static const queue = KonnektedDestination._('queue');
   static const linkedPlaylists = KonnektedDestination._('linkedPlaylists');
 
@@ -54,7 +53,6 @@ final class KonnektedDestination {
     favorites,
     recentlyPlayed,
     recentlyAdded,
-    inheritedHome,
     queue,
     linkedPlaylists,
     settings,

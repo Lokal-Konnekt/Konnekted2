@@ -3,6 +3,7 @@ import 'package:flick/features/classipod/classipod_screen.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +15,11 @@ import 'konnekted_style.dart';
 const _folders = KonnektedDestination.settingsAt(
   LokalSettingsGroup.library,
   section: 'Folders',
+);
+
+/// Settings › Library, which the header's gear opens.
+const _librarySettings = KonnektedDestination.settingsAt(
+  LokalSettingsGroup.library,
 );
 
 /// Settings › Integrations › Accounts, where Spotify is.
@@ -36,13 +42,37 @@ class KonnektedLibrary extends ConsumerWidget {
         bottom: 28 + MediaQuery.paddingOf(context).bottom,
       ),
       children: [
-        KonnektedHeading(
-          title: 'Your library',
-          eyebrow: 'Collected by you',
-          action: IconButton.filledTonal(
-            tooltip: 'Add music and manage folders',
-            onPressed: () => onNavigate(_folders),
-            icon: const Icon(Icons.add_rounded),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
+          child: Row(
+            children: [
+              Tooltip(
+                message: 'Library settings',
+                excludeFromSemantics: true,
+                child: LokalGlassButton(
+                  semanticLabel: 'Library settings',
+                  onPressed: () => onNavigate(_librarySettings),
+                  child: Icon(
+                    Icons.settings_rounded,
+                    color: context.lokal.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Easter egg: a long press on the title opens Classipod.
+        GestureDetector(
+          onLongPress: () =>
+              Navigator.of(context).push(ClassipodScreen.route(context)),
+          child: KonnektedHeading(
+            title: 'Your library',
+            eyebrow: 'Collected by you',
+            action: IconButton.filledTonal(
+              tooltip: 'Add music and manage folders',
+              onPressed: () => onNavigate(_folders),
+              icon: const Icon(Icons.add_rounded),
+            ),
           ),
         ),
         ref
@@ -109,29 +139,6 @@ class KonnektedLibrary extends ConsumerWidget {
           ],
         ),
         const KonnektedSectionHeading(title: 'Browse your collection'),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-          child: Material(
-            color: context.lokal.surface,
-            borderRadius: BorderRadius.circular(22),
-            clipBehavior: Clip.antiAlias,
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              leading: Icon(
-                Icons.radio_button_checked,
-                color: context.lokal.accent,
-              ),
-              title: const Text('Classipod'),
-              subtitle: const Text('Your local music, with a click wheel'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () =>
-                  Navigator.of(context).push(ClassipodScreen.route(context)),
-            ),
-          ),
-        ),
         KonnektedRouteGroup(
           onNavigate: onNavigate,
           entries: const [
@@ -164,130 +171,6 @@ class KonnektedLibrary extends ConsumerWidget {
               'Fresh finds for your collection',
               Icons.auto_awesome_rounded,
               KonnektedDestination.recentlyAdded,
-            ),
-          ],
-        ),
-        const KonnektedSectionHeading(title: 'Keep exploring'),
-        KonnektedRouteGroup(
-          onNavigate: onNavigate,
-          entries: const [
-            KonnektedRouteEntry(
-              'Listening hub',
-              'Smart mixes, listening recaps, and more',
-              Icons.space_dashboard_rounded,
-              KonnektedDestination.inheritedHome,
-            ),
-            KonnektedRouteEntry(
-              'Manage library',
-              'Folders, scanning, and metadata',
-              Icons.create_new_folder_rounded,
-              KonnektedDestination.settingsAt(LokalSettingsGroup.library),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
-
-class KonnektedSettings extends StatelessWidget {
-  const KonnektedSettings({super.key, required this.onNavigate});
-
-  final ValueChanged<KonnektedDestination> onNavigate;
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-    bottom: false,
-    child: ListView(
-      key: const PageStorageKey('konnekted-settings'),
-      padding: EdgeInsets.only(
-        bottom: 28 + MediaQuery.paddingOf(context).bottom,
-      ),
-      children: [
-        const KonnektedHeading(
-          title: 'Fine tuning',
-          eyebrow: 'Make it sound like you',
-        ),
-        const KonnektedMessage(
-          title: 'A little closer to the music',
-          message: 'Shape your sound, choose your output, and make the player your own.',
-          icon: Icons.graphic_eq_rounded,
-        ),
-        const KonnektedSectionHeading(title: 'Sound & playback'),
-        KonnektedRouteGroup(
-          onNavigate: onNavigate,
-          entries: const [
-            KonnektedRouteEntry(
-              'Playback',
-              'ReplayGain, crossfade, queue and casting',
-              Icons.tune_rounded,
-              KonnektedDestination.settingsAt(LokalSettingsGroup.playback),
-            ),
-            KonnektedRouteEntry(
-              'Equalizer',
-              'EQ presets and headphone correction',
-              Icons.equalizer_rounded,
-              KonnektedDestination.settingsAt(
-                LokalSettingsGroup.playback,
-                section: 'Equalizer',
-              ),
-            ),
-            KonnektedRouteEntry(
-              'Advanced output',
-              'USB DAC, bit-perfect, Bluetooth and volume',
-              Icons.usb_rounded,
-              KonnektedDestination.settingsAt(LokalSettingsGroup.output),
-            ),
-            KonnektedRouteEntry(
-              'Queue',
-              'See what’s playing next',
-              Icons.queue_music_rounded,
-              KonnektedDestination.queue,
-            ),
-            KonnektedRouteEntry(
-              'Lyrics settings',
-              'Sources and lyric preferences',
-              Icons.lyrics_rounded,
-              KonnektedDestination.settingsAt(
-                LokalSettingsGroup.playback,
-                section: 'Lyrics',
-              ),
-            ),
-          ],
-        ),
-        const KonnektedSectionHeading(title: 'Your experience'),
-        KonnektedRouteGroup(
-          onNavigate: onNavigate,
-          entries: const [
-            KonnektedRouteEntry(
-              'Appearance',
-              'Themes, accent, glass, and text size',
-              Icons.palette_rounded,
-              KonnektedDestination.settingsAt(LokalSettingsGroup.appearance),
-            ),
-            KonnektedRouteEntry(
-              'Music library',
-              'Manage folders and scan your music',
-              Icons.library_music_rounded,
-              KonnektedDestination.settingsAt(LokalSettingsGroup.library),
-            ),
-            KonnektedRouteEntry(
-              'All settings',
-              'Integrations, playback, library, data and more',
-              Icons.settings_rounded,
-              KonnektedDestination.settings,
-            ),
-            KonnektedRouteEntry(
-              'Spotify library',
-              'Connect, import playlists, or sync Liked Songs',
-              Icons.circle,
-              _accounts,
-            ),
-            KonnektedRouteEntry(
-              'Linked playlists',
-              'Preview, refresh, or unlink external playlists',
-              Icons.link_rounded,
-              KonnektedDestination.linkedPlaylists,
             ),
           ],
         ),

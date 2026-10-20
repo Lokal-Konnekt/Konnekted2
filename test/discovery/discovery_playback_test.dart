@@ -84,6 +84,39 @@ void main() {
     },
   );
 
+  test('a recording with a known size downloads in ranged parts', () async {
+    final file = [...ascii.encode('\x00\x00\x00\x18ftypM4A '), ...List.filled(40, 7)];
+    final asked = <String>[];
+    final client = MockClient((request) async {
+      expect(request.headers['User-Agent'], 'Fixture agent');
+      expect(request.url.queryParameters['secret'], 'signed');
+      final range = request.url.queryParameters['range']!;
+      asked.add(range);
+      final [start, end] = range.split('-').map(int.parse).toList();
+      return http.Response.bytes(file.sublist(start, end + 1), 200);
+    });
+    addTearDown(client.close);
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(client),
+      directory: () async => directory,
+      rangeBytes: 20,
+      probe: (path) async {
+        expect(await File(path).readAsBytes(), file);
+        return const AudioProbeFormat(sampleRate: 44100, channels: 2);
+      },
+    );
+    final song = await cache.prepare(
+      fixtureTrack,
+      ResolvedDiscoveryAudio(
+        fixtureAudio.url,
+        length: file.length,
+        headers: const {'User-Agent': 'Fixture agent'},
+      ),
+    );
+    expect(asked, ['0-19', '20-39', '40-${file.length - 1}']);
+    expect(song.fileType, 'M4A');
+  });
+
   test(
     'lossy decoder bit width never becomes a lossless quality claim',
     () async {

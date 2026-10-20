@@ -145,7 +145,7 @@ void main() {
     );
   });
 
-  testWidgets('Discovery plays your copy with the shelf, else asks add-ons', (
+  testWidgets('Discovery plays your copy with the shelf, else looks it up', (
     tester,
   ) async {
     tester.view
@@ -160,7 +160,7 @@ void main() {
           child: KonnektedDiscoveryView(
             onNavigate: (_) {},
             onPlay: (song, queue) => played.add((song, queue)),
-            findOnAddons: (track, {onStatus}) async {
+            findSong: (track, {onStatus}) async {
               asked.add(track.title);
               return null;
             },
@@ -184,7 +184,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Play Not Here by Nobody'));
     await tester.pumpAndSettle();
     expect(asked, ['Not Here']);
-    expect(find.textContaining('none of your add-ons has it'), findsOneWidget);
+    expect(find.textContaining('Couldn’t find Not Here'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('Play Shine by Estelle'));
     expect(played.last.$2.map((s) => s.id), ['2', '1']);

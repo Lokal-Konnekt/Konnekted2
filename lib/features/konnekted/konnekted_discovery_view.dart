@@ -22,18 +22,19 @@ class KonnektedDiscoveryView extends ConsumerStatefulWidget {
     super.key,
     required this.onNavigate,
     required this.onPlay,
-    this.findOnAddons = findDiscoverySongOnAddons,
+    this.findSong = findDiscoverySong,
   });
 
   final ValueChanged<KonnektedDestination> onNavigate;
   final void Function(Song song, List<Song> shelf) onPlay;
 
-  /// Looks for a song you don't have on your add-ons; replaced in tests.
+  /// Looks for a song you don't have on YouTube Music and your add-ons;
+  /// replaced in tests.
   final Future<Song?> Function(
     LokalDiscoveryTrack track, {
     void Function(String status)? onStatus,
   })
-  findOnAddons;
+  findSong;
 
   @override
   ConsumerState<KonnektedDiscoveryView> createState() =>
@@ -70,7 +71,7 @@ class _KonnektedDiscoveryViewState
   );
 
   /// Plays your copy when you have it, with the shelf's other songs you
-  /// have after it; otherwise looks on your add-ons.
+  /// have after it; otherwise finds it on YouTube Music or your add-ons.
   Future<void> _play(
     LokalDiscoveryTrack track,
     List<LokalDiscoveryTrack> shelf,
@@ -84,9 +85,9 @@ class _KonnektedDiscoveryViewState
     }
     if (_busy != null) return;
     setState(() => _busy = track.key);
-    _say('Looking for ${track.title} on your add-ons…');
+    _say('Looking for ${track.title}…');
     try {
-      final song = await widget.findOnAddons(
+      final song = await widget.findSong(
         track,
         onStatus: (status) {
           if (mounted) _say(status);
@@ -94,9 +95,7 @@ class _KonnektedDiscoveryViewState
       );
       if (!mounted) return;
       if (song == null) {
-        _say(
-          '${track.title} isn’t in your library, and none of your add-ons has it.',
-        );
+        _say('Couldn’t find ${track.title} on YouTube Music or your add-ons.');
       } else {
         ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
         widget.onPlay(song, [song]);

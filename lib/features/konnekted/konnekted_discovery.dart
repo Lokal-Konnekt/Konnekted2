@@ -5,8 +5,10 @@ import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/discovery_playback.dart';
 import 'package:flick/features/discovery/discovery_registry.dart';
 import 'package:flick/features/discovery/discovery_settings.dart';
+import 'package:flick/features/discovery/discovery_sources.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
 import 'package:flick/features/discovery/recommendation_match.dart';
+import 'package:flick/features/discovery/youtube_audio.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
@@ -14,7 +16,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 /// Home's Discovery tab: Last.fm's shelves for your account, played from your
-/// library when you have the song, otherwise from your add-ons.
+/// library when you have the song, otherwise from YouTube Music or your
+/// add-ons.
 
 /// The Last.fm account Discovery is for; null when Last.fm isn't connected.
 final konnektedLastfmAccountProvider = FutureProvider.autoDispose<String?>((
@@ -209,28 +212,53 @@ class KonnektedLibraryIndex {
   }
 }
 
-/// Finds [track] on your add-ons and downloads it to play, like desktop's
-/// fallback to its other sources. Null when no add-on has it (or none is
-/// set up). [onStatus] hears what's happening.
-Future<Song?> findDiscoverySongOnAddons(
+/// A place a song you don't own can be played from.
+class _PlaybackSource {
+  const _PlaybackSource(this.name, this.search, this.resolve);
+
+  final String name;
+  final Future<List<DiscoveryTrack>> Function(String query) search;
+  final Future<ResolvedDiscoveryAudio> Function(DiscoveryTrack track) resolve;
+}
+
+/// Finds [track] somewhere to play it and downloads it, as desktop does for
+/// songs you don't own: YouTube Music first (desktop's default order), then
+/// your add-ons. Null when none has it. [onStatus] hears what's happening.
+Future<Song?> findDiscoverySong(
   LokalDiscoveryTrack track, {
   void Function(String status)? onStatus,
   DiscoverySettingsStore? store,
   http.Client? client,
 }) async {
-  final settings = await (store ?? DiscoverySettingsStore()).load();
+  var settings = const DiscoverySettings();
+  try {
+    settings = await (store ?? DiscoverySettingsStore()).load();
+  } catch (_) {
+    // Unreadable add-on settings still leave YouTube Music.
+  }
   final owned = client == null;
   final transport = client ?? http.Client();
   try {
     final web = DiscoveryHttp(transport);
     final registry = DiscoverySourceRegistry(web, settings);
-    if (registry.addons.isEmpty) return null;
+    final youtube = YoutubeAudio(web);
+    final sources = [
+      _PlaybackSource(
+        'YouTube Music',
+        YoutubeMusicCatalog(web).search,
+        (found) => youtube.resolve(found.id),
+      ),
+      for (final addon in registry.addons)
+        _PlaybackSource(addon.displayName, addon.search, registry.resolve),
+    ];
     final candidate = discoveryCandidate(track);
-    for (final query in recommendationQueries(candidate).take(3)) {
-      for (final addon in registry.addons) {
+    final queries = recommendationQueries(candidate).take(3).toList();
+    DiscoveryException? failure;
+    for (final source in sources) {
+      for (final query in queries) {
         List<DiscoveryTrack> results;
         try {
-          results = await addon.search(query);
+          results = await source.search(query);
         } catch (_) {
           continue;
         }
@@ -245,24 +273,30 @@ Future<Song?> findDiscoverySongOnAddons(
           ),
         );
         if (found == null) continue;
-        onStatus?.call('Getting ${track.title} from ${addon.displayName}…');
-        final audio = await registry.resolve(found);
-        final cache = DiscoveryPlaybackCache(
-          http: web,
-          protectedPaths: () {
-            final player = PlayerService();
-            return {
-              if (player.currentSongNotifier.value?.filePath
-                  case final String path)
-                path,
-              ...player.queue.map((s) => s.filePath).whereType<String>(),
-              ...player.upNext.map((s) => s.filePath).whereType<String>(),
-            };
-          },
-        );
-        return await cache.prepare(found, audio);
+        onStatus?.call('Getting ${track.title} from ${source.name}…');
+        try {
+          final audio = await source.resolve(found);
+          return await DiscoveryPlaybackCache(
+            http: web,
+            protectedPaths: () {
+              final player = PlayerService();
+              return {
+                if (player.currentSongNotifier.value?.filePath
+                    case final String path)
+                  path,
+                ...player.queue.map((s) => s.filePath).whereType<String>(),
+                ...player.upNext.map((s) => s.filePath).whereType<String>(),
+              };
+            },
+          ).prepare(found, audio);
+        } on DiscoveryException catch (error) {
+          // This source found it but couldn't play it: try the next one.
+          failure = error;
+          break;
+        }
       }
     }
+    if (failure != null) throw failure;
     return null;
   } finally {
     if (owned) transport.close();

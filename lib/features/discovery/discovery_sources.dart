@@ -204,8 +204,19 @@ class AddonHealth {
 }
 
 class ResolvedDiscoveryAudio {
-  const ResolvedDiscoveryAudio(this.url);
+  const ResolvedDiscoveryAudio(
+    this.url, {
+    this.length,
+    this.headers = const {},
+  });
   final Uri url;
+
+  /// The file's size when it must be fetched in parts (YouTube serves big
+  /// single requests slowly): each part asks for a `range` of it.
+  final int? length;
+
+  /// Headers the media host expects, e.g. the client's own User-Agent.
+  final Map<String, String> headers;
 }
 
 /// Reference-compatible, deliberately limited progressive-audio addon client.

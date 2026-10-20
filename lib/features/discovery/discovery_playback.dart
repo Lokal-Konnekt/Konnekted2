@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
@@ -26,6 +27,7 @@ class DiscoveryPlaybackCache {
     this.maxFileBytes = 128 * 1024 * 1024,
     this.maxCacheBytes = 384 * 1024 * 1024,
     this.downloadTimeout = const Duration(minutes: 2),
+    this.rangeBytes = 10 * 1024 * 1024,
   }) : _probe = probe ?? ((path) => native.audioProbeFormat(path: path)),
        _directory = directory ?? _defaultDirectory,
        _protectedPaths = protectedPaths ?? (() => {});
@@ -37,6 +39,9 @@ class DiscoveryPlaybackCache {
   final int maxFileBytes;
   final int maxCacheBytes;
   final Duration downloadTimeout;
+
+  /// The size of each part when a recording is fetched in parts.
+  final int rangeBytes;
   bool _busy = false;
 
   static Future<Directory> _defaultDirectory() async => Directory(
@@ -78,18 +83,57 @@ class DiscoveryPlaybackCache {
       output = await partial.open(mode: FileMode.writeOnly);
       final prefix = <int>[];
       var received = 0;
-      await http.transfer(
-        audio.url,
-        maxBytes: maxFileBytes,
-        deadline: downloadTimeout,
-        cancel: cancel,
-        onChunk: (chunk) async {
-          if (prefix.length < 64) prefix.addAll(chunk.take(64 - prefix.length));
-          await output!.writeFrom(chunk);
-          received += chunk.length;
-          onProgress?.call(received);
-        },
-      );
+      Future<void> write(List<int> chunk) async {
+        if (prefix.length < 64) prefix.addAll(chunk.take(64 - prefix.length));
+        await output!.writeFrom(chunk);
+        received += chunk.length;
+        onProgress?.call(received);
+      }
+
+      final length = audio.length;
+      if (length == null) {
+        await http.transfer(
+          audio.url,
+          headers: audio.headers,
+          maxBytes: maxFileBytes,
+          deadline: downloadTimeout,
+          cancel: cancel,
+          onChunk: write,
+        );
+      } else {
+        if (length <= 0 || length > maxFileBytes) {
+          throw const DiscoveryException(
+            'The recording exceeds the download size limit.',
+          );
+        }
+        // In parts, each a `range` of the file, under one overall deadline.
+        final started = DateTime.now();
+        for (var start = 0; start < length; start += rangeBytes) {
+          final end = math.min(start + rangeBytes, length) - 1;
+          final left = downloadTimeout - DateTime.now().difference(started);
+          if (left <= Duration.zero) {
+            throw const DiscoveryException('The source timed out. Try again.');
+          }
+          await http.transfer(
+            audio.url.replace(
+              queryParameters: {
+                ...audio.url.queryParameters,
+                'range': '$start-$end',
+              },
+            ),
+            headers: audio.headers,
+            maxBytes: end - start + 1,
+            deadline: left,
+            cancel: cancel,
+            onChunk: write,
+          );
+        }
+        if (received != length) {
+          throw const DiscoveryException(
+            'The source returned an empty or incomplete response.',
+          );
+        }
+      }
       await output.close();
       output = null;
       if (cancelled) throw const DiscoveryException('Request cancelled.');

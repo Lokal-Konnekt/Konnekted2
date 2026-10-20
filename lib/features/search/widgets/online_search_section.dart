@@ -139,6 +139,12 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     _progress.update(message);
   }
 
+  /// A one-off message that goes after a while (and takes any progress
+  /// line with it).
+  void _say(String message) {
+    if (mounted) _progress.fail(message);
+  }
+
   Future<void> _play(OnlineSource source, OnlineResult result) async {
     if (_busy != null) return;
     final track = result.track;
@@ -214,14 +220,18 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     final key = '${source.id}:${track.id}';
     if (!_saving.add(key)) return;
     setState(() {});
-    _say('Downloading ${track.title} from ${source.name}…');
+    _progress.update('Downloading ${track.title} from ${source.name}…');
     try {
       final prepare =
           widget.prepare ??
           (source, track, onStatus) =>
               playOnlineTrack(source.id, track, onStatus: onStatus);
-      final song = await prepare(source, track, _status);
-      _say('Saving ${track.title} to your library…');
+      final song = await prepare(source, track, (message) {
+        if (mounted && _saving.contains(key)) _progress.update(message);
+      });
+      if (mounted) {
+        _progress.update('Saving ${track.title} to your library…');
+      }
       final cover = await _cover(result);
       final saved = await (widget.downloader ?? LibraryDownloader()).save(
         song,

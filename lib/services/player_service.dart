@@ -416,6 +416,24 @@ bool shouldTrackReplayFromPlaybackState({
   return previousPosition == null || previousPosition != currentPosition;
 }
 
+/// Puts [resolved] in place of every placeholder [pendingId] in [songs],
+/// keeping the order; returns the positions changed.
+@visibleForTesting
+List<int> replacePendingInPlace(
+  List<Song> songs,
+  String pendingId,
+  Song resolved,
+) {
+  final changed = <int>[];
+  for (var i = 0; i < songs.length; i++) {
+    if (songs[i].id == pendingId) {
+      songs[i] = resolved;
+      changed.add(i);
+    }
+  }
+  return changed;
+}
+
 /// Singleton service to manage global audio playback state.
 ///
 /// Uses just_audio for playback with gapless playback support.
@@ -694,6 +712,106 @@ class PlayerService {
     if (_playlist.isEmpty) return const [];
     final startIndex = (_currentIndex + 1).clamp(0, _playlist.length);
     return List.unmodifiable(_playlist.sublist(startIndex));
+  }
+
+  /// Every song in play order (shuffled when shuffle is on), the one playing
+  /// at [currentIndex].
+  List<Song> get playlist => List.unmodifiable(_playlist);
+
+  /// Finds and downloads a queued placeholder ([Song.isPending]) when
+  /// playback reaches it; null when it can't be found. Set by
+  /// QueuePreResolver.
+  Future<Song?> Function(Song pending)? pendingSongResolver;
+
+  /// The placeholder being looked up to play now, if any.
+  String? _pendingPlaybackId;
+
+  /// Placeholders skipped in a row because they couldn't be found: stops a
+  /// queue of unplayable songs from going round forever.
+  int _pendingFailures = 0;
+
+  /// Puts [resolved] in place of the queued placeholder [pendingId] wherever
+  /// it sits, without interrupting what's playing.
+  void replacePendingSong(String pendingId, Song resolved) {
+    if (resolved.isPending || resolved.filePath == null) return;
+    final changed = replacePendingInPlace(_playlist, pendingId, resolved);
+    replacePendingInPlace(_originalPlaylist, pendingId, resolved);
+    var queueChanged = false;
+    for (var i = 0; i < _queuedEntries.length; i++) {
+      final entry = _queuedEntries[i];
+      if (entry.song.id == pendingId) {
+        _queuedEntries[i] = _QueueEntry(id: entry.id, song: resolved);
+        queueChanged = true;
+      }
+    }
+    if (changed.isEmpty && !queueChanged) return;
+    if (queueChanged) _notifyQueueChanged();
+    _notifyUpNextChanged();
+    if (!_usingRustBackend && _audioSourceSequence != null) {
+      for (final index in changed) {
+        if (index == _currentIndex) continue;
+        _removeFromAudioSequence(index);
+        unawaited(_insertIntoAudioSequence(index, resolved));
+      }
+    }
+    // Now ready as the next song: hand it to the engine for a gapless start.
+    if (_playlist.isNotEmpty && _currentIndex >= 0) {
+      final isLast = _currentIndex >= _playlist.length - 1;
+      final next = isLast ? 0 : _currentIndex + 1;
+      if (changed.contains(next) &&
+          (!isLast || loopModeNotifier.value == LoopMode.all) &&
+          _shouldQueueNextTrack &&
+          currentSongNotifier.value?.filePath != null) {
+        unawaited(_queueNextTrackForGapless());
+      }
+    }
+  }
+
+  /// Playback reached a placeholder: look it up, then play it; skip to the
+  /// next song when it can't be found. Runs outside the playback request
+  /// queue so another tap isn't kept waiting for the download.
+  Future<void> _playPendingSong(Song pending) async {
+    _pendingPlaybackId = pending.id;
+    isNetworkLoadingNotifier.value = true;
+    currentSongNotifier.value = pending;
+    _playbackManager.updateTrack(pending);
+    try {
+      await _playbackManager.stop();
+    } catch (e) {
+      _debugLog('[Playback] stop before looking up ${pending.title}: $e');
+    }
+    final resolver = pendingSongResolver;
+    unawaited(() async {
+      Song? resolved;
+      try {
+        resolved = resolver == null ? null : await resolver(pending);
+      } catch (e) {
+        _debugLog('[Playback] lookup failed for ${pending.title}: $e');
+      }
+      // Something else was asked for meanwhile: it owns playback now.
+      if (_pendingPlaybackId != pending.id) return;
+      _pendingPlaybackId = null;
+      isNetworkLoadingNotifier.value = false;
+      if (resolved != null) {
+        _pendingFailures = 0;
+        replacePendingSong(pending.id, resolved);
+        final song = resolved;
+        await _enqueuePlaybackRequest(() async {
+          if (_songAtCurrentIndex()?.id != song.id) return;
+          await _playInternal(song);
+        });
+        return;
+      }
+      _debugLog('[Playback] ${pending.title} not found; skipping');
+      if (++_pendingFailures >= _playlist.length) {
+        _pendingFailures = 0;
+        return;
+      }
+      await _enqueuePlaybackRequest(() async {
+        if (_songAtCurrentIndex()?.id != pending.id) return;
+        await _nextInternal();
+      });
+    }());
   }
 
   void _init() {
@@ -3522,6 +3640,11 @@ class PlayerService {
     }
 
     final currentSong = _songAtCurrentIndex();
+    if (currentSong != null && currentSong.isPending) {
+      // Not downloaded yet, so the engine had nothing queued: look it up.
+      await _playSongAtCurrentIndex();
+      return;
+    }
     if (currentSong != null) {
       currentSongNotifier.value = currentSong;
       _playbackManager.updateTrack(currentSong);
@@ -4843,6 +4966,7 @@ class PlayerService {
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
     final loadingGen = ++_networkLoadingGen;
+    _pendingPlaybackId = null;
     try {
       _debugLog(
         '[Playback] play() called for ${song.title} '
@@ -4893,12 +5017,18 @@ class PlayerService {
       _consumeQueueEntryAt(_currentIndex);
       _clearRestoredPlaybackContext(songId: song.id);
 
+      if (song.isPending) {
+        await _playPendingSong(song);
+        return;
+      }
+
       if (_castingService.isActive) {
         final handled = await _castingService.delegatePlay(song);
         if (handled) return;
       }
 
       if (song.filePath != null) {
+        _pendingFailures = 0;
         await _prepareImmediatePlaybackAsset(song);
         // Route changes are already pushed into the session manager via the
         // device listener initialized in initAudio(). Re-querying the platform
@@ -4962,7 +5092,7 @@ class PlayerService {
       // flag. Superseded requests (user tapped another song while this one
       // was still queued/loading) leave it untouched so the spinner stays up
       // until the latest tap resolves.
-      if (loadingGen == _networkLoadingGen) {
+      if (loadingGen == _networkLoadingGen && _pendingPlaybackId == null) {
         isNetworkLoadingNotifier.value = false;
       }
     }
@@ -5049,11 +5179,10 @@ class PlayerService {
     if (_playlist.isEmpty) return null;
     if (loopModeNotifier.value == LoopMode.one) return null;
     final isLastTrack = _currentIndex >= _playlist.length - 1;
-    if (isLastTrack) {
-      if (loopModeNotifier.value != LoopMode.all) return null;
-      return _playlist[0];
-    }
-    return _playlist[_currentIndex + 1];
+    if (isLastTrack && loopModeNotifier.value != LoopMode.all) return null;
+    final next = _playlist[isLastTrack ? 0 : _currentIndex + 1];
+    // Not downloaded yet: let the track end, then it's looked up and played.
+    return next.isPending ? null : next;
   }
 
   /// Called by the just_audio engine after a crossfade swap completes. The
@@ -5073,6 +5202,24 @@ class PlayerService {
   /// WavPack containers are not decodable by ExoPlayer, so retry them on the
   /// Rust decoder instead of leaving playback stalled on the failed track.
   void _onAndroidTrackError(Song song) {
+    // The system tier ran into a queued placeholder: look it up and play it.
+    final index = _justAudioPlayer?.currentIndex;
+    if (index != null &&
+        index >= 0 &&
+        index < _playlist.length &&
+        _playlist[index].isPending) {
+      final pending = _playlist[index];
+      unawaited(
+        _enqueuePlaybackRequest(() async {
+          if (index >= _playlist.length || _playlist[index].id != pending.id) {
+            return;
+          }
+          _setCurrentIndex(index);
+          await _playSongAtCurrentIndex();
+        }),
+      );
+      return;
+    }
     if (!song.requiresRustDecoder) return;
     _debugLog(
       '[Playback] System tier failed to decode ${song.title}; '

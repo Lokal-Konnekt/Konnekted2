@@ -89,6 +89,7 @@ Future<Map<String, dynamic>> _lastfm(
         'track': [
           track('Estelle', 'American Boy'),
           track('Nobody', 'Not Here'),
+          track('Somebody', 'Elsewhere'),
         ],
       },
     },
@@ -194,6 +195,59 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('Play Shine by Estelle'));
     expect(played.last.$2.map((s) => s.id), ['2', '1']);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a song you don’t have plays with the shelf queued after it', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(412, 2400)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final played = <(Song, List<Song>)>[];
+    final asked = <String>[];
+    Song placeholder(LokalDiscoveryTrack track) => Song(
+      id: 'pending:${track.key}',
+      title: track.title,
+      artist: track.artist,
+      duration: Duration.zero,
+      fileType: 'ONLINE',
+      sourcePackage: Song.pendingSourcePackage,
+    );
+    await tester.pumpWidget(
+      _app(
+        SingleChildScrollView(
+          child: KonnektedDiscoveryView(
+            onNavigate: (_) {},
+            onPlay: (song, queue) => played.add((song, queue)),
+            findSong: (track, {onStatus, additionalProtectedPaths}) async {
+              asked.add(track.title);
+              return Song(
+                id: 'discovery:${track.title}',
+                title: track.title,
+                artist: track.artist,
+                duration: Duration.zero,
+                fileType: 'M4A',
+                filePath: '/cache/${track.title}.m4a',
+              );
+            },
+            pendingSong: placeholder,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Play Not Here by Nobody'));
+    await tester.pumpAndSettle();
+    // Only the tapped song is fetched now; the others wait in the queue.
+    expect(asked, ['Not Here']);
+    final (song, queue) = played.single;
+    expect(song.id, 'discovery:Not Here');
+    expect(queue.map((s) => s.id), contains('1'));
+    expect(queue.map((s) => s.id), contains('discovery:Not Here'));
+    final waiting = queue.where((s) => s.isPending).map((s) => s.title);
+    expect(waiting, ['Elsewhere']);
     expect(tester.takeException(), isNull);
   });
 

@@ -151,6 +151,14 @@ class Song {
 
   bool get isFromLocker => sourcePackage == 'com.mossapps.locker';
 
+  /// [sourcePackage] of a song you don't own that hasn't been found and
+  /// downloaded yet: it sits in the queue as a placeholder (no [filePath])
+  /// and is swapped for the ready song once looked up. Never saved.
+  static const pendingSourcePackage = 'konnekted.pending';
+
+  /// A queued placeholder for an online song still to be looked up.
+  bool get isPending => sourcePackage == pendingSourcePackage;
+
   bool get isNetworkSource => sourceType != null;
 
   static const _dsdExtensions = {'dsf', 'dff'};

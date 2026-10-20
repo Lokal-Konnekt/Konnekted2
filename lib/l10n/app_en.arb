@@ -229,6 +229,15 @@
       }
     }
   },
+  "addedSongsToQueue": "{count, plural, =1{Added to the queue} other{Added {count} songs to the queue}}",
+  "@addedSongsToQueue": {
+    "description": "Toast shown after adding songs to the playback queue.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "addedTo": "Added to {arg1}",
   "@addedTo": {
     "description": "lib/features/songs/widgets/song_actions_bottom_sheet.dart:493",

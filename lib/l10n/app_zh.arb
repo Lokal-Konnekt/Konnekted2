@@ -45,6 +45,7 @@
   "addedSongsTo2": "已将 {arg1} 首歌曲添加到 {playlistName}",
   "addedSongsToFavorites": "已将 {arg1} 首歌曲添加到收藏",
   "addedSongsToFavorites3": "已将 {arg1} 首歌曲添加到收藏",
+  "addedSongsToQueue": "已将 {count} 首歌曲添加到队列",
   "addedTo": "已添加到 {arg1}",
   "addedTo2": "已添加到“{arg1}”",
   "addedToFavorites": "已加入收藏",

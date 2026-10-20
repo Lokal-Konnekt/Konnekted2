@@ -164,6 +164,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String addedSongsToQueue(int count) {
+    return '已将 $count 首歌曲添加到队列';
+  }
+
+  @override
   String addedTo(Object arg1) {
     return '已添加到 $arg1';
   }

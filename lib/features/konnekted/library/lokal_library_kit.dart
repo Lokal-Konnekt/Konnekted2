@@ -5,6 +5,7 @@ import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/features/konnekted/konnekted_home.dart';
 import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
@@ -54,11 +55,7 @@ Future<void> lokalQueueAll(
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(
-        songs.length == 1
-            ? 'Added to the queue'
-            : 'Added ${songs.length} songs to the queue',
-      ),
+      content: Text(l10n.addedSongsToQueue(songs.length)),
     ),
   );
 }
@@ -76,7 +73,7 @@ String lokalRunningTime(Iterable<Song> songs) {
   return '$minutes min';
 }
 
-String lokalSongCount(int count) => count == 1 ? '1 song' : '$count songs';
+String lokalSongCount(int count) => l10n.songsCount(count);
 
 /// A Library page: the round glass back button, a large title and [slivers],
 /// on the theme's background.

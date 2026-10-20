@@ -157,15 +157,9 @@ void main() {
     final findings = _scan();
     final unexpected = findings.where((f) => !allowed.containsKey(f.key)).toList();
 
-    expect(
-      unexpected,
-      isEmpty,
-      reason: 'These sites treat translated text as if it were a token, so they '
-          'break in every locale except English:\n'
-          '${unexpected.map((f) => '  $f').join('\n')}\n\n'
-          'Fix the site (compare an enum or a bool instead of the message), or -- '
-          'only when it is genuinely a protocol token -- add it to $_allowlistPath '
-          'under "source_guard" as "<path>::<snippet>" with a reason.',
-    );
+    if (unexpected.isNotEmpty) {
+      fail('Localization guard: ${unexpected.length} issue(s):\n'
+          '${unexpected.map((f) => '  $f').join('\n')}');
+    }
   });
 }

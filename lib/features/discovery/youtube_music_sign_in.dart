@@ -46,10 +46,10 @@ class _YoutubeMusicSignInSheetState extends State<YoutubeMusicSignInSheet> {
       final cookieList = await CookieManager.instance().getCookies(
         url: WebUri(_musicUrl),
       );
-      final cookies = {
+      final cookies = <String, String>{
         for (final cookie in cookieList)
-          if (cookie.name.isNotEmpty && cookie.value.isNotEmpty)
-            cookie.name: cookie.value,
+          if (cookie.name.isNotEmpty && '${cookie.value ?? ''}'.isNotEmpty)
+            cookie.name: '${cookie.value}',
       };
       final raw = await controller.evaluateJavascript(
         source:

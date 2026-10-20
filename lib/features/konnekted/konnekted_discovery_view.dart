@@ -548,7 +548,7 @@ class _Header extends StatelessWidget {
                   thickness: LokalGlassThickness.thin,
                   shadow: false,
                   padding: const EdgeInsets.all(3),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _ProviderChip(

@@ -19,6 +19,9 @@ import 'radio_catalog.dart';
 const _urlKey = 'lokal_radio_catalog_url';
 const _catalogKey = 'lokal_radio_catalog';
 const _favoritesKey = 'lokal_radio_favorites';
+const _radioLoadTimeout = Duration(seconds: 20);
+const _radioStorageTimeout = Duration(seconds: 8);
+const _radioStopTimeout = Duration(seconds: 3);
 
 /// The station list's link: desktop's default until the user sets another.
 class RadioCatalogUrlNotifier extends Notifier<String> {
@@ -57,7 +60,11 @@ final radioCatalogUrlProvider =
 final radioCatalogProvider = FutureProvider<RadioCatalog?>((ref) async {
   if (!ref.watch(internetRadioEnabledProvider)) return null;
   final url = ref.watch(radioCatalogUrlProvider);
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = await radioWithTimeout(
+    SharedPreferences.getInstance(),
+    timeout: _radioStorageTimeout,
+    timeoutMessage: 'Radio settings took too long to load. Try again.',
+  );
   RadioCatalog? saved;
   try {
     final raw = prefs.getString(_catalogKey);
@@ -67,9 +74,23 @@ final radioCatalogProvider = FutureProvider<RadioCatalog?>((ref) async {
   }
   final client = http.Client();
   try {
-    final data = await DiscoveryHttp(client).json(Uri.parse(url));
+    final data = await radioWithTimeout(
+      DiscoveryHttp(client).json(Uri.parse(url)),
+      timeout: _radioLoadTimeout,
+      timeoutMessage: 'The station list timed out. Check your connection or link.',
+    );
     final catalog = parseRadioCatalog(data);
-    await prefs.setString(_catalogKey, jsonEncode(catalog.toJson()));
+    // Caching is best-effort. A slow local preferences write must not prevent
+    // the successfully fetched stations from appearing.
+    try {
+      await radioWithTimeout(
+        prefs.setString(_catalogKey, jsonEncode(catalog.toJson())),
+        timeout: _radioStorageTimeout,
+        timeoutMessage: 'Saving the station list timed out.',
+      );
+    } catch (_) {
+      // The in-memory catalogue is usable even if caching fails.
+    }
     return catalog;
   } catch (e) {
     if (saved != null) return saved;
@@ -138,6 +159,7 @@ class RadioPlayback {
 /// going in the background), and hands it back to the library when it stops.
 class RadioPlayerNotifier extends Notifier<RadioPlayback> {
   ja.AudioPlayer? _player;
+  int _playRequest = 0;
   StreamSubscription<ja.PlayerState>? _states;
   String? _notified;
   final Map<String, String> _iconFiles = {};
@@ -169,7 +191,9 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
     if (existing != null) return existing;
     final player = ja.AudioPlayer();
     _states = player.playerStateStream.listen((s) {
-      if (state.station == null) return;
+      // Once a failed request is reported, late buffering/loading events from
+      // that same request must not put the spinner back on screen.
+      if (state.station == null || state.error != null) return;
       final loading =
           s.processingState == ja.ProcessingState.loading ||
           s.processingState == ja.ProcessingState.buffering;
@@ -240,25 +264,100 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
     }
   }
 
+  bool _isCurrentPlay(int request, RadioStation station) =>
+      ref.mounted &&
+      request == _playRequest &&
+      state.station?.id == station.id;
+
+  Future<void> _failPlay(int request, RadioStation station) async {
+    if (!_isCurrentPlay(request, station)) return;
+    try {
+      await _player?.stop().timeout(_radioStopTimeout);
+    } catch (_) {
+      // The UI still needs to leave its loading state if the engine stalls.
+    }
+    if (!_isCurrentPlay(request, station)) return;
+    state = RadioPlayback(
+      station: station,
+      error: 'This station could not start. Check the stream or try another.',
+    );
+    _syncNotification();
+  }
+
   Future<void> play(RadioStation station) async {
     if (!ref.read(internetRadioEnabledProvider)) return;
-    if (ref.read(isPlayingProvider)) {
-      await ref.read(playerProvider.notifier).pause();
-    }
-    // Radio requests audio focus through the app's own session, so set it
-    // up (music, interruptions, ducking) as the library player would.
-    await PlayerService().prepareAudioSessionForExternalPlayer();
-    final player = _ensurePlayer();
+    final request = ++_playRequest;
+    // Set loading before awaiting session/player setup so every failure path
+    // is visible and can also be cleared by stop().
     state = RadioPlayback(station: station, loading: true);
     _syncNotification();
     try {
-      await player.setUrl(station.url);
-      unawaited(player.play());
-    } catch (_) {
-      state = RadioPlayback(
-        station: station,
-        error: 'This station isn’t playing right now.',
+      final player = _ensurePlayer();
+      if (ref.read(isPlayingProvider)) {
+        await radioWithTimeout(
+          ref.read(playerProvider.notifier).pause(),
+          timeout: _radioStopTimeout,
+          timeoutMessage: 'The current player did not pause in time.',
+        );
+      }
+      if (!_isCurrentPlay(request, station)) return;
+
+      // Share the app's audio focus/session with just_audio, but don't let
+      // platform setup keep the station spinner alive forever.
+      await radioWithTimeout(
+        PlayerService().prepareAudioSessionForExternalPlayer(),
+        timeout: _radioStopTimeout,
+        timeoutMessage: 'Audio setup took too long. Try again.',
       );
+      if (!_isCurrentPlay(request, station)) return;
+
+      await radioWithTimeout(
+        player.setUrl(station.url),
+        timeout: _radioLoadTimeout,
+        timeoutMessage: 'The station stream did not respond in time.',
+      );
+      if (!_isCurrentPlay(request, station)) return;
+
+      // setUrl can finish while a live stream still never supplies playable
+      // audio. Wait for the first ready/playing state as well, with a deadline.
+      final started = Completer<void>();
+      final readySubscription = player.playerStateStream.listen(
+        (value) {
+          if (!started.isCompleted &&
+              value.playing &&
+              value.processingState == ja.ProcessingState.ready) {
+            started.complete();
+          }
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          if (!started.isCompleted) started.completeError(error, stackTrace);
+        },
+      );
+      unawaited(
+        player.play().catchError((Object error) {
+          if (!started.isCompleted) {
+            started.completeError(error);
+          } else if (_isCurrentPlay(request, station)) {
+            unawaited(_failPlay(request, station));
+          }
+        }),
+      );
+      try {
+        await radioWithTimeout(
+          started.future,
+          timeout: _radioLoadTimeout,
+          timeoutMessage: 'The station did not begin playing in time.',
+        );
+      } finally {
+        await readySubscription.cancel();
+      }
+      if (!_isCurrentPlay(request, station)) return;
+      // The state stream usually delivered this already; set it explicitly so
+      // the initial load cannot remain visible if that event was missed.
+      state = RadioPlayback(station: station, playing: true);
+      _syncNotification();
+    } catch (_) {
+      await _failPlay(request, station);
     }
   }
 
@@ -278,9 +377,15 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
   }
 
   Future<void> stop() async {
+    // Ignore completions from an earlier setUrl/play request.
+    _playRequest++;
     final wasOn = state.station != null;
     state = const RadioPlayback();
-    await _player?.stop();
+    try {
+      await _player?.stop().timeout(_radioStopTimeout);
+    } catch (_) {
+      // Reset the UI even if the platform player doesn't acknowledge stop.
+    }
     if (wasOn) await _releaseNotification();
   }
 }

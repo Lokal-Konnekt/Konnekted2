@@ -73,6 +73,17 @@ class RadioCatalogException implements Exception {
   String toString() => message;
 }
 
+/// Bounds operations that feed a loading indicator, so stalled storage or
+/// network calls always become a visible error instead of spinning forever.
+Future<T> radioWithTimeout<T>(
+  Future<T> operation, {
+  required Duration timeout,
+  required String timeoutMessage,
+}) => operation.timeout(
+  timeout,
+  onTimeout: () => throw RadioCatalogException(timeoutMessage),
+);
+
 bool _isHttpUrl(Object? value) {
   if (value is! String) return false;
   final uri = Uri.tryParse(value.trim());

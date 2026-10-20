@@ -1,11 +1,11 @@
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/features/discovery/discovery_artwork.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_sign_in.dart';
 import 'package:flick/models/song.dart';
-import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -73,7 +73,9 @@ class _KonnektedDiscoveryViewState
     try {
       final session = await YoutubeMusicSignInSheet.show(context);
       if (!mounted || session == null) return;
-      await ref.read(konnektedYoutubeMusicSessionProvider.notifier).save(session);
+      await ref
+          .read(konnektedYoutubeMusicSessionProvider.notifier)
+          .save(session);
       final discovery = ref.read(konnektedDiscoveryProvider.notifier);
       if (ref.read(konnektedDiscoveryProvider).source ==
           KonnektedDiscoverySource.youtube) {
@@ -140,7 +142,9 @@ class _KonnektedDiscoveryViewState
       await ref.read(konnektedYoutubeMusicSessionProvider.notifier).signOut();
       if (mounted) _say(error.message);
     } catch (_) {
-      if (mounted) _say('Could not load this YouTube Music mix. Refresh and try again.');
+      if (mounted) {
+        _say('Could not load this YouTube Music mix. Refresh and try again.');
+      }
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -287,8 +291,7 @@ class _KonnektedDiscoveryViewState
               ),
             ),
           ),
-        if (!discovery.connected &&
-            source == KonnektedDiscoverySource.youtube)
+        if (!discovery.connected && source == KonnektedDiscoverySource.youtube)
           Padding(
             padding: const EdgeInsets.only(top: 20),
             child: KonnektedMessage(
@@ -352,7 +355,8 @@ class _KonnektedDiscoveryViewState
             onTap: _playMix,
           ),
         ],
-        if (source == KonnektedDiscoverySource.youtube && data?.mixError != null)
+        if (source == KonnektedDiscoverySource.youtube &&
+            data?.mixError != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
             child: Text(
@@ -554,12 +558,14 @@ class _Header extends StatelessWidget {
                       _ProviderChip(
                         label: 'Last.fm',
                         selected: source == KonnektedDiscoverySource.lastfm,
-                        onTap: () => onSourceChanged(KonnektedDiscoverySource.lastfm),
+                        onTap: () =>
+                            onSourceChanged(KonnektedDiscoverySource.lastfm),
                       ),
                       _ProviderChip(
                         label: 'YouTube Music',
                         selected: source == KonnektedDiscoverySource.youtube,
-                        onTap: () => onSourceChanged(KonnektedDiscoverySource.youtube),
+                        onTap: () =>
+                            onSourceChanged(KonnektedDiscoverySource.youtube),
                       ),
                       _ProviderChip(label: 'Spotify', comingSoon: true),
                     ],
@@ -643,11 +649,7 @@ class _ProviderChip extends StatelessWidget {
 
 /// Horizontal cards for provider-native radio mixes.
 class _MixShelf extends StatelessWidget {
-  const _MixShelf({
-    required this.mixes,
-    required this.onTap,
-    this.busyId,
-  });
+  const _MixShelf({required this.mixes, required this.onTap, this.busyId});
 
   final List<LokalDiscoveryMix> mixes;
   final ValueChanged<LokalDiscoveryMix> onTap;
@@ -692,17 +694,19 @@ class _MixShelf extends StatelessWidget {
                             ? Container(
                                 color: t.surface3,
                                 alignment: Alignment.center,
-                                child: CircularProgressIndicator(color: t.accent),
+                                child: CircularProgressIndicator(
+                                  color: t.accent,
+                                ),
                               )
-                            : mix.artworkUrl.isEmpty
-                                ? placeholder
-                                : CachedImageWidget(
-                                    imagePath: mix.artworkUrl,
-                                    width: 136,
-                                    height: 136,
-                                    placeholder: placeholder,
-                                    errorWidget: placeholder,
-                                  ),
+                            : DiscoveryArtwork(
+                                kind: DiscoveryArtworkKind.album,
+                                title: mix.title,
+                                artist: mix.author,
+                                url: mix.artworkUrl,
+                                width: 136,
+                                height: 136,
+                                placeholder: placeholder,
+                              ),
                       ),
                     ),
                     const SizedBox(height: 7),
@@ -776,15 +780,15 @@ class KonnektedDiscoveryRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: SizedBox.square(
                   dimension: 52,
-                  child: track.artworkUrl.isEmpty
-                      ? placeholder
-                      : CachedImageWidget(
-                          imagePath: track.artworkUrl,
-                          width: 52,
-                          height: 52,
-                          placeholder: placeholder,
-                          errorWidget: placeholder,
-                        ),
+                  child: DiscoveryArtwork(
+                    kind: DiscoveryArtworkKind.track,
+                    title: track.title,
+                    artist: track.artist,
+                    url: track.artworkUrl,
+                    width: 52,
+                    height: 52,
+                    placeholder: placeholder,
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -946,15 +950,15 @@ class _AlbumShelf extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                       child: SizedBox.square(
                         dimension: size,
-                        child: album.artworkUrl.isEmpty
-                            ? placeholder
-                            : CachedImageWidget(
-                                imagePath: album.artworkUrl,
-                                width: size,
-                                height: size,
-                                placeholder: placeholder,
-                                errorWidget: placeholder,
-                              ),
+                        child: DiscoveryArtwork(
+                          kind: DiscoveryArtworkKind.album,
+                          title: album.title,
+                          artist: album.artist,
+                          url: album.artworkUrl,
+                          width: size,
+                          height: size,
+                          placeholder: placeholder,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -1032,15 +1036,14 @@ class _ArtistShelf extends StatelessWidget {
                     ClipOval(
                       child: SizedBox.square(
                         dimension: size,
-                        child: artist.image.isEmpty
-                            ? placeholder
-                            : CachedImageWidget(
-                                imagePath: artist.image,
-                                width: size,
-                                height: size,
-                                placeholder: placeholder,
-                                errorWidget: placeholder,
-                              ),
+                        child: DiscoveryArtwork(
+                          kind: DiscoveryArtworkKind.artist,
+                          artist: artist.name,
+                          url: artist.image,
+                          width: size,
+                          height: size,
+                          placeholder: placeholder,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),

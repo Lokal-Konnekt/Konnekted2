@@ -71,7 +71,7 @@ class KonnektedYoutubeMusicNotifier extends AsyncNotifier<YoutubeMusicSession?> 
 }
 
 final konnektedYoutubeMusicAccountProvider = Provider<YoutubeMusicAccount?>((ref) {
-  final session = ref.watch(konnektedYoutubeMusicSessionProvider).valueOrNull;
+  final session = ref.watch(konnektedYoutubeMusicSessionProvider).value;
   if (session == null || !session.signedIn) return null;
   final client = http.Client();
   ref.onDispose(client.close);

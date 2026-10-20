@@ -11,18 +11,22 @@ import 'package:flick/features/spotiflac/spotiflac_addons_screen.dart';
 import 'package:flick/features/spotify/spotify_library_screen.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
+import '../lokal_settings_group.dart';
+
 void _push(BuildContext context, Widget page) => unawaited(
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page)),
 );
 
-/// Integrations: accounts, scrobbling and network sources. Every one of them
-/// is off until you sign in.
-List<LokalSettingsSection> integrationsSettings(
+/// Online sources: desktop's Integrations and Add-ons as one flow. Where
+/// Search and Discovery find songs (YouTube Music, add-ons, your servers),
+/// then the accounts that sync and scrobble. Every one is off until you sign
+/// in or install it.
+List<LokalSettingsSection> onlineSourcesSettings(
   BuildContext context,
   WidgetRef ref,
 ) => [
   LokalSettingsSection(
-    title: 'Accounts',
+    title: LokalOnlineSections.streaming,
     children: [
       const LokalSettingCustom(
         label: 'YouTube Music',
@@ -30,51 +34,37 @@ List<LokalSettingsSection> integrationsSettings(
         child: YoutubeMusicSettingsTile(),
       ),
       LokalSettingLink(
-        label: 'Spotify',
-        description: 'Sign in, import playlists and sync Liked Songs.',
-        onTap: () => _push(context, const SpotifyLibraryScreen()),
-      ),
-    ],
-  ),
-  const LokalSettingsSection(
-    title: 'Scrobbling',
-    children: [
-      LokalSettingCustom(
-        label: 'Last.fm',
-        description: 'Scrobble what you play and power Discovery',
-        child: LastFmSettingsTile(),
-      ),
-      LokalSettingCustom(
-        label: 'ListenBrainz',
-        description: 'Send your listens to ListenBrainz',
-        child: ListenBrainzSettingsTile(),
-      ),
-    ],
-  ),
-  LokalSettingsSection(
-    title: 'Network sources',
-    children: [
-      LokalSettingLink(
-        label: 'Network sources',
-        description: 'Subsonic servers: sync and streaming.',
+        label: 'Network servers',
+        description: 'Subsonic, Jellyfin, WebDAV and other servers you run.',
         onTap: () => _push(context, const NetworkSourcesScreen()),
       ),
     ],
   ),
-];
-
-/// Add-ons: what search finds here; the group itself opens the add-on list.
-List<LokalSettingsSection> addonsSettings(
-  BuildContext context,
-  WidgetRef ref,
-) => [
+  const LokalSettingsSection(
+    title: LokalOnlineSections.addons,
+    children: [SpotiflacAddonsPanel()],
+  ),
+  const LokalSettingsSection(
+    title: LokalOnlineSections.repositories,
+    children: [SpotiflacRepositoriesPanel()],
+  ),
   LokalSettingsSection(
-    title: 'Add-ons',
+    title: LokalOnlineSections.accounts,
     children: [
       LokalSettingLink(
-        label: 'SpotiFLAC add-ons',
-        description: 'Play and download songs Discovery finds that aren’t in your library.',
-        onTap: () => _push(context, const SpotiflacAddonsScreen()),
+        label: 'Spotify',
+        description: 'Sign in, import playlists and sync Liked Songs.',
+        onTap: () => _push(context, const SpotifyLibraryScreen()),
+      ),
+      const LokalSettingCustom(
+        label: 'Last.fm',
+        description: 'Scrobble what you play and power Discovery',
+        child: LastFmSettingsTile(),
+      ),
+      const LokalSettingCustom(
+        label: 'ListenBrainz',
+        description: 'Send your listens to ListenBrainz',
+        child: ListenBrainzSettingsTile(),
       ),
     ],
   ),

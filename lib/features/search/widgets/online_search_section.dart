@@ -125,8 +125,13 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     }
   }
 
-  void _openAddons() =>
-      unawaited(openLokalSettings(context, group: LokalSettingsGroup.addons));
+  void _openAddons() => unawaited(
+    openLokalSettings(
+      context,
+      group: LokalSettingsGroup.integrations,
+      section: LokalOnlineSections.addons,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {

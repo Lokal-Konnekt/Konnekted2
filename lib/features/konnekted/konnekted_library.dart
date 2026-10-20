@@ -16,10 +16,10 @@ const _folders = KonnektedDestination.settingsAt(
   section: 'Folders',
 );
 
-/// Settings › Integrations › Accounts, where Spotify is.
+/// Settings › Online sources › Accounts & scrobbling, where Spotify is.
 const _accounts = KonnektedDestination.settingsAt(
   LokalSettingsGroup.integrations,
-  section: 'Accounts',
+  section: LokalOnlineSections.accounts,
 );
 
 class KonnektedLibrary extends ConsumerWidget {
@@ -273,7 +273,7 @@ class KonnektedSettings extends StatelessWidget {
             ),
             KonnektedRouteEntry(
               'All settings',
-              'Integrations, playback, library, data and more',
+              'Online sources, playback, library, data and more',
               Icons.settings_rounded,
               KonnektedDestination.settings,
             ),

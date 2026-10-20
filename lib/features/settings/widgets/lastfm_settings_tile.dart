@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/core/utils/dev_log.dart';
-import 'package:flick/widgets/common/glass_bottom_sheet.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 import 'package:flick/l10n/l10n.dart';
 
 /// Self-contained Last.fm connect/disconnect tile.
@@ -37,7 +34,9 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    devLog('[LastFm] App lifecycle changed: $state, _awaitingCallback=$_awaitingCallback');
+    devLog(
+      '[LastFm] App lifecycle changed: $state, _awaitingCallback=$_awaitingCallback',
+    );
     if (state == AppLifecycleState.resumed && _awaitingCallback) {
       devLog('[LastFm] App resumed after auth, completing authentication');
       _awaitingCallback = false;
@@ -53,7 +52,7 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
     devLog('[LastFm] _startAuth: Checking API credentials');
     final hasCredentials = await auth.hasValidApiCredentials();
     devLog('[LastFm] _startAuth: Has valid credentials: $hasCredentials');
-    
+
     if (!hasCredentials) {
       devLog('[LastFm] _startAuth: Missing credentials, showing error');
       _showError(
@@ -65,8 +64,10 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
     try {
       devLog('[LastFm] _startAuth: Calling getTokenAndLaunchAuth');
       await auth.getTokenAndLaunchAuth();
-      devLog('[LastFm] _startAuth: Successfully launched auth, mounted=$mounted');
-      
+      devLog(
+        '[LastFm] _startAuth: Successfully launched auth, mounted=$mounted',
+      );
+
       if (mounted) {
         setState(() => _awaitingCallback = true);
         devLog('[LastFm] _startAuth: Set _awaitingCallback=true');
@@ -74,17 +75,20 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
     } catch (e, stackTrace) {
       devLog('[LastFm] _startAuth: ERROR - $e');
       devLog('[LastFm] _startAuth: Stack trace: $stackTrace');
-      
+
       if (mounted) {
         // Provide more specific error message for network issues
-        final errorMessage = e.toString().contains('SocketException') ||
+        final errorMessage =
+            e.toString().contains('SocketException') ||
                 e.toString().contains('Failed host lookup')
             ? l10n.noInternetConnectionPleaseCheckYour
             : l10n.couldNotConnectToLastFm;
-        
+
         _showError(errorMessage);
       } else {
-        devLog('[LastFm] _startAuth: Widget not mounted, skipping error display');
+        devLog(
+          '[LastFm] _startAuth: Widget not mounted, skipping error display',
+        );
       }
     }
   }
@@ -107,165 +111,17 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
   }
 
   Future<void> _disconnect() async {
-    final confirmed = await showModalBottomSheet<bool>(
-      useRootNavigator: true,
+    final confirmed = await showLokalConfirmSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: AppBottomSheetSurface.decoration,
-        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(ctx).bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.adaptiveTextTertiary.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.warning_rounded,
-                      color: Colors.red,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.disconnectLastFm,
-                          style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                            color: context.adaptiveTextPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const Divider(height: 24),
-
-            // Content
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassBackgroundStrong,
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusMd,
-                      ),
-                      border: Border.all(
-                        color: context.adaptiveTextTertiary.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: context.adaptiveTextSecondary,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            l10n.yourScrobblingHistoryWillRemainOn,
-                            style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                              color: context.adaptiveTextSecondary,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Action buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide(
-                              color: context.adaptiveTextTertiary.withValues(alpha: 
-                                0.3,
-                              ),
-                            ),
-                            foregroundColor: context.adaptiveTextPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppConstants.radiusMd,
-                              ),
-                            ),
-                          ),
-                          child: Text(
-                            l10n.cancel,
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppConstants.radiusMd,
-                              ),
-                            ),
-                          ),
-                          child: Text(
-                            l10n.disconnect,
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      useRootNavigator: true,
+      title: l10n.disconnectLastFm,
+      message: l10n.yourScrobblingHistoryWillRemainOn,
+      confirmLabel: l10n.disconnect,
+      cancelLabel: l10n.cancel,
+      destructive: true,
     );
 
-    if (confirmed != true) {
+    if (!confirmed) {
       return;
     }
 
@@ -287,386 +143,145 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
     if (!mounted) return;
 
     try {
-      await showModalBottomSheet(
-      useRootNavigator: true,
+      await showLokalSettingsSheet<void>(
         context: context,
         isScrollControlled: true,
-        backgroundColor: Colors.transparent,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setState) {
+            final t = ctx.lokal;
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(ctx).viewInsets.bottom,
               ),
-              child: Container(
-                decoration: AppBottomSheetSurface.decoration,
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.paddingOf(ctx).bottom,
-                ),
-                child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Handle bar
-                Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: context.adaptiveTextTertiary.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD51007).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
+              child: SingleChildScrollView(
+                child: LokalSheetBody(
+                  title: l10n.lastFmConfiguration,
+                  message: l10n.connectToScrobbleYourMusic,
+                  children: [
+                    LokalSettingsCard(
+                      color: t.surface2,
+                      child: LokalSettingRow(
+                        label: l10n.getYourApiCredentials,
+                        description: 'last.fm/api/account/create',
+                        trailing: Icon(
+                          Icons.open_in_new_rounded,
+                          size: 18,
+                          color: t.muted,
                         ),
-                        child: const Icon(
-                          Icons.music_note,
-                          color: Color(0xFFD51007),
-                          size: 24,
+                        onTap: () {
+                          launchUrl(
+                            Uri.parse('https://www.last.fm/api/account/create'),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    TextField(
+                      controller: apiKeyController,
+                      style: TextStyle(color: t.text),
+                      decoration: lokalInputDecoration(
+                        ctx,
+                        label: l10n.apiKey,
+                        hint: l10n.enterYourApiKey,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: sharedSecretController,
+                      obscureText: obscureSecret,
+                      style: TextStyle(color: t.text),
+                      decoration: lokalInputDecoration(
+                        ctx,
+                        label: l10n.sharedSecret,
+                        hint: l10n.enterYourSharedSecret,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureSecret
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
+                            color: t.muted,
+                          ),
+                          onPressed: () {
+                            setState(() => obscureSecret = !obscureSecret);
+                          },
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n.lastFmConfiguration,
-                              style: Theme.of(ctx).textTheme.titleLarge
-                                  ?.copyWith(
-                                    color: context.adaptiveTextPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              l10n.connectToScrobbleYourMusic,
-                              style: Theme.of(ctx).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: context.adaptiveTextSecondary,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Divider(height: 24),
-
-                // Content
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Info section
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.glassBackgroundStrong,
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusMd,
-                          ),
-                          border: Border.all(
-                            color: context.adaptiveTextTertiary.withValues(alpha:
-                              0.1,
-                            ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: LokalSettingsActionButton(
+                            label: l10n.cancel,
+                            primary: false,
+                            expand: true,
+                            onPressed: () => Navigator.pop(ctx),
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: context.adaptiveTextSecondary,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l10n.getYourApiCredentials,
-                                    style: Theme.of(ctx).textTheme.bodyMedium
-                                        ?.copyWith(
-                                          color: context.adaptiveTextPrimary,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  GestureDetector(
-                                    onTap: () {
-                                      launchUrl(
-                                        Uri.parse(
-                                          'https://www.last.fm/api/account/create',
-                                        ),
-                                        mode: LaunchMode.externalApplication,
-                                      );
-                                    },
-                                    child: Text(
-                                      'last.fm/api/account/create',
-                                      style: TextStyle(
-                                        color: context.adaptiveTextPrimary,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              Icons.open_in_new,
-                              color: context.adaptiveTextTertiary,
-                              size: 18,
-                            ),
-                          ],
-                        ),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: LokalSettingsActionButton(
+                            label: l10n.saveConnect,
+                            expand: true,
+                            onPressed: () async {
+                              devLog('[LastFm] Save & Connect button pressed');
 
-                      const SizedBox(height: 24),
+                              if (apiKeyController.text.isEmpty ||
+                                  sharedSecretController.text.isEmpty) {
+                                devLog('[LastFm] Empty credentials provided');
+                                _showError(
+                                  'Please enter both API key and shared secret',
+                                );
+                                return;
+                              }
 
-                      // API Key field
-                      Text(
-                        l10n.apiKey,
-                        style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
-                          color: context.adaptiveTextPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: apiKeyController,
-                        style: TextStyle(color: context.adaptiveTextPrimary),
-                        decoration: InputDecoration(
-                          hintText: l10n.enterYourApiKey,
-                          hintStyle: TextStyle(
-                            color: context.adaptiveTextTertiary,
-                          ),
-                          filled: true,
-                          fillColor: AppColors.glassBackgroundStrong,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.radiusMd,
-                            ),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.radiusMd,
-                            ),
-                            borderSide: BorderSide(
-                              color: context.adaptiveTextTertiary.withValues(alpha:
-                                0.1,
-                              ),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.radiusMd,
-                            ),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFD51007),
-                              width: 2,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Shared Secret field
-                      Text(
-                        l10n.sharedSecret,
-                        style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
-                          color: context.adaptiveTextPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: sharedSecretController,
-                        obscureText: obscureSecret,
-                        style: TextStyle(color: context.adaptiveTextPrimary),
-                        decoration: InputDecoration(
-                          hintText: l10n.enterYourSharedSecret,
-                          hintStyle: TextStyle(
-                            color: context.adaptiveTextTertiary,
-                          ),
-                          filled: true,
-                          fillColor: AppColors.glassBackgroundStrong,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.radiusMd,
-                            ),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.radiusMd,
-                            ),
-                            borderSide: BorderSide(
-                              color: context.adaptiveTextTertiary.withValues(alpha:
-                                0.1,
-                              ),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(
-                              AppConstants.radiusMd,
-                            ),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFD51007),
-                              width: 2,
-                            ),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              obscureSecret
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: context.adaptiveTextSecondary,
-                            ),
-                            onPressed: () {
-                              setState(
-                                () => obscureSecret = !obscureSecret,
+                              devLog('[LastFm] Saving credentials...');
+                              await auth.setApiCredentials(
+                                apiKeyController.text,
+                                sharedSecretController.text,
                               );
+                              devLog(
+                                '[LastFm] Credentials saved, mounted=$mounted',
+                              );
+
+                              if (mounted) {
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                devLog('[LastFm] Dialog closed');
+
+                                _showSuccess(l10n.credentialsSavedSuccessfully);
+
+                                if (autoConnectAfterSave && mounted) {
+                                  devLog(
+                                    '[LastFm] Auto-connect enabled, waiting 300ms...',
+                                  );
+                                  // Small delay to ensure dialog is fully closed
+                                  await Future.delayed(
+                                    const Duration(milliseconds: 300),
+                                  );
+                                  devLog(
+                                    '[LastFm] Delay complete, mounted=$mounted',
+                                  );
+
+                                  if (mounted) {
+                                    devLog('[LastFm] Calling _startAuth()');
+                                    await _startAuth();
+                                  } else {
+                                    devLog(
+                                      '[LastFm] Widget unmounted, skipping auth',
+                                    );
+                                  }
+                                }
+                              }
                             },
                           ),
                         ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Action buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                side: BorderSide(
-                                  color: context.adaptiveTextTertiary
-                                      .withValues(alpha: 0.3),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppConstants.radiusMd,
-                                  ),
-                                ),
-                              ),
-                              child: Text(
-                                l10n.cancel,
-                                style: TextStyle(
-                                  color: context.adaptiveTextSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                devLog('[LastFm] Save & Connect button pressed');
-                                
-                                if (apiKeyController.text.isEmpty ||
-                                    sharedSecretController.text.isEmpty) {
-                                  devLog('[LastFm] Empty credentials provided');
-                                  _showError(
-                                    'Please enter both API key and shared secret',
-                                  );
-                                  return;
-                                }
-                                
-                                devLog('[LastFm] Saving credentials...');
-                                await auth.setApiCredentials(
-                                  apiKeyController.text,
-                                  sharedSecretController.text,
-                                );
-                                devLog('[LastFm] Credentials saved, mounted=$mounted');
-                                
-                                if (mounted) {
-                                  Navigator.pop(ctx);
-                                  devLog('[LastFm] Dialog closed');
-                                  
-                                  _showSuccess(
-                                    l10n.credentialsSavedSuccessfully,
-                                  );
-                                  
-                                  if (autoConnectAfterSave && mounted) {
-                                    devLog('[LastFm] Auto-connect enabled, waiting 300ms...');
-                                    // Small delay to ensure dialog is fully closed
-                                    await Future.delayed(
-                                      const Duration(milliseconds: 300),
-                                    );
-                                    devLog('[LastFm] Delay complete, mounted=$mounted');
-                                    
-                                    if (mounted) {
-                                      devLog('[LastFm] Calling _startAuth()');
-                                      await _startAuth();
-                                    } else {
-                                      devLog('[LastFm] Widget unmounted, skipping auth');
-                                    }
-                                  }
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD51007),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppConstants.radiusMd,
-                                  ),
-                                ),
-                              ),
-                              child: Text(
-                                l10n.saveConnect,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
             );
           },
         ),
@@ -681,384 +296,109 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showSuccess(String message) {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final sessionAsync = ref.watch(lastFmSessionProvider);
-
-    return sessionAsync.when(
-      loading: () => _buildLoadingTile(context),
-      error: (error, stackTrace) => _buildErrorTile(context),
-      data: (session) {
-        if (session != null) {
-          return _buildConnectedTile(context, username: session.username);
-        }
-        return _buildDisconnectedTile(context);
-      },
-    );
-  }
-
-  Widget _buildLoadingTile(BuildContext context) {
-    return _buildTileContainer(
-      context,
-      child: Row(
+  Future<void> _showConnectedBottomSheet(String username) async {
+    await showLokalSettingsSheet<void>(
+      context: context,
+      builder: (ctx) => LokalSheetBody(
+        title: l10n.lastFmConnected,
+        message: l10n.yourMusicIsBeingScrobbled,
         children: [
-          _buildLeadingIcon(context, Icons.radio_button_unchecked),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.lastFm,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: context.adaptiveTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  l10n.loadingSession,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
-                ),
-              ],
+          LokalSettingsCard(
+            color: ctx.lokal.surface2,
+            child: LokalSettingRow(
+              label: username,
+              description: l10n.connectedAccount,
+              trailing: const LokalStatusPill(label: 'Connected', active: true),
             ),
+          ),
+          const SizedBox(height: 16),
+          LokalSettingsActionButton(
+            label: l10n.editCredentials,
+            icon: Icons.edit_rounded,
+            primary: false,
+            expand: true,
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showApiKeyDialog();
+            },
+          ),
+          const SizedBox(height: 10),
+          LokalSettingsActionButton(
+            label: l10n.disconnect,
+            icon: Icons.logout_rounded,
+            destructive: true,
+            expand: true,
+            onPressed: () {
+              Navigator.pop(ctx);
+              _disconnect();
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildErrorTile(BuildContext context) {
-    return _buildTapTile(
-      context,
-      icon: Icons.error_outline,
-      title: l10n.lastFm,
-      subtitle: l10n.couldNotLoadSession,
-      onTap: _startAuth,
-      trailing: Icon(
-        Icons.chevron_right,
-        color: context.adaptiveTextTertiary,
-        size: 20,
+  @override
+  Widget build(BuildContext context) {
+    final sessionAsync = ref.watch(lastFmSessionProvider);
+    final t = context.lokal;
+
+    return sessionAsync.when(
+      loading: () =>
+          LokalSettingRow(label: l10n.lastFm, description: l10n.loadingSession),
+      error: (error, stackTrace) => LokalSettingRow(
+        label: l10n.lastFm,
+        description: l10n.couldNotLoadSession,
+        onTap: _startAuth,
+        trailing: Icon(Icons.chevron_right_rounded, size: 22, color: t.muted),
       ),
-    );
-  }
-
-  Widget _buildConnectedTile(BuildContext context, {required String username}) {
-    return _buildTapTile(
-      context,
-      icon: Icons.radio_button_checked,
-      title: l10n.lastFm,
-      subtitle: l10n.connectedAs(username),
-      onTap: () => _showConnectedBottomSheet(username),
-      trailing: Icon(
-        Icons.check_circle,
-        color: const Color(0xFF4CAF50),
-        size: 20,
-      ),
-    );
-  }
-
-  Future<void> _showConnectedBottomSheet(String username) async {
-    await showModalBottomSheet(
-      useRootNavigator: true,
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: AppBottomSheetSurface.decoration,
-        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(ctx).bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.adaptiveTextTertiary.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4CAF50).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: Color(0xFF4CAF50),
-                      size: 24,
-                    ),
+      data: (session) {
+        if (session != null) {
+          return LokalSettingRow(
+            label: l10n.lastFm,
+            description: l10n.connectedAs(session.username),
+            onTap: () => _showConnectedBottomSheet(session.username),
+            trailing: const LokalStatusPill(label: 'Connected', active: true),
+          );
+        }
+        return LokalSettingRow(
+          label: l10n.lastFm,
+          description: _awaitingCallback
+              ? l10n.waitingForBrowserAuthorization
+              : l10n.connectToScrobbleYourListeningHistory,
+          onTap: _awaitingCallback
+              ? null
+              : () {
+                  _showApiKeyDialog(autoConnectAfterSave: true);
+                },
+          trailing: _awaitingCallback
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: t.accent,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.lastFmConnected,
-                          style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                            color: context.adaptiveTextPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.yourMusicIsBeingScrobbled,
-                          style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                            color: context.adaptiveTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const Divider(height: 24),
-
-            // Content
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  // Account info
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassBackgroundStrong,
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusMd,
-                      ),
-                      border: Border.all(
-                        color: context.adaptiveTextTertiary.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFD51007).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            color: Color(0xFFD51007),
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10n.connectedAccount,
-                                style: Theme.of(ctx).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: context.adaptiveTextSecondary,
-                                    ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                username,
-                                style: Theme.of(ctx).textTheme.bodyLarge
-                                    ?.copyWith(
-                                      color: context.adaptiveTextPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Action buttons
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _showApiKeyDialog();
-                      },
-                      icon: const Icon(Icons.edit, size: 18),
-                      label: Text(l10n.editCredentials),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(
-                          color: context.adaptiveTextTertiary.withValues(alpha: 0.3),
-                        ),
-                        foregroundColor: context.adaptiveTextPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusMd,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _disconnect();
-                      },
-                      icon: const Icon(Icons.logout, size: 18),
-                      label: Text(l10n.disconnect),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.withValues(alpha: 0.1),
-                        foregroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusMd,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDisconnectedTile(BuildContext context) {
-    return _buildTapTile(
-      context,
-      icon: Icons.radio_button_unchecked,
-      title: l10n.lastFm,
-      subtitle: _awaitingCallback
-          ? l10n.waitingForBrowserAuthorization
-          : l10n.connectToScrobbleYourListeningHistory,
-      onTap: _awaitingCallback
-          ? null
-          : () {
-              _showApiKeyDialog(autoConnectAfterSave: true);
-            },
-      trailing: _awaitingCallback
-          ? SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  context.adaptiveTextTertiary,
+                )
+              : LokalSettingButton(
+                  label: l10n.connect,
+                  onPressed: () =>
+                      _showApiKeyDialog(autoConnectAfterSave: true),
                 ),
-              ),
-            )
-          : Icon(
-              Icons.chevron_right,
-              color: context.adaptiveTextTertiary,
-              size: 20,
-            ),
-    );
-  }
-
-  Widget _buildTapTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback? onTap,
-    required Widget trailing,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: _buildTileContainer(
-          context,
-          child: Row(
-            children: [
-              _buildLeadingIcon(context, icon),
-              const SizedBox(width: AppConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              trailing,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTileContainer(BuildContext context, {required Widget child}) {
-    return Padding(
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
-      child: child,
-    );
-  }
-
-  Widget _buildLeadingIcon(BuildContext context, IconData icon) {
-    return Container(
-      width: context.scaleSize(AppConstants.containerSizeMd),
-      height: context.scaleSize(AppConstants.containerSizeMd),
-      decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong,
-        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-      ),
-      child: Icon(
-        icon,
-        color: context.adaptiveTextSecondary,
-        size: context.responsiveIcon(AppConstants.iconSizeMd),
-      ),
+        );
+      },
     );
   }
 }

@@ -75,6 +75,56 @@ void main() {
     });
   }
 
+  testWidgets('Online sources is one flow: add-ons, servers and accounts', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(412, 915)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    expect(
+      LokalSettingsGroup.listed,
+      isNot(contains(LokalSettingsGroup.addons)),
+    );
+    // The old Add-ons group opens Online sources at its add-ons.
+    await tester.pumpWidget(
+      _app(lokalSettingsPage(group: LokalSettingsGroup.addons)),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Online sources'), findsOneWidget);
+    expect(find.text('ADD-ONS'), findsOneWidget);
+    final page = tester.widget<LokalSettingsGroupPage>(
+      find.byType(LokalSettingsGroupPage),
+    );
+    expect(page.group, LokalSettingsGroup.integrations);
+    expect(page.section, LokalOnlineSections.addons);
+
+    // Every section deep links reach is there.
+    await tester.pumpWidget(
+      _app(
+        const LokalSettingsGroupPage(
+          group: LokalSettingsGroup.integrations,
+          section: 'Scrobbling',
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    for (final title in [
+      LokalOnlineSections.streaming,
+      LokalOnlineSections.addons,
+      LokalOnlineSections.repositories,
+      LokalOnlineSections.accounts,
+    ]) {
+      await tester.scrollUntilVisible(
+        find.text(title.toUpperCase()),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text(title.toUpperCase()), findsOneWidget);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Playback rows drive the player and rebuild with it', (
     tester,
   ) async {
@@ -107,7 +157,7 @@ void main() {
     expect(find.text('PLAYBACK · LYRICS'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'scrobbl');
     await tester.pumpAndSettle();
-    expect(find.text('INTEGRATIONS · SCROBBLING'), findsOneWidget);
+    expect(find.text('ONLINE SOURCES · ACCOUNTS & SCROBBLING'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'licences');
     await tester.pumpAndSettle();
     expect(find.text('Licences'), findsOneWidget);

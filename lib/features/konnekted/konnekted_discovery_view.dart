@@ -309,13 +309,13 @@ class _KonnektedDiscoveryViewState
             padding: const EdgeInsets.only(top: 20),
             child: KonnektedMessage(
               title: 'Connect Last.fm for Discovery',
-              message: 'Discovery recommends music from your Last.fm scrobbles. Sign in to Last.fm in Integrations to see your shelves.',
+              message: 'Discovery recommends music from your Last.fm scrobbles. Sign in to Last.fm in Online sources to see your shelves.',
               icon: Icons.auto_awesome_rounded,
-              actionLabel: 'Open Integrations',
+              actionLabel: 'Open Online sources',
               onAction: () => widget.onNavigate(
                 const KonnektedDestination.settingsAt(
                   LokalSettingsGroup.integrations,
-                  section: 'Scrobbling',
+                  section: LokalOnlineSections.accounts,
                 ),
               ),
             ),

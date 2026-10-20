@@ -395,3 +395,145 @@ class LokalSettingsPageFrame extends StatelessWidget {
     );
   }
 }
+
+/// A settings sheet asking to confirm [title]: the [message], Cancel and the
+/// [confirmLabel] (red when [destructive]). Resolves to `true` on confirm.
+Future<bool> showLokalConfirmSheet({
+  required BuildContext context,
+  required String title,
+  required String message,
+  required String confirmLabel,
+  String cancelLabel = 'Cancel',
+  bool destructive = false,
+  bool useRootNavigator = false,
+}) async {
+  final t = context.lokal;
+  final confirmed = await showModalBottomSheet<bool>(
+    context: context,
+    useRootNavigator: useRootNavigator,
+    backgroundColor: t.surface,
+    barrierColor: Colors.black.withValues(alpha: t.isLight ? .25 : .5),
+    showDragHandle: true,
+    useSafeArea: true,
+    shape: RoundedRectangleBorder(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      side: BorderSide(color: t.border),
+    ),
+    builder: (context) => SafeArea(
+      child: LokalSheetBody(
+        title: title,
+        message: message,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: LokalSettingsActionButton(
+                  label: cancelLabel,
+                  primary: false,
+                  expand: true,
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: LokalSettingsActionButton(
+                  label: confirmLabel,
+                  destructive: destructive,
+                  expand: true,
+                  onPressed: () => Navigator.of(context).pop(true),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+  return confirmed == true;
+}
+
+/// The content of a settings sheet: a bold [title], an optional [message]
+/// and [children] below, padded like the rest of the sheet.
+class LokalSheetBody extends StatelessWidget {
+  const LokalSheetBody({
+    super.key,
+    required this.title,
+    this.message,
+    this.children = const [],
+  });
+
+  final String title;
+  final String? message;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontFamily: LokalTheme.sans,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -.4,
+              color: t.text,
+            ),
+          ),
+          if (message != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                message!,
+                style: TextStyle(fontSize: 13.5, height: 1.4, color: t.muted),
+              ),
+            ),
+          if (children.isNotEmpty) const SizedBox(height: 18),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+/// A small DM Mono status label, e.g. CONNECTED or NEEDS SETUP: the accent
+/// when [active], orange for a [warning], muted otherwise.
+class LokalStatusPill extends StatelessWidget {
+  const LokalStatusPill({
+    super.key,
+    required this.label,
+    this.active = false,
+    this.warning = false,
+  });
+
+  final String label;
+  final bool active;
+  final bool warning;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    final color = warning
+        ? t.orange
+        : active
+        ? t.accent
+        : t.muted;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: .35)),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: LokalTheme.label(t, size: 10, color: color),
+      ),
+    );
+  }
+}

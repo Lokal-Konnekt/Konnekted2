@@ -3,32 +3,51 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
-import 'package:flick/features/settings/widgets/settings_widgets.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 import 'spotiflac_auth_sheet.dart';
 import 'spotiflac_packages.dart';
 import 'spotiflac_service.dart';
 
-/// SpotiFLAC add-ons, as desktop's Settings › Add-ons: repositories to browse,
-/// packages to install, and each installed add-on's switch, settings and
-/// access. Installed add-ons become places Discovery plays songs from.
-class SpotiflacAddonsScreen extends StatefulWidget {
+/// Loads the add-on manager for a panel, or the test's stand-in.
+typedef SpotiflacPackagesLoader = Future<SpotiflacPackages> Function();
+
+/// SpotiFLAC add-ons on a page of their own: the same panels Settings ›
+/// Online sources shows, for a link straight to them.
+class SpotiflacAddonsScreen extends StatelessWidget {
   const SpotiflacAddonsScreen({super.key, this.service});
 
   final SpotiflacService? service;
 
   @override
-  State<SpotiflacAddonsScreen> createState() => _SpotiflacAddonsScreenState();
+  Widget build(BuildContext context) => LokalSettingsScaffold(
+    title: 'Add-ons',
+    subtitle: 'Extra places Search and Discovery can find songs.',
+    children: [
+      LokalSettingsSection(
+        title: 'Add-ons',
+        children: [SpotiflacAddonsPanel(service: service)],
+      ),
+      LokalSettingsSection(
+        title: 'Add-on repositories',
+        children: [SpotiflacRepositoriesPanel(service: service)],
+      ),
+    ],
+  );
 }
 
-class _SpotiflacAddonsScreenState extends State<SpotiflacAddonsScreen> {
-  SpotiflacService get _service => widget.service ?? SpotiflacService.instance;
+/// The add-on manager, loaded once, with the panel's busy state and its
+/// messages.
+mixin _SpotiflacPanel<T extends StatefulWidget> on State<T> {
+  SpotiflacService? get _injected;
+  SpotiflacPackagesLoader? get _loader;
+
+  SpotiflacService get _service => _injected ?? SpotiflacService.instance;
   SpotiflacPackages? _packages;
   Object? _loadError;
   bool _busy = false;
-  final _repoUrl = TextEditingController();
 
   @override
   void initState() {
@@ -40,7 +59,6 @@ class _SpotiflacAddonsScreenState extends State<SpotiflacAddonsScreen> {
   @override
   void dispose() {
     _service.removeListener(_refresh);
-    _repoUrl.dispose();
     super.dispose();
   }
 
@@ -50,11 +68,13 @@ class _SpotiflacAddonsScreenState extends State<SpotiflacAddonsScreen> {
 
   Future<void> _load() async {
     try {
-      final packages = await _service.packages;
+      final packages = await (_loader?.call() ?? _service.packages);
       if (!mounted) return;
       setState(() => _packages = packages);
-      await packages.refreshDue();
-      _service.changed();
+      if (_loader == null) {
+        await packages.refreshDue();
+        _service.changed();
+      }
     } catch (error) {
       if (mounted) setState(() => _loadError = error);
     }
@@ -64,8 +84,8 @@ class _SpotiflacAddonsScreenState extends State<SpotiflacAddonsScreen> {
       ScaffoldMessenger.maybeOf(context)
           ?.showSnackBar(SnackBar(content: Text(message)));
 
-  /// Runs [work] with the screen busy; its error, if any, as a message.
-  Future<T?> _run<T>(Future<T> Function() work, {String? done}) async {
+  /// Runs [work] with the panel busy; its error, if any, as a message.
+  Future<R?> _run<R>(Future<R> Function() work, {String? done}) async {
     if (_busy) return null;
     setState(() => _busy = true);
     try {
@@ -81,12 +101,71 @@ class _SpotiflacAddonsScreenState extends State<SpotiflacAddonsScreen> {
     }
   }
 
-  Future<void> _addRepo(SpotiflacPackages packages) async {
-    final url = _repoUrl.text.trim();
-    if (url.isEmpty) return;
-    final repo = await _run(() => packages.addRepo(url));
-    if (repo != null) _repoUrl.clear();
+  void _installed(SpotiflacAddon addon) => _say(
+    '${addon.displayName} installed. Set it up below, then find it in Search.',
+  );
+
+  /// The panel while the manager loads, or why it couldn't.
+  Widget? _loading() {
+    if (_packages != null) return null;
+    final t = context.lokal;
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Center(
+        child: _loadError == null
+            ? SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: t.accent,
+                ),
+              )
+            : Text(
+                'Add-ons couldn’t be opened: $_loadError',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: t.muted, fontSize: 13),
+              ),
+      ),
+    );
   }
+
+  Widget _rows(List<Widget> rows) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (var i = 0; i < rows.length; i++) ...[
+        if (i > 0) const LokalSettingsDivider(),
+        rows[i],
+      ],
+    ],
+  );
+}
+
+/// Installed add-ons, each with what it can do, its switch and its setup;
+/// then installing a package file and the third-party notice.
+class SpotiflacAddonsPanel extends StatefulWidget implements LokalSearchable {
+  const SpotiflacAddonsPanel({super.key, this.service, this.loader});
+
+  final SpotiflacService? service;
+
+  /// Replaces the app's add-on manager, for tests.
+  @visibleForTesting
+  final SpotiflacPackagesLoader? loader;
+
+  @override
+  String get searchText =>
+      'SpotiFLAC add-ons installed setup verify log in install package file';
+
+  @override
+  State<SpotiflacAddonsPanel> createState() => _SpotiflacAddonsPanelState();
+}
+
+class _SpotiflacAddonsPanelState extends State<SpotiflacAddonsPanel>
+    with _SpotiflacPanel {
+  @override
+  SpotiflacService? get _injected => widget.service;
+  @override
+  SpotiflacPackagesLoader? get _loader => widget.loader;
 
   Future<void> _installFile(SpotiflacPackages packages) async {
     final file = await FilePicker.pickFile(type: FileType.any);
@@ -104,250 +183,222 @@ class _SpotiflacAddonsScreenState extends State<SpotiflacAddonsScreen> {
     if (addon != null) _installed(addon);
   }
 
-  void _installed(SpotiflacAddon addon) => _say(
-    '${addon.displayName} installed. Discovery can now play songs from it.',
-  );
+  @override
+  Widget build(BuildContext context) {
+    final loading = _loading();
+    if (loading != null) return loading;
+    final packages = _packages!;
+    final t = context.lokal;
+    final addons = packages.addons;
+    return _rows([
+      if (addons.isEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'No add-ons yet',
+                style: TextStyle(
+                  fontFamily: LokalTheme.sans,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: t.text,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Install one from a repository below or from a package file. '
+                'Installed add-ons appear in Search once they’re set up.',
+                style: TextStyle(fontSize: 12.5, height: 1.4, color: t.muted),
+              ),
+            ],
+          ),
+        ),
+      for (final addon in addons)
+        _AddonRow(
+          key: ValueKey(addon.key),
+          packages: packages,
+          addon: addon,
+          onChanged: _service.changed,
+        ),
+      LokalSettingRow(
+        label: 'Install from file',
+        description: 'A .sflx or .spotiflac-ext package you downloaded.',
+        icon: Icons.file_open_rounded,
+        enabled: !_busy,
+        onTap: () => _installFile(packages),
+      ),
+      const Padding(
+        padding: EdgeInsets.fromLTRB(12, 12, 12, 12),
+        child: LokalSettingsNotice(
+          warning: true,
+          text:
+              'Add-ons are made and run by third parties. Lokal doesn’t host, '
+              'check or vouch for any of them, and you’re responsible for the '
+              'ones you add. Only add add-ons you trust and are allowed to use '
+              'where you live.',
+        ),
+      ),
+    ]);
+  }
+}
+
+/// Add-on repositories with their refresh and removal, a field to add one,
+/// and the packages they offer.
+class SpotiflacRepositoriesPanel extends StatefulWidget
+    implements LokalSearchable {
+  const SpotiflacRepositoriesPanel({super.key, this.service, this.loader});
+
+  final SpotiflacService? service;
+
+  /// Replaces the app's add-on manager, for tests.
+  @visibleForTesting
+  final SpotiflacPackagesLoader? loader;
+
+  @override
+  String get searchText =>
+      'Add-on repositories registry available add-ons install update';
+
+  @override
+  State<SpotiflacRepositoriesPanel> createState() =>
+      _SpotiflacRepositoriesPanelState();
+}
+
+class _SpotiflacRepositoriesPanelState extends State<SpotiflacRepositoriesPanel>
+    with _SpotiflacPanel {
+  @override
+  SpotiflacService? get _injected => widget.service;
+  @override
+  SpotiflacPackagesLoader? get _loader => widget.loader;
+
+  final _repoUrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _repoUrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addRepo(SpotiflacPackages packages) async {
+    final url = _repoUrl.text.trim();
+    if (url.isEmpty) return;
+    final repo = await _run(() => packages.addRepo(url));
+    if (repo != null) _repoUrl.clear();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final packages = _packages;
-    return SettingsScaffold(
-      title: 'Add-ons',
-      body: packages == null
-          ? Padding(
-              padding: const EdgeInsets.only(top: 48),
-              child: Center(
-                child: _loadError == null
-                    ? const CircularProgressIndicator()
-                    : Text(
-                        'Add-ons couldn’t be opened: $_loadError',
-                        style: TextStyle(color: context.lokal.muted),
-                      ),
-              ),
-            )
-          : _body(packages),
-    );
-  }
-
-  Widget _body(SpotiflacPackages packages) {
-    final tokens = context.lokal;
-    final addons = packages.addons;
+    final loading = _loading();
+    if (loading != null) return loading;
+    final packages = _packages!;
+    final t = context.lokal;
     final catalogue = packages.catalogue();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _Notice(
-          'Add-ons are made and run by third parties. Lokal doesn’t host, '
-          'check or vouch for any of them, and you’re responsible for the '
-          'ones you add. Only add add-ons you trust and are allowed to use '
-          'where you live.',
-        ),
-        const SizedBox(height: AppConstants.spacingLg),
-        const SettingsSectionHeader('Installed'),
-        if (addons.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppConstants.spacingSm,
-            ),
-            child: Text(
-              'No add-ons yet. Install one from a repository below. '
-              'Installed add-ons play songs Discovery finds that aren’t '
-              'in your library.',
-              style: TextStyle(color: tokens.muted, fontSize: 13),
-            ),
-          ),
-        for (final addon in addons)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppConstants.spacingSm),
-            child: _AddonCard(
-              key: ValueKey(addon.key),
-              packages: packages,
-              addon: addon,
-              onChanged: _service.changed,
-            ),
-          ),
-        const SizedBox(height: AppConstants.spacingLg),
-        const SettingsSectionHeader('Repositories'),
-        SettingsCard(
-          children: [
-            for (final repo in packages.repositories) ...[
-              ListTile(
-                title: Text(
-                  repo.official ? 'SpotiFLAC official' : repo.name,
-                  style: TextStyle(color: tokens.text),
-                ),
-                subtitle: Text(
-                  repo.error ??
-                      (repo.refreshedAt == null
-                          ? 'Not refreshed'
-                          : '${repo.entries.length} sources'),
-                  style: TextStyle(
-                    color: repo.error == null ? tokens.muted : tokens.red,
-                    fontSize: 12,
-                  ),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Refresh repository',
-                      onPressed: _busy
-                          ? null
-                          : () => _run(() => packages.refreshRepo(repo.id)),
-                      icon: Icon(Icons.refresh_rounded, color: tokens.muted),
-                    ),
-                    if (!repo.official)
-                      IconButton(
-                        tooltip: 'Remove repository',
-                        onPressed: _busy
-                            ? null
-                            : () => _run(() async {
-                                packages.removeRepo(repo.id);
-                              }),
-                        icon: Icon(
-                          Icons.delete_outline_rounded,
-                          color: tokens.muted,
-                        ),
-                      ),
-                  ],
-                ),
+    return _rows([
+      for (final repo in packages.repositories)
+        LokalSettingRow(
+          label: repo.official ? 'SpotiFLAC official' : repo.name,
+          description:
+              repo.error ??
+              (repo.refreshedAt == null
+                  ? 'Not refreshed yet'
+                  : '${repo.entries.length} add-ons'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Refresh repository',
+                onPressed: _busy
+                    ? null
+                    : () => _run(() => packages.refreshRepo(repo.id)),
+                icon: Icon(Icons.refresh_rounded, color: t.muted),
               ),
-              const SettingsDivider(),
+              if (!repo.official)
+                IconButton(
+                  tooltip: 'Remove repository',
+                  onPressed: _busy
+                      ? null
+                      : () => _run(() async {
+                          packages.removeRepo(repo.id);
+                        }),
+                  icon: Icon(Icons.delete_outline_rounded, color: t.muted),
+                ),
             ],
-            Padding(
-              padding: const EdgeInsets.all(AppConstants.spacingMd),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _repoUrl,
-                          keyboardType: TextInputType.url,
-                          autocorrect: false,
-                          style: TextStyle(color: tokens.text, fontSize: 13),
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            hintText: 'https://…/registry.json',
-                          ),
-                          onSubmitted: (_) => _addRepo(packages),
-                        ),
-                      ),
-                      const SizedBox(width: AppConstants.spacingSm),
-                      FilledButton.tonal(
-                        onPressed: _busy ? null : () => _addRepo(packages),
-                        child: const Text('Add'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppConstants.spacingSm),
-                  TextButton.icon(
-                    onPressed: _busy ? null : () => _installFile(packages),
-                    icon: const Icon(Icons.file_open_outlined, size: 18),
-                    label: const Text('Install package file'),
-                  ),
-                ],
+          ),
+        ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _repoUrl,
+                keyboardType: TextInputType.url,
+                autocorrect: false,
+                style: TextStyle(color: t.text, fontSize: 13.5),
+                decoration: lokalInputDecoration(
+                  context,
+                  label: 'Add a repository',
+                  hint: 'https://…/registry.json',
+                ),
+                onSubmitted: (_) => _addRepo(packages),
               ),
+            ),
+            const SizedBox(width: 10),
+            LokalSettingButton(
+              label: 'Add',
+              onPressed: _busy ? null : () => _addRepo(packages),
             ),
           ],
         ),
-        if (_busy)
-          Padding(
-            padding: const EdgeInsets.only(top: AppConstants.spacingSm),
-            child: LinearProgressIndicator(color: tokens.accent),
+      ),
+      if (_busy)
+        LinearProgressIndicator(
+          minHeight: 2,
+          color: t.accent,
+          backgroundColor: t.surface3,
+        ),
+      for (final entry in catalogue)
+        LokalSettingRow(
+          label: entry.name,
+          description: [
+            'v${entry.version}',
+            !entry.compatible
+                ? 'Needs a newer SpotiFLAC version'
+                : entry.category == 'integration'
+                ? 'Reads playlist links'
+                : entry.description,
+          ].where((s) => s.isNotEmpty).join(' · '),
+          trailing: LokalSettingButton(
+            label: entry.updateAvailable
+                ? 'Update'
+                : entry.installed != null
+                ? 'Installed'
+                : 'Install',
+            onPressed:
+                _busy ||
+                    !entry.compatible ||
+                    (entry.installed != null && !entry.updateAvailable)
+                ? null
+                : () async {
+                    final addon = await _run(
+                      () => packages.install(
+                        repositoryId: entry.repositoryId,
+                        id: entry.id,
+                      ),
+                    );
+                    if (addon != null) _installed(addon);
+                  },
           ),
-        if (catalogue.isNotEmpty) ...[
-          const SizedBox(height: AppConstants.spacingLg),
-          const SettingsSectionHeader('Available'),
-          SettingsCard(
-            children: [
-              for (final (i, entry) in catalogue.indexed) ...[
-                if (i > 0) const SettingsDivider(),
-                ListTile(
-                  title: Text(
-                    '${entry.name}  v${entry.version}',
-                    style: TextStyle(color: tokens.text),
-                  ),
-                  subtitle: Text(
-                    !entry.compatible
-                        ? 'Needs a newer SpotiFLAC version'
-                        : entry.category == 'integration'
-                        ? 'Reads playlist links'
-                        : entry.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: tokens.muted, fontSize: 12),
-                  ),
-                  trailing: FilledButton.tonal(
-                    onPressed:
-                        _busy ||
-                            !entry.compatible ||
-                            (entry.installed != null && !entry.updateAvailable)
-                        ? null
-                        : () async {
-                            final addon = await _run(
-                              () => packages.install(
-                                repositoryId: entry.repositoryId,
-                                id: entry.id,
-                              ),
-                            );
-                            if (addon != null) _installed(addon);
-                          },
-                    child: Text(
-                      entry.updateAvailable
-                          ? 'Update'
-                          : entry.installed != null
-                          ? 'Installed'
-                          : 'Install',
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-        const SizedBox(height: AppConstants.navBarHeight + 40),
-      ],
-    );
+        ),
+    ]);
   }
 }
 
-class _Notice extends StatelessWidget {
-  const _Notice(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.lokal;
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
-      decoration: BoxDecoration(
-        color: tokens.orange.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: tokens.orange.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.warning_amber_rounded, size: 18, color: tokens.orange),
-          const SizedBox(width: AppConstants.spacingSm),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(color: tokens.text, fontSize: 12, height: 1.4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One installed add-on: its switch, then (opened) settings and access.
-class _AddonCard extends StatefulWidget {
-  const _AddonCard({
+/// One installed add-on: what it can do, its setup state with the action
+/// that finishes it, its switch; opened, its settings, account and removal.
+class _AddonRow extends StatefulWidget {
+  const _AddonRow({
     super.key,
     required this.packages,
     required this.addon,
@@ -359,10 +410,10 @@ class _AddonCard extends StatefulWidget {
   final VoidCallback onChanged;
 
   @override
-  State<_AddonCard> createState() => _AddonCardState();
+  State<_AddonRow> createState() => _AddonRowState();
 }
 
-class _AddonCardState extends State<_AddonCard> {
+class _AddonRowState extends State<_AddonRow> {
   bool _open = false;
   bool _busy = false;
   bool _confirmRemove = false;
@@ -442,92 +493,140 @@ class _AddonCardState extends State<_AddonCard> {
     if (auth.isNotEmpty) await _openAuth(auth);
   }
 
+  /// What the add-on still needs, in a few words; `null` once it's ready.
+  String? _needs(SpotiflacAccess access) {
+    if (!_addon.enabled || access.ready) return null;
+    if (access.missing.isNotEmpty) return 'Needs ${access.missing.join(', ')}';
+    return access.kind == 'login' ? 'Needs login' : 'Needs verification';
+  }
+
+  /// The button that finishes setup, shown on the row itself.
+  Widget? _setupAction(SpotiflacAccess access) {
+    if (!_addon.enabled || access.ready) return null;
+    if (access.kind == 'verification' && !access.verified) {
+      return LokalSettingButton(
+        label: 'Verify',
+        onPressed: _busy ? null : _verify,
+      );
+    }
+    return LokalSettingButton(
+      label: access.kind == 'login' ? 'Log in' : 'Set up',
+      onPressed: () => setState(() => _open = true),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final tokens = context.lokal;
+    final t = context.lokal;
     final access = _packages.access(_addon);
-    final needsSetup = _addon.enabled && !access.ready;
-    return Container(
-      decoration: BoxDecoration(
-        color: tokens.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(
-          color: needsSetup
-              ? tokens.orange.withValues(alpha: 0.4)
-              : tokens.border,
-        ),
-      ),
-      child: Opacity(
-        opacity: _addon.enabled ? 1 : 0.7,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              leading: Icon(Icons.extension_rounded, color: tokens.accent),
-              title: Text(
-                _addon.displayName,
-                style: TextStyle(color: tokens.text),
-              ),
-              subtitle: Text(
-                needsSetup
-                    ? access.missing.isNotEmpty
-                          ? 'Needs ${access.missing.join(', ')}'
-                          : access.kind == 'login'
-                          ? 'Needs login'
-                          : 'Needs verification'
-                    : 'v${_addon.version}',
-                style: TextStyle(
-                  color: needsSetup ? tokens.orange : tokens.muted,
-                  fontSize: 12,
+    final needs = _needs(access);
+    final setup = _setupAction(access);
+    final capabilities = [
+      if (_addon.searches) 'Search',
+      if (_addon.downloads) 'Download',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _open = !_open),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 14, top: 1),
+                  child: Icon(
+                    Icons.extension_rounded,
+                    size: 22,
+                    color: _addon.enabled ? t.accent : t.muted2,
+                  ),
                 ),
-              ),
-              trailing: Switch(
-                value: _addon.enabled,
-                onChanged: _busy
-                    ? null
-                    : (on) => _run(() async {
-                        _packages.setEnabled(_addon.key, on);
-                      }),
-              ),
-              onTap: () => setState(() => _open = !_open),
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              alignment: Alignment.topCenter,
-              child: _open
-                  ? _details(access)
-                  : const SizedBox(width: double.infinity),
-            ),
-            if (_message != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Text(
-                  _message!,
-                  style: TextStyle(color: tokens.muted, fontSize: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _addon.displayName,
+                        style: TextStyle(
+                          fontFamily: LokalTheme.sans,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: _addon.enabled ? t.text : t.muted,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final c in capabilities)
+                            LokalStatusPill(label: c),
+                          if (!_addon.enabled)
+                            const LokalStatusPill(label: 'Off')
+                          else if (needs != null)
+                            LokalStatusPill(label: needs, warning: true)
+                          else
+                            const LokalStatusPill(label: 'Ready', active: true),
+                        ],
+                      ),
+                      if (setup != null) ...[const SizedBox(height: 10), setup],
+                    ],
+                  ),
                 ),
-              ),
-          ],
+                const SizedBox(width: 12),
+                Semantics(
+                  label: '${_addon.displayName} enabled',
+                  child: LokalOnOffPill(
+                    value: _addon.enabled,
+                    onChanged: _busy
+                        ? null
+                        : (on) => _run(() async {
+                            _packages.setEnabled(_addon.key, on);
+                          }),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: _open
+              ? _details(access)
+              : const SizedBox(width: double.infinity),
+        ),
+        if (_message != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(52, 0, 16, 14),
+            child: Text(
+              _message!,
+              style: TextStyle(color: t.muted, fontSize: 12.5),
+            ),
+          ),
+      ],
     );
   }
 
   Widget _details(SpotiflacAccess access) {
-    final tokens = context.lokal;
+    final t = context.lokal;
     final quality = _addon.qualityOptions.whereType<Map>().toList();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.fromLTRB(52, 0, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_addon.description.isNotEmpty) ...[
-            Text(
-              _addon.description,
-              style: TextStyle(color: tokens.muted, fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-          ],
+          Text(
+            [
+              if (_addon.version.isNotEmpty) 'v${_addon.version}',
+              if (_addon.description.isNotEmpty) _addon.description,
+            ].join(' · '),
+            style: TextStyle(color: t.muted, fontSize: 12.5, height: 1.4),
+          ),
+          const SizedBox(height: 12),
           for (final field in _addon.settingsSchema.whereType<Map>())
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -557,24 +656,34 @@ class _AddonCardState extends State<_AddonCard> {
                     setState(() => _values['downloadQuality'] = value),
               ),
             ),
-          if (_addon.settingsSchema.isNotEmpty || quality.length > 1)
-            FilledButton.tonal(
-              onPressed: _busy
-                  ? null
-                  : () => _run(() async {
-                      _packages.setSettings(_addon.key, _values);
-                      _values = _packages.settings(_addon);
-                      if (mounted) setState(() => _message = 'Settings saved');
-                    }),
-              child: const Text('Save settings'),
-            ),
-          for (final action in _addon.globalActions.whereType<Map>())
-            TextButton(
-              onPressed: _busy ? null : () => _action('${action['action']}'),
-              child: Text('${action['label'] ?? action['action']}'),
-            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (_addon.settingsSchema.isNotEmpty || quality.length > 1)
+                LokalSettingButton(
+                  label: 'Save settings',
+                  onPressed: _busy
+                      ? null
+                      : () => _run(() async {
+                          _packages.setSettings(_addon.key, _values);
+                          _values = _packages.settings(_addon);
+                          if (mounted) {
+                            setState(() => _message = 'Settings saved');
+                          }
+                        }),
+                ),
+              for (final action in _addon.globalActions.whereType<Map>())
+                LokalSettingButton(
+                  label: '${action['label'] ?? action['action']}',
+                  onPressed: _busy
+                      ? null
+                      : () => _action('${action['action']}'),
+                ),
+            ],
+          ),
           if (access.kind == 'verification' || access.kind == 'login') ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               access.verified
                   ? 'Access is active.'
@@ -582,55 +691,54 @@ class _AddonCardState extends State<_AddonCard> {
                   ? 'This add-on needs a one-time verification before it can '
                         'play or download. A page opens; it closes by itself '
                         'when access is confirmed.'
-                  : 'Log in with the button above to play and download from '
-                        'this add-on.',
-              style: TextStyle(color: tokens.muted, fontSize: 12),
+                  : 'Log in with the add-on’s button above to play and '
+                        'download from it.',
+              style: TextStyle(color: t.muted, fontSize: 12.5, height: 1.4),
             ),
-            Row(
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
               children: [
                 if (access.kind == 'verification' && !access.verified)
-                  FilledButton.tonal(
+                  LokalSettingButton(
+                    label: 'Verify access',
                     onPressed: _busy || !_addon.enabled ? null : _verify,
-                    child: const Text('Verify access'),
                   ),
                 if (access.verified)
-                  TextButton(
+                  LokalSettingButton(
+                    label: 'Disconnect',
                     onPressed: _busy
                         ? null
                         : () => _run(() => _packages.logout(_addon.key)),
-                    child: const Text('Disconnect'),
                   ),
               ],
             ),
           ],
           if (_form case final form?) _accountForm(form),
-          const SizedBox(height: 4),
+          const SizedBox(height: 14),
           Align(
             alignment: Alignment.centerRight,
             child: _confirmRemove
-                ? Row(
-                    mainAxisSize: MainAxisSize.min,
+                ? Wrap(
+                    spacing: 8,
                     children: [
-                      TextButton(
+                      LokalSettingButton(
+                        label: 'Cancel',
                         onPressed: () => setState(() => _confirmRemove = false),
-                        child: const Text('Cancel'),
                       ),
-                      TextButton(
+                      LokalSettingButton(
+                        label: 'Remove',
+                        destructive: true,
                         onPressed: _busy
                             ? null
                             : () => _run(() => _packages.remove(_addon.key)),
-                        style: TextButton.styleFrom(
-                          foregroundColor: tokens.red,
-                        ),
-                        child: const Text('Remove'),
                       ),
                     ],
                   )
-                : TextButton.icon(
+                : LokalSettingButton(
+                    label: 'Remove add-on',
+                    destructive: true,
                     onPressed: () => setState(() => _confirmRemove = true),
-                    style: TextButton.styleFrom(foregroundColor: tokens.muted),
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('Remove add-on'),
                   ),
           ),
         ],
@@ -640,28 +748,33 @@ class _AddonCardState extends State<_AddonCard> {
 
   /// A login form the add-on asked for (desktop's "action form").
   Widget _accountForm(Map<String, Object?> form) {
-    final tokens = context.lokal;
+    final t = context.lokal;
     final fields = (form['fields'] as List? ?? const []).whereType<Map>();
     return Container(
       margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: tokens.border),
+        color: t.surface2,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: t.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '${form['title'] ?? 'Account details'}',
-            style: TextStyle(color: tokens.text, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontFamily: LokalTheme.sans,
+              color: t.text,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           if (form['description'] != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 '${form['description']}',
-                style: TextStyle(color: tokens.muted, fontSize: 12),
+                style: TextStyle(color: t.muted, fontSize: 12.5),
               ),
             ),
           const SizedBox(height: 12),
@@ -683,9 +796,11 @@ class _AddonCardState extends State<_AddonCard> {
                     setState(() => _formInput['${field['key']}'] = value),
               ),
             ),
-          Row(
+          Wrap(
+            spacing: 8,
             children: [
-              FilledButton.tonal(
+              LokalSettingButton(
+                label: 'Continue',
                 onPressed: _busy
                     ? null
                     : () => _action(
@@ -693,14 +808,13 @@ class _AddonCardState extends State<_AddonCard> {
                         input: Map.of(_formInput),
                         token: form['token'] as String?,
                       ),
-                child: const Text('Continue'),
               ),
-              TextButton(
+              LokalSettingButton(
+                label: 'Cancel',
                 onPressed: () => setState(() {
                   _form = null;
                   _formInput.clear();
                 }),
-                child: const Text('Cancel'),
               ),
             ],
           ),
@@ -726,36 +840,56 @@ class _SettingField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.lokal;
+    final t = context.lokal;
     final label = '${field['label'] ?? field['key']}';
     final help = field['description'] ?? field['help'];
     final helpText = help == null
         ? null
-        : Text('$help', style: TextStyle(color: tokens.muted, fontSize: 11));
+        : Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '$help',
+              style: TextStyle(color: t.muted, fontSize: 11.5),
+            ),
+          );
     final current = value ?? field['default'];
     switch (field['type']) {
       case 'button':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            OutlinedButton(
+            LokalSettingButton(
+              label: label,
               onPressed: () => onAction?.call('${field['action']}'),
-              child: Text(label),
             ),
             ?helpText,
           ],
         );
       case 'boolean':
       case 'toggle':
-        return SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: current == true || current == 'true',
-          onChanged: onChanged,
-          title: Text(
-            label,
-            style: TextStyle(color: tokens.text, fontSize: 14),
-          ),
-          subtitle: helpText,
+        final on = current == true || current == 'true';
+        return Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontFamily: LokalTheme.sans,
+                      color: t.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  ?helpText,
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            LokalOnOffPill(value: on, onChanged: onChanged),
+          ],
         );
       case 'select':
         final options = [
@@ -771,7 +905,9 @@ class _SettingField extends StatelessWidget {
             DropdownButtonFormField<Object?>(
               initialValue: selected,
               isExpanded: true,
-              decoration: InputDecoration(labelText: label, isDense: true),
+              dropdownColor: t.surface2,
+              style: TextStyle(color: t.text, fontSize: 13.5),
+              decoration: lokalInputDecoration(context, label: label),
               items: [
                 for (final o in options)
                   DropdownMenuItem(
@@ -795,11 +931,11 @@ class _SettingField extends StatelessWidget {
               obscureText: secret,
               autocorrect: false,
               keyboardType: number ? TextInputType.number : TextInputType.text,
-              style: TextStyle(color: tokens.text, fontSize: 13),
-              decoration: InputDecoration(
-                labelText: label,
-                isDense: true,
-                hintText: secret
+              style: TextStyle(color: t.text, fontSize: 13.5),
+              decoration: lokalInputDecoration(
+                context,
+                label: label,
+                hint: secret
                     ? 'Leave empty to keep the saved value'
                     : field['placeholder'] as String?,
               ),

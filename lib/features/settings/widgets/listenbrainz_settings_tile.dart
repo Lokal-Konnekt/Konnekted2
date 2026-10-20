@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/utils/responsive.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/providers/listenbrainz_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
-/// Self-contained ListenBrainz connect/disconnect tile.
+/// Self-contained ListenBrainz connect/disconnect row.
 class ListenBrainzSettingsTile extends ConsumerStatefulWidget {
   const ListenBrainzSettingsTile({super.key});
 
@@ -25,17 +22,13 @@ class _ListenBrainzSettingsTileState
     final auth = ref.read(listenbrainzAuthServiceProvider);
     final existing = await auth.getSession();
 
-    final tokenController = TextEditingController(
-      text: existing?.token ?? '',
-    );
+    final tokenController = TextEditingController(text: existing?.token ?? '');
 
     if (!mounted) return;
 
-    await showModalBottomSheet(
-      useRootNavigator: true,
+    await showLokalSettingsSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (ctx) => _TokenInputSheet(
         tokenController: tokenController,
         onConnect: (token) async {
@@ -49,157 +42,17 @@ class _ListenBrainzSettingsTileState
   }
 
   Future<void> _disconnect() async {
-    final confirmed = await showModalBottomSheet<bool>(
-      useRootNavigator: true,
+    final confirmed = await showLokalConfirmSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: AppBottomSheetSurface.decoration,
-        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(ctx).bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.adaptiveTextTertiary.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.warning_rounded,
-                      color: Colors.red,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.disconnectListenbrainz,
-                          style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                            color: context.adaptiveTextPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassBackgroundStrong,
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusMd,
-                      ),
-                      border: Border.all(
-                        color: context.adaptiveTextTertiary.withValues(
-                          alpha: 0.1,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: context.adaptiveTextSecondary,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            l10n.yourListensWillRemainOnListenbrainz,
-                            style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
-                              color: context.adaptiveTextSecondary,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide(
-                              color: context.adaptiveTextTertiary.withValues(
-                                alpha: 0.3,
-                              ),
-                            ),
-                            foregroundColor: context.adaptiveTextPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppConstants.radiusMd,
-                              ),
-                            ),
-                          ),
-                          child: Text(
-                            l10n.cancel,
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppConstants.radiusMd,
-                              ),
-                            ),
-                          ),
-                          child: Text(
-                            l10n.disconnect,
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      useRootNavigator: true,
+      title: l10n.disconnectListenbrainz,
+      message: l10n.yourListensWillRemainOnListenbrainz,
+      confirmLabel: l10n.disconnect,
+      cancelLabel: l10n.cancel,
+      destructive: true,
     );
 
-    if (confirmed != true) {
+    if (!confirmed) {
       return;
     }
 
@@ -209,182 +62,43 @@ class _ListenBrainzSettingsTileState
   }
 
   Future<void> _showConnectedBottomSheet(String username) async {
-    await showModalBottomSheet(
-      useRootNavigator: true,
+    await showLokalSettingsSheet<void>(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: AppBottomSheetSurface.decoration,
-        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(ctx).bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.adaptiveTextTertiary.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
+      builder: (ctx) => LokalSheetBody(
+        title: l10n.listenbrainzConnected,
+        message: l10n.yourMusicIsBeingSubmitted,
+        children: [
+          LokalSettingsCard(
+            color: ctx.lokal.surface2,
+            child: LokalSettingRow(
+              label: username,
+              description: l10n.connectedAccount,
+              trailing: const LokalStatusPill(label: 'Connected', active: true),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4CAF50).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: Color(0xFF4CAF50),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.listenbrainzConnected,
-                          style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                            color: context.adaptiveTextPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.yourMusicIsBeingSubmitted,
-                          style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                            color: context.adaptiveTextSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassBackgroundStrong,
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusMd,
-                      ),
-                      border: Border.all(
-                        color: context.adaptiveTextTertiary.withValues(
-                          alpha: 0.1,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF353070).withValues(
-                              alpha: 0.15,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            color: Color(0xFF353070),
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10n.connectedAccount,
-                                style: Theme.of(ctx).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: context.adaptiveTextSecondary,
-                                    ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                username,
-                                style: Theme.of(ctx).textTheme.bodyLarge
-                                    ?.copyWith(
-                                      color: context.adaptiveTextPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _showTokenDialog();
-                      },
-                      icon: const Icon(Icons.edit, size: 18),
-                      label: Text(l10n.editToken),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(
-                          color: context.adaptiveTextTertiary.withValues(
-                            alpha: 0.3,
-                          ),
-                        ),
-                        foregroundColor: context.adaptiveTextPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusMd,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _disconnect();
-                      },
-                      icon: const Icon(Icons.logout, size: 18),
-                      label: Text(l10n.disconnect),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.withValues(alpha: 0.1),
-                        foregroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppConstants.radiusMd,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          LokalSettingsActionButton(
+            label: l10n.editToken,
+            icon: Icons.edit_rounded,
+            primary: false,
+            expand: true,
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showTokenDialog();
+            },
+          ),
+          const SizedBox(height: 10),
+          LokalSettingsActionButton(
+            label: l10n.disconnect,
+            icon: Icons.logout_rounded,
+            destructive: true,
+            expand: true,
+            onPressed: () {
+              Navigator.pop(ctx);
+              _disconnect();
+            },
+          ),
+        ],
       ),
     );
   }
@@ -392,162 +106,38 @@ class _ListenBrainzSettingsTileState
   @override
   Widget build(BuildContext context) {
     final sessionAsync = ref.watch(listenbrainzSessionProvider);
+    final t = context.lokal;
 
     return sessionAsync.when(
-      loading: () => _buildLoadingTile(context),
-      error: (error, stackTrace) => _buildErrorTile(context),
+      loading: () => LokalSettingRow(
+        label: l10n.listenbrainz,
+        description: l10n.loadingSession,
+      ),
+      error: (error, stackTrace) => LokalSettingRow(
+        label: l10n.listenbrainz,
+        description: l10n.couldNotLoadSession,
+        onTap: _showTokenDialog,
+        trailing: Icon(Icons.chevron_right_rounded, size: 22, color: t.muted),
+      ),
       data: (session) {
         if (session != null) {
-          return _buildConnectedTile(context, username: session.username);
+          return LokalSettingRow(
+            label: l10n.listenbrainz,
+            description: l10n.connectedAs(session.username),
+            onTap: () => _showConnectedBottomSheet(session.username),
+            trailing: const LokalStatusPill(label: 'Connected', active: true),
+          );
         }
-        return _buildDisconnectedTile(context);
+        return LokalSettingRow(
+          label: l10n.listenbrainz,
+          description: l10n.connectToSubmitYourListeningHistory,
+          onTap: _showTokenDialog,
+          trailing: LokalSettingButton(
+            label: l10n.connect,
+            onPressed: _showTokenDialog,
+          ),
+        );
       },
-    );
-  }
-
-  Widget _buildLoadingTile(BuildContext context) {
-    return _buildTileContainer(
-      context,
-      child: Row(
-        children: [
-          _buildLeadingIcon(context, Icons.radio_button_unchecked),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.listenbrainz,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: context.adaptiveTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  l10n.loadingSession,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorTile(BuildContext context) {
-    return _buildTapTile(
-      context,
-      icon: Icons.error_outline,
-      title: l10n.listenbrainz,
-      subtitle: l10n.couldNotLoadSession,
-      onTap: _showTokenDialog,
-      trailing: Icon(
-        Icons.chevron_right,
-        color: context.adaptiveTextTertiary,
-        size: 20,
-      ),
-    );
-  }
-
-  Widget _buildConnectedTile(BuildContext context, {required String username}) {
-    return _buildTapTile(
-      context,
-      icon: Icons.radio_button_checked,
-      title: l10n.listenbrainz,
-      subtitle: l10n.connectedAs(username),
-      onTap: () => _showConnectedBottomSheet(username),
-      trailing: Icon(
-        Icons.check_circle,
-        color: const Color(0xFF4CAF50),
-        size: 20,
-      ),
-    );
-  }
-
-  Widget _buildDisconnectedTile(BuildContext context) {
-    return _buildTapTile(
-      context,
-      icon: Icons.radio_button_unchecked,
-      title: l10n.listenbrainz,
-      subtitle: l10n.connectToSubmitYourListeningHistory,
-      onTap: _showTokenDialog,
-      trailing: Icon(
-        Icons.chevron_right,
-        color: context.adaptiveTextTertiary,
-        size: 20,
-      ),
-    );
-  }
-
-  Widget _buildTapTile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback? onTap,
-    required Widget trailing,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: _buildTileContainer(
-          context,
-          child: Row(
-            children: [
-              _buildLeadingIcon(context, icon),
-              const SizedBox(width: AppConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              trailing,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTileContainer(BuildContext context, {required Widget child}) {
-    return Padding(
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
-      child: child,
-    );
-  }
-
-  Widget _buildLeadingIcon(BuildContext context, IconData icon) {
-    return Container(
-      width: context.scaleSize(AppConstants.containerSizeMd),
-      height: context.scaleSize(AppConstants.containerSizeMd),
-      decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong,
-        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-      ),
-      child: Icon(
-        icon,
-        color: context.adaptiveTextSecondary,
-        size: context.responsiveIcon(AppConstants.iconSizeMd),
-      ),
     );
   }
 }
@@ -597,8 +187,8 @@ class _TokenInputSheetState extends State<_TokenInputSheet> {
       }
     } catch (e) {
       if (mounted) {
-        final message = e.toString().contains('SocketException') ||
-                e.toString().contains('Failed host lookup')
+        final message =
+            RegExp('SocketException|Failed host lookup').hasMatch('$e')
             ? l10n.noInternetConnectionPleaseCheckYour
             : l10n.couldNotConnectToListenbrainzCheck;
         setState(() {
@@ -609,174 +199,87 @@ class _TokenInputSheetState extends State<_TokenInputSheet> {
     }
   }
 
+  Future<void> _openSettings() async {
+    final uri = Uri.parse('https://listenbrainz.org/settings/');
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.couldNotOpenBrowser),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.couldNotOpenLink2(e)),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final t = context.lokal;
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        decoration: AppBottomSheetSurface.decoration,
-        padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: SingleChildScrollView(
+        child: LokalSheetBody(
+          title: l10n.connectListenbrainz,
+          message: l10n.copyYourUserTokenFromListenbrainz,
           children: [
-            // Handle bar
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: context.adaptiveTextTertiary.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+            LokalSettingsCard(
+              color: t.surface2,
+              child: LokalSettingRow(
+                label: l10n.openListenbrainzOrgSettings,
+                trailing: Icon(
+                  Icons.open_in_new_rounded,
+                  size: 18,
+                  color: t.muted,
+                ),
+                onTap: _openSettings,
+              ),
+            ),
+            const SizedBox(height: 18),
+            TextField(
+              controller: widget.tokenController,
+              obscureText: _obscureToken,
+              autocorrect: false,
+              enableSuggestions: false,
+              style: TextStyle(color: t.text),
+              decoration: lokalInputDecoration(
+                context,
+                label: l10n.userToken,
+                hint: l10n.pasteYourListenbrainzToken,
+                errorText: _errorMessage,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureToken
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: t.muted,
+                  ),
+                  onPressed: () {
+                    setState(() => _obscureToken = !_obscureToken);
+                  },
                 ),
               ),
             ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-              child: Text(
-                l10n.connectListenbrainz,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      l10n.copyYourUserTokenFromListenbrainz,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.adaptiveTextSecondary,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: InkWell(
-                      onTap: () async {
-                        final uri = Uri.parse('https://listenbrainz.org/settings/');
-                        try {
-                          final launched = await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalApplication,
-                          );
-                          if (!launched && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(l10n.couldNotOpenBrowser),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(l10n.couldNotOpenLink2(e)),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusSm,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 4,
-                          horizontal: 4,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.open_in_new,
-                              size: 16,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              l10n.openListenbrainzOrgSettings,
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context).colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: TextField(
-                controller: widget.tokenController,
-                obscureText: _obscureToken,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: l10n.userToken,
-                  hintText: l10n.pasteYourListenbrainzToken,
-                  errorText: _errorMessage,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureToken ? Icons.visibility_off : Icons.visibility,
-                      color: context.adaptiveTextTertiary,
-                    ),
-                    onPressed: () {
-                      setState(() => _obscureToken = !_obscureToken);
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isConnecting ? null : _connect,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusMd,
-                      ),
-                    ),
-                  ),
-                  child: _isConnecting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          l10n.connect,
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                ),
-              ),
+            const SizedBox(height: 20),
+            LokalSettingsActionButton(
+              label: _isConnecting ? '${l10n.connect}…' : l10n.connect,
+              expand: true,
+              onPressed: _isConnecting ? null : _connect,
             ),
           ],
         ),

@@ -311,7 +311,7 @@ void main() {
     expect(find.text('Crossfade'), findsOneWidget);
     expect(find.text('Gapless playback'), findsNothing);
     expect(find.text('PLAYBACK · SONG TRANSITIONS'), findsOneWidget);
-    expect(find.text('Integrations'), findsNothing);
+    expect(find.text('Online sources'), findsNothing);
 
     await tester.enterText(find.byType(TextField), 'finger');
     await tester.pumpAndSettle();
@@ -324,7 +324,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Clear search'));
     await tester.pumpAndSettle();
-    expect(find.text('Integrations'), findsOneWidget);
+    expect(find.text('Online sources'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -365,10 +365,9 @@ void main() {
     );
     expect(lyrics, isNot(KonnektedDestination.settings));
     expect(LokalSettingsGroup.listed.map((g) => g.label), [
-      'Integrations',
+      'Online sources',
       'Playback',
       'Library',
-      'Add-ons',
       'Appearance',
       'Data',
       'About',

@@ -930,7 +930,7 @@ class MorneyePackages {
         caseSensitive: false,
       ).hasMatch(path)) {
         throw const MorneyePackageError(
-          'Choose a .sflx or .morneye-ext package (.spotiflac-ext is accepted for legacy exports)',
+          'Choose a .sflx or .morneye-ext package',
         );
       }
       bytes = await _document(url!, 32 * 1024 * 1024);

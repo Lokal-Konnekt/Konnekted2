@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-/// A SpotiFLAC add-on's network access, as desktop's
-/// electron/spotiflac/network.js: only the domains its manifest names, HTTPS
+/// A Morneye add-on's network access, as desktop's
+/// electron/morneye/network.js: only the domains its manifest names, HTTPS
 /// unless it allows HTTP, never a private address it didn't name, at most
 /// five redirects, and its own cookies.
 
-class SpotiflacNetworkException implements Exception {
-  const SpotiflacNetworkException(this.message);
+class MorneyeNetworkException implements Exception {
+  const MorneyeNetworkException(this.message);
   final String message;
   @override
   String toString() => message;
@@ -17,7 +17,7 @@ class SpotiflacNetworkException implements Exception {
 
 /// Whether [address] is loopback, link-local, private or otherwise not on
 /// the public internet.
-bool spotiflacPrivateAddress(String address) {
+bool morneyePrivateAddress(String address) {
   var value = address.toLowerCase();
   if (value.startsWith('::ffff:')) value = value.substring(7);
   final v4 = RegExp(r'^(\d+)\.(\d+)\.(\d+)\.(\d+)$').firstMatch(value);
@@ -38,24 +38,24 @@ bool spotiflacPrivateAddress(String address) {
 }
 
 /// Whether [host] is one of [domains]; `*.example.com` matches subdomains only.
-bool spotiflacDomainAllowed(String host, List<String> domains) => domains.any(
+bool morneyeDomainAllowed(String host, List<String> domains) => domains.any(
   (domain) => domain.startsWith('*.')
       ? host.endsWith(domain.substring(1)) && host != domain.substring(2)
       : host == domain.toLowerCase(),
 );
 
 /// The manifest's `permissions` as far as the network is concerned.
-class SpotiflacPermissions {
-  const SpotiflacPermissions({
+class MorneyePermissions {
+  const MorneyePermissions({
     this.network = const [],
     this.storage = false,
     this.file = false,
     this.allowHttp = false,
   });
 
-  factory SpotiflacPermissions.fromJson(Object? json) {
+  factory MorneyePermissions.fromJson(Object? json) {
     final map = json is Map ? json : const {};
-    return SpotiflacPermissions(
+    return MorneyePermissions(
       network: [
         for (final domain
             in map['network'] is List ? map['network'] as List : const [])
@@ -81,31 +81,31 @@ class SpotiflacPermissions {
 }
 
 /// Checks [raw] against [permissions]; the parsed URL when it may be fetched.
-Uri spotiflacValidateUrl(String raw, SpotiflacPermissions permissions) {
+Uri morneyeValidateUrl(String raw, MorneyePermissions permissions) {
   final Uri url;
   try {
     url = Uri.parse(raw);
   } on FormatException {
-    throw const SpotiflacNetworkException('Invalid URL');
+    throw const MorneyeNetworkException('Invalid URL');
   }
   if (!url.hasScheme || url.host.isEmpty) {
-    throw const SpotiflacNetworkException('Invalid URL');
+    throw const MorneyeNetworkException('Invalid URL');
   }
   final host = url.host.toLowerCase();
   if (url.userInfo.isNotEmpty ||
-      !spotiflacDomainAllowed(host, permissions.network)) {
-    throw SpotiflacNetworkException('Network permission denied for $host');
+      !morneyeDomainAllowed(host, permissions.network)) {
+    throw MorneyeNetworkException('Network permission denied for $host');
   }
   if (url.scheme != 'https' &&
       !(url.scheme == 'http' && permissions.allowHttp)) {
-    throw const SpotiflacNetworkException('This addon requires HTTPS');
+    throw const MorneyeNetworkException('This addon requires HTTPS');
   }
   return url;
 }
 
 /// One stored cookie.
-class SpotiflacCookie {
-  SpotiflacCookie({
+class MorneyeCookie {
+  MorneyeCookie({
     required this.name,
     required this.value,
     required this.domain,
@@ -149,12 +149,12 @@ class SpotiflacCookie {
     if (expires != null) 'expires': expires!.millisecondsSinceEpoch,
   };
 
-  static SpotiflacCookie? fromJson(Object? json) {
+  static MorneyeCookie? fromJson(Object? json) {
     if (json is! Map) return null;
     final name = json['name'], value = json['value'], domain = json['domain'];
     if (name is! String || value is! String || domain is! String) return null;
     final expires = json['expires'];
-    return SpotiflacCookie(
+    return MorneyeCookie(
       name: name,
       value: value,
       domain: domain,
@@ -169,16 +169,16 @@ class SpotiflacCookie {
 }
 
 /// The cookies one add-on has been given, as a browser would keep them.
-class SpotiflacCookieJar {
-  SpotiflacCookieJar([Iterable<SpotiflacCookie> cookies = const []]) {
+class MorneyeCookieJar {
+  MorneyeCookieJar([Iterable<MorneyeCookie> cookies = const []]) {
     for (final cookie in cookies) {
       _cookies[_key(cookie)] = cookie;
     }
   }
 
-  final _cookies = <String, SpotiflacCookie>{};
+  final _cookies = <String, MorneyeCookie>{};
 
-  static String _key(SpotiflacCookie c) => '${c.domain};${c.path};${c.name}';
+  static String _key(MorneyeCookie c) => '${c.domain};${c.path};${c.name}';
 
   bool get isEmpty => _cookies.isEmpty;
 
@@ -212,7 +212,7 @@ class SpotiflacCookieJar {
     if (parsed.maxAge != null) {
       expires = at.add(Duration(seconds: parsed.maxAge!));
     }
-    final cookie = SpotiflacCookie(
+    final cookie = MorneyeCookie(
       name: parsed.name,
       value: parsed.value,
       domain: domain,
@@ -245,15 +245,15 @@ class SpotiflacCookieJar {
     ];
   }
 
-  static SpotiflacCookieJar fromJson(Object? json) => SpotiflacCookieJar([
+  static MorneyeCookieJar fromJson(Object? json) => MorneyeCookieJar([
     for (final item in json is List ? json : const [])
-      ?SpotiflacCookie.fromJson(item),
+      ?MorneyeCookie.fromJson(item),
   ]);
 }
 
 /// A streamed response; [close] it when done reading.
-class SpotiflacResponse {
-  SpotiflacResponse(this.url, this.status, this.headers, this._response);
+class MorneyeResponse {
+  MorneyeResponse(this.url, this.status, this.headers, this._response);
 
   final Uri url;
   final int status;
@@ -273,23 +273,23 @@ class SpotiflacResponse {
   }
 }
 
-typedef SpotiflacLookup = Future<List<InternetAddress>> Function(String host);
+typedef MorneyeLookup = Future<List<InternetAddress>> Function(String host);
 
-class SpotiflacNetwork {
-  SpotiflacNetwork(
+class MorneyeNetwork {
+  MorneyeNetwork(
     this.permissions, {
-    SpotiflacCookieJar? cookies,
+    MorneyeCookieJar? cookies,
     HttpClient? client,
-    SpotiflacLookup? lookup,
+    MorneyeLookup? lookup,
     this.userAgent = 'Lokal',
-  }) : cookies = cookies ?? SpotiflacCookieJar(),
+  }) : cookies = cookies ?? MorneyeCookieJar(),
        _client = client ?? (HttpClient()..autoUncompress = true),
        _lookup = lookup ?? InternetAddress.lookup;
 
-  final SpotiflacPermissions permissions;
-  SpotiflacCookieJar cookies;
+  final MorneyePermissions permissions;
+  MorneyeCookieJar cookies;
   final HttpClient _client;
-  final SpotiflacLookup _lookup;
+  final MorneyeLookup _lookup;
   final String userAgent;
 
   /// The add-on's OAuth state (tokens, a pending login); kept with its cookies.
@@ -318,18 +318,18 @@ class SpotiflacNetwork {
     final explicitLocal =
         permissions.network.contains(host) &&
         (host == 'localhost' ||
-            (literal != null && spotiflacPrivateAddress(literal.address)));
+            (literal != null && morneyePrivateAddress(literal.address)));
     if (addresses.isEmpty ||
         (!explicitLocal &&
-            addresses.any((a) => spotiflacPrivateAddress(a.address)))) {
-      throw const SpotiflacNetworkException(
+            addresses.any((a) => morneyePrivateAddress(a.address)))) {
+      throw const MorneyeNetworkException(
         'Addon request resolved to a private address without explicit permission',
       );
     }
   }
 
   /// Opens [raw]; follows redirects within the add-on's permissions.
-  Future<SpotiflacResponse> request(
+  Future<MorneyeResponse> request(
     String raw, {
     String method = 'GET',
     String? body,
@@ -337,7 +337,7 @@ class SpotiflacNetwork {
     bool directMedia = false,
     Duration timeout = const Duration(seconds: 30),
   }) async {
-    var url = spotiflacValidateUrl(raw, permissions);
+    var url = morneyeValidateUrl(raw, permissions);
     var sent = {
       for (final entry in headers.entries)
         if (!_dropped.hasMatch(entry.key)) entry.key: entry.value,
@@ -388,11 +388,11 @@ class SpotiflacNetwork {
       if (_redirects.contains(status) && location != null) {
         await response.drain<void>().catchError((_) {});
         if (directMedia) {
-          throw const SpotiflacNetworkException(
+          throw const MorneyeNetworkException(
             'Direct-media downloads do not follow redirects',
           );
         }
-        final next = spotiflacValidateUrl(
+        final next = morneyeValidateUrl(
           url.resolve(location).toString(),
           permissions,
         );
@@ -410,9 +410,9 @@ class SpotiflacNetwork {
         url = next;
         continue;
       }
-      return SpotiflacResponse(url, status, headerMap, response);
+      return MorneyeResponse(url, status, headerMap, response);
     }
-    throw const SpotiflacNetworkException('Too many addon redirects');
+    throw const MorneyeNetworkException('Too many addon redirects');
   }
 
   /// Fetches [raw] whole (up to 16 MB), shaped as the guest's `http` API
@@ -437,7 +437,7 @@ class SpotiflacNetwork {
       bytes.add(chunk);
       if (bytes.length > 16 * 1024 * 1024) {
         await response.close();
-        throw const SpotiflacNetworkException(
+        throw const MorneyeNetworkException(
           'Addon network response exceeds 16 MB',
         );
       }
@@ -459,12 +459,12 @@ class SpotiflacNetwork {
 }
 
 /// Reads [stream] into memory, failing past [limit] bytes.
-Future<Uint8List> spotiflacReadAll(Stream<List<int>> stream, int limit) async {
+Future<Uint8List> morneyeReadAll(Stream<List<int>> stream, int limit) async {
   final bytes = BytesBuilder(copy: false);
   await for (final chunk in stream) {
     bytes.add(chunk);
     if (bytes.length > limit) {
-      throw const SpotiflacNetworkException('Response is too large');
+      throw const MorneyeNetworkException('Response is too large');
     }
   }
   return bytes.takeBytes();

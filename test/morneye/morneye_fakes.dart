@@ -4,13 +4,13 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flick/features/spotiflac/spotiflac_host.dart';
-import 'package:flick/features/spotiflac/spotiflac_runtime.dart';
-import 'package:flick/features/spotiflac/spotiflac_storage.dart';
+import 'package:flick/features/morneye/morneye_host.dart';
+import 'package:flick/features/morneye/morneye_runtime.dart';
+import 'package:flick/features/morneye/morneye_storage.dart';
 
 /// Stands in for the native core: a keyed XOR "seal" with a checksum, so a
 /// wrong key fails like AES-GCM would.
-class FakeNative implements SpotiflacNative {
+class FakeNative implements MorneyeNative {
   Map<String, Object?> info = {
     'codec': 'flac',
     'format': 'flac',
@@ -53,7 +53,7 @@ class FakeNative implements SpotiflacNative {
   Future<Map<String, Object?>> mediaInfo(String path) async => info;
 }
 
-class MemoryVault implements SpotiflacKeyVault {
+class MemoryVault implements MorneyeKeyVault {
   Uint8List? key;
 
   @override
@@ -73,11 +73,11 @@ typedef GuestMethod = Future<Object?> Function(
 
 /// A package's script, written in Dart: [FakeGuest] runs it in place of
 /// QuickJS, calling the host through the same JSON bridge.
-class FakeGuest implements SpotiflacGuest {
+class FakeGuest implements MorneyeGuest {
   FakeGuest(this.script, this.bridge);
 
   final Map<String, GuestMethod> script;
-  final SpotiflacHostBridge bridge;
+  final MorneyeHostBridge bridge;
   bool _closed = false;
   final calls = <String>[];
 
@@ -127,10 +127,10 @@ class FakeEngine {
   final scripts = <String, Map<String, GuestMethod>>{};
   final started = <FakeGuest>[];
 
-  Future<SpotiflacGuest> start(
+  Future<MorneyeGuest> start(
     String code,
     String config,
-    SpotiflacHostBridge bridge,
+    MorneyeHostBridge bridge,
   ) async {
     final script = scripts[code];
     if (script == null) throw StateError('SyntaxError: unknown script');

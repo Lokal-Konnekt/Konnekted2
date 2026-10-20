@@ -4,9 +4,9 @@ pub mod api;
 pub mod audio;
 pub mod library_scan;
 
-/// SpotiFLAC add-ons, run in QuickJS.
-pub mod spotiflac;
-pub mod spotiflac_crypto;
+/// Morneye add-ons, run in QuickJS.
+pub mod morneye;
+pub mod morneye_crypto;
 
 /// Custom UAC 2.0 USB Audio (DAC/AMP detection and direct playback paths).
 /// Real implementation is gated by the `uac2` feature.

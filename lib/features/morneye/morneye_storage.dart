@@ -7,29 +7,29 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 
-/// What SpotiFLAC add-ons keep between runs, as desktop's
-/// electron/spotiflac/storage.js: plain `storage` JSON, and everything else
+/// What Morneye add-ons keep between runs, as desktop's
+/// electron/morneye/storage.js: plain `storage` JSON, and everything else
 /// (settings, credentials, logins) sealed with AES-256-GCM under a key that
 /// lives in the phone's secure storage.
 
 /// AES-256-GCM, provided by the native core.
-abstract class SpotiflacSealer {
+abstract class MorneyeSealer {
   Uint8List seal(Uint8List data, Uint8List key, Uint8List nonce);
   Uint8List open(Uint8List data, Uint8List key);
 }
 
 /// Holds the 32-byte key everything sealed is derived from.
-abstract class SpotiflacKeyVault {
+abstract class MorneyeKeyVault {
   Future<Uint8List?> read();
   Future<void> write(Uint8List key);
   Future<void> delete();
 }
 
-class SecureSpotiflacKeyVault implements SpotiflacKeyVault {
-  SecureSpotiflacKeyVault([FlutterSecureStorage? storage])
+class SecureMorneyeKeyVault implements MorneyeKeyVault {
+  SecureMorneyeKeyVault([FlutterSecureStorage? storage])
     : _storage = storage ?? const FlutterSecureStorage();
 
-  static const _key = 'lokal.spotiflac.master.v1';
+  static const _key = 'lokal.morneye.master.v1';
   final FlutterSecureStorage _storage;
 
   @override
@@ -51,14 +51,14 @@ class SecureSpotiflacKeyVault implements SpotiflacKeyVault {
   Future<void> delete() => _storage.delete(key: _key);
 }
 
-Uint8List spotiflacRandomBytes(int length) {
+Uint8List morneyeRandomBytes(int length) {
   final random = Random.secure();
   return Uint8List.fromList(List.generate(length, (_) => random.nextInt(256)));
 }
 
 /// Writes [data] to [file] through a temporary file, so a crash never leaves
 /// half a record.
-void spotiflacAtomicWrite(File file, List<int> data) {
+void morneyeAtomicWrite(File file, List<int> data) {
   file.parent.createSync(recursive: true);
   final temp = File(
     '${file.path}.${DateTime.now().microsecondsSinceEpoch}.tmp',
@@ -71,13 +71,13 @@ void spotiflacAtomicWrite(File file, List<int> data) {
   }
 }
 
-class SpotiflacStorage {
-  SpotiflacStorage(this.root, {required this.sealer, SpotiflacKeyVault? vault})
-    : _vault = vault ?? SecureSpotiflacKeyVault();
+class MorneyeStorage {
+  MorneyeStorage(this.root, {required this.sealer, MorneyeKeyVault? vault})
+    : _vault = vault ?? SecureMorneyeKeyVault();
 
   final Directory root;
-  final SpotiflacSealer sealer;
-  final SpotiflacKeyVault _vault;
+  final MorneyeSealer sealer;
+  final MorneyeKeyVault _vault;
   Uint8List? _key;
 
   static const _limit = 5 * 1024 * 1024;
@@ -89,7 +89,7 @@ class SpotiflacStorage {
     if (key == null || key.length != 32) {
       // A lost key also loses what it sealed: start over cleanly.
       _discardSealed();
-      key = spotiflacRandomBytes(32);
+      key = morneyeRandomBytes(32);
       await _vault.write(key);
     }
     _key = key;
@@ -126,7 +126,7 @@ class SpotiflacStorage {
       Hmac(sha256, key)
           .convert(
             utf8.encode(
-              'Lokal SpotiFLAC storage v1\u0000$purpose\u0000$namespace',
+              'Lokal Morneye storage v1\u0000$purpose\u0000$namespace',
             ),
           )
           .bytes,
@@ -151,14 +151,14 @@ class SpotiflacStorage {
     final bytes = Uint8List.fromList(utf8.encode(jsonEncode(value)));
     if (bytes.length > _limit) throw StateError('Addon storage exceeds 5 MB');
     final file = _file(namespace, purpose);
-    spotiflacAtomicWrite(
+    morneyeAtomicWrite(
       file,
       purpose == 'storage'
           ? bytes
           : sealer.seal(
               bytes,
               _derived(namespace, purpose),
-              spotiflacRandomBytes(12),
+              morneyeRandomBytes(12),
             ),
     );
   }

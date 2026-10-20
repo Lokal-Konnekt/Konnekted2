@@ -27,7 +27,7 @@
 
 // Section: imports
 
-use crate::api::spotiflac_api::*;
+use crate::api::morneye_api::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
 use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
@@ -48,7 +48,7 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__api__spotiflac_api__SpotiflacEngine_callback_impl(
+fn wire__crate__api__morneye_api__MorneyeEngine_callback_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -56,7 +56,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_callback_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "SpotiflacEngine_callback",
+            debug_name: "MorneyeEngine_callback",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -71,7 +71,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_callback_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>,
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>,
             >>::sse_decode(&mut deserializer);
             let api_id = <u64>::sse_decode(&mut deserializer);
             let api_args_json = <String>::sse_decode(&mut deserializer);
@@ -97,7 +97,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_callback_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok = Ok::<_, ()>(
-                            crate::api::spotiflac_api::SpotiflacEngine::callback(
+                            crate::api::morneye_api::MorneyeEngine::callback(
                                 &*api_that_guard,
                                 api_id,
                                 api_args_json,
@@ -112,14 +112,14 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_callback_impl(
         },
     )
 }
-fn wire__crate__api__spotiflac_api__SpotiflacEngine_close_impl(
+fn wire__crate__api__morneye_api__MorneyeEngine_close_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "SpotiflacEngine_close",
+            debug_name: "MorneyeEngine_close",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -134,7 +134,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_close_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>,
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
@@ -153,14 +153,14 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_close_impl(
                 }
                 let api_that_guard = api_that_guard.unwrap();
                 let output_ok = Ok::<_, ()>({
-                    crate::api::spotiflac_api::SpotiflacEngine::close(&*api_that_guard);
+                    crate::api::morneye_api::MorneyeEngine::close(&*api_that_guard);
                 })?;
                 std::result::Result::Ok(output_ok)
             })())
         },
     )
 }
-fn wire__crate__api__spotiflac_api__SpotiflacEngine_invoke_impl(
+fn wire__crate__api__morneye_api__MorneyeEngine_invoke_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -168,7 +168,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_invoke_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "SpotiflacEngine_invoke",
+            debug_name: "MorneyeEngine_invoke",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -183,7 +183,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_invoke_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>,
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>,
             >>::sse_decode(&mut deserializer);
             let api_method = <String>::sse_decode(&mut deserializer);
             let api_args_json = <String>::sse_decode(&mut deserializer);
@@ -209,7 +209,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_invoke_impl(
                             }
                         }
                         let api_that_guard = api_that_guard.unwrap();
-                        let output_ok = crate::api::spotiflac_api::SpotiflacEngine::invoke(
+                        let output_ok = crate::api::morneye_api::MorneyeEngine::invoke(
                             &*api_that_guard,
                             api_method,
                             api_args_json,
@@ -224,14 +224,14 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_invoke_impl(
         },
     )
 }
-fn wire__crate__api__spotiflac_api__SpotiflacEngine_is_closed_impl(
+fn wire__crate__api__morneye_api__MorneyeEngine_is_closed_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "SpotiflacEngine_is_closed",
+            debug_name: "MorneyeEngine_is_closed",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -246,7 +246,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_is_closed_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>,
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
@@ -265,21 +265,21 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_is_closed_impl(
                 }
                 let api_that_guard = api_that_guard.unwrap();
                 let output_ok = Ok::<_, ()>(
-                    crate::api::spotiflac_api::SpotiflacEngine::is_closed(&*api_that_guard),
+                    crate::api::morneye_api::MorneyeEngine::is_closed(&*api_that_guard),
                 )?;
                 std::result::Result::Ok(output_ok)
             })())
         },
     )
 }
-fn wire__crate__api__spotiflac_api__SpotiflacEngine_methods_impl(
+fn wire__crate__api__morneye_api__MorneyeEngine_methods_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "SpotiflacEngine_methods",
+            debug_name: "MorneyeEngine_methods",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -294,7 +294,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_methods_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>,
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
@@ -312,7 +312,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_methods_impl(
                     }
                 }
                 let api_that_guard = api_that_guard.unwrap();
-                let output_ok = Ok::<_, ()>(crate::api::spotiflac_api::SpotiflacEngine::methods(
+                let output_ok = Ok::<_, ()>(crate::api::morneye_api::MorneyeEngine::methods(
                     &*api_that_guard,
                 ))?;
                 std::result::Result::Ok(output_ok)
@@ -320,7 +320,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_methods_impl(
         },
     )
 }
-fn wire__crate__api__spotiflac_api__SpotiflacEngine_start_impl(
+fn wire__crate__api__morneye_api__MorneyeEngine_start_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -328,7 +328,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_start_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "SpotiflacEngine_start",
+            debug_name: "MorneyeEngine_start",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -352,7 +352,7 @@ fn wire__crate__api__spotiflac_api__SpotiflacEngine_start_impl(
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::spotiflac_api::SpotiflacEngine::start(
+                        let output_ok = crate::api::morneye_api::MorneyeEngine::start(
                             api_code,
                             api_bootstrap,
                             api_config_json,
@@ -3754,14 +3754,14 @@ fn wire__crate__api__smb_api__smb_read_file_impl(
         },
     )
 }
-fn wire__crate__api__spotiflac_api__spotiflac_cipher_impl(
+fn wire__crate__api__morneye_api__morneye_cipher_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "spotiflac_cipher",
+            debug_name: "morneye_cipher",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -3785,7 +3785,7 @@ fn wire__crate__api__spotiflac_api__spotiflac_cipher_impl(
             deserializer.end();
             transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                 (move || {
-                    let output_ok = crate::api::spotiflac_api::spotiflac_cipher(
+                    let output_ok = crate::api::morneye_api::morneye_cipher(
                         api_data,
                         api_algorithm,
                         api_mode,
@@ -3800,7 +3800,7 @@ fn wire__crate__api__spotiflac_api__spotiflac_cipher_impl(
         },
     )
 }
-fn wire__crate__api__spotiflac_api__spotiflac_media_info_impl(
+fn wire__crate__api__morneye_api__morneye_media_info_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -3808,7 +3808,7 @@ fn wire__crate__api__spotiflac_api__spotiflac_media_info_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "spotiflac_media_info",
+            debug_name: "morneye_media_info",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -3827,7 +3827,7 @@ fn wire__crate__api__spotiflac_api__spotiflac_media_info_impl(
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::spotiflac_api::spotiflac_media_info(api_path)?;
+                        let output_ok = crate::api::morneye_api::morneye_media_info(api_path)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -3835,14 +3835,14 @@ fn wire__crate__api__spotiflac_api__spotiflac_media_info_impl(
         },
     )
 }
-fn wire__crate__api__spotiflac_api__spotiflac_open_impl(
+fn wire__crate__api__morneye_api__morneye_open_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "spotiflac_open",
+            debug_name: "morneye_open",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -3861,21 +3861,21 @@ fn wire__crate__api__spotiflac_api__spotiflac_open_impl(
             deserializer.end();
             transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                 (move || {
-                    let output_ok = crate::api::spotiflac_api::spotiflac_open(api_data, api_key)?;
+                    let output_ok = crate::api::morneye_api::morneye_open(api_data, api_key)?;
                     std::result::Result::Ok(output_ok)
                 })(),
             )
         },
     )
 }
-fn wire__crate__api__spotiflac_api__spotiflac_seal_impl(
+fn wire__crate__api__morneye_api__morneye_seal_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "spotiflac_seal",
+            debug_name: "morneye_seal",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
@@ -3896,7 +3896,7 @@ fn wire__crate__api__spotiflac_api__spotiflac_seal_impl(
             transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                 (move || {
                     let output_ok =
-                        crate::api::spotiflac_api::spotiflac_seal(api_data, api_key, api_nonce)?;
+                        crate::api::morneye_api::morneye_seal(api_data, api_key, api_nonce)?;
                     std::result::Result::Ok(output_ok)
                 })(),
             )
@@ -4947,7 +4947,7 @@ fn decode_DartFn_Inputs_String_String_Output_String_AnyhowException(
     }
 }
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>
+    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>
 );
 
 // Section: dart2rust
@@ -4960,11 +4960,11 @@ impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
     }
 }
 
-impl SseDecode for SpotiflacEngine {
+impl SseDecode for MorneyeEngine {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>,
+            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
     }
@@ -4995,7 +4995,7 @@ impl SseDecode for std::collections::HashMap<String, i64> {
 }
 
 impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>>
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6139,19 +6139,19 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__spotiflac_api__SpotiflacEngine_callback_impl(
+        1 => wire__crate__api__morneye_api__MorneyeEngine_callback_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        3 => wire__crate__api__spotiflac_api__SpotiflacEngine_invoke_impl(
+        3 => wire__crate__api__morneye_api__MorneyeEngine_invoke_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        6 => wire__crate__api__spotiflac_api__SpotiflacEngine_start_impl(
+        6 => wire__crate__api__morneye_api__MorneyeEngine_start_impl(
             port,
             ptr,
             rust_vec_len,
@@ -6391,7 +6391,7 @@ fn pde_ffi_dispatcher_primary_impl(
         102 => wire__crate__api__smb_api__smb_list_share_impl(port, ptr, rust_vec_len, data_len),
         103 => wire__crate__api__smb_api__smb_ping_impl(port, ptr, rust_vec_len, data_len),
         104 => wire__crate__api__smb_api__smb_read_file_impl(port, ptr, rust_vec_len, data_len),
-        106 => wire__crate__api__spotiflac_api__spotiflac_media_info_impl(
+        106 => wire__crate__api__morneye_api__morneye_media_info_impl(
             port,
             ptr,
             rust_vec_len,
@@ -6512,14 +6512,14 @@ fn pde_ffi_dispatcher_sync_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         2 => {
-            wire__crate__api__spotiflac_api__SpotiflacEngine_close_impl(ptr, rust_vec_len, data_len)
+            wire__crate__api__morneye_api__MorneyeEngine_close_impl(ptr, rust_vec_len, data_len)
         }
-        4 => wire__crate__api__spotiflac_api__SpotiflacEngine_is_closed_impl(
+        4 => wire__crate__api__morneye_api__MorneyeEngine_is_closed_impl(
             ptr,
             rust_vec_len,
             data_len,
         ),
-        5 => wire__crate__api__spotiflac_api__SpotiflacEngine_methods_impl(
+        5 => wire__crate__api__morneye_api__MorneyeEngine_methods_impl(
             ptr,
             rust_vec_len,
             data_len,
@@ -6638,9 +6638,9 @@ fn pde_ffi_dispatcher_sync_impl(
             data_len,
         ),
         85 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
-        105 => wire__crate__api__spotiflac_api__spotiflac_cipher_impl(ptr, rust_vec_len, data_len),
-        107 => wire__crate__api__spotiflac_api__spotiflac_open_impl(ptr, rust_vec_len, data_len),
-        108 => wire__crate__api__spotiflac_api__spotiflac_seal_impl(ptr, rust_vec_len, data_len),
+        105 => wire__crate__api__morneye_api__morneye_cipher_impl(ptr, rust_vec_len, data_len),
+        107 => wire__crate__api__morneye_api__morneye_open_impl(ptr, rust_vec_len, data_len),
+        108 => wire__crate__api__morneye_api__morneye_seal_impl(ptr, rust_vec_len, data_len),
         117 => wire__crate__api__uac2_api__uac2_force_release_usb_session_impl(
             ptr,
             rust_vec_len,
@@ -6669,16 +6669,16 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<SpotiflacEngine> {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<MorneyeEngine> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
             .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<SpotiflacEngine> {}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<MorneyeEngine> {}
 
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<SpotiflacEngine>> for SpotiflacEngine {
-    fn into_into_dart(self) -> FrbWrapper<SpotiflacEngine> {
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<MorneyeEngine>> for MorneyeEngine {
+    fn into_into_dart(self) -> FrbWrapper<MorneyeEngine> {
         self.into()
     }
 }
@@ -7490,10 +7490,10 @@ impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     }
 }
 
-impl SseEncode for SpotiflacEngine {
+impl SseEncode for MorneyeEngine {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
+        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
     }
 }
 
@@ -7519,7 +7519,7 @@ impl SseEncode for std::collections::HashMap<String, i64> {
 }
 
 impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>>
+    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8438,7 +8438,7 @@ mod io {
     // Section: imports
 
     use super::*;
-    use crate::api::spotiflac_api::*;
+    use crate::api::morneye_api::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -8450,17 +8450,17 @@ mod io {
     flutter_rust_bridge::frb_generated_boilerplate_io!();
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_flick_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+    pub extern "C" fn frbgen_flick_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>>::increment_strong_count(ptr as _);
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>>::increment_strong_count(ptr as _);
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_flick_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+    pub extern "C" fn frbgen_flick_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>>::decrement_strong_count(ptr as _);
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>>::decrement_strong_count(ptr as _);
     }
 }
 #[cfg(not(target_family = "wasm"))]
@@ -8475,7 +8475,7 @@ mod web {
     // Section: imports
 
     use super::*;
-    use crate::api::spotiflac_api::*;
+    use crate::api::morneye_api::*;
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
@@ -8489,17 +8489,17 @@ mod web {
     flutter_rust_bridge::frb_generated_boilerplate_web!();
 
     #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>>::increment_strong_count(ptr as _);
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>>::increment_strong_count(ptr as _);
     }
 
     #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
         ptr: *const std::ffi::c_void,
     ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>>::decrement_strong_count(ptr as _);
+        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>>::decrement_strong_count(ptr as _);
     }
 }
 #[cfg(target_family = "wasm")]

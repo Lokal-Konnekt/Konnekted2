@@ -1,10 +1,10 @@
-import 'package:flick/features/spotiflac/spotiflac_session.dart';
+import 'package:flick/features/morneye/morneye_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('signed headers match desktop byte for byte', () {
-    // Expected values come from desktop's electron/spotiflac/session.js.
-    final headers = spotiflacSignedHeaders(
+    // Expected values come from desktop's electron/morneye/session.js.
+    final headers = morneyeSignedHeaders(
       {
         'headerPrefix': 'X-Zarz-',
         'schemeLabel': 'ZARZ-HMAC-V1',

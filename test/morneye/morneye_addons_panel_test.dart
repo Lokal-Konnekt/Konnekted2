@@ -2,30 +2,30 @@ import 'dart:io';
 
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
-import 'package:flick/features/spotiflac/spotiflac_addons_screen.dart';
-import 'package:flick/features/spotiflac/spotiflac_packages.dart';
-import 'package:flick/features/spotiflac/spotiflac_storage.dart';
+import 'package:flick/features/morneye/morneye_addons_screen.dart';
+import 'package:flick/features/morneye/morneye_packages.dart';
+import 'package:flick/features/morneye/morneye_storage.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'spotiflac_fakes.dart';
+import 'morneye_fakes.dart';
 
 void main() {
   testWidgets('the add-on panels are Lokal rows with a clear empty state', (
     tester,
   ) async {
     late Directory dir;
-    late SpotiflacPackages packages;
+    late MorneyePackages packages;
     await tester.runAsync(() async {
-      dir = await Directory.systemTemp.createTemp('spotiflac-panel');
+      dir = await Directory.systemTemp.createTemp('morneye-panel');
       final native = FakeNative();
-      final storage = SpotiflacStorage(
+      final storage = MorneyeStorage(
         dir,
         sealer: native,
         vault: MemoryVault(),
       );
-      packages = SpotiflacPackages(dir, storage: storage, native: native);
+      packages = MorneyePackages(dir, storage: storage, native: native);
       await packages.load();
     });
     addTearDown(() => dir.delete(recursive: true));
@@ -38,12 +38,12 @@ void main() {
           children: [
             LokalSettingsSection(
               title: 'Add-ons',
-              children: [SpotiflacAddonsPanel(loader: () async => packages)],
+              children: [MorneyeAddonsPanel(loader: () async => packages)],
             ),
             LokalSettingsSection(
               title: 'Add-on repositories',
               children: [
-                SpotiflacRepositoriesPanel(loader: () async => packages),
+                MorneyeRepositoriesPanel(loader: () async => packages),
               ],
             ),
           ],
@@ -59,13 +59,13 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Install from file'), findsOneWidget);
-    expect(find.text('SpotiFLAC official'), findsOneWidget);
+    expect(find.text('Morneye official'), findsOneWidget);
     expect(find.byType(BackdropFilter), findsNothing);
 
     // Search finds the panels by what they hold.
     const section = LokalSettingsSection(
       title: 'Add-ons',
-      children: [SpotiflacAddonsPanel()],
+      children: [MorneyeAddonsPanel()],
     );
     expect(section.filtered('verify'), isNotNull);
     expect(section.filtered('qwerty'), isNull);

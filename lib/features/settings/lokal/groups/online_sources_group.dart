@@ -10,7 +10,7 @@ import 'package:flick/features/settings/widgets/http_addons_settings_panel.dart'
 import 'package:flick/features/settings/widgets/lastfm_settings_tile.dart';
 import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart';
 import 'package:flick/features/settings/widgets/youtube_music_settings_tile.dart';
-import 'package:flick/features/spotiflac/spotiflac_addons_screen.dart';
+import 'package:flick/features/morneye/morneye_addons_screen.dart';
 import 'package:flick/features/spotify/spotify_library_screen.dart';
 import 'package:flick/providers/opt_in_source_provider.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
@@ -52,7 +52,7 @@ List<LokalSettingsSection> onlineSourcesSettings(
   LokalSettingsSection(
     title: LokalOnlineSections.addons,
     children: [
-      const SpotiflacAddonsPanel(),
+      const MorneyeAddonsPanel(),
       const LokalSettingCustom(
         label: 'HTTP music add-ons',
         description: 'Add HTTPS music catalogues using their manifest.json link.',
@@ -62,7 +62,7 @@ List<LokalSettingsSection> onlineSourcesSettings(
   ),
   const LokalSettingsSection(
     title: LokalOnlineSections.repositories,
-    children: [SpotiflacRepositoriesPanel()],
+    children: [MorneyeRepositoriesPanel()],
   ),
   LokalSettingsSection(
     title: LokalOnlineSections.radioVideos,

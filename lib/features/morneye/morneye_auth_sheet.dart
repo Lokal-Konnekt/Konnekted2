@@ -5,30 +5,30 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
 
-import 'spotiflac_packages.dart';
+import 'morneye_packages.dart';
 
 /// An add-on's verification or login page, opened in the app the way
 /// desktop opens it in its own window. When the page hands back to the
-/// add-on (a `spotiflac://` link or the add-on's OAuth callback) the sheet
+/// add-on (a `morneye://` link or the add-on's OAuth callback) the sheet
 /// finishes the login and closes; closing it early just leaves access as it
 /// was.
-class SpotiflacAuthSheet extends StatefulWidget {
-  const SpotiflacAuthSheet({
+class MorneyeAuthSheet extends StatefulWidget {
+  const MorneyeAuthSheet({
     super.key,
     required this.packages,
     required this.addon,
     required this.url,
   });
 
-  final SpotiflacPackages packages;
-  final SpotiflacAddon addon;
+  final MorneyePackages packages;
+  final MorneyeAddon addon;
   final String url;
 
   /// Opens [url]; true once the add-on accepted the page's callback.
   static Future<bool> show(
     BuildContext context, {
-    required SpotiflacPackages packages,
-    required SpotiflacAddon addon,
+    required MorneyePackages packages,
+    required MorneyeAddon addon,
     required String url,
   }) async =>
       await showModalBottomSheet<bool>(
@@ -37,15 +37,15 @@ class SpotiflacAuthSheet extends StatefulWidget {
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (_) =>
-            SpotiflacAuthSheet(packages: packages, addon: addon, url: url),
+            MorneyeAuthSheet(packages: packages, addon: addon, url: url),
       ) ==
       true;
 
   @override
-  State<SpotiflacAuthSheet> createState() => _SpotiflacAuthSheetState();
+  State<MorneyeAuthSheet> createState() => _MorneyeAuthSheetState();
 }
 
-class _SpotiflacAuthSheetState extends State<SpotiflacAuthSheet> {
+class _MorneyeAuthSheetState extends State<MorneyeAuthSheet> {
   String? _error;
   bool _finishing = false;
 

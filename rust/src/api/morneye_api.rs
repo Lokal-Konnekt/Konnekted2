@@ -1,16 +1,16 @@
-//! SpotiFLAC add-ons for Dart: see `crate::spotiflac`.
+//! Morneye add-ons for Dart: see `crate::morneye`.
 
 use std::sync::Arc;
 
 use flutter_rust_bridge::{frb, DartFnFuture};
 
-use crate::spotiflac::Engine;
+use crate::morneye::Engine;
 
 /// One running add-on package.
 #[frb(opaque)]
-pub struct SpotiflacEngine(Engine);
+pub struct MorneyeEngine(Engine);
 
-impl SpotiflacEngine {
+impl MorneyeEngine {
     /// Starts [code] after desktop's [bootstrap] prelude with [config_json].
     /// [host] answers the package's host calls: (method, JSON args) → JSON.
     pub fn start(
@@ -18,9 +18,9 @@ impl SpotiflacEngine {
         bootstrap: String,
         config_json: String,
         host: impl Fn(String, String) -> DartFnFuture<String> + Send + Sync + 'static,
-    ) -> anyhow::Result<SpotiflacEngine> {
+    ) -> anyhow::Result<MorneyeEngine> {
         let host = Arc::new(move |method: String, json: String| host(method, json));
-        Engine::start(code, bootstrap, config_json, host).map(SpotiflacEngine).map_err(anyhow::Error::msg)
+        Engine::start(code, bootstrap, config_json, host).map(MorneyeEngine).map_err(anyhow::Error::msg)
     }
 
     /// The functions the package registered.
@@ -53,7 +53,7 @@ impl SpotiflacEngine {
 
 /// AES or Blowfish in CBC/CTR mode, as desktop's add-on host offers.
 #[frb(sync)]
-pub fn spotiflac_cipher(
+pub fn morneye_cipher(
     data: Vec<u8>,
     algorithm: String,
     mode: String,
@@ -62,23 +62,23 @@ pub fn spotiflac_cipher(
     pkcs7: bool,
     decrypt: bool,
 ) -> anyhow::Result<Vec<u8>> {
-    crate::spotiflac_crypto::transform(&data, &algorithm, &mode, &key, &iv, pkcs7, decrypt).map_err(anyhow::Error::msg)
+    crate::morneye_crypto::transform(&data, &algorithm, &mode, &key, &iv, pkcs7, decrypt).map_err(anyhow::Error::msg)
 }
 
 /// AES-256-GCM sealing for add-on logins and settings.
 #[frb(sync)]
-pub fn spotiflac_seal(data: Vec<u8>, key: Vec<u8>, nonce: Vec<u8>) -> anyhow::Result<Vec<u8>> {
-    crate::spotiflac_crypto::seal(&data, &key, &nonce).map_err(anyhow::Error::msg)
+pub fn morneye_seal(data: Vec<u8>, key: Vec<u8>, nonce: Vec<u8>) -> anyhow::Result<Vec<u8>> {
+    crate::morneye_crypto::seal(&data, &key, &nonce).map_err(anyhow::Error::msg)
 }
 
 #[frb(sync)]
-pub fn spotiflac_open(data: Vec<u8>, key: Vec<u8>) -> anyhow::Result<Vec<u8>> {
-    crate::spotiflac_crypto::open(&data, &key).map_err(anyhow::Error::msg)
+pub fn morneye_open(data: Vec<u8>, key: Vec<u8>) -> anyhow::Result<Vec<u8>> {
+    crate::morneye_crypto::open(&data, &key).map_err(anyhow::Error::msg)
 }
 
 /// What an add-on's download holds, shaped like desktop's ffprobe summary
 /// (codec, bit depth, sample rate, channels, duration, bitrate, container).
-pub fn spotiflac_media_info(path: String) -> anyhow::Result<String> {
+pub fn morneye_media_info(path: String) -> anyhow::Result<String> {
     use std::fs::File;
     use std::path::Path;
     use symphonia::core::codecs::audio::well_known::*;

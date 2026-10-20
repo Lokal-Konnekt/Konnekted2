@@ -7,19 +7,19 @@ import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
-import 'spotiflac_auth_sheet.dart';
-import 'spotiflac_packages.dart';
-import 'spotiflac_service.dart';
+import 'morneye_auth_sheet.dart';
+import 'morneye_packages.dart';
+import 'morneye_service.dart';
 
 /// Loads the add-on manager for a panel, or the test's stand-in.
-typedef SpotiflacPackagesLoader = Future<SpotiflacPackages> Function();
+typedef MorneyePackagesLoader = Future<MorneyePackages> Function();
 
-/// SpotiFLAC add-ons on a page of their own: the same panels Settings ›
+/// Morneye add-ons on a page of their own: the same panels Settings ›
 /// Online sources shows, for a link straight to them.
-class SpotiflacAddonsScreen extends StatelessWidget {
-  const SpotiflacAddonsScreen({super.key, this.service});
+class MorneyeAddonsScreen extends StatelessWidget {
+  const MorneyeAddonsScreen({super.key, this.service});
 
-  final SpotiflacService? service;
+  final MorneyeService? service;
 
   @override
   Widget build(BuildContext context) => LokalSettingsScaffold(
@@ -28,11 +28,11 @@ class SpotiflacAddonsScreen extends StatelessWidget {
     children: [
       LokalSettingsSection(
         title: 'Add-ons',
-        children: [SpotiflacAddonsPanel(service: service)],
+        children: [MorneyeAddonsPanel(service: service)],
       ),
       LokalSettingsSection(
         title: 'Add-on repositories',
-        children: [SpotiflacRepositoriesPanel(service: service)],
+        children: [MorneyeRepositoriesPanel(service: service)],
       ),
     ],
   );
@@ -40,12 +40,12 @@ class SpotiflacAddonsScreen extends StatelessWidget {
 
 /// The add-on manager, loaded once, with the panel's busy state and its
 /// messages.
-mixin _SpotiflacPanel<T extends StatefulWidget> on State<T> {
-  SpotiflacService? get _injected;
-  SpotiflacPackagesLoader? get _loader;
+mixin _MorneyePanel<T extends StatefulWidget> on State<T> {
+  MorneyeService? get _injected;
+  MorneyePackagesLoader? get _loader;
 
-  SpotiflacService get _service => _injected ?? SpotiflacService.instance;
-  SpotiflacPackages? _packages;
+  MorneyeService get _service => _injected ?? MorneyeService.instance;
+  MorneyePackages? _packages;
   Object? _loadError;
   bool _busy = false;
 
@@ -101,7 +101,7 @@ mixin _SpotiflacPanel<T extends StatefulWidget> on State<T> {
     }
   }
 
-  void _installed(SpotiflacAddon addon) => _say(
+  void _installed(MorneyeAddon addon) => _say(
     '${addon.displayName} installed. Set it up below, then find it in Search.',
   );
 
@@ -143,38 +143,38 @@ mixin _SpotiflacPanel<T extends StatefulWidget> on State<T> {
 
 /// Installed add-ons, each with what it can do, its switch and its setup;
 /// then installing a package file and the third-party notice.
-class SpotiflacAddonsPanel extends StatefulWidget implements LokalSearchable {
-  const SpotiflacAddonsPanel({super.key, this.service, this.loader});
+class MorneyeAddonsPanel extends StatefulWidget implements LokalSearchable {
+  const MorneyeAddonsPanel({super.key, this.service, this.loader});
 
-  final SpotiflacService? service;
+  final MorneyeService? service;
 
   /// Replaces the app's add-on manager, for tests.
   @visibleForTesting
-  final SpotiflacPackagesLoader? loader;
+  final MorneyePackagesLoader? loader;
 
   @override
   String get searchText =>
-      'SpotiFLAC add-ons installed setup verify log in install package file';
+      'Morneye add-ons installed setup verify log in install package file';
 
   @override
-  State<SpotiflacAddonsPanel> createState() => _SpotiflacAddonsPanelState();
+  State<MorneyeAddonsPanel> createState() => _MorneyeAddonsPanelState();
 }
 
-class _SpotiflacAddonsPanelState extends State<SpotiflacAddonsPanel>
-    with _SpotiflacPanel {
+class _MorneyeAddonsPanelState extends State<MorneyeAddonsPanel>
+    with _MorneyePanel {
   @override
-  SpotiflacService? get _injected => widget.service;
+  MorneyeService? get _injected => widget.service;
   @override
-  SpotiflacPackagesLoader? get _loader => widget.loader;
+  MorneyePackagesLoader? get _loader => widget.loader;
 
-  Future<void> _installFile(SpotiflacPackages packages) async {
+  Future<void> _installFile(MorneyePackages packages) async {
     final file = await FilePicker.pickFile(type: FileType.any);
     if (file == null) return;
     if (!RegExp(
-      r'\.(sflx|spotiflac-ext)$',
+      r'\.(sflx|morneye-ext)$',
       caseSensitive: false,
     ).hasMatch(file.name)) {
-      _say('Choose a .sflx or .spotiflac-ext package');
+      _say('Choose a .sflx or .morneye-ext package');
       return;
     }
     final addon = await _run(
@@ -224,7 +224,7 @@ class _SpotiflacAddonsPanelState extends State<SpotiflacAddonsPanel>
         ),
       LokalSettingRow(
         label: 'Install from file',
-        description: 'A .sflx or .spotiflac-ext package you downloaded.',
+        description: 'A .sflx or .morneye-ext package you downloaded.',
         icon: Icons.file_open_rounded,
         enabled: !_busy,
         onTap: () => _installFile(packages),
@@ -246,31 +246,31 @@ class _SpotiflacAddonsPanelState extends State<SpotiflacAddonsPanel>
 
 /// Add-on repositories with their refresh and removal, a field to add one,
 /// and the packages they offer.
-class SpotiflacRepositoriesPanel extends StatefulWidget
+class MorneyeRepositoriesPanel extends StatefulWidget
     implements LokalSearchable {
-  const SpotiflacRepositoriesPanel({super.key, this.service, this.loader});
+  const MorneyeRepositoriesPanel({super.key, this.service, this.loader});
 
-  final SpotiflacService? service;
+  final MorneyeService? service;
 
   /// Replaces the app's add-on manager, for tests.
   @visibleForTesting
-  final SpotiflacPackagesLoader? loader;
+  final MorneyePackagesLoader? loader;
 
   @override
   String get searchText =>
       'Add-on repositories registry available add-ons install update';
 
   @override
-  State<SpotiflacRepositoriesPanel> createState() =>
-      _SpotiflacRepositoriesPanelState();
+  State<MorneyeRepositoriesPanel> createState() =>
+      _MorneyeRepositoriesPanelState();
 }
 
-class _SpotiflacRepositoriesPanelState extends State<SpotiflacRepositoriesPanel>
-    with _SpotiflacPanel {
+class _MorneyeRepositoriesPanelState extends State<MorneyeRepositoriesPanel>
+    with _MorneyePanel {
   @override
-  SpotiflacService? get _injected => widget.service;
+  MorneyeService? get _injected => widget.service;
   @override
-  SpotiflacPackagesLoader? get _loader => widget.loader;
+  MorneyePackagesLoader? get _loader => widget.loader;
 
   final _repoUrl = TextEditingController();
 
@@ -280,7 +280,7 @@ class _SpotiflacRepositoriesPanelState extends State<SpotiflacRepositoriesPanel>
     super.dispose();
   }
 
-  Future<void> _addRepo(SpotiflacPackages packages) async {
+  Future<void> _addRepo(MorneyePackages packages) async {
     final url = _repoUrl.text.trim();
     if (url.isEmpty) return;
     final repo = await _run(() => packages.addRepo(url));
@@ -297,7 +297,7 @@ class _SpotiflacRepositoriesPanelState extends State<SpotiflacRepositoriesPanel>
     return _rows([
       for (final repo in packages.repositories)
         LokalSettingRow(
-          label: repo.official ? 'SpotiFLAC official' : repo.name,
+          label: repo.official ? 'Morneye official' : repo.name,
           description:
               repo.error ??
               (repo.refreshedAt == null
@@ -364,7 +364,7 @@ class _SpotiflacRepositoriesPanelState extends State<SpotiflacRepositoriesPanel>
           description: [
             'v${entry.version}',
             !entry.compatible
-                ? 'Needs a newer SpotiFLAC version'
+                ? 'Needs a newer Morneye version'
                 : entry.category == 'integration'
                 ? 'Reads playlist links'
                 : entry.description,
@@ -405,8 +405,8 @@ class _AddonRow extends StatefulWidget {
     required this.onChanged,
   });
 
-  final SpotiflacPackages packages;
-  final SpotiflacAddon addon;
+  final MorneyePackages packages;
+  final MorneyeAddon addon;
   final VoidCallback onChanged;
 
   @override
@@ -422,8 +422,8 @@ class _AddonRowState extends State<_AddonRow> {
   Map<String, Object?>? _form;
   final _formInput = <String, Object?>{};
 
-  SpotiflacPackages get _packages => widget.packages;
-  SpotiflacAddon get _addon => widget.addon;
+  MorneyePackages get _packages => widget.packages;
+  MorneyeAddon get _addon => widget.addon;
 
   Future<T?> _run<T>(Future<T> Function() work) async {
     if (_busy) return null;
@@ -448,7 +448,7 @@ class _AddonRowState extends State<_AddonRow> {
       setState(() => _message = 'The add-on gave a page that isn’t secure.');
       return;
     }
-    await SpotiflacAuthSheet.show(
+    await MorneyeAuthSheet.show(
       context,
       packages: _packages,
       addon: _addon,
@@ -494,14 +494,14 @@ class _AddonRowState extends State<_AddonRow> {
   }
 
   /// What the add-on still needs, in a few words; `null` once it's ready.
-  String? _needs(SpotiflacAccess access) {
+  String? _needs(MorneyeAccess access) {
     if (!_addon.enabled || access.ready) return null;
     if (access.missing.isNotEmpty) return 'Needs ${access.missing.join(', ')}';
     return access.kind == 'login' ? 'Needs login' : 'Needs verification';
   }
 
   /// The button that finishes setup, shown on the row itself.
-  Widget? _setupAction(SpotiflacAccess access) {
+  Widget? _setupAction(MorneyeAccess access) {
     if (!_addon.enabled || access.ready) return null;
     if (access.kind == 'verification' && !access.verified) {
       return LokalSettingButton(
@@ -611,7 +611,7 @@ class _AddonRowState extends State<_AddonRow> {
     );
   }
 
-  Widget _details(SpotiflacAccess access) {
+  Widget _details(MorneyeAccess access) {
     final t = context.lokal;
     final quality = _addon.qualityOptions.whereType<Map>().toList();
     return Padding(

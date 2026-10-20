@@ -78,7 +78,7 @@ void main() {
     );
     expect(store.settings.addons.single.enabled, isTrue);
     expect(store.settings.addons.single.token, isEmpty);
-    expect(find.text('Music add-on 1'), findsOneWidget);
+    expect(find.text('music.example'), findsOneWidget);
     expect(find.textContaining('private.example'), findsNothing);
     expect(find.textContaining('do-not-display-secret'), findsNothing);
     expect(tester.takeException(), isNull);

@@ -69,9 +69,9 @@ class _KonnektedDiscoveryViewState
   }
 
   Future<void> _connectYoutubeMusic() async {
-    final session = await YoutubeMusicSignInSheet.show(context);
-    if (!mounted || session == null) return;
     try {
+      final session = await YoutubeMusicSignInSheet.show(context);
+      if (!mounted || session == null) return;
       await ref.read(konnektedYoutubeMusicSessionProvider.notifier).save(session);
       final discovery = ref.read(konnektedDiscoveryProvider.notifier);
       if (ref.read(konnektedDiscoveryProvider).source ==
@@ -81,7 +81,7 @@ class _KonnektedDiscoveryViewState
         await discovery.setSource(KonnektedDiscoverySource.youtube);
       }
     } catch (_) {
-      if (mounted) _say('Could not save the YouTube Music session securely.');
+      if (mounted) _say('Could not sign in to YouTube Music. Try again.');
     }
   }
 

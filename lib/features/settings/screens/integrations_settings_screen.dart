@@ -3,6 +3,7 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/features/settings/widgets/apple_music_settings_tile.dart';
 import 'package:flick/features/settings/widgets/lastfm_settings_tile.dart';
 import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart';
+import 'package:flick/features/settings/widgets/youtube_music_settings_tile.dart';
 import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/l10n/l10n.dart';
 
@@ -18,7 +19,11 @@ class IntegrationsSettingsScreen extends StatelessWidget {
         children: [
           SettingsSectionHeader(l10n.integrations),
           const SettingsCard(
-            children: [LastFmSettingsTile(), ListenBrainzSettingsTile()],
+            children: [
+              LastFmSettingsTile(),
+              ListenBrainzSettingsTile(),
+              YoutubeMusicSettingsTile(),
+            ],
           ),
           const SizedBox(height: AppConstants.spacingLg),
           SettingsSectionHeader(l10n.metadata),

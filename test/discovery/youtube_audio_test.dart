@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flick/features/discovery/discovery_http.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/youtube_audio.dart';
+import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -76,6 +77,56 @@ void main() {
     );
   });
 
+
+  test('uses the saved YouTube Music account for the WEB_REMIX fallback', () async {
+    final session = YoutubeMusicSession(
+      cookies: {'SAPISID': 'signed-in-cookie'},
+      userAgent: 'Browser session UA',
+      visitorData: 'visitor-data',
+      clientVersion: '1.20261001.01.00',
+    );
+    final asked = <String>[];
+    final authorization = <String>[];
+    final cookies = <String>[];
+    final http.Client fake = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final client = body['context']['client'] as Map<String, dynamic>;
+      final name = '${client['clientName']}';
+      asked.add(name);
+      if (name == 'WEB_REMIX') {
+        expect(request.url.host, 'music.youtube.com');
+        expect(client['visitorData'], 'visitor-data');
+        expect(client['clientVersion'], '1.20261001.01.00');
+        authorization.add(request.headers['authorization'] ?? '');
+        cookies.add(request.headers['cookie'] ?? '');
+        return http.Response(
+          jsonEncode(_player([
+            _format(140, 'audio/mp4; codecs="mp4a.40.2"', 130000),
+          ])),
+          200,
+        );
+      }
+      return http.Response(
+        jsonEncode({
+          'playabilityStatus': {
+            'status': 'UNPLAYABLE',
+            'reason': 'This client cannot play the recording',
+          },
+        }),
+        200,
+      );
+    });
+    addTearDown(fake.close);
+
+    final audio = await YoutubeAudio(
+      DiscoveryHttp(fake),
+      session: session,
+    ).resolve('dQw4w9WgXcQ');
+    expect(asked.last, 'WEB_REMIX');
+    expect(audio.url.queryParameters['itag'], '140');
+    expect(authorization.single, startsWith('SAPISIDHASH '));
+    expect(cookies.single, contains('SAPISID=signed-in-cookie'));
+  });
 
   test('does not mislabel every YouTube refusal as a country or age block', () {
     expect(

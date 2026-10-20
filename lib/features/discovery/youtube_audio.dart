@@ -1,6 +1,8 @@
 import 'discovery_http.dart';
 import 'discovery_models.dart';
 import 'discovery_sources.dart';
+import 'youtube_music_account.dart';
+import 'youtube_music_store.dart';
 
 /// A YouTube recording's audio, looked up with one request to YouTube's own
 /// player API, as desktop Lokal does before it falls back to yt-dlp
@@ -8,9 +10,27 @@ import 'discovery_sources.dart';
 /// so it asks as the apps YouTube serves plain links to: visionOS first (no
 /// proof-of-origin token needed), then the Quest app.
 class YoutubeAudio {
-  YoutubeAudio(this.http);
+  YoutubeAudio(this.http, {this.session});
 
   final DiscoveryHttp http;
+
+  /// Existing browser sign-in is reused when available. Anonymous playback
+  /// still tries the public clients, and cookie material is only sent to
+  /// YouTube Music itself.
+  final YoutubeMusicSession? session;
+  Future<YoutubeMusicSession?>? _sessionFuture;
+
+  Future<YoutubeMusicSession?> _loadSession() => _sessionFuture ??= _readSession();
+
+  Future<YoutubeMusicSession?> _readSession() async {
+    final provided = session;
+    if (provided != null && provided.signedIn) return provided;
+    try {
+      return await YoutubeMusicSessionStore().read();
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Prefer clients which can return directly fetchable media URLs. YouTube
   /// periodically retires player versions and changes which clients need
@@ -94,8 +114,17 @@ class YoutubeAudio {
       throw const DiscoveryException('This isn’t a YouTube recording.');
     }
     DiscoveryException? failure;
+    final signedInSession = await _loadSession();
+    final signedInHeaders = signedInSession == null
+        ? null
+        : youtubeMusicHeaders(signedInSession);
     for (final client in clients) {
       try {
+        final useSignedInMusicClient =
+            client.name == 'WEB_REMIX' && signedInHeaders != null;
+        final version = useSignedInMusicClient
+            ? signedInSession!.clientVersion ?? client.version
+            : client.version;
         final response = await http.json(
           Uri.https(client.host, '/youtubei/v1/player', {
             'prettyPrint': 'false',
@@ -104,16 +133,22 @@ class YoutubeAudio {
             'User-Agent': client.userAgent,
             'Origin': 'https://${client.host}',
             'X-YouTube-Client-Name': '${client.id}',
-            'X-YouTube-Client-Version': client.version,
+            'X-YouTube-Client-Version': version,
+            if (useSignedInMusicClient) ...signedInHeaders!,
           },
           body: {
             'context': {
               'client': {
                 'clientName': client.name,
-                'clientVersion': client.version,
-                'userAgent': client.userAgent,
+                'clientVersion': version,
+                'userAgent': useSignedInMusicClient
+                    ? signedInSession!.userAgent
+                    : client.userAgent,
                 ...client.extra,
                 'hl': 'en',
+                if (useSignedInMusicClient &&
+                    signedInSession!.visitorData != null)
+                  'visitorData': signedInSession.visitorData!,
               },
               if (client.embedUrl != null)
                 'thirdParty': {'embedUrl': client.embedUrl},

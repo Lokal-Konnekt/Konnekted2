@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/models/player_screen_mode.dart';
 import 'package:flick/models/player_action_button.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
-import 'package:flick/features/settings/widgets/settings_widgets.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 
 import 'package:flick/l10n/l10n.dart';
+
 String _placementLabel(double value) {
   if (value == 0) return l10n.center;
   return value < 0 ? l10n.up(value.abs().round()) : l10n.down(value.round());
 }
 
-String _percentLabel(double value) =>
-    '${(value * 100).round()}%';
+String _percentLabel(double value) => '${(value * 100).round()}%';
 
 class PlayerLayoutSettingsScreen extends ConsumerWidget {
   const PlayerLayoutSettingsScreen({super.key});
@@ -29,460 +28,281 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
     final appPrefs = ref.watch(appPreferencesProvider);
     final playerScreenMode = ref.watch(playerScreenModeProvider);
 
-    return SettingsScaffold(
-      title: l10n.playerLayout,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: () => _showFullScreenPreview(context, ref),
-            child: Stack(
-              children: [
-                _LayoutPreview(
-                  song: ref.watch(currentSongProvider),
-                  mode: playerScreenMode,
-                  artworkCardArtworkScale: appPrefs.artworkCardArtworkScale,
-                  artworkCardTextScale: appPrefs.artworkCardTextScale,
-                  artworkCardVerticalOffset: appPrefs.artworkCardVerticalOffset,
-                  artworkCardArtworkOffset: appPrefs.artworkCardArtworkOffset,
-                  artworkCardShowTitle: appPrefs.artworkCardShowTitle,
-                  artworkCardShowArtist: appPrefs.artworkCardShowArtist,
-                  artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
-                  artworkCardShowFileInfo: appPrefs.artworkCardShowFileInfo,
-                  artworkCardShowFrame: appPrefs.artworkCardShowFrame,
-                  immersiveTextScale: appPrefs.immersiveTextScale,
-                  immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
-                  immersiveFullViewScale: appPrefs.immersiveFullViewScale,
-                  immersiveShowTitle: appPrefs.immersiveShowTitle,
-                  immersiveShowArtist: appPrefs.immersiveShowArtist,
-                  immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
-                ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.48),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.open_in_full_rounded,
-                          size: 13,
-                          color: Colors.white.withValues(alpha: 0.86),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          l10n.fullscreen,
-                          style: TextStyle(
-                            fontFamily: 'GoogleSansFlex',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white.withValues(alpha: 0.86),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+    final notifier = ref.read(appPreferencesProvider.notifier);
+
+    LokalSettingSlider slider({
+      required String label,
+      required String description,
+      required double value,
+      required double min,
+      required double max,
+      required int divisions,
+      required String Function(double) valueLabel,
+      required ValueChanged<double> onChanged,
+    }) => LokalSettingSlider(
+      label: label,
+      description: description,
+      value: value,
+      min: min,
+      max: max,
+      divisions: divisions,
+      valueLabel: valueLabel,
+      live: true,
+      onChanged: onChanged,
+    );
+
+    LokalSettingLink actionLink(
+      String title,
+      String stored,
+      ValueChanged<PlayerActionButton> save,
+    ) {
+      final current = PlayerActionButtonX.fromStorageValue(stored);
+      return LokalSettingLink(
+        label: title,
+        value: current.label.toUpperCase(),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => _ActionButtonPickerScreen(
+              title: title,
+              currentValue: current,
+              onSelected: save,
             ),
           ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.layoutMode),
-          SettingsCard(
-            children: [
-              SelectionSetting(
-                icon: Icons.fit_screen_rounded,
-                title: PlayerScreenMode.immersive.label,
-                subtitle: PlayerScreenMode.immersive.description,
-                selected: playerScreenMode == PlayerScreenMode.immersive,
-                onTap: () {
-                  ref
-                      .read(playerScreenModeProvider.notifier)
-                      .setMode(PlayerScreenMode.immersive);
-                },
+        ),
+      );
+    }
+
+    return LokalSettingsScaffold(
+      title: l10n.playerLayout,
+      subtitle:
+          'How Now Playing is laid out. Tap the preview to see it full size.',
+      children: [
+        LokalSettingsBlock(
+          top: 16,
+          child: Semantics(
+            button: true,
+            label: l10n.fullscreen,
+            child: GestureDetector(
+              onTap: () => _showFullScreenPreview(context, ref),
+              child: Stack(
+                children: [
+                  _LayoutPreview(
+                    song: ref.watch(currentSongProvider),
+                    mode: playerScreenMode,
+                    artworkCardArtworkScale: appPrefs.artworkCardArtworkScale,
+                    artworkCardTextScale: appPrefs.artworkCardTextScale,
+                    artworkCardVerticalOffset:
+                        appPrefs.artworkCardVerticalOffset,
+                    artworkCardArtworkOffset: appPrefs.artworkCardArtworkOffset,
+                    artworkCardShowTitle: appPrefs.artworkCardShowTitle,
+                    artworkCardShowArtist: appPrefs.artworkCardShowArtist,
+                    artworkCardShowAlbum: appPrefs.artworkCardShowAlbum,
+                    artworkCardShowFileInfo: appPrefs.artworkCardShowFileInfo,
+                    artworkCardShowFrame: appPrefs.artworkCardShowFrame,
+                    immersiveTextScale: appPrefs.immersiveTextScale,
+                    immersiveVerticalOffset: appPrefs.immersiveVerticalOffset,
+                    immersiveFullViewScale: appPrefs.immersiveFullViewScale,
+                    immersiveShowTitle: appPrefs.immersiveShowTitle,
+                    immersiveShowArtist: appPrefs.immersiveShowArtist,
+                    immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
+                  ),
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: LokalStatusPill(label: l10n.fullscreen),
+                  ),
+                ],
               ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: Icons.rounded_corner_rounded,
-                title: PlayerScreenMode.artworkCard.label,
-                subtitle: PlayerScreenMode.artworkCard.description,
-                selected: playerScreenMode == PlayerScreenMode.artworkCard,
-                onTap: () {
-                  ref
-                      .read(playerScreenModeProvider.notifier)
-                      .setMode(PlayerScreenMode.artworkCard);
-                },
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.immersive),
-          SettingsCard(
-            children: [
-              SliderSetting(
-                icon: LucideIcons.type,
-                title: l10n.textSize2,
-                subtitle: l10n.adjustMetadataTextSizeInImmersive,
-                value: appPrefs.immersiveTextScale,
-                displayValue: _percentLabel(appPrefs.immersiveTextScale),
-                min: 0.82,
-                max: 1.2,
-                divisions: 19,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setImmersiveTextScale(value);
-                },
+        ),
+        LokalSettingsSection(
+          title: l10n.layoutMode,
+          children: [
+            for (final mode in [
+              PlayerScreenMode.immersive,
+              PlayerScreenMode.artworkCard,
+            ])
+              LokalSettingRow.option(
+                label: mode.label,
+                description: mode.description,
+                selected: playerScreenMode == mode,
+                onTap: () =>
+                    ref.read(playerScreenModeProvider.notifier).setMode(mode),
               ),
-              const SettingsDivider(),
-              SliderSetting(
-                icon: LucideIcons.arrowUpDown,
-                title: l10n.textPlacement2,
-                subtitle: l10n.shiftMetadataTextUpOrDown,
-                value: appPrefs.immersiveVerticalOffset,
-                displayValue: _placementLabel(appPrefs.immersiveVerticalOffset),
-                min: -36,
-                max: 36,
-                divisions: 12,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setImmersiveVerticalOffset(value);
-                },
-              ),
-              const SettingsDivider(),
-              SliderSetting(
-                icon: LucideIcons.maximize,
-                title: l10n.fullViewCardSize2,
-                subtitle: l10n.scaleTheFullViewAlbumArt,
-                value: appPrefs.immersiveFullViewScale,
-                displayValue: _percentLabel(appPrefs.immersiveFullViewScale),
-                min: 0.82,
-                max: 1.18,
-                divisions: 18,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setImmersiveFullViewScale(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.fileText,
-                title: l10n.showTitle2,
-                subtitle: l10n.displayTheTrackTitleInImmersive,
-                value: appPrefs.immersiveShowTitle,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setImmersiveShowTitle(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.mic,
-                title: l10n.showArtist2,
-                subtitle: l10n.displayTheArtistNameInImmersive,
-                value: appPrefs.immersiveShowArtist,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setImmersiveShowArtist(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.info,
-                title: l10n.showFileInfo2,
-                subtitle: l10n.displayFileFormatAndBitrateIn,
-                value: appPrefs.immersiveShowFileInfo,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setImmersiveShowFileInfo(value);
-                },
-              ),
-              const SettingsDivider(),
-              SliderSetting(
-                icon: LucideIcons.clock,
-                title: l10n.autoFullView,
-                subtitle: l10n.autoShowFullViewAfterInactivity,
-                value: appPrefs.immersiveAutoFullViewSeconds.toDouble(),
-                displayValue: appPrefs.immersiveAutoFullViewSeconds == 0
-                    ? l10n.off
-                    : '${appPrefs.immersiveAutoFullViewSeconds}s',
-                min: 0,
-                max: 15,
-                divisions: 15,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setImmersiveAutoFullViewSeconds(value.round());
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.artworkCard),
-          SettingsCard(
-            children: [
-              SliderSetting(
-                icon: LucideIcons.rectangleHorizontal,
-                title: l10n.artworkSize2,
-                subtitle: l10n.scaleTheAlbumArtCard,
-                value: appPrefs.artworkCardArtworkScale,
-                displayValue: _percentLabel(appPrefs.artworkCardArtworkScale),
-                min: 0.8,
-                max: 1.36,
-                divisions: 28,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setArtworkCardArtworkScale(value);
-                },
-              ),
-              const SettingsDivider(),
-              SliderSetting(
-                icon: LucideIcons.type,
-                title: l10n.textSize2,
-                subtitle: l10n.adjustMetadataTextSizeInArtwork,
-                value: appPrefs.artworkCardTextScale,
-                displayValue: _percentLabel(appPrefs.artworkCardTextScale),
-                min: 0.82,
-                max: 1.2,
-                divisions: 19,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setArtworkCardTextScale(value);
-                },
-              ),
-              const SettingsDivider(),
-              SliderSetting(
-                icon: LucideIcons.arrowUpDown,
-                title: l10n.contentPlacement2,
-                subtitle: l10n.shiftOnlyTheSongDetailsUp,
-                value: appPrefs.artworkCardVerticalOffset,
-                displayValue:
-                    _placementLabel(appPrefs.artworkCardVerticalOffset),
-                min: -36,
-                max: 36,
-                divisions: 12,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setArtworkCardVerticalOffset(value);
-                },
-              ),
-              const SettingsDivider(),
-              SliderSetting(
-                icon: LucideIcons.moveVertical,
-                title: l10n.artworkPlacement2,
-                subtitle: l10n.shiftOnlyTheAlbumArtUp,
-                value: appPrefs.artworkCardArtworkOffset,
-                displayValue:
-                    _placementLabel(appPrefs.artworkCardArtworkOffset),
-                min: -48,
-                max: 48,
-                divisions: 16,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setArtworkCardArtworkOffset(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.fileText,
-                title: l10n.showTitle2,
-                subtitle: l10n.displayTheTrackTitleInArtwork,
-                value: appPrefs.artworkCardShowTitle,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setArtworkCardShowTitle(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.mic,
-                title: l10n.showArtist2,
-                subtitle: l10n.displayTheArtistNameInArtwork,
-                value: appPrefs.artworkCardShowArtist,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setArtworkCardShowArtist(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.disc,
-                title: l10n.showAlbum2,
-                subtitle: l10n.displayTheAlbumNameInArtwork,
-                value: appPrefs.artworkCardShowAlbum,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setArtworkCardShowAlbum(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.info,
-                title: l10n.showFileInfo2,
-                subtitle:
-                    l10n.displayFileFormatAndBitrateIn2,
-                value: appPrefs.artworkCardShowFileInfo,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setArtworkCardShowFileInfo(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.frame,
-                title: l10n.showFrame2,
-                subtitle: l10n.showTheGlassFrameAroundAlbum,
-                value: appPrefs.artworkCardShowFrame,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setArtworkCardShowFrame(value);
-                },
-              ),
-              const SettingsDivider(),
-              ToggleSetting(
-                icon: LucideIcons.shieldCheck,
-                title: l10n.bitPerfectCapsule,
-                subtitle:
-                    l10n.replaceAlbumNameWithAVerified,
-                value: appPrefs.replaceAlbumWithBitPerfectCapsule,
-                onChanged: (value) {
-                  ref
-                      .read(appPreferencesProvider.notifier)
-                      .setReplaceAlbumWithBitPerfectCapsule(value);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.quickActions),
-          SettingsCard(
-            children: [
-              NavigationSetting(
-                icon: Icons.arrow_upward_rounded,
-                title: l10n.leftTopButton,
-                subtitle: PlayerActionButtonX.fromStorageValue(
-                  appPrefs.leftTopActionButton,
-                ).label,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => _ActionButtonPickerScreen(
-                        title: l10n.leftTopButton,
-                        currentValue: PlayerActionButtonX.fromStorageValue(
-                          appPrefs.leftTopActionButton,
-                        ),
-                        onSelected: (action) {
-                          ref
-                              .read(appPreferencesProvider.notifier)
-                              .setLeftTopActionButton(action.storageValue);
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SettingsDivider(),
-              NavigationSetting(
-                icon: Icons.arrow_back_rounded,
-                title: l10n.leftBottomButton,
-                subtitle: PlayerActionButtonX.fromStorageValue(
-                  appPrefs.leftActionButton,
-                ).label,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => _ActionButtonPickerScreen(
-                        title: l10n.leftBottomButton,
-                        currentValue: PlayerActionButtonX.fromStorageValue(
-                          appPrefs.leftActionButton,
-                        ),
-                        onSelected: (action) {
-                          ref
-                              .read(appPreferencesProvider.notifier)
-                              .setLeftActionButton(action.storageValue);
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SettingsDivider(),
-              NavigationSetting(
-                icon: Icons.arrow_upward_rounded,
-                title: l10n.rightTopButton,
-                subtitle: PlayerActionButtonX.fromStorageValue(
-                  appPrefs.rightTopActionButton,
-                ).label,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => _ActionButtonPickerScreen(
-                        title: l10n.rightTopButton,
-                        currentValue: PlayerActionButtonX.fromStorageValue(
-                          appPrefs.rightTopActionButton,
-                        ),
-                        onSelected: (action) {
-                          ref
-                              .read(appPreferencesProvider.notifier)
-                              .setRightTopActionButton(action.storageValue);
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SettingsDivider(),
-              NavigationSetting(
-                icon: Icons.arrow_forward_rounded,
-                title: l10n.rightBottomButton,
-                subtitle: PlayerActionButtonX.fromStorageValue(
-                  appPrefs.rightActionButton,
-                ).label,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => _ActionButtonPickerScreen(
-                        title: l10n.rightBottomButton,
-                        currentValue: PlayerActionButtonX.fromStorageValue(
-                          appPrefs.rightActionButton,
-                        ),
-                        onSelected: (action) {
-                          ref
-                              .read(appPreferencesProvider.notifier)
-                              .setRightActionButton(action.storageValue);
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.navBarHeight + 40),
-        ],
-      ),
+          ],
+        ),
+        LokalSettingsSection(
+          title: l10n.immersive,
+          children: [
+            slider(
+              label: l10n.textSize2,
+              description: l10n.adjustMetadataTextSizeInImmersive,
+              value: appPrefs.immersiveTextScale,
+              valueLabel: _percentLabel,
+              min: 0.82,
+              max: 1.2,
+              divisions: 19,
+              onChanged: notifier.setImmersiveTextScale,
+            ),
+            slider(
+              label: l10n.textPlacement2,
+              description: l10n.shiftMetadataTextUpOrDown,
+              value: appPrefs.immersiveVerticalOffset,
+              valueLabel: _placementLabel,
+              min: -36,
+              max: 36,
+              divisions: 12,
+              onChanged: notifier.setImmersiveVerticalOffset,
+            ),
+            slider(
+              label: l10n.fullViewCardSize2,
+              description: l10n.scaleTheFullViewAlbumArt,
+              value: appPrefs.immersiveFullViewScale,
+              valueLabel: _percentLabel,
+              min: 0.82,
+              max: 1.18,
+              divisions: 18,
+              onChanged: notifier.setImmersiveFullViewScale,
+            ),
+            LokalSettingRow.toggle(
+              label: l10n.showTitle2,
+              description: l10n.displayTheTrackTitleInImmersive,
+              value: appPrefs.immersiveShowTitle,
+              onChanged: notifier.setImmersiveShowTitle,
+            ),
+            LokalSettingRow.toggle(
+              label: l10n.showArtist2,
+              description: l10n.displayTheArtistNameInImmersive,
+              value: appPrefs.immersiveShowArtist,
+              onChanged: notifier.setImmersiveShowArtist,
+            ),
+            LokalSettingRow.toggle(
+              label: l10n.showFileInfo2,
+              description: l10n.displayFileFormatAndBitrateIn,
+              value: appPrefs.immersiveShowFileInfo,
+              onChanged: notifier.setImmersiveShowFileInfo,
+            ),
+            slider(
+              label: l10n.autoFullView,
+              description: l10n.autoShowFullViewAfterInactivity,
+              value: appPrefs.immersiveAutoFullViewSeconds.toDouble(),
+              valueLabel: (v) => v.round() == 0 ? l10n.off : '${v.round()}s',
+              min: 0,
+              max: 15,
+              divisions: 15,
+              onChanged: (value) =>
+                  notifier.setImmersiveAutoFullViewSeconds(value.round()),
+            ),
+          ],
+        ),
+        LokalSettingsSection(
+          title: l10n.artworkCard,
+          children: [
+            slider(
+              label: l10n.artworkSize2,
+              description: l10n.scaleTheAlbumArtCard,
+              value: appPrefs.artworkCardArtworkScale,
+              valueLabel: _percentLabel,
+              min: 0.8,
+              max: 1.36,
+              divisions: 28,
+              onChanged: notifier.setArtworkCardArtworkScale,
+            ),
+            slider(
+              label: l10n.textSize2,
+              description: l10n.adjustMetadataTextSizeInArtwork,
+              value: appPrefs.artworkCardTextScale,
+              valueLabel: _percentLabel,
+              min: 0.82,
+              max: 1.2,
+              divisions: 19,
+              onChanged: notifier.setArtworkCardTextScale,
+            ),
+            slider(
+              label: l10n.contentPlacement2,
+              description: l10n.shiftOnlyTheSongDetailsUp,
+              value: appPrefs.artworkCardVerticalOffset,
+              valueLabel: _placementLabel,
+              min: -36,
+              max: 36,
+              divisions: 12,
+              onChanged: notifier.setArtworkCardVerticalOffset,
+            ),
+            slider(
+              label: l10n.artworkPlacement2,
+              description: l10n.shiftOnlyTheAlbumArtUp,
+              value: appPrefs.artworkCardArtworkOffset,
+              valueLabel: _placementLabel,
+              min: -48,
+              max: 48,
+              divisions: 16,
+              onChanged: notifier.setArtworkCardArtworkOffset,
+            ),
+            LokalSettingRow.toggle(
+              label: l10n.showTitle2,
+              description: l10n.displayTheTrackTitleInArtwork,
+              value: appPrefs.artworkCardShowTitle,
+              onChanged: notifier.setArtworkCardShowTitle,
+            ),
+            LokalSettingRow.toggle(
+              label: l10n.showArtist2,
+              description: l10n.displayTheArtistNameInArtwork,
+              value: appPrefs.artworkCardShowArtist,
+              onChanged: notifier.setArtworkCardShowArtist,
+            ),
+            LokalSettingRow.toggle(
+              label: l10n.showAlbum2,
+              description: l10n.displayTheAlbumNameInArtwork,
+              value: appPrefs.artworkCardShowAlbum,
+              onChanged: notifier.setArtworkCardShowAlbum,
+            ),
+            LokalSettingRow.toggle(
+              label: l10n.showFileInfo2,
+              description: l10n.displayFileFormatAndBitrateIn2,
+              value: appPrefs.artworkCardShowFileInfo,
+              onChanged: notifier.setArtworkCardShowFileInfo,
+            ),
+            LokalSettingRow.toggle(
+              label: l10n.showFrame2,
+              description: l10n.showTheGlassFrameAroundAlbum,
+              value: appPrefs.artworkCardShowFrame,
+              onChanged: notifier.setArtworkCardShowFrame,
+            ),
+            LokalSettingRow.toggle(
+              label: l10n.bitPerfectCapsule,
+              description: l10n.replaceAlbumNameWithAVerified,
+              value: appPrefs.replaceAlbumWithBitPerfectCapsule,
+              onChanged: notifier.setReplaceAlbumWithBitPerfectCapsule,
+            ),
+          ],
+        ),
+        LokalSettingsSection(
+          title: l10n.quickActions,
+          children: [
+            actionLink(
+              l10n.leftTopButton,
+              appPrefs.leftTopActionButton,
+              (a) => notifier.setLeftTopActionButton(a.storageValue),
+            ),
+            actionLink(
+              l10n.leftBottomButton,
+              appPrefs.leftActionButton,
+              (a) => notifier.setLeftActionButton(a.storageValue),
+            ),
+            actionLink(
+              l10n.rightTopButton,
+              appPrefs.rightTopActionButton,
+              (a) => notifier.setRightTopActionButton(a.storageValue),
+            ),
+            actionLink(
+              l10n.rightBottomButton,
+              appPrefs.rightActionButton,
+              (a) => notifier.setRightActionButton(a.storageValue),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -528,8 +348,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                               appPrefs.immersiveFullViewScale,
                           immersiveShowTitle: appPrefs.immersiveShowTitle,
                           immersiveShowArtist: appPrefs.immersiveShowArtist,
-                          immersiveShowFileInfo:
-                              appPrefs.immersiveShowFileInfo,
+                          immersiveShowFileInfo: appPrefs.immersiveShowFileInfo,
                         ),
                       ),
                       Positioned(
@@ -554,7 +373,7 @@ class PlayerLayoutSettingsScreen extends ConsumerWidget {
                                   Text(
                                     mode.label,
                                     style: TextStyle(
-                                      fontFamily: 'GoogleSansFlex',
+                                      fontFamily: LokalTheme.sans,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.white.withValues(
@@ -647,9 +466,9 @@ class _LayoutPreview extends StatelessWidget {
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder, width: 1),
+        color: context.lokal.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.lokal.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -661,17 +480,12 @@ class _LayoutPreview extends StatelessWidget {
                 Icon(
                   Icons.preview_rounded,
                   size: 16,
-                  color: context.adaptiveTextTertiary,
+                  color: context.lokal.muted,
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  l10n.livePreview,
-                  style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: context.adaptiveTextTertiary,
-                  ),
+                  l10n.livePreview.toUpperCase(),
+                  style: LokalTheme.label(context.lokal),
                 ),
               ],
             ),
@@ -699,7 +513,7 @@ class _LayoutPreview extends StatelessWidget {
                     child: Text(
                       l10n.noSongPlaying,
                       style: TextStyle(
-                        fontFamily: 'GoogleSansFlex',
+                        fontFamily: LokalTheme.sans,
                         fontSize: 14,
                         color: Color(0xFF888888),
                       ),
@@ -743,7 +557,7 @@ class _LayoutPreview extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
+                      fontFamily: LokalTheme.sans,
                       fontSize: 17 * artworkCardTextScale,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -758,7 +572,7 @@ class _LayoutPreview extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
+                    fontFamily: LokalTheme.sans,
                     fontSize: 12 * artworkCardTextScale,
                     color: Colors.white.withValues(alpha: 0.72),
                   ),
@@ -771,7 +585,7 @@ class _LayoutPreview extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
+                    fontFamily: LokalTheme.sans,
                     fontSize: 11 * artworkCardTextScale,
                     color: Colors.white.withValues(alpha: 0.55),
                   ),
@@ -785,7 +599,7 @@ class _LayoutPreview extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
+                      fontFamily: LokalTheme.sans,
                       fontSize: 10,
                       color: Colors.white.withValues(alpha: 0.48),
                     ),
@@ -805,11 +619,7 @@ class _LayoutPreview extends StatelessWidget {
         Positioned.fill(
           child: Opacity(
             opacity: 0.28,
-            child: _AlbumArtThumb(
-              song: song,
-              size: double.infinity,
-              radius: 0,
-            ),
+            child: _AlbumArtThumb(song: song, size: double.infinity, radius: 0),
           ),
         ),
         Positioned(
@@ -830,11 +640,7 @@ class _LayoutPreview extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
-                  child: _AlbumArtThumb(
-                    song: song,
-                    size: artSize,
-                    radius: 12,
-                  ),
+                  child: _AlbumArtThumb(song: song, size: artSize, radius: 12),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -848,7 +654,7 @@ class _LayoutPreview extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontFamily: 'GoogleSansFlex',
+                            fontFamily: LokalTheme.sans,
                             fontSize: 18 * immersiveTextScale,
                             fontWeight: FontWeight.w700,
                             height: 1.05,
@@ -863,7 +669,7 @@ class _LayoutPreview extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontFamily: 'GoogleSansFlex',
+                            fontFamily: LokalTheme.sans,
                             fontSize: 12 * immersiveTextScale,
                             color: Colors.white.withValues(alpha: 0.76),
                           ),
@@ -876,7 +682,7 @@ class _LayoutPreview extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontFamily: 'GoogleSansFlex',
+                              fontFamily: LokalTheme.sans,
                               fontSize: 11,
                               color: Colors.white.withValues(alpha: 0.48),
                             ),
@@ -959,38 +765,25 @@ class _ActionButtonPickerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SettingsScaffold(
+    return LokalSettingsScaffold(
       title: title,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SettingsSectionHeader(l10n.chooseAction),
-          SettingsCard(
-            children: PlayerActionButton.values.fold<List<Widget>>(
-              [],
-              (list, action) {
-                if (list.isNotEmpty) {
-                  list.add(const SettingsDivider());
-                }
-                list.add(
-                  SelectionSetting(
-                    icon: action.icon,
-                    title: action.label,
-                    subtitle: '',
-                    selected: action == currentValue,
-                    onTap: () {
-                      onSelected(action);
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                );
-                return list;
-              },
-            ),
-          ),
-          const SizedBox(height: AppConstants.navBarHeight + 40),
-        ],
-      ),
+      children: [
+        LokalSettingsSection(
+          title: l10n.chooseAction,
+          children: [
+            for (final action in PlayerActionButton.values)
+              LokalSettingRow.option(
+                icon: action.icon,
+                label: action.label,
+                selected: action == currentValue,
+                onTap: () {
+                  onSelected(action);
+                  Navigator.of(context).pop();
+                },
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -1043,8 +836,8 @@ class _FullScreenPreview extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             const Color(0xFF232323),
-            AppColors.background,
-            AppColors.accent.withValues(alpha: 0.28),
+            context.lokal.bg,
+            context.lokal.accent.withValues(alpha: 0.28),
           ],
         ),
       ),
@@ -1082,7 +875,7 @@ class _FullScreenPreview extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontFamily: 'GoogleSansFlex',
+                          fontFamily: LokalTheme.sans,
                           fontSize: 28 * artworkCardTextScale,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -1097,7 +890,7 @@ class _FullScreenPreview extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontFamily: 'GoogleSansFlex',
+                        fontFamily: LokalTheme.sans,
                         fontSize: 17 * artworkCardTextScale,
                         color: Colors.white.withValues(alpha: 0.72),
                       ),
@@ -1110,7 +903,7 @@ class _FullScreenPreview extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontFamily: 'GoogleSansFlex',
+                        fontFamily: LokalTheme.sans,
                         fontSize: 14 * artworkCardTextScale,
                         color: Colors.white.withValues(alpha: 0.56),
                       ),
@@ -1121,7 +914,7 @@ class _FullScreenPreview extends StatelessWidget {
                       child: Text(
                         _fileInfoLabel(song),
                         style: TextStyle(
-                          fontFamily: 'GoogleSansFlex',
+                          fontFamily: LokalTheme.sans,
                           fontSize: 11,
                           color: Colors.white.withValues(alpha: 0.4),
                         ),
@@ -1143,11 +936,7 @@ class _FullScreenPreview extends StatelessWidget {
         Positioned.fill(
           child: Opacity(
             opacity: 0.32,
-            child: _AlbumArtThumb(
-              song: song,
-              size: double.infinity,
-              radius: 0,
-            ),
+            child: _AlbumArtThumb(song: song, size: double.infinity, radius: 0),
           ),
         ),
         Positioned(
@@ -1168,11 +957,7 @@ class _FullScreenPreview extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
-                  child: _AlbumArtThumb(
-                    song: song,
-                    size: artSize,
-                    radius: 16,
-                  ),
+                  child: _AlbumArtThumb(song: song, size: artSize, radius: 16),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -1186,7 +971,7 @@ class _FullScreenPreview extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontFamily: 'GoogleSansFlex',
+                            fontFamily: LokalTheme.sans,
                             fontSize: 32 * immersiveTextScale,
                             fontWeight: FontWeight.w700,
                             height: 1.05,
@@ -1201,7 +986,7 @@ class _FullScreenPreview extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontFamily: 'GoogleSansFlex',
+                            fontFamily: LokalTheme.sans,
                             fontSize: 18 * immersiveTextScale,
                             color: Colors.white.withValues(alpha: 0.76),
                           ),
@@ -1212,7 +997,7 @@ class _FullScreenPreview extends StatelessWidget {
                           child: Text(
                             _fileInfoLabel(song),
                             style: TextStyle(
-                              fontFamily: 'GoogleSansFlex',
+                              fontFamily: LokalTheme.sans,
                               fontSize: 12,
                               color: Colors.white.withValues(alpha: 0.4),
                             ),

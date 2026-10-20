@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/utils/responsive.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/models/audio_output_diagnostics.dart';
 import 'package:flick/providers/providers.dart';
+import 'package:flick/services/uac2_preferences_service.dart'
+    show AudioEnginePreference;
 import 'package:flick/services/uac2_service.dart';
-import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/features/settings/screens/uac2_preferences_screen.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 import 'package:flick/widgets/uac2/uac2_volume_control.dart';
 import 'package:flick/widgets/uac2/uac2_hotplug_monitor.dart';
-import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/l10n/l10n.dart';
 
-
+/// The USB DAC page: connected devices, what the DAC can do and is doing,
+/// then the engine, bit-perfect, format and DSD preferences, all on one page.
 class Uac2SettingsScreen extends ConsumerStatefulWidget {
   const Uac2SettingsScreen({super.key});
 
@@ -30,552 +29,196 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
     final devicesAsync = ref.watch(uac2DevicesProvider);
     final selectedDevice = ref.watch(selectedUac2DeviceProvider);
     final deviceStatus = ref.watch(uac2DeviceStatusProvider);
-    final currentSong = ref.watch(currentSongProvider);
     final appPreferences = ref.watch(appPreferencesProvider);
+    final isochronous =
+        ref.watch(audioEnginePreferenceProvider).asData?.value ==
+        AudioEnginePreference.isochronousUsb;
+    final showVolume =
+        isochronous ||
+        (deviceStatus != null &&
+            deviceStatus.state != Uac2State.idle &&
+            deviceStatus.hasVolumeControl &&
+            appPreferences.showUsbVolumeOnSettings);
 
-    return DisplayModeWrapper(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: AppColors.backgroundGradient,
-              ),
+    return LokalSettingsScaffold(
+      title: 'USB DAC',
+      subtitle:
+          'Play straight to a USB DAC: devices, bit-perfect output, '
+          'format and DSD.',
+      children: [
+        if (!isAvailable)
+          LokalSettingsBlock(
+            top: 16,
+            child: LokalSettingsNotice(text: l10n.uac2IsNotAvailableOnThis),
+          )
+        else ...[
+          const Uac2HotplugMonitor(),
+          LokalSettingsSection(
+            title: l10n.usbAudioDevices,
+            children: devicesAsync.when(
+              data: (devices) =>
+                  _deviceRows(devices, selectedDevice, deviceStatus),
+              loading: () => [_loadingRow()],
+              error: (error, _) => [_errorRow(error), _refreshRow()],
             ),
-            Positioned.fill(
-              child: AmbientBackground(song: currentSong),
+          ),
+          if (deviceStatus != null)
+            LokalSettingsSection(
+              title: l10n.status,
+              children: _statusRows(deviceStatus),
             ),
-            SafeArea(
-              bottom: false,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context),
-                  const SizedBox(height: AppConstants.spacingMd),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppConstants.spacingMd,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (!isAvailable) _buildUnavailableCard(context),
-                          if (isAvailable) ...[
-                            const Uac2HotplugMonitor(),
-                            _buildSectionHeader(context, l10n.usbAudioDevices),
-                            devicesAsync.when(
-                              data: (devices) => _buildDevicesList(
-                                context,
-                                devices,
-                                selectedDevice,
-                                deviceStatus,
-                              ),
-                              loading: () => _buildLoadingCard(context),
-                              error: (error, _) => _buildErrorCard(context, error),
-                            ),
-                            if (selectedDevice != null) ...[
-                              const SizedBox(height: AppConstants.spacingLg),
-                              _buildSectionHeader(context, l10n.deviceInformation),
-                              _buildDeviceInfoCard(context, selectedDevice),
-                              const SizedBox(height: AppConstants.spacingLg),
-                              _buildSectionHeader(context, l10n.capabilities),
-                              _buildCapabilitiesCard(context, selectedDevice),
-                            ],
-                            if (deviceStatus != null) ...[
-                              const SizedBox(height: AppConstants.spacingLg),
-                              _buildSectionHeader(context, l10n.status),
-                              _buildStatusCard(context, deviceStatus),
-                            ],
-                            if (deviceStatus != null &&
-                                deviceStatus.state != Uac2State.idle &&
-                                deviceStatus.hasVolumeControl &&
-                                appPreferences.showUsbVolumeOnSettings) ...[
-                              const SizedBox(height: AppConstants.spacingLg),
-                              _buildSectionHeader(context, l10n.volumeControl),
-                              const Uac2VolumeControl(),
-                            ],
-
-                          ],
-                          const SizedBox(height: AppConstants.navBarHeight + 120),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          if (showVolume)
+            LokalSettingsSection(
+              title: l10n.volumeControl,
+              children: const [Uac2VolumeControl()],
+            ),
+          if (selectedDevice != null) ...[
+            LokalSettingsSection(
+              title: l10n.deviceInformation,
+              children: _deviceInfoRows(selectedDevice),
+            ),
+            LokalSettingsSection(
+              title: l10n.capabilities,
+              children: _capabilityRows(selectedDevice),
             ),
           ],
+        ],
+        const Uac2PreferencesSections(),
+      ],
+    );
+  }
+
+  Widget _loadingRow() => Padding(
+    padding: const EdgeInsets.all(20),
+    child: Center(
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: context.lokal.accent,
         ),
       ),
-    );
-  }
+    ),
+  );
 
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingLg,
-        vertical: AppConstants.spacingMd,
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(LucideIcons.arrowLeft),
-            onPressed: () => Navigator.of(context).pop(),
-            color: context.adaptiveTextPrimary,
-          ),
-          const SizedBox(width: AppConstants.spacingSm),
-          Expanded(
-            child: Text(
-              l10n.usbAudioUac2,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: context.adaptiveTextPrimary,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(LucideIcons.settings),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const Uac2PreferencesScreen(),
-                ),
-              );
-            },
-            color: context.adaptiveTextPrimary,
-            tooltip: l10n.preferences,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _errorRow(Object error) => Padding(
+    padding: const EdgeInsets.all(12),
+    child: LokalSettingsNotice(text: l10n.error(error), warning: true),
+  );
 
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        left: AppConstants.spacingXs,
-        bottom: AppConstants.spacingSm,
-      ),
-      child: Text(
-        title.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: context.adaptiveTextTertiary,
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
+  Widget _refreshRow() => LokalSettingRow(
+    label: l10n.refreshDevices,
+    icon: Icons.refresh_rounded,
+    onTap: () => ref.invalidate(uac2DevicesProvider),
+  );
 
-  Widget _buildUnavailableCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: context.adaptiveTextSecondary,
-            size: 24,
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Text(
-              l10n.uac2IsNotAvailableOnThis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: context.adaptiveTextSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: const Center(child: CircularProgressIndicator()),
-    );
-  }
-
-  Widget _buildErrorCard(BuildContext context, Object error) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: Colors.red.shade400, size: 24),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Text(
-              l10n.error(error),
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.red.shade400),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDevicesList(
-    BuildContext context,
+  List<Widget> _deviceRows(
     List<Uac2DeviceInfo> devices,
     Uac2DeviceInfo? selectedDevice,
     Uac2DeviceStatus? deviceStatus,
   ) {
     if (devices.isEmpty) {
-      return _buildNoDevicesCard(context);
+      return [
+        LokalSettingRow(
+          label: l10n.noUsbAudioDevicesFound,
+          description: l10n.connectAUsbDacOrAudio,
+          icon: Icons.usb_off_rounded,
+        ),
+        _refreshRow(),
+      ];
     }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Column(
-        children: [
-          ...devices.asMap().entries.map((entry) {
-            final index = entry.key;
-            final device = entry.value;
-            final isSelected =
-                selectedDevice?.vendorId == device.vendorId &&
-                selectedDevice?.productId == device.productId &&
-                selectedDevice?.serial == device.serial;
-            return Column(
-              children: [
-                _buildDeviceItem(context, device, isSelected, deviceStatus),
-                if (index < devices.length - 1) _buildDivider(),
-              ],
-            );
-          }),
-          _buildDivider(),
-          _buildRefreshButton(context),
-        ],
-      ),
-    );
+    return [
+      for (final device in devices)
+        _deviceRow(device, selectedDevice, deviceStatus),
+      _refreshRow(),
+    ];
   }
 
-  Widget _buildNoDevicesCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.usb_off, color: context.adaptiveTextTertiary, size: 48),
-          const SizedBox(height: AppConstants.spacingMd),
-          Text(
-            l10n.noUsbAudioDevicesFound,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: context.adaptiveTextSecondary,
-            ),
-          ),
-          const SizedBox(height: AppConstants.spacingSm),
-          Text(
-            l10n.connectAUsbDacOrAudio,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: context.adaptiveTextTertiary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          _buildRefreshButton(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDeviceItem(
-    BuildContext context,
+  Widget _deviceRow(
     Uac2DeviceInfo device,
-    bool isSelected,
+    Uac2DeviceInfo? selectedDevice,
     Uac2DeviceStatus? deviceStatus,
   ) {
+    final isSelected =
+        selectedDevice?.vendorId == device.vendorId &&
+        selectedDevice?.productId == device.productId &&
+        selectedDevice?.serial == device.serial;
     final isConnected =
         isSelected &&
         (deviceStatus?.state == Uac2State.connected ||
             deviceStatus?.state == Uac2State.prewarming ||
             deviceStatus?.state == Uac2State.streaming);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _handleDeviceSelection(device, isSelected, isConnected),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
-          child: Row(
-            children: [
-              Container(
-                width: context.scaleSize(AppConstants.containerSizeSm),
-                height: context.scaleSize(AppConstants.containerSizeSm),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.glassBackgroundStrong
-                      : AppColors.glassBackground,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                ),
-                child: Icon(
-                  LucideIcons.usb,
-                  color: isSelected
-                      ? AppColors.textPrimary
-                      : AppColors.textSecondary,
-                  size: context.responsiveIcon(AppConstants.iconSizeMd),
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${device.manufacturer} ${device.productName}',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'VID: 0x${device.vendorId.toRadixString(16).padLeft(4, '0')} '
-                      'PID: 0x${device.productId.toRadixString(16).padLeft(4, '0')}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isSelected) ...[
-                if (isConnected)
-                  _buildStatusBadge(context, deviceStatus!.state)
-                else
-                  Icon(
-                    LucideIcons.check,
-                    color: context.adaptiveTextPrimary,
-                    size: 20,
-                  ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return LokalSettingRow(
+      label: '${device.manufacturer} ${device.productName}'.trim(),
+      description:
+          'VID 0x${device.vendorId.toRadixString(16).padLeft(4, '0')} · '
+          'PID 0x${device.productId.toRadixString(16).padLeft(4, '0')}',
+      icon: Icons.usb_rounded,
+      selected: isSelected,
+      trailing: isConnected
+          ? _statusPill(deviceStatus!.state)
+          : isSelected
+          ? Icon(Icons.check_circle_rounded, color: context.lokal.accent)
+          : null,
+      onTap: () => _handleDeviceSelection(device, isSelected, isConnected),
     );
   }
 
-  Widget _buildStatusBadge(BuildContext context, Uac2State state) {
-    final color = _getStatusColor(state);
-    final label = _getStatusLabel(state);
+  Widget _statusPill(Uac2State state) => LokalStatusPill(
+    label: _getStatusLabel(state),
+    active: state == Uac2State.connected || state == Uac2State.streaming,
+    warning:
+        state == Uac2State.connecting ||
+        state == Uac2State.prewarming ||
+        state == Uac2State.error,
+  );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingSm,
-        vertical: 4,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-        border: Border.all(color: color),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  String _hex(int value) =>
+      '0x${value.toRadixString(16).toUpperCase().padLeft(4, '0')}';
 
-  Widget _buildRefreshButton(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => ref.invalidate(uac2DevicesProvider),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                LucideIcons.refreshCw,
-                color: context.adaptiveTextSecondary,
-                size: 18,
-              ),
-              const SizedBox(width: AppConstants.spacingSm),
-              Text(
-                l10n.refreshDevices,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: context.adaptiveTextSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  List<Widget> _deviceInfoRows(Uac2DeviceInfo device) => [
+    _InfoRow(
+      label: l10n.manufacturer,
+      value: device.manufacturer.isNotEmpty
+          ? device.manufacturer
+          : l10n.unknown,
+    ),
+    _InfoRow(label: l10n.product, value: device.productName),
+    _InfoRow(label: l10n.serialNumber, value: device.serial ?? 'N/A'),
+    _InfoRow(label: l10n.vendorId, value: _hex(device.vendorId)),
+    _InfoRow(label: l10n.productId, value: _hex(device.productId)),
+  ];
 
-  Widget _buildDeviceInfoCard(BuildContext context, Uac2DeviceInfo device) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Column(
-        children: [
-          _buildInfoRow(
-            context,
-            l10n.manufacturer,
-            device.manufacturer.isNotEmpty ? device.manufacturer : l10n.unknown,
-            LucideIcons.building,
-          ),
-          _buildDivider(),
-          _buildInfoRow(
-            context,
-            l10n.product,
-            device.productName,
-            LucideIcons.package,
-          ),
-          _buildDivider(),
-          _buildInfoRow(
-            context,
-            l10n.serialNumber,
-            device.serial ?? 'N/A',
-            LucideIcons.hash,
-          ),
-          _buildDivider(),
-          _buildInfoRow(
-            context,
-            l10n.vendorId,
-            '0x${device.vendorId.toRadixString(16).toUpperCase().padLeft(4, '0')}',
-            LucideIcons.tag,
-          ),
-          _buildDivider(),
-          _buildInfoRow(
-            context,
-            l10n.productId,
-            '0x${device.productId.toRadixString(16).toUpperCase().padLeft(4, '0')}',
-            LucideIcons.tag,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCapabilitiesCard(BuildContext context, Uac2DeviceInfo device) {
+  List<Widget> _capabilityRows(Uac2DeviceInfo device) {
     final capabilitiesAsync = ref.watch(uac2DeviceCapabilitiesProvider(device));
-
     return capabilitiesAsync.when(
       data: (capabilities) {
         if (capabilities == null) {
-          return _buildCapabilitiesUnavailable(context);
+          return [
+            LokalSettingRow(
+              label: l10n.capabilitiesNotAvailable,
+              enabled: false,
+            ),
+          ];
         }
-        return _buildCapabilitiesContent(context, capabilities);
-      },
-      loading: () => _buildLoadingCard(context),
-      error: (error, _) => _buildErrorCard(context, error),
-    );
-  }
-
-  Widget _buildCapabilitiesUnavailable(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Text(
-        l10n.capabilitiesNotAvailable,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: context.adaptiveTextTertiary),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
-
-  Widget _buildCapabilitiesContent(
-    BuildContext context,
-    Uac2DeviceCapabilities capabilities,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Column(
-        children: [
-          _buildInfoRow(
-            context,
-            l10n.deviceType,
-            capabilities.deviceType,
-            LucideIcons.cpu,
-          ),
-          _buildDivider(),
-          _buildInfoRow(
-            context,
-            l10n.sampleRates,
-            capabilities.supportedSampleRates
+        return [
+          _InfoRow(label: l10n.deviceType, value: capabilities.deviceType),
+          _InfoRow(
+            label: l10n.sampleRates,
+            value: capabilities.supportedSampleRates
                 .map((r) => '${r ~/ 1000}kHz')
                 .join(', '),
-            LucideIcons.activity,
           ),
-          _buildDivider(),
-          _buildInfoRow(
-            context,
-            l10n.bitDepths,
-            capabilities.supportedBitDepths.map((d) => '${d}bit').join(', '),
-            LucideIcons.layers,
+          _InfoRow(
+            label: l10n.bitDepths,
+            value: capabilities.supportedBitDepths
+                .map((d) => '${d}bit')
+                .join(', '),
           ),
-          _buildDivider(),
-          _buildInfoRow(
-            context,
-            l10n.channels,
-            capabilities.supportedChannels
+          _InfoRow(
+            label: l10n.channels,
+            value: capabilities.supportedChannels
                 .map(
                   (c) => c == 1
                       ? l10n.mono
@@ -584,282 +227,109 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
                       : '$c ch',
                 )
                 .join(', '),
-            LucideIcons.radio,
           ),
-        ],
-      ),
+        ];
+      },
+      loading: () => [_loadingRow()],
+      error: (error, _) => [_errorRow(error)],
     );
   }
 
-  Widget _buildStatusCard(BuildContext context, Uac2DeviceStatus status) {
+  List<Widget> _statusRows(Uac2DeviceStatus status) {
     final diagnostics = ref.watch(audioOutputDiagnosticsProvider);
-
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingMd),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder),
+    final t = context.lokal;
+    Color good(bool ok) => ok ? t.accent : t.orange;
+    final format = status.currentFormat;
+    Widget notice(String text, {bool warning = true, IconData? icon}) =>
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: LokalSettingsNotice(text: text, warning: warning, icon: icon),
+        );
+    return [
+      LokalSettingRow(
+        label: l10n.connectionStatus,
+        trailing: _statusPill(status.state),
       ),
-      child: Column(
-        children: [
-          _buildInfoRow(
-            context,
-            l10n.connectionStatus,
-            _getStatusLabel(status.state),
-            LucideIcons.activity,
-            valueColor: _getStatusColor(status.state),
-          ),
-          if (status.routeType != Uac2RouteType.unknown) ...[
-            _buildDivider(),
-            _buildInfoRow(
-              context,
-              l10n.playbackPath,
-              _getPlaybackPathLabel(status, diagnostics: diagnostics),
-              Icons.alt_route,
-            ),
-          ],
-          if (diagnostics != null) ...[
-            _buildDivider(),
-            _buildInfoRow(
-              context,
-              l10n.capabilityState,
-              diagnostics.capabilityStateLabel,
-              Icons.tune,
-            ),
-            _buildDivider(),
-            _buildInfoRow(
-              context,
-              l10n.backend,
-              diagnostics.backendDescription,
-              Icons.memory,
-            ),
-          ],
-          if (status.currentFormat != null) ...[
-            _buildDivider(),
-            _buildInfoRow(
-              context,
-              status.currentFormat!.isDsdStream ? l10n.trackDsdRate : l10n.trackSampleRate,
-              status.currentFormat!.displayRateLabel,
-              Icons.graphic_eq,
-            ),
-            _buildDivider(),
-            _buildInfoRow(
-              context,
-              l10n.trackBitDepth,
-              status.currentFormat!.bitDepthLabel,
-              LucideIcons.layers,
-            ),
-            _buildDivider(),
-            _buildInfoRow(
-              context,
-              l10n.trackChannels,
-              status.currentFormat!.channels == 1
-                  ? l10n.mono
-                  : status.currentFormat!.channels == 2
-                  ? l10n.stereo
-                  : l10n.channels2(status.currentFormat!.channels),
-              LucideIcons.radio,
-            ),
-            if (diagnostics != null) ...[
-              _buildDivider(),
-              _buildInfoRow(
-                context,
-                l10n.requestedOutputRate,
-                diagnostics.requestedOutputSampleRate == null
-                    ? l10n.unknown
-                    : l10n.khz(diagnostics.requestedOutputSampleRate! ~/ 1000),
-                Icons.speed,
-              ),
-              _buildDivider(),
-              _buildInfoRow(
-                context,
-                l10n.reportedOutputRate,
-                diagnostics.reportedOutputSampleRate == null
-                    ? l10n.unreported
-                    : l10n.khz(diagnostics.reportedOutputSampleRate! ~/ 1000),
-                Icons.graphic_eq,
-              ),
-            ],
-          ],
-          if (diagnostics != null) ...[
-            _buildDivider(),
-            _buildInfoRow(
-              context,
-              l10n.mixerManagement,
-              diagnostics.isMixerManaged
-                  ? 'Android-managed'
-                  : l10n.directUsbDeviceManaged,
-              Icons.account_tree_outlined,
-              valueColor: diagnostics.isMixerManaged
-                  ? Colors.amber.shade300
-                  : Colors.green.shade400,
-            ),
-            _buildDivider(),
-            _buildInfoRow(
-              context,
-              l10n.dacClaim,
-              diagnostics.directUsbRegistered
-                  ? (diagnostics.usbInterfaceClaimed
-                        ? l10n.claimedByFlick
-                        : l10n.registeredNotClaimed)
-                  : l10n.notRegistered,
-              Icons.usb,
-              valueColor: diagnostics.usbInterfaceClaimed
-                  ? Colors.green.shade400
-                  : Colors.amber.shade300,
-            ),
-            _buildDivider(),
-            _buildInfoRow(
-              context,
-              l10n.audioFocus,
-              diagnostics.audioFocusHeld ? l10n.held : l10n.notHeld,
-              Icons.hearing,
-              valueColor: diagnostics.audioFocusHeld
-                  ? Colors.green.shade400
-                  : Colors.amber.shade300,
-            ),
-          ],
-          if (diagnostics != null &&
-              diagnostics.verificationReason != null &&
-              diagnostics.verificationReason != diagnostics.fallbackReason) ...[
-            _buildDivider(),
-            _buildWarningMessage(context, diagnostics.verificationReason!),
-          ],
-          if (diagnostics?.fallbackReason != null) ...[
-            _buildDivider(),
-            _buildWarningMessage(context, diagnostics!.fallbackReason!),
-          ],
-          if (status.warningMessage != null) ...[
-            _buildDivider(),
-            _buildWarningMessage(context, status.warningMessage!),
-          ],
-          if (status.compatibilityNotice != null) ...[
-            _buildDivider(),
-            _buildCompatibilityNotice(context, status.compatibilityNotice!),
-          ],
-          if (status.errorMessage != null) ...[
-            _buildDivider(),
-            _buildErrorMessage(context, status.errorMessage!),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorMessage(BuildContext context, String message) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingSm),
-      child: Row(
-        children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            color: Colors.red.shade400,
-            size: 20,
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.red.shade400),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWarningMessage(BuildContext context, String message) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingSm),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, color: Colors.amber.shade400, size: 20),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.amber.shade400),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompatibilityNotice(BuildContext context, String message) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingSm),
-      child: Container(
-        padding: const EdgeInsets.all(AppConstants.spacingMd),
-        decoration: BoxDecoration(
-          color: Colors.lightBlue.shade900.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          border: Border.all(color: Colors.lightBlue.shade400.withValues(alpha: 0.4)),
+      if (status.routeType != Uac2RouteType.unknown)
+        _InfoRow(
+          label: l10n.playbackPath,
+          value: _getPlaybackPathLabel(status, diagnostics: diagnostics),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.help_outline, color: Colors.lightBlue.shade300, size: 20),
-            const SizedBox(width: AppConstants.spacingMd),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.lightBlue.shade200),
-              ),
-            ),
-          ],
+      if (diagnostics != null) ...[
+        _InfoRow(
+          label: l10n.capabilityState,
+          value: diagnostics.capabilityStateLabel,
         ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon, {
-    Color? valueColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingSm),
-      child: Row(
-        children: [
-          Icon(icon, color: context.adaptiveTextSecondary, size: 20),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: valueColor ?? context.adaptiveTextPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+        _InfoRow(label: l10n.backend, value: diagnostics.backendDescription),
+      ],
+      if (format != null) ...[
+        _InfoRow(
+          label: format.isDsdStream ? l10n.trackDsdRate : l10n.trackSampleRate,
+          value: format.displayRateLabel,
+        ),
+        _InfoRow(label: l10n.trackBitDepth, value: format.bitDepthLabel),
+        _InfoRow(
+          label: l10n.trackChannels,
+          value: format.channels == 1
+              ? l10n.mono
+              : format.channels == 2
+              ? l10n.stereo
+              : l10n.channels2(format.channels),
+        ),
+        if (diagnostics != null) ...[
+          _InfoRow(
+            label: l10n.requestedOutputRate,
+            value: diagnostics.requestedOutputSampleRate == null
+                ? l10n.unknown
+                : l10n.khz(diagnostics.requestedOutputSampleRate! ~/ 1000),
+          ),
+          _InfoRow(
+            label: l10n.reportedOutputRate,
+            value: diagnostics.reportedOutputSampleRate == null
+                ? l10n.unreported
+                : l10n.khz(diagnostics.reportedOutputSampleRate! ~/ 1000),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return Divider(height: 1, thickness: 1, color: AppColors.glassBorder);
+      ],
+      if (diagnostics != null) ...[
+        _InfoRow(
+          label: l10n.mixerManagement,
+          value: diagnostics.isMixerManaged
+              ? 'Android-managed'
+              : l10n.directUsbDeviceManaged,
+          valueColor: good(!diagnostics.isMixerManaged),
+        ),
+        _InfoRow(
+          label: l10n.dacClaim,
+          value: diagnostics.directUsbRegistered
+              ? (diagnostics.usbInterfaceClaimed
+                    ? l10n.claimedByFlick
+                    : l10n.registeredNotClaimed)
+              : l10n.notRegistered,
+          valueColor: good(diagnostics.usbInterfaceClaimed),
+        ),
+        _InfoRow(
+          label: l10n.audioFocus,
+          value: diagnostics.audioFocusHeld ? l10n.held : l10n.notHeld,
+          valueColor: good(diagnostics.audioFocusHeld),
+        ),
+      ],
+      if (diagnostics != null &&
+          diagnostics.verificationReason != null &&
+          diagnostics.verificationReason != diagnostics.fallbackReason)
+        notice(diagnostics.verificationReason!),
+      if (diagnostics?.fallbackReason != null)
+        notice(diagnostics!.fallbackReason!),
+      if (status.warningMessage != null) notice(status.warningMessage!),
+      if (status.compatibilityNotice != null)
+        notice(
+          status.compatibilityNotice!,
+          warning: false,
+          icon: Icons.help_outline_rounded,
+        ),
+      if (status.errorMessage != null)
+        notice(status.errorMessage!, icon: Icons.error_outline_rounded),
+    ];
   }
 
   void _handleDeviceSelection(
@@ -874,23 +344,6 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
     } else {
       ref.read(selectedUac2DeviceProvider.notifier).select(device);
       await deviceStatusNotifier.selectDevice(device);
-    }
-  }
-
-  Color _getStatusColor(Uac2State state) {
-    switch (state) {
-      case Uac2State.idle:
-        return Colors.grey;
-      case Uac2State.connecting:
-        return Colors.orange;
-      case Uac2State.connected:
-        return Colors.blue;
-      case Uac2State.prewarming:
-        return Colors.amber;
-      case Uac2State.streaming:
-        return Colors.green;
-      case Uac2State.error:
-        return Colors.red;
     }
   }
 
@@ -933,5 +386,55 @@ class _Uac2SettingsScreenState extends ConsumerState<Uac2SettingsScreen> {
       case Uac2RouteType.unknown:
         return status.routeLabel ?? l10n.unknown;
     }
+  }
+}
+
+/// A read-only fact: its label on the left, the value in DM Mono on the right.
+class _InfoRow extends StatelessWidget implements LokalSearchable {
+  const _InfoRow({required this.label, required this.value, this.valueColor});
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  String get searchText => '$label $value';
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontFamily: LokalTheme.sans,
+                fontSize: 14,
+                color: t.muted,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Flexible(
+            flex: 2,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontFamily: LokalTheme.mono,
+                fontSize: 12.5,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+                color: valueColor ?? t.text,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

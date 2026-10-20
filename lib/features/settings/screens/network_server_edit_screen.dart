@@ -1,5 +1,4 @@
 // Main sources
-import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:isar_community/isar.dart';
@@ -7,11 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // App constants and other app UI libraries
-import '../../../core/constants/app_constants.dart';
-import '../../../core/theme/adaptive_color_provider.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/app_haptics.dart';
-import '../../../core/utils/responsive.dart';
 
 // Database, widgets, and service configurations
 import '../../../data/database.dart';
@@ -20,8 +15,11 @@ import '../../../services/playlist_service.dart';
 import '../../../services/sources/jellyfin_service.dart';
 import '../../../services/sources/network_source_service.dart';
 import '../../../services/sources/tidal_service.dart';
-import '../widgets/settings_widgets.dart';
+
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 /// Add or edit a network server. All registered protocols are selectable;
 /// each dispatches test/sync/stream through [networkSourceServiceFor].
@@ -112,6 +110,7 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   bool _testing = false;
   bool? _testPassed;
   String? _testError;
+
   /// Set when Tidal sign-in can't auto-open the browser; the live banner shows
   /// it for manual copy/open while polling continues.
   String? _testVerificationUri;
@@ -156,7 +155,8 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   }
 
   void _updateValidity() {
-    final valid = _labelController.text.trim().isNotEmpty &&
+    final valid =
+        _labelController.text.trim().isNotEmpty &&
         (_isTidal || _urlController.text.trim().isNotEmpty);
     if (_isValid != valid) setState(() => _isValid = valid);
   }
@@ -254,7 +254,8 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
   /// Add Server, so the account never stayed signed in.
   Future<void> _testTidal(String? storedToken) async {
     try {
-      var ok = storedToken != null &&
+      var ok =
+          storedToken != null &&
           storedToken.isNotEmpty &&
           await TidalService.instance.ping(_draftEntity(token: storedToken));
       if (!ok) {
@@ -304,8 +305,10 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     if (_selectedProtocol == NetworkProtocol.jellyfin &&
         token != null &&
         password.isNotEmpty) {
-      await JellyfinService.instance
-          .persistPassword(_draftEntity(token: token), password);
+      await JellyfinService.instance.persistPassword(
+        _draftEntity(token: token),
+        password,
+      );
     }
     await Database.instance.writeTxn(() async {
       await Database.networkServers.put(_draftEntity(token: token));
@@ -325,11 +328,10 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     final server = widget.server;
     if (server == null) return;
     AppHaptics.tap();
-    final confirmed = await FlickDialogs.confirm(
-      context,
+    final confirmed = await showLokalConfirmSheet(
+      context: context,
       title: l10n.removeServer,
-      message:
-          l10n.deleteAndAllSongsAndPlaylists(server.label),
+      message: l10n.deleteAndAllSongsAndPlaylists(server.label),
       confirmLabel: l10n.delete,
       destructive: true,
     );
@@ -341,7 +343,9 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       await Database.networkServers.delete(server.id);
     });
     await SongRepository().deleteSongsForRemoteServer(server.id);
-    await PlaylistService.instance.removeNetworkPlaylistsForServer('${server.id}');
+    await PlaylistService.instance.removeNetworkPlaylistsForServer(
+      '${server.id}',
+    );
     if (!mounted) return;
     Navigator.of(context).pop(true);
   }
@@ -353,13 +357,15 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
       : LucideIcons.xCircle;
 
   String get _testLabel {
-    if (_testPassed == true) return _isTidal ? l10n.signedIn : l10n.connectionOk;
+    if (_testPassed == true) {
+      return _isTidal ? l10n.signedIn : l10n.connectionOk;
+    }
     if (_testPassed == false) {
       return _isTidal ? l10n.signInFailedRetry : l10n.connectionFailedRetry;
     }
     if (_isTidal) {
-      final hasToken = _resolvedToken != null ||
-          (widget.server?.token?.isNotEmpty ?? false);
+      final hasToken =
+          _resolvedToken != null || (widget.server?.token?.isNotEmpty ?? false);
       return hasToken ? l10n.testConnection : l10n.signInWithTidal;
     }
     return l10n.testConnection;
@@ -367,266 +373,169 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.lokal;
     final protocols = _protocolsFor(l10n);
-    return SettingsScaffold(
+    return LokalSettingsScaffold(
       title: _isNew ? l10n.addServer : l10n.editServer,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SettingsSectionHeader(l10n.protocol),
-          SettingsCard(
-            children: [
-              for (var i = 0; i < protocols.length; i++) ...[
-                if (i > 0) const SettingsDivider(),
-                SelectionSetting(
-                  icon: protocols[i].icon,
-                  title: protocols[i].label,
-                  subtitle: protocols[i].subtitle,
-                  selected: _selectedProtocol == protocols[i].id,
-                  onTap: _isNew
-                      ? () {
-                          AppHaptics.tap();
-                          setState(() {
-                            _selectedProtocol = protocols[i].id;
-                            _testPassed = null;
-                            _testError = null;
-                            _testVerificationUri = null;
-                            _resolvedToken = null;
-                          });
-                        }
-                      : null,
+      children: [
+        LokalSettingsSection(
+          title: l10n.protocol,
+          children: [
+            for (final protocol in protocols)
+              LokalSettingRow(
+                label: protocol.label,
+                description: protocol.subtitle,
+                icon: protocol.icon,
+                enabled: _isNew || _selectedProtocol == protocol.id,
+                trailing: Icon(
+                  _selectedProtocol == protocol.id
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  size: 22,
+                  color: _selectedProtocol == protocol.id ? t.accent : t.muted2,
                 ),
-              ],
-            ],
+                onTap: _isNew
+                    ? () {
+                        AppHaptics.tap();
+                        setState(() {
+                          _selectedProtocol = protocol.id;
+                          _testPassed = null;
+                          _testError = null;
+                          _testVerificationUri = null;
+                          _resolvedToken = null;
+                        });
+                      }
+                    : null,
+              ),
+          ],
+        ),
+        if (_selectedProtocol == NetworkProtocol.smb)
+          LokalSettingsBlock(
+            top: 12,
+            child: LokalSettingsNotice(text: l10n.smbSharesCanBeAddedNow),
           ),
-          if (_selectedProtocol == NetworkProtocol.smb)
-            Padding(
-              padding: const EdgeInsets.only(
-                left: AppConstants.spacingXs,
-                top: AppConstants.spacingSm,
-              ),
-              child: Text(
-                l10n.smbSharesCanBeAddedNow,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
-              ),
+        if (_isTidal)
+          LokalSettingsBlock(
+            top: 12,
+            child: LokalSettingsNotice(text: l10n.signInWithYourOwnTidal),
+          ),
+        LokalSettingsSection(
+          title: l10n.connection,
+          children: [
+            _TextFieldSetting(
+              controller: _labelController,
+              label: l10n.label,
+              hint: l10n.my(_meta.label),
             ),
-          if (_isTidal)
-            Padding(
-              padding: const EdgeInsets.only(
-                left: AppConstants.spacingXs,
-                top: AppConstants.spacingSm,
-              ),
-              child: Text(
-                l10n.signInWithYourOwnTidal,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
-              ),
-            ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.connection),
-          SettingsCard(
-            children: [
+            if (!_isTidal) ...[
               _TextFieldSetting(
-                controller: _labelController,
-                icon: LucideIcons.tag,
-                label: l10n.label,
-                hint: l10n.my(_meta.label),
+                controller: _urlController,
+                label: l10n.serverUrl,
+                hint: _meta.urlHint,
+                keyboardType: TextInputType.url,
               ),
-              if (!_isTidal) ...[
-                const SettingsDivider(),
-                _TextFieldSetting(
-                  controller: _urlController,
-                  icon: LucideIcons.link,
-                  label: l10n.serverUrl,
-                  hint: _meta.urlHint,
-                  keyboardType: TextInputType.url,
-                ),
-                const SettingsDivider(),
-                _TextFieldSetting(
-                  controller: _usernameController,
-                  icon: LucideIcons.user,
-                  label: l10n.username,
-                ),
-                const SettingsDivider(),
-                _TextFieldSetting(
-                  controller: _passwordController,
-                  icon: LucideIcons.lock,
-                  label: l10n.password,
-                  obscureText: true,
-                  helperText: _isNew
-                      ? _meta.passwordHelper
-                      : l10n.leaveEmptyToKeepTheCurrent,
-                ),
-              ],
+              _TextFieldSetting(
+                controller: _usernameController,
+                label: l10n.username,
+              ),
+              _TextFieldSetting(
+                controller: _passwordController,
+                label: l10n.password,
+                obscureText: true,
+                helperText: _isNew
+                    ? _meta.passwordHelper
+                    : l10n.leaveEmptyToKeepTheCurrent,
+              ),
             ],
+          ],
+        ),
+        LokalSettingsBlock(
+          child: LokalSettingsActionButton(
+            label: _testing ? '$_testLabel…' : _testLabel,
+            icon: _testIcon,
+            primary: false,
+            expand: true,
+            onPressed: _testing || _saving ? null : _testConnection,
           ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              onPressed: _testing || _saving ? null : _testConnection,
-              icon: _testing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(_testIcon, size: 18),
-              label: Text(_testLabel),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                ),
-              ),
+        ),
+        if (_testing && _testVerificationUri != null)
+          LokalSettingsBlock(top: 10, child: _buildSignInLinkBanner(context)),
+        if (_testPassed == false)
+          LokalSettingsBlock(top: 10, child: _buildFailureBanner(context)),
+        LokalSettingsBlock(
+          top: 10,
+          child: LokalSettingsActionButton(
+            label: _saving
+                ? '${_isNew ? l10n.addServer : l10n.save}…'
+                : _isNew
+                ? l10n.addServer
+                : l10n.save,
+            expand: true,
+            onPressed: (_saving || !_isValid) ? null : _save,
+          ),
+        ),
+        if (!_isNew)
+          LokalSettingsBlock(
+            child: LokalSettingsActionButton(
+              label: l10n.removeServer2,
+              icon: Icons.delete_outline_rounded,
+              destructive: true,
+              expand: true,
+              onPressed: _saving ? null : _delete,
             ),
           ),
-          if (_testing && _testVerificationUri != null) ...[
-            const SizedBox(height: AppConstants.spacingSm),
-            _buildSignInLinkBanner(context),
-          ],
-          if (_testPassed == false) ...[
-            const SizedBox(height: AppConstants.spacingSm),
-            _buildFailureBanner(context),
-          ],
-          const SizedBox(height: AppConstants.spacingSm),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: (_saving || !_isValid) ? null : _save,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                ),
-              ),
-              child: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_isNew ? l10n.addServer : l10n.save),
-            ),
-          ),
-          if (!_isNew) ...[
-            const SizedBox(height: AppConstants.spacingLg),
-            Center(
-              child: TextButton.icon(
-                onPressed: _saving ? null : _delete,
-                icon: const Icon(LucideIcons.trash2, size: 16),
-                label: Text(l10n.removeServer2),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.textTertiary,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+      ],
     );
   }
 
-  Widget _buildFailureBanner(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingSm),
-      decoration: BoxDecoration(
-        color: AppColors.glassBackground,
-        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            LucideIcons.info,
-            size: 16,
-            color: context.adaptiveTextSecondary,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _testError ??
-                  'Could not reach the server. Check the URL and credentials, '
-                  'then try again.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.adaptiveTextSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildFailureBanner(BuildContext context) => LokalSettingsNotice(
+    warning: true,
+    text:
+        _testError ??
+        'Could not reach the server. Check the URL and credentials, '
+            'then try again.',
+  );
 
   /// Shown live while Tidal device-code polling runs after the browser failed
   /// to auto-open. Offers manual copy/open of the verification link.
   Widget _buildSignInLinkBanner(BuildContext context) {
+    final t = context.lokal;
     final uri = _testVerificationUri!;
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.spacingSm),
-      decoration: BoxDecoration(
-        color: AppColors.glassBackground,
-        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-        border: Border.all(color: AppColors.glassBorder),
-      ),
+    return LokalSettingsCard(
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                LucideIcons.link,
-                size: 16,
-                color: context.adaptiveTextSecondary,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  l10n.couldnTOpenTheBrowserAutomatically,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.adaptiveTextSecondary,
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            l10n.couldnTOpenTheBrowserAutomatically,
+            style: TextStyle(fontSize: 13, height: 1.4, color: t.text),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.glassBackgroundStrong,
-              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-              border: Border.all(color: AppColors.glassBorder),
+              color: t.surface2,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: t.border),
             ),
             child: SelectableText(
               uri,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.adaptiveTextSecondary,
-                fontFamily: 'monospace',
-                letterSpacing: 0.2,
-              ),
+              style: LokalTheme.label(t, size: 12, color: t.text),
             ),
           ),
-          const SizedBox(height: AppConstants.spacingSm),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _linkAction(
-                icon: LucideIcons.externalLink,
+              LokalSettingButton(
                 label: l10n.openInBrowser,
-                onTap: () => _openLink(uri),
+                onPressed: () => _openLink(uri),
               ),
-              _linkAction(
-                icon: LucideIcons.copy,
+              LokalSettingButton(
                 label: l10n.copyLink,
-                onTap: () {
+                onPressed: () {
                   Clipboard.setData(ClipboardData(text: uri));
                   AppHaptics.tap();
                 },
@@ -638,58 +547,22 @@ class _NetworkServerEditScreenState extends State<NetworkServerEditScreen> {
     );
   }
 
-  /// Glass-styled action button matching the app design language (used for the
-  /// Tidal sign-in link actions).
-  Widget _linkAction({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.glassBackgroundStrong,
-            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-            border: Border.all(color: AppColors.glassBorderStrong),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 15, color: context.adaptiveTextSecondary),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: context.adaptiveTextPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   /// Open [uri] for the Tidal device flow in the default browser. If no
   /// default browser is set, the system shows its own chooser.
   Future<void> _openLink(String uri) async {
     AppHaptics.tap();
     try {
       await launchUrl(Uri.parse(uri), mode: LaunchMode.externalApplication);
-    } catch (_) {/* nothing to do — the banner still shows the link */}
+    } catch (_) {
+      /* nothing to do — the banner still shows the link */
+    }
   }
 }
 
+/// A labelled text field as a settings row.
 class _TextFieldSetting extends StatefulWidget {
   const _TextFieldSetting({
     required this.controller,
-    required this.icon,
     required this.label,
     this.hint,
     this.helperText,
@@ -698,7 +571,6 @@ class _TextFieldSetting extends StatefulWidget {
   });
 
   final TextEditingController controller;
-  final IconData icon;
   final String label;
   final String? hint;
   final String? helperText;
@@ -714,111 +586,50 @@ class _TextFieldSettingState extends State<_TextFieldSetting> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.lokal;
     return Padding(
-      padding: const EdgeInsets.all(AppConstants.spacingLg),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SettingsTileIcon(icon: widget.icon),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.label.toUpperCase(),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                    letterSpacing: 1.0,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: widget.controller,
-                  obscureText: _obscured,
-                  keyboardType: widget.keyboardType,
-                  autocorrect: false,
-                  enableSuggestions: !_obscured,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.adaptiveTextPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: widget.hint,
-                    helperText: widget.helperText,
-                    isDense: true,
-                    filled: true,
-                    fillColor: AppColors.glassBackground,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    suffixIcon: widget.obscureText
-                        ? IconButton(
-                            icon: Icon(
-                              _obscured
-                                  ? LucideIcons.eye
-                                  : LucideIcons.eyeOff,
-                              size: 18,
-                            ),
-                            color: context.adaptiveTextSecondary,
-                            tooltip: _obscured ? l10n.showPassword : l10n.hidePassword,
-                            onPressed: () {
-                              AppHaptics.tap();
-                              setState(() => _obscured = !_obscured);
-                            },
-                          )
-                        : null,
-                    hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
-                    helperStyle: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: context.adaptiveTextTertiary),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusSm,
+          Text(widget.label.toUpperCase(), style: LokalTheme.label(t)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: widget.controller,
+            obscureText: _obscured,
+            keyboardType: widget.keyboardType,
+            autocorrect: false,
+            enableSuggestions: !_obscured,
+            style: TextStyle(
+              fontFamily: LokalTheme.sans,
+              fontSize: 14,
+              color: t.text,
+            ),
+            decoration: lokalInputDecoration(
+              context,
+              hint: widget.hint,
+              helper: widget.helperText,
+              suffixIcon: widget.obscureText
+                  ? IconButton(
+                      icon: Icon(
+                        _obscured
+                            ? Icons.visibility_rounded
+                            : Icons.visibility_off_rounded,
+                        size: 18,
                       ),
-                      borderSide: BorderSide(
-                        color: AppColors.glassBorder,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppConstants.radiusSm,
-                      ),
-                      borderSide: BorderSide(
-                        color: AppColors.glassBorderStrong,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                      color: t.muted,
+                      tooltip: _obscured
+                          ? l10n.showPassword
+                          : l10n.hidePassword,
+                      onPressed: () {
+                        AppHaptics.tap();
+                        setState(() => _obscured = !_obscured);
+                      },
+                    )
+                  : null,
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SettingsTileIcon extends StatelessWidget {
-  const _SettingsTileIcon({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: context.scaleSize(AppConstants.containerSizeMd),
-      height: context.scaleSize(AppConstants.containerSizeMd),
-      decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong,
-        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-      ),
-      child: Icon(
-        icon,
-        color: context.adaptiveTextSecondary,
-        size: context.responsiveIcon(AppConstants.iconSizeLg),
       ),
     );
   }

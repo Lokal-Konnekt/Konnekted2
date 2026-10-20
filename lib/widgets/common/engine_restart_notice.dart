@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/menu/screens/restarting_screen.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -16,12 +16,13 @@ class EngineRestartNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.lokal;
     return Container(
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.08),
+        color: t.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.30)),
+        border: Border.all(color: t.accent.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -29,14 +30,10 @@ class EngineRestartNotice extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.16),
+              color: t.accentDim,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              LucideIcons.refreshCcw,
-              color: context.adaptiveTextPrimary,
-              size: 17,
-            ),
+            child: Icon(LucideIcons.refreshCcw, color: t.accent, size: 17),
           ),
           const SizedBox(width: AppConstants.spacingMd),
           Expanded(
@@ -45,16 +42,20 @@ class EngineRestartNotice extends StatelessWidget {
               children: [
                 Text(
                   l10n.restartRequired,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: context.adaptiveTextPrimary,
+                  style: TextStyle(
+                    fontFamily: LokalTheme.sans,
+                    fontSize: 14,
+                    color: t.text,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: AppConstants.spacingXxs),
                 Text(
                   l10n.yourNewAudioEngineIsReady,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.adaptiveTextSecondary,
+                  style: TextStyle(
+                    fontFamily: LokalTheme.sans,
+                    fontSize: 12.5,
+                    color: t.muted,
                     height: 1.35,
                   ),
                 ),
@@ -76,14 +77,14 @@ class EngineRestartNotice extends StatelessWidget {
               ),
             ),
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: AppColors.onAccent,
+              backgroundColor: t.accent,
+              foregroundColor: t.onAccent,
               padding: const EdgeInsets.symmetric(
                 horizontal: AppConstants.spacingMd,
                 vertical: AppConstants.spacingSm,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(999),
               ),
             ),
             child: Text(l10n.restart),
@@ -93,4 +94,3 @@ class EngineRestartNotice extends StatelessWidget {
     );
   }
 }
-

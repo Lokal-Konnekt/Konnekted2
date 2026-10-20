@@ -1,15 +1,16 @@
-import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/providers/providers.dart';
-import 'package:flick/features/settings/widgets/settings_widgets.dart';
-import 'package:flick/services/widget_sync_service.dart';
-import 'package:flick/l10n/l10n.dart';
 
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/l10n/l10n.dart';
+import 'package:flick/services/app_preferences_service.dart' show AppPreferences;
+import 'package:flick/providers/providers.dart';
+import 'package:flick/services/widget_sync_service.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
+
+/// Home screen widgets: one tab per widget size, each with its background,
+/// content, text size (with a preview) and accent.
 class WidgetSettingsScreen extends ConsumerStatefulWidget {
   const WidgetSettingsScreen({super.key});
 
@@ -19,706 +20,281 @@ class WidgetSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _WidgetSettingsScreenState extends ConsumerState<WidgetSettingsScreen> {
-  static const _tabCount = 3;
   int _tab = 0;
-  int _dir = 1;
-
-  void _switchTo(int i) {
-    if (i < 0 || i >= _tabCount || i == _tab) return;
-    setState(() {
-      _dir = i > _tab ? 1 : -1;
-      _tab = i;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    return SettingsScaffold(
+    final prefs = ref.watch(appPreferencesProvider);
+    final tab = _tabs[_tab];
+    return LokalSettingsScaffold(
       title: l10n.widgets,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _TabBar(
-            selectedIndex: _tab,
-            onSelected: _switchTo,
+      subtitle: 'How Lokal looks on your home screen.',
+      children: [
+        LokalSettingsBlock(
+          top: 16,
+          child: LokalSegmented<int>(
+            expand: true,
+            value: _tab,
+            segments: [
+              for (final (i, tab) in _tabs.indexed)
+                LokalSegment(i, tab.label()),
+            ],
+            onChanged: (i) => setState(() => _tab = i),
           ),
-          const SizedBox(height: AppConstants.spacingLg),
-          GestureDetector(
-            onHorizontalDragEnd: (details) {
-              final v = details.primaryVelocity ?? 0;
-              if (v < -250) {
-                _switchTo(_tab + 1);
-              } else if (v > 250) {
-                _switchTo(_tab - 1);
-              }
-            },
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              layoutBuilder: (currentChild, previousChildren) => Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  ...previousChildren,
-                  ?currentChild,
-                ],
-              ),
-              transitionBuilder: (child, animation) {
-                final incoming = (child.key as ValueKey).value == _tab;
-                final beginX = (incoming ? _dir : -_dir).toDouble();
-                return SlideTransition(
-                  position: Tween<Offset>(
-                    begin: Offset(beginX, 0),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: FadeTransition(opacity: animation, child: child),
-                );
+        ),
+        ..._sections(context, tab, prefs),
+      ],
+    );
+  }
+
+  /// Saves [next] and sends it to the widgets on the home screen.
+  void _push(AppPreferences next) =>
+      WidgetSyncService.instance.pushCustomization(next);
+
+  List<Widget> _sections(
+    BuildContext context,
+    _WidgetTab tab,
+    AppPreferences prefs,
+  ) {
+    final notifier = ref.read(appPreferencesProvider.notifier);
+    final scale = tab.textScale(prefs);
+    void setScale(double v) {
+      tab.setTextScale(notifier, v);
+      _push(tab.withTextScale(ref.read(appPreferencesProvider), v));
+    }
+
+    return [
+      if (tab.opacity != null)
+        LokalSettingsSection(
+          title: l10n.background,
+          children: [
+            LokalSettingChoice<int>(
+              label: l10n.background,
+              description: 'How much of the home screen shows through.',
+              value: tab.opacity!(prefs),
+              options: [
+                LokalSegment(0, l10n.transparent),
+                LokalSegment(1, l10n.light),
+                LokalSegment(2, l10n.medium),
+                LokalSegment(3, l10n.dark),
+                LokalSegment(4, l10n.solid),
+              ],
+              onChanged: (v) {
+                tab.setOpacity!(notifier, v);
+                _push(tab.withOpacity!(ref.read(appPreferencesProvider), v));
               },
-              child: KeyedSubtree(
-                key: ValueKey(_tab),
-                child: _tab == 0
-                    ? const _MiniPlayerTab()
-                    : _tab == 1
-                    ? const _FlagshipTab()
-                    : const _CompactTab(),
-              ),
             ),
-          ),
-          const SizedBox(height: AppConstants.navBarHeight + 40),
+          ],
+        ),
+      LokalSettingsSection(
+        title: l10n.content,
+        children: [
+          for (final toggle in tab.toggles)
+            LokalSettingRow.toggle(
+              label: toggle.label(),
+              description: toggle.description(),
+              value: toggle.value(prefs),
+              onChanged: (v) {
+                toggle.set(notifier, v);
+                _push(toggle.copy(prefs, v));
+              },
+            ),
         ],
       ),
-    );
-  }
-}
-
-class _TabBar extends StatelessWidget {
-  const _TabBar({
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-        final tabs = [l10n.miniPlayer, '4×3 Flagship', '2×2'];
-    return Row(
-      children: List.generate(tabs.length * 2 - 1, (i) {
-        if (i.isOdd) {
-          return SizedBox(width: AppConstants.spacingXs);
-        }
-        final index = i ~/ 2;
-        final selected = index == selectedIndex;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => onSelected(index),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppConstants.spacingSm,
-              ),
-              decoration: BoxDecoration(
-                color: selected
-                    ? AppColors.surface.withValues(alpha: 0.8)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                border: selected
-                    ? Border.all(color: AppColors.glassBorder)
-                    : null,
-              ),
-              child: Text(
-                tabs[index],
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: selected
-                          ? context.adaptiveTextPrimary
-                          : context.adaptiveTextTertiary,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-              ),
+      LokalSettingsSection(
+        title: l10n.textSize2,
+        children: [
+          LokalSettingSlider(
+            label: l10n.fontScale,
+            description: l10n.scalesWithWidgetSizeAutomatically,
+            value: scale,
+            min: 0.8,
+            max: 2.5,
+            divisions: 34,
+            valueLabel: (v) => '${(v * 100).round()}%',
+            onChanged: setScale,
+            onValueTap: () => _showManualScaleDialog(
+              context,
+              value: scale,
+              min: 0.8,
+              max: 2.5,
+              onChanged: setScale,
             ),
           ),
-        );
-      }),
-    );
-  }
-}
-
-class _MiniPlayerTab extends ConsumerWidget {
-  const _MiniPlayerTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final prefs = ref.watch(appPreferencesProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SettingsSectionHeader(l10n.background),
-        SettingsCard(
-          children: [
-            _OpacityOption(
-              label: l10n.transparent,
-              value: 0,
-              groupValue: prefs.widgetBgOpacity,
-              onChanged: (v) => _updateOpacity(ref, v),
+          LokalSettingCustom(
+            label: l10n.preview,
+            child: _WidgetTextPreview(
+              titleBaseSp: tab.preview.$1,
+              artistBaseSp: tab.preview.$2,
+              manualScale: scale,
+              accentColor: _resolveAccentColor(tab.accent(prefs)),
+              centered: tab.centered,
             ),
-            const SettingsDivider(),
-            _OpacityOption(
-              label: l10n.light,
-              value: 1,
-              groupValue: prefs.widgetBgOpacity,
-              onChanged: (v) => _updateOpacity(ref, v),
-            ),
-            const SettingsDivider(),
-            _OpacityOption(
-              label: l10n.medium,
-              value: 2,
-              groupValue: prefs.widgetBgOpacity,
-              onChanged: (v) => _updateOpacity(ref, v),
-            ),
-            const SettingsDivider(),
-            _OpacityOption(
-              label: l10n.dark,
-              value: 3,
-              groupValue: prefs.widgetBgOpacity,
-              onChanged: (v) => _updateOpacity(ref, v),
-            ),
-            const SettingsDivider(),
-            _OpacityOption(
-              label: l10n.solid,
-              value: 4,
-              groupValue: prefs.widgetBgOpacity,
-              onChanged: (v) => _updateOpacity(ref, v),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.content),
-        SettingsCard(
-          children: [
-            ToggleSetting(
-              icon: LucideIcons.image,
-              title: l10n.albumArt,
-              subtitle: l10n.showAlbumArtworkOnTheMini,
-              value: prefs.widgetShowAlbumArt,
-              onChanged: (v) {
-                ref
-                    .read(appPreferencesProvider.notifier)
-                    .setWidgetShowAlbumArt(v);
-                WidgetSyncService.instance.pushCustomization(prefs.copyWith(
-                  widgetShowAlbumArt: v,
-                ));
-              },
-            ),
-            const SettingsDivider(),
-            ToggleSetting(
-              icon: LucideIcons.mic,
-              title: l10n.artistName,
-              subtitle: l10n.showArtistBelowSongTitle,
-              value: prefs.widgetShowArtist,
-              onChanged: (v) {
-                ref
-                    .read(appPreferencesProvider.notifier)
-                    .setWidgetShowArtist(v);
-                WidgetSyncService.instance.pushCustomization(prefs.copyWith(
-                  widgetShowArtist: v,
-                ));
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.textSize2),
-        SettingsCard(
-          children: [
-            SliderSetting(
-              icon: LucideIcons.type,
-              title: l10n.fontScale,
-              subtitle: l10n.scalesWithWidgetSizeAutomatically,
-              value: prefs.widgetTextScale,
-              displayValue: '${(prefs.widgetTextScale * 100).round()}%',
-              min: 0.8,
-              max: 2.5,
-              divisions: 34,
-              onChanged: (v) => _updateTextScale(ref, v),
-              onDisplayTap: () => _showManualScaleDialog(
-                context,
-                value: prefs.widgetTextScale,
-                min: 0.8,
-                max: 2.5,
-                onChanged: (v) => _updateTextScale(ref, v),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppConstants.spacingSm),
-        _WidgetTextPreview(
-          titleBaseSp: 13,
-          artistBaseSp: 11,
-          baselineDp: 360,
-          manualScale: prefs.widgetTextScale,
-          accentColor: _resolveAccentColor(prefs.widgetAccentColor),
-          centered: false,
-        ),
-        const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.accentColor),
-        SettingsCard(
-          children: [
-            _AccentOption(
-              label: l10n.white,
-              color: Colors.white,
-              value: 'white',
-              groupValue: prefs.widgetAccentColor,
-              onChanged: (v) => _updateAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.amber,
-              color: const Color(0xFFFFB300),
-              value: 'amber',
-              groupValue: prefs.widgetAccentColor,
-              onChanged: (v) => _updateAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.blue,
-              color: const Color(0xFF64B5F6),
-              value: 'blue',
-              groupValue: prefs.widgetAccentColor,
-              onChanged: (v) => _updateAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.green,
-              color: const Color(0xFF81C784),
-              value: 'green',
-              groupValue: prefs.widgetAccentColor,
-              onChanged: (v) => _updateAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.purple,
-              color: const Color(0xFFCE93D8),
-              value: 'purple',
-              groupValue: prefs.widgetAccentColor,
-              onChanged: (v) => _updateAccent(ref, v),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _updateOpacity(WidgetRef ref, int value) {
-    ref.read(appPreferencesProvider.notifier).setWidgetBgOpacity(value);
-    final prefs = ref.read(appPreferencesProvider);
-    WidgetSyncService.instance.pushCustomization(
-      prefs.copyWith(widgetBgOpacity: value),
-    );
-  }
-
-  void _updateAccent(WidgetRef ref, String value) {
-    ref.read(appPreferencesProvider.notifier).setWidgetAccentColor(value);
-    final prefs = ref.read(appPreferencesProvider);
-    WidgetSyncService.instance.pushCustomization(
-      prefs.copyWith(widgetAccentColor: value),
-    );
-  }
-
-  void _updateTextScale(WidgetRef ref, double value) {
-    ref.read(appPreferencesProvider.notifier).setWidgetTextScale(value);
-    final prefs = ref.read(appPreferencesProvider);
-    WidgetSyncService.instance.pushCustomization(
-      prefs.copyWith(widgetTextScale: value),
-    );
-  }
-}
-
-class _FlagshipTab extends ConsumerWidget {
-  const _FlagshipTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final prefs = ref.watch(appPreferencesProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SettingsSectionHeader(l10n.content),
-        SettingsCard(
-          children: [
-            ToggleSetting(
-              icon: LucideIcons.mic,
-              title: l10n.artistName,
-              subtitle: l10n.showArtistBelowSongTitle,
-              value: prefs.widgetFlagshipShowArtist,
-              onChanged: (v) {
-                ref
-                    .read(appPreferencesProvider.notifier)
-                    .setWidgetFlagshipShowArtist(v);
-                WidgetSyncService.instance.pushCustomization(prefs.copyWith(
-                  widgetFlagshipShowArtist: v,
-                ));
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.textSize2),
-        SettingsCard(
-          children: [
-            SliderSetting(
-              icon: LucideIcons.type,
-              title: l10n.fontScale,
-              subtitle: l10n.scalesWithWidgetSizeAutomatically,
-              value: prefs.widgetFlagshipTextScale,
-              displayValue:
-                  '${(prefs.widgetFlagshipTextScale * 100).round()}%',
-              min: 0.8,
-              max: 2.5,
-              divisions: 34,
-              onChanged: (v) => _updateFlagshipTextScale(ref, v),
-              onDisplayTap: () => _showManualScaleDialog(
-                context,
-                value: prefs.widgetFlagshipTextScale,
-                min: 0.8,
-                max: 2.5,
-                onChanged: (v) => _updateFlagshipTextScale(ref, v),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppConstants.spacingSm),
-        _WidgetTextPreview(
-          titleBaseSp: 15,
-          artistBaseSp: 12,
-          baselineDp: 400,
-          manualScale: prefs.widgetFlagshipTextScale,
-          accentColor: _resolveAccentColor(prefs.widgetFlagshipAccent),
-          centered: true,
-        ),
-        const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.accentColor),
-        SettingsCard(
-          children: [
-            _AccentOption(
-              label: l10n.white,
-              color: Colors.white,
-              value: 'white',
-              groupValue: prefs.widgetFlagshipAccent,
-              onChanged: (v) => _updateFlagshipAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.amber,
-              color: const Color(0xFFFFB300),
-              value: 'amber',
-              groupValue: prefs.widgetFlagshipAccent,
-              onChanged: (v) => _updateFlagshipAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.blue,
-              color: const Color(0xFF64B5F6),
-              value: 'blue',
-              groupValue: prefs.widgetFlagshipAccent,
-              onChanged: (v) => _updateFlagshipAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.green,
-              color: const Color(0xFF81C784),
-              value: 'green',
-              groupValue: prefs.widgetFlagshipAccent,
-              onChanged: (v) => _updateFlagshipAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.purple,
-              color: const Color(0xFFCE93D8),
-              value: 'purple',
-              groupValue: prefs.widgetFlagshipAccent,
-              onChanged: (v) => _updateFlagshipAccent(ref, v),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _updateFlagshipAccent(WidgetRef ref, String value) {
-    ref.read(appPreferencesProvider.notifier).setWidgetFlagshipAccent(value);
-    final prefs = ref.read(appPreferencesProvider);
-    WidgetSyncService.instance.pushCustomization(
-      prefs.copyWith(widgetFlagshipAccent: value),
-    );
-  }
-
-  void _updateFlagshipTextScale(WidgetRef ref, double value) {
-    ref.read(appPreferencesProvider.notifier).setWidgetFlagshipTextScale(value);
-    final prefs = ref.read(appPreferencesProvider);
-    WidgetSyncService.instance.pushCustomization(
-      prefs.copyWith(widgetFlagshipTextScale: value),
-    );
-  }
-}
-
-class _CompactTab extends ConsumerWidget {
-  const _CompactTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final prefs = ref.watch(appPreferencesProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SettingsSectionHeader(l10n.background),
-        SettingsCard(
-          children: [
-            _OpacityOption(
-              label: l10n.transparent,
-              value: 0,
-              groupValue: prefs.widgetCompactBgOpacity,
-              onChanged: (v) => _updateCompactOpacity(ref, v),
-            ),
-            const SettingsDivider(),
-            _OpacityOption(
-              label: l10n.light,
-              value: 1,
-              groupValue: prefs.widgetCompactBgOpacity,
-              onChanged: (v) => _updateCompactOpacity(ref, v),
-            ),
-            const SettingsDivider(),
-            _OpacityOption(
-              label: l10n.medium,
-              value: 2,
-              groupValue: prefs.widgetCompactBgOpacity,
-              onChanged: (v) => _updateCompactOpacity(ref, v),
-            ),
-            const SettingsDivider(),
-            _OpacityOption(
-              label: l10n.dark,
-              value: 3,
-              groupValue: prefs.widgetCompactBgOpacity,
-              onChanged: (v) => _updateCompactOpacity(ref, v),
-            ),
-            const SettingsDivider(),
-            _OpacityOption(
-              label: l10n.solid,
-              value: 4,
-              groupValue: prefs.widgetCompactBgOpacity,
-              onChanged: (v) => _updateCompactOpacity(ref, v),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.content),
-        SettingsCard(
-          children: [
-            ToggleSetting(
-              icon: LucideIcons.image,
-              title: l10n.albumArt,
-              subtitle: l10n.useAlbumArtAsBackground,
-              value: prefs.widgetCompactShowAlbumArt,
-              onChanged: (v) {
-                ref
-                    .read(appPreferencesProvider.notifier)
-                    .setWidgetCompactShowAlbumArt(v);
-                WidgetSyncService.instance.pushCustomization(prefs.copyWith(
-                  widgetCompactShowAlbumArt: v,
-                ));
-              },
-            ),
-            const SettingsDivider(),
-            ToggleSetting(
-              icon: LucideIcons.mic,
-              title: l10n.artistName,
-              subtitle: l10n.showArtistBelowSongTitle,
-              value: prefs.widgetCompactShowArtist,
-              onChanged: (v) {
-                ref
-                    .read(appPreferencesProvider.notifier)
-                    .setWidgetCompactShowArtist(v);
-                WidgetSyncService.instance.pushCustomization(prefs.copyWith(
-                  widgetCompactShowArtist: v,
-                ));
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.textSize2),
-        SettingsCard(
-          children: [
-            SliderSetting(
-              icon: LucideIcons.type,
-              title: l10n.fontScale,
-              subtitle: l10n.scalesWithWidgetSizeAutomatically,
-              value: prefs.widgetCompactTextScale,
-              displayValue:
-                  '${(prefs.widgetCompactTextScale * 100).round()}%',
-              min: 0.8,
-              max: 2.5,
-              divisions: 34,
-              onChanged: (v) => _updateCompactTextScale(ref, v),
-              onDisplayTap: () => _showManualScaleDialog(
-                context,
-                value: prefs.widgetCompactTextScale,
-                min: 0.8,
-                max: 2.5,
-                onChanged: (v) => _updateCompactTextScale(ref, v),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppConstants.spacingSm),
-        _WidgetTextPreview(
-          titleBaseSp: 15,
-          artistBaseSp: 12,
-          baselineDp: 200,
-          manualScale: prefs.widgetCompactTextScale,
-          accentColor: _resolveAccentColor(prefs.widgetCompactAccent),
-          centered: true,
-        ),
-        const SizedBox(height: AppConstants.spacingLg),
-        SettingsSectionHeader(l10n.accentColor),
-        SettingsCard(
-          children: [
-            _AccentOption(
-              label: l10n.white,
-              color: Colors.white,
-              value: 'white',
-              groupValue: prefs.widgetCompactAccent,
-              onChanged: (v) => _updateCompactAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.amber,
-              color: const Color(0xFFFFB300),
-              value: 'amber',
-              groupValue: prefs.widgetCompactAccent,
-              onChanged: (v) => _updateCompactAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.blue,
-              color: const Color(0xFF64B5F6),
-              value: 'blue',
-              groupValue: prefs.widgetCompactAccent,
-              onChanged: (v) => _updateCompactAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.green,
-              color: const Color(0xFF81C784),
-              value: 'green',
-              groupValue: prefs.widgetCompactAccent,
-              onChanged: (v) => _updateCompactAccent(ref, v),
-            ),
-            const SettingsDivider(),
-            _AccentOption(
-              label: l10n.purple,
-              color: const Color(0xFFCE93D8),
-              value: 'purple',
-              groupValue: prefs.widgetCompactAccent,
-              onChanged: (v) => _updateCompactAccent(ref, v),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  void _updateCompactOpacity(WidgetRef ref, int value) {
-    ref
-        .read(appPreferencesProvider.notifier)
-        .setWidgetCompactBgOpacity(value);
-    final prefs = ref.read(appPreferencesProvider);
-    WidgetSyncService.instance.pushCustomization(
-      prefs.copyWith(widgetCompactBgOpacity: value),
-    );
-  }
-
-  void _updateCompactAccent(WidgetRef ref, String value) {
-    ref.read(appPreferencesProvider.notifier).setWidgetCompactAccent(value);
-    final prefs = ref.read(appPreferencesProvider);
-    WidgetSyncService.instance.pushCustomization(
-      prefs.copyWith(widgetCompactAccent: value),
-    );
-  }
-
-  void _updateCompactTextScale(WidgetRef ref, double value) {
-    ref.read(appPreferencesProvider.notifier).setWidgetCompactTextScale(value);
-    final prefs = ref.read(appPreferencesProvider);
-    WidgetSyncService.instance.pushCustomization(
-      prefs.copyWith(widgetCompactTextScale: value),
-    );
-  }
-}
-
-class _OpacityOption extends StatelessWidget {
-  const _OpacityOption({
-    required this.label,
-    required this.value,
-    required this.groupValue,
-    required this.onChanged,
-  });
-
-  final String label;
-  final int value;
-  final int groupValue;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = value == groupValue;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => onChanged(value),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingLg),
-          child: Row(
-            children: [
-              Container(
-                width: AppConstants.containerSizeMd,
-                height: AppConstants.containerSizeMd,
-                decoration: BoxDecoration(
-                  color: AppColors.glassBackgroundStrong,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                ),
-                child: Icon(
-                  LucideIcons.paintBucket,
-                  color: selected
-                      ? context.adaptiveTextPrimary
-                      : context.adaptiveTextTertiary,
-                  size: AppConstants.iconSizeLg,
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingMd),
-              Expanded(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
-                ),
-              ),
-              Icon(
-                selected
-                    ? Icons.check_circle_rounded
-                    : Icons.radio_button_unchecked,
-                color: selected
-                    ? context.adaptiveTextPrimary
-                    : context.adaptiveTextTertiary,
-                size: 20,
-              ),
-            ],
           ),
-        ),
+        ],
       ),
-    );
+      LokalSettingsSection(
+        title: l10n.accentColor,
+        children: [
+          LokalSettingCustom(
+            label: l10n.accentColor,
+            child: _AccentPicker(
+              value: tab.accent(prefs),
+              onChanged: (v) {
+                tab.setAccent(notifier, v);
+                _push(tab.withAccent(ref.read(appPreferencesProvider), v));
+              },
+            ),
+          ),
+        ],
+      ),
+    ];
   }
 }
+
+/// One switch of a widget's content.
+class _WidgetToggle {
+  const _WidgetToggle({
+    required this.label,
+    required this.description,
+    required this.value,
+    required this.set,
+    required this.copy,
+  });
+
+  final String Function() label;
+  final String Function() description;
+  final bool Function(AppPreferences) value;
+  final void Function(AppPreferencesNotifier, bool) set;
+  final AppPreferences Function(AppPreferences, bool) copy;
+}
+
+/// What one widget size can change, and where each value is kept.
+class _WidgetTab {
+  const _WidgetTab({
+    required this.label,
+    required this.toggles,
+    required this.textScale,
+    required this.setTextScale,
+    required this.withTextScale,
+    required this.accent,
+    required this.setAccent,
+    required this.withAccent,
+    required this.preview,
+    required this.centered,
+    this.opacity,
+    this.setOpacity,
+    this.withOpacity,
+  });
+
+  final String Function() label;
+  final List<_WidgetToggle> toggles;
+  final double Function(AppPreferences) textScale;
+  final void Function(AppPreferencesNotifier, double) setTextScale;
+  final AppPreferences Function(AppPreferences, double) withTextScale;
+  final String Function(AppPreferences) accent;
+  final void Function(AppPreferencesNotifier, String) setAccent;
+  final AppPreferences Function(AppPreferences, String) withAccent;
+
+  /// The title and artist sizes, in sp, at 100%.
+  final (int, int) preview;
+  final bool centered;
+  final int Function(AppPreferences)? opacity;
+  final void Function(AppPreferencesNotifier, int)? setOpacity;
+  final AppPreferences Function(AppPreferences, int)? withOpacity;
+}
+
+final _tabs = <_WidgetTab>[
+  _WidgetTab(
+    label: () => l10n.miniPlayer,
+    opacity: (p) => p.widgetBgOpacity,
+    setOpacity: (n, v) => n.setWidgetBgOpacity(v),
+    withOpacity: (p, v) => p.copyWith(widgetBgOpacity: v),
+    toggles: [
+      _WidgetToggle(
+        label: () => l10n.albumArt,
+        description: () => l10n.showAlbumArtworkOnTheMini,
+        value: (p) => p.widgetShowAlbumArt,
+        set: (n, v) => n.setWidgetShowAlbumArt(v),
+        copy: (p, v) => p.copyWith(widgetShowAlbumArt: v),
+      ),
+      _WidgetToggle(
+        label: () => l10n.artistName,
+        description: () => l10n.showArtistBelowSongTitle,
+        value: (p) => p.widgetShowArtist,
+        set: (n, v) => n.setWidgetShowArtist(v),
+        copy: (p, v) => p.copyWith(widgetShowArtist: v),
+      ),
+    ],
+    textScale: (p) => p.widgetTextScale,
+    setTextScale: (n, v) => n.setWidgetTextScale(v),
+    withTextScale: (p, v) => p.copyWith(widgetTextScale: v),
+    accent: (p) => p.widgetAccentColor,
+    setAccent: (n, v) => n.setWidgetAccentColor(v),
+    withAccent: (p, v) => p.copyWith(widgetAccentColor: v),
+    preview: (13, 11),
+    centered: false,
+  ),
+  _WidgetTab(
+    label: () => '4×3 Flagship',
+    toggles: [
+      _WidgetToggle(
+        label: () => l10n.artistName,
+        description: () => l10n.showArtistBelowSongTitle,
+        value: (p) => p.widgetFlagshipShowArtist,
+        set: (n, v) => n.setWidgetFlagshipShowArtist(v),
+        copy: (p, v) => p.copyWith(widgetFlagshipShowArtist: v),
+      ),
+    ],
+    textScale: (p) => p.widgetFlagshipTextScale,
+    setTextScale: (n, v) => n.setWidgetFlagshipTextScale(v),
+    withTextScale: (p, v) => p.copyWith(widgetFlagshipTextScale: v),
+    accent: (p) => p.widgetFlagshipAccent,
+    setAccent: (n, v) => n.setWidgetFlagshipAccent(v),
+    withAccent: (p, v) => p.copyWith(widgetFlagshipAccent: v),
+    preview: (15, 12),
+    centered: true,
+  ),
+  _WidgetTab(
+    label: () => '2×2',
+    opacity: (p) => p.widgetCompactBgOpacity,
+    setOpacity: (n, v) => n.setWidgetCompactBgOpacity(v),
+    withOpacity: (p, v) => p.copyWith(widgetCompactBgOpacity: v),
+    toggles: [
+      _WidgetToggle(
+        label: () => l10n.albumArt,
+        description: () => l10n.useAlbumArtAsBackground,
+        value: (p) => p.widgetCompactShowAlbumArt,
+        set: (n, v) => n.setWidgetCompactShowAlbumArt(v),
+        copy: (p, v) => p.copyWith(widgetCompactShowAlbumArt: v),
+      ),
+      _WidgetToggle(
+        label: () => l10n.artistName,
+        description: () => l10n.showArtistBelowSongTitle,
+        value: (p) => p.widgetCompactShowArtist,
+        set: (n, v) => n.setWidgetCompactShowArtist(v),
+        copy: (p, v) => p.copyWith(widgetCompactShowArtist: v),
+      ),
+    ],
+    textScale: (p) => p.widgetCompactTextScale,
+    setTextScale: (n, v) => n.setWidgetCompactTextScale(v),
+    withTextScale: (p, v) => p.copyWith(widgetCompactTextScale: v),
+    accent: (p) => p.widgetCompactAccent,
+    setAccent: (n, v) => n.setWidgetCompactAccent(v),
+    withAccent: (p, v) => p.copyWith(widgetCompactAccent: v),
+    preview: (15, 12),
+    centered: true,
+  ),
+];
+
+/// The widget accents, as the home screen widgets draw them.
+List<(String, String, Color)> _accents() => [
+  ('white', l10n.white, Colors.white),
+  ('amber', l10n.amber, const Color(0xFFFFB300)),
+  ('blue', l10n.blue, const Color(0xFF64B5F6)),
+  ('green', l10n.green, const Color(0xFF81C784)),
+  ('purple', l10n.purple, const Color(0xFFCE93D8)),
+];
 
 Color _resolveAccentColor(String name) {
   return switch (name) {
@@ -737,11 +313,10 @@ Future<void> _showManualScaleDialog(
   required double max,
   required ValueChanged<double> onChanged,
 }) async {
-  final submitted = await FlickDialogs.input(
-    context,
+  final submitted = await showLokalInputSheet(
+    context: context,
     title: l10n.fontScale,
-    message:
-        l10n.enterAValueFromTo((min * 100).round(), (max * 100).round()),
+    message: l10n.enterAValueFromTo((min * 100).round(), (max * 100).round()),
     initialValue: (value * 100).round().toString(),
     confirmLabel: l10n.apply,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -752,11 +327,75 @@ Future<void> _showManualScaleDialog(
   }
 }
 
+/// The accents as swatches, the chosen one ringed.
+class _AccentPicker extends StatelessWidget {
+  const _AccentPicker({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Wrap(
+        spacing: 14,
+        runSpacing: 12,
+        children: [
+          for (final (id, label, color) in _accents())
+            Semantics(
+              button: true,
+              selected: id == value,
+              label: label,
+              excludeSemantics: true,
+              child: GestureDetector(
+                onTap: () => onChanged(id),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 40,
+                      height: 40,
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: id == value ? t.accent : t.border,
+                          width: id == value ? 2 : 1,
+                        ),
+                      ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      label.toUpperCase(),
+                      style: LokalTheme.label(
+                        t,
+                        size: 9.5,
+                        color: id == value ? t.text : t.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _WidgetTextPreview extends StatefulWidget {
   const _WidgetTextPreview({
     required this.titleBaseSp,
     required this.artistBaseSp,
-    required this.baselineDp,
     required this.manualScale,
     required this.accentColor,
     required this.centered,
@@ -764,7 +403,6 @@ class _WidgetTextPreview extends StatefulWidget {
 
   final int titleBaseSp;
   final int artistBaseSp;
-  final double baselineDp;
   final double manualScale;
   final Color accentColor;
   final bool centered;
@@ -781,6 +419,7 @@ class _WidgetTextPreviewState extends State<_WidgetTextPreview> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.lokal;
     final auto = _autoFactors[_sizeIndex];
     double clampSp(int base) =>
         (base * auto * widget.manualScale).round().clamp(9, 30).toDouble();
@@ -790,169 +429,63 @@ class _WidgetTextPreviewState extends State<_WidgetTextPreview> {
         ? CrossAxisAlignment.center
         : CrossAxisAlignment.start;
 
-    return SettingsCard(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppConstants.spacingLg,
-            AppConstants.spacingMd,
-            AppConstants.spacingLg,
-            AppConstants.spacingSm,
-          ),
-          child: Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              Text(
-                l10n.preview,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
-              ),
+              Text(l10n.preview.toUpperCase(), style: LokalTheme.label(t)),
               const Spacer(),
-              ...List.generate(3, (i) {
-                final selected = i == _sizeIndex;
-                return Padding(
-                  padding: const EdgeInsets.only(left: AppConstants.spacingXs),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _sizeIndex = i),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? AppColors.surface.withValues(alpha: 0.8)
-                            : Colors.transparent,
-                        borderRadius:
-                            BorderRadius.circular(AppConstants.radiusSm),
-                        border: selected
-                            ? Border.all(color: AppColors.glassBorder)
-                            : null,
-                      ),
-                      child: Text(
-                        _sizeLabels[i],
-                        style: TextStyle(
-                          fontFamily: 'GoogleSansFlex',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: selected
-                              ? context.adaptiveTextPrimary
-                              : context.adaptiveTextTertiary,
-                        ),
-                      ),
-                    ),
+              LokalSegmented<int>(
+                value: _sizeIndex,
+                segments: [
+                  for (final (i, label) in _sizeLabels.indexed)
+                    LokalSegment(i, label),
+                ],
+                onChanged: (i) => setState(() => _sizeIndex = i),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // The widget itself is dark on the home screen whatever the theme.
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: cross,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.midnightCityDreams,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: LokalTheme.sans,
+                    fontWeight: FontWeight.w700,
+                    fontSize: titleSp,
+                    color: Colors.white,
                   ),
-                );
-              }),
-            ],
-          ),
-        ),
-        Container(
-          margin: const EdgeInsets.fromLTRB(
-            AppConstants.spacingLg,
-            0,
-            AppConstants.spacingLg,
-            AppConstants.spacingLg,
-          ),
-          padding: const EdgeInsets.all(AppConstants.spacingLg),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          ),
-          child: Column(
-            crossAxisAlignment: cross,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.midnightCityDreams,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'GoogleSansFlex',
-                  fontWeight: FontWeight.w700,
-                  fontSize: titleSp,
-                  color: Colors.white,
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                l10n.neonSkyline,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'GoogleSansFlex',
-                  fontSize: artistSp,
-                  color: widget.accentColor,
+                const SizedBox(height: 2),
+                Text(
+                  l10n.neonSkyline,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: LokalTheme.sans,
+                    fontSize: artistSp,
+                    color: widget.accentColor,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AccentOption extends StatelessWidget {
-  const _AccentOption({
-    required this.label,
-    required this.color,
-    required this.value,
-    required this.groupValue,
-    required this.onChanged,
-  });
-
-  final String label;
-  final Color color;
-  final String value;
-  final String groupValue;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = value == groupValue;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => onChanged(value),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.spacingLg),
-          child: Row(
-            children: [
-              Container(
-                width: AppConstants.containerSizeMd,
-                height: AppConstants.containerSizeMd,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                ),
-                child: Icon(
-                  LucideIcons.palette,
-                  color: color,
-                  size: AppConstants.iconSizeLg,
-                ),
-              ),
-              const SizedBox(width: AppConstants.spacingMd),
-              Expanded(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
-                ),
-              ),
-              Icon(
-                selected
-                    ? Icons.check_circle_rounded
-                    : Icons.radio_button_unchecked,
-                color: selected
-                    ? context.adaptiveTextPrimary
-                    : context.adaptiveTextTertiary,
-                size: 20,
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

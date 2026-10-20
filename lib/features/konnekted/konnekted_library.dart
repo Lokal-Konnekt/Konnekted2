@@ -26,10 +26,10 @@ const _librarySettings = KonnektedDestination.settingsAt(
   LokalSettingsGroup.library,
 );
 
-/// Settings › Integrations › Accounts, where Spotify is.
+/// Settings › Online sources › Accounts & scrobbling, where Spotify is.
 const _accounts = KonnektedDestination.settingsAt(
   LokalSettingsGroup.integrations,
-  section: 'Accounts',
+  section: LokalOnlineSections.accounts,
 );
 
 class KonnektedLibrary extends ConsumerWidget {

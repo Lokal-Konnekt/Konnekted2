@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/uac2_service.dart';
@@ -115,17 +115,18 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
     final showDb =
         isSoftwareVolume || deviceStatus.volumeMode == Uac2VolumeMode.hardware;
 
+    final t = context.lokal;
     final useGradient = widget.useGradientBackground;
     final gradientColors =
         widget.gradientColors ??
         const [Color(0xFF194B68), Color(0xFF0C1624), Color(0xFF1D2A19)];
-    final labelColor = useGradient ? Colors.white : context.adaptiveTextPrimary;
+    final labelColor = useGradient ? Colors.white : t.text;
     final subLabelColor = useGradient
         ? Colors.white.withValues(alpha: 0.7)
-        : context.adaptiveTextSecondary;
+        : t.muted;
     final tertiaryColor = useGradient
         ? Colors.white.withValues(alpha: 0.5)
-        : context.adaptiveTextTertiary;
+        : t.muted2;
 
     return Container(
       padding: const EdgeInsets.all(AppConstants.spacingMd),
@@ -138,13 +139,13 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                 stops: const [0.0, 0.56, 1.0],
               )
             : null,
-        color: useGradient ? null : AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(
-          color: useGradient
-              ? Colors.white.withValues(alpha: 0.08)
-              : AppColors.glassBorder,
+        // Plain, it sits inside a settings section's card.
+        borderRadius: BorderRadius.circular(
+          useGradient ? AppConstants.radiusLg : 20,
         ),
+        border: useGradient
+            ? Border.all(color: Colors.white.withValues(alpha: 0.08))
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,9 +174,8 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                       Text(
                         deviceStatus.routeLabel!,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodySmall?.copyWith(color: tertiaryColor),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: tertiaryColor),
                       ),
                   ],
                 ),
@@ -186,7 +186,9 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                   size: 20,
                 ),
                 onPressed: volumeControlWritable ? _toggleMute : null,
-                color: effectiveMuted ? Colors.red.shade400 : subLabelColor,
+                color: effectiveMuted
+                    ? (useGradient ? Colors.red.shade400 : t.red)
+                    : subLabelColor,
                 tooltip: effectiveMuted ? l10n.unmute : l10n.mute,
               ),
             ],
@@ -202,16 +204,19 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                   max: 1.0,
                   divisions: 100,
                   label: showDb
-                      ? l10n.db15((effectiveVolume * 100).round(), _volumeToDb(effectiveVolume))
+                      ? l10n.db15(
+                          (effectiveVolume * 100).round(),
+                          _volumeToDb(effectiveVolume),
+                        )
                       : '${(effectiveVolume * 100).round()}%',
                   onChanged: volumeControlWritable ? _onSliderChanged : null,
                   onChangeEnd: volumeControlWritable
                       ? _onSliderChangeEnd
                       : null,
-                  activeColor: AppColors.accent,
+                  activeColor: useGradient ? AppColors.accent : t.accent,
                   inactiveColor: useGradient
                       ? Colors.white.withValues(alpha: 0.22)
-                      : AppColors.textTertiary.withValues(alpha: 0.3),
+                      : t.surface3,
                 ),
               ),
               Icon(LucideIcons.volume2, color: tertiaryColor, size: 16),
@@ -220,7 +225,10 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
                 width: showDb ? 82 : 40,
                 child: Text(
                   showDb
-                      ? l10n.db15((effectiveVolume * 100).round(), _volumeToDb(effectiveVolume))
+                      ? l10n.db15(
+                          (effectiveVolume * 100).round(),
+                          _volumeToDb(effectiveVolume),
+                        )
                       : '${(effectiveVolume * 100).round()}%',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: subLabelColor,
@@ -235,17 +243,15 @@ class _Uac2VolumeControlState extends ConsumerState<Uac2VolumeControl> {
             const SizedBox(height: AppConstants.spacingXs),
             Text(
               l10n.volumeIsFixedWhileBitPerfect2,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: tertiaryColor),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: tertiaryColor),
             ),
           ] else if (!deviceStatus.volumeControlWritable) ...[
             const SizedBox(height: AppConstants.spacingXs),
             Text(
               l10n.hardwareVolumeIsDetectedButWrites,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: tertiaryColor),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: tertiaryColor),
             ),
           ],
         ],

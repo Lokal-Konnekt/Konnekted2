@@ -128,7 +128,7 @@ void main() {
     expect(find.text('PLAYBACK · LYRICS'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'scrobbl');
     await tester.pumpAndSettle();
-    expect(find.text('INTEGRATIONS · SCROBBLING'), findsOneWidget);
+    expect(find.text('ONLINE SOURCES · ACCOUNTS & SCROBBLING'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'licences');
     await tester.pumpAndSettle();
     expect(find.text('Licences'), findsOneWidget);

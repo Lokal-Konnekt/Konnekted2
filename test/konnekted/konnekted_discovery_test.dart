@@ -340,7 +340,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('without Last.fm, Discovery leads to Integrations', (
+  testWidgets('without Last.fm, Discovery leads to Online sources', (
     tester,
   ) async {
     final opened = <KonnektedDestination>[];
@@ -356,11 +356,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open Integrations'));
+    await tester.tap(find.text('Open Online sources'));
     expect(opened, [
       const KonnektedDestination.settingsAt(
         LokalSettingsGroup.integrations,
-        section: 'Scrobbling',
+        section: LokalOnlineSections.accounts,
       ),
     ]);
   });

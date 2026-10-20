@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/providers/app_preferences_provider.dart';
-import 'package:flick/features/settings/widgets/settings_widgets.dart';
+
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 class VisualizerSettingsScreen extends ConsumerWidget {
   const VisualizerSettingsScreen({super.key});
@@ -15,184 +14,104 @@ class VisualizerSettingsScreen extends ConsumerWidget {
     final notifier = ref.read(appPreferencesProvider.notifier);
     final l10n = context.l10n;
 
-    return SettingsScaffold(
+    LokalSettingsSection choices(
+      String title,
+      String current,
+      ValueChanged<String> pick,
+      List<(String, String, String)> options,
+    ) => LokalSettingsSection(
+      title: title,
+      children: [
+        for (final (value, label, description) in options)
+          LokalSettingRow.option(
+            label: label,
+            description: description,
+            selected: current == value,
+            onTap: () => pick(value),
+          ),
+      ],
+    );
+
+    return LokalSettingsScaffold(
       title: l10n.visualizer,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SettingsSectionHeader(l10n.visualizer),
-          SettingsCard(
-            children: [
-              ToggleSetting(
-                icon: LucideIcons.activity,
-                title: l10n.visualizer,
-                subtitle: l10n.showTheAudioVisualizerOffSaves,
-                value: prefs.visualizerEnabled,
-                onChanged: (value) => notifier.setVisualizerEnabled(value),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.visualizerColors),
-          SettingsCard(
-            children: [
-              SelectionSetting(
-                icon: LucideIcons.image,
-                title: l10n.albumArt,
-                subtitle: l10n.visualizerAlbumColorsDescription,
-                selected: prefs.visualizerColorMode == 'album_art',
-                onTap: () => notifier.setVisualizerColorMode('album_art'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.rainbow,
-                title: l10n.visualizerRainbow,
-                subtitle: l10n.visualizerRainbowDescription,
-                selected: prefs.visualizerColorMode == 'rainbow',
-                onTap: () => notifier.setVisualizerColorMode('rainbow'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.contrast,
-                title: l10n.visualizerMonochrome,
-                subtitle: l10n.visualizerMonochromeDescription,
-                selected: prefs.visualizerColorMode == 'monochrome',
-                onTap: () => notifier.setVisualizerColorMode('monochrome'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.animationStyle),
-          SettingsCard(
-            children: [
-              SelectionSetting(
-                icon: LucideIcons.chartBarBig,
-                title: l10n.bars,
-                subtitle: l10n.verticalBarsClassicSpectrumAnalyzer,
-                selected: prefs.visualizerAnimationStyle == 'bars',
-                onTap: () => notifier.setVisualizerAnimationStyle('bars'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.chartBarBig,
-                title: l10n.visualizerBlocks,
-                subtitle: l10n.visualizerBlocksDescription,
-                selected: prefs.visualizerAnimationStyle == 'blocks',
-                onTap: () => notifier.setVisualizerAnimationStyle('blocks'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.waves,
-                title: l10n.wave,
-                subtitle: l10n.aSmoothContinuousWaveAcrossFrequencies,
-                selected: prefs.visualizerAnimationStyle == 'wave',
-                onTap: () => notifier.setVisualizerAnimationStyle('wave'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.wand,
-                title: l10n.curvedWave,
-                subtitle: l10n.silkySmoothBZierCurvesFluid,
-                selected: prefs.visualizerAnimationStyle == 'curved_wave',
-                onTap: () =>
-                    notifier.setVisualizerAnimationStyle('curved_wave'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.copy,
-                title: l10n.mirrored,
-                subtitle: l10n.symmetricalBarsMirroredFromTheCenter,
-                selected: prefs.visualizerAnimationStyle == 'mirrored',
-                onTap: () => notifier.setVisualizerAnimationStyle('mirrored'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.circle,
-                title: l10n.dots,
-                subtitle: l10n.circularDotsRadiusFollowsAmplitude,
-                selected: prefs.visualizerAnimationStyle == 'dots',
-                onTap: () => notifier.setVisualizerAnimationStyle('dots'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.frequencyFocus),
-          SettingsCard(
-            children: [
-              SelectionSetting(
-                icon: LucideIcons.equal,
-                title: l10n.fullSpectrum,
-                subtitle: l10n.allFrequenciesEqually,
-                selected: prefs.visualizerFrequencyMode == 'full',
-                onTap: () => notifier.setVisualizerFrequencyMode('full'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.chevronsDown,
-                title: l10n.bass,
-                subtitle: l10n.lowFrequenciesOnly,
-                selected: prefs.visualizerFrequencyMode == 'bass',
-                onTap: () => notifier.setVisualizerFrequencyMode('bass'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.minus,
-                title: l10n.mid,
-                subtitle: l10n.midFrequenciesOnly,
-                selected: prefs.visualizerFrequencyMode == 'mid',
-                onTap: () => notifier.setVisualizerFrequencyMode('mid'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.chevronsUp,
-                title: l10n.treble,
-                subtitle: l10n.highFrequenciesOnly,
-                selected: prefs.visualizerFrequencyMode == 'treble',
-                onTap: () => notifier.setVisualizerFrequencyMode('treble'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.chevronsDownUp,
-                title: l10n.bassTreble,
-                subtitle: l10n.lowAndHighFrequenciesScoopedMids,
-                selected: prefs.visualizerFrequencyMode == 'bass_treble',
-                onTap: () => notifier.setVisualizerFrequencyMode('bass_treble'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          SettingsSectionHeader(l10n.movement),
-          SettingsCard(
-            children: [
-              SelectionSetting(
-                icon: LucideIcons.zap,
-                title: l10n.bouncy,
-                subtitle: l10n.springPhysicsEnergeticAndReactive,
-                selected: prefs.visualizerMovementMode == 'bouncy',
-                onTap: () => notifier.setVisualizerMovementMode('bouncy'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.audioLines,
-                title: l10n.smooth,
-                subtitle: l10n.naturalEqualizerFeelResponsiveYetSmooth,
-                selected: prefs.visualizerMovementMode == 'smooth',
-                onTap: () => notifier.setVisualizerMovementMode('smooth'),
-              ),
-              const SettingsDivider(),
-              SelectionSetting(
-                icon: LucideIcons.bolt,
-                title: l10n.snappy,
-                subtitle: l10n.fastDirectTrackingImmediateResponse,
-                selected: prefs.visualizerMovementMode == 'snappy',
-                onTap: () => notifier.setVisualizerMovementMode('snappy'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          const SizedBox(height: AppConstants.navBarHeight + 40),
-        ],
-      ),
+      children: [
+        LokalSettingsSection(
+          title: l10n.visualizer,
+          children: [
+            LokalSettingRow.toggle(
+              label: l10n.visualizer,
+              description: l10n.showTheAudioVisualizerOffSaves,
+              value: prefs.visualizerEnabled,
+              onChanged: (value) => notifier.setVisualizerEnabled(value),
+            ),
+          ],
+        ),
+        choices(
+          l10n.visualizerColors,
+          prefs.visualizerColorMode,
+          notifier.setVisualizerColorMode,
+          [
+            ('album_art', l10n.albumArt, l10n.visualizerAlbumColorsDescription),
+            (
+              'rainbow',
+              l10n.visualizerRainbow,
+              l10n.visualizerRainbowDescription,
+            ),
+            (
+              'monochrome',
+              l10n.visualizerMonochrome,
+              l10n.visualizerMonochromeDescription,
+            ),
+          ],
+        ),
+        choices(
+          l10n.animationStyle,
+          prefs.visualizerAnimationStyle,
+          notifier.setVisualizerAnimationStyle,
+          [
+            ('bars', l10n.bars, l10n.verticalBarsClassicSpectrumAnalyzer),
+            ('blocks', l10n.visualizerBlocks, l10n.visualizerBlocksDescription),
+            ('wave', l10n.wave, l10n.aSmoothContinuousWaveAcrossFrequencies),
+            ('curved_wave', l10n.curvedWave, l10n.silkySmoothBZierCurvesFluid),
+            (
+              'mirrored',
+              l10n.mirrored,
+              l10n.symmetricalBarsMirroredFromTheCenter,
+            ),
+            ('dots', l10n.dots, l10n.circularDotsRadiusFollowsAmplitude),
+          ],
+        ),
+        choices(
+          l10n.frequencyFocus,
+          prefs.visualizerFrequencyMode,
+          notifier.setVisualizerFrequencyMode,
+          [
+            ('full', l10n.fullSpectrum, l10n.allFrequenciesEqually),
+            ('bass', l10n.bass, l10n.lowFrequenciesOnly),
+            ('mid', l10n.mid, l10n.midFrequenciesOnly),
+            ('treble', l10n.treble, l10n.highFrequenciesOnly),
+            (
+              'bass_treble',
+              l10n.bassTreble,
+              l10n.lowAndHighFrequenciesScoopedMids,
+            ),
+          ],
+        ),
+        choices(
+          l10n.movement,
+          prefs.visualizerMovementMode,
+          notifier.setVisualizerMovementMode,
+          [
+            ('bouncy', l10n.bouncy, l10n.springPhysicsEnergeticAndReactive),
+            (
+              'smooth',
+              l10n.smooth,
+              l10n.naturalEqualizerFeelResponsiveYetSmooth,
+            ),
+            ('snappy', l10n.snappy, l10n.fastDirectTrackingImmediateResponse),
+          ],
+        ),
+      ],
     );
   }
 }

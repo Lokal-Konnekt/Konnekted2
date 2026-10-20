@@ -10,6 +10,7 @@ import 'package:flick/models/song.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Song _song(
   String id,
@@ -116,7 +117,11 @@ Widget _app(Widget child, {String? account = 'me'}) => ProviderScope(
 );
 
 void main() {
-  setUp(forgetLastfmSeeds);
+  setUp(() {
+    forgetLastfmSeeds();
+    // Discovery remembers the chosen source in preferences.
+    SharedPreferences.setMockInitialValues({});
+  });
 
   test('the library index finds your copy, and albums and artists', () {
     final index = KonnektedLibraryIndex(_library);

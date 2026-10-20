@@ -73,7 +73,8 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
             child: KonnektedHomeTopBar(
               greeting: ref.watch(konnektedGreetingProvider).value,
               onSearch: () => onNavigate(KonnektedDestination.search),
-              onSettings: () => onNavigate(KonnektedDestination.appearance),
+              onSettings: () => onNavigate(KonnektedDestination.allSettings),
+              onAppearance: () => onNavigate(KonnektedDestination.appearance),
             ),
           ),
           SliverToBoxAdapter(
@@ -202,12 +203,16 @@ class KonnektedHomeTopBar extends StatelessWidget {
     super.key,
     required this.onSearch,
     required this.onSettings,
+    required this.onAppearance,
     this.greeting,
     this.now,
   });
 
   final VoidCallback onSearch;
   final VoidCallback onSettings;
+
+  /// Opens Appearance, from the logo.
+  final VoidCallback onAppearance;
 
   /// The personal line under the salutation; a time-of-day line until
   /// history has loaded.
@@ -226,7 +231,20 @@ class KonnektedHomeTopBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              const LokalLogo(size: 32),
+              Semantics(
+                button: true,
+                label: 'Appearance',
+                excludeSemantics: true,
+                onTap: onAppearance,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    onAppearance();
+                  },
+                  child: const LokalLogo(size: 32),
+                ),
+              ),
               const Spacer(),
               LokalGlassButton(
                 semanticLabel: 'Search your music',
@@ -234,10 +252,17 @@ class KonnektedHomeTopBar extends StatelessWidget {
                 child: Icon(Icons.search_rounded, color: context.lokal.text),
               ),
               const SizedBox(width: 8),
-              LokalGlassButton(
-                semanticLabel: 'Appearance',
-                onPressed: onSettings,
-                child: Icon(Icons.tune_rounded, color: context.lokal.text),
+              Tooltip(
+                message: 'Settings',
+                excludeFromSemantics: true,
+                child: LokalGlassButton(
+                  semanticLabel: 'Settings',
+                  onPressed: onSettings,
+                  child: Icon(
+                    Icons.settings_rounded,
+                    color: context.lokal.text,
+                  ),
+                ),
               ),
             ],
           ),
@@ -270,7 +295,9 @@ class KonnektedHomeTopBar extends StatelessWidget {
   }
 }
 
-/// Cover Flow of your albums, with a glass shelf switch and the Flow button.
+/// Cover Flow of songs (recent, made for you, new), with a glass shelf
+/// switch and the Flow button. One tap on a cover plays that song, with the
+/// whole shelf as the queue.
 class KonnektedCoverFlowSection extends ConsumerStatefulWidget {
   const KonnektedCoverFlowSection({
     super.key,
@@ -336,29 +363,29 @@ class _KonnektedCoverFlowSectionState
           key: ValueKey(_shelf),
           albums: list,
           onPlay: widget.onPlay,
-          cover: (album) => album.key.startsWith(konnektedMixKeyPrefix)
-              ? KonnektedMixArt(songs: album.songs)
-              : CachedImageWidget(
-                  imagePath: _artworkSong(album).albumArt,
-                  audioSourcePath: _artworkSong(album).filePath,
-                  fit: BoxFit.cover,
-                  placeholder: Container(
-                    color: t.surface3,
-                    alignment: Alignment.center,
-                    child: Icon(Icons.album_rounded, color: t.muted, size: 56),
-                  ),
-                ),
+          onSelect: (i) => widget.onPlay(list[i].songs.first, [
+            for (final entry in list) ...entry.songs,
+          ]),
+          cover: (entry) {
+            final placeholder = Container(
+              color: t.surface3,
+              alignment: Alignment.center,
+              child: Icon(Icons.music_note_rounded, color: t.muted, size: 56),
+            );
+            return CachedImageWidget(
+              imagePath: entry.songs.first.albumArt,
+              audioSourcePath: entry.songs.first.filePath,
+              fit: BoxFit.cover,
+              placeholder: placeholder,
+              errorWidget: placeholder,
+            );
+          },
         ),
         const SizedBox(height: 14),
         _FlowButton(onTap: widget.onOpenFlow),
       ],
     );
   }
-
-  static Song _artworkSong(AlbumGroup album) => album.songs.firstWhere(
-    (song) => song.albumArt?.isNotEmpty == true,
-    orElse: () => album.songs.first,
-  );
 }
 
 class _FlowButton extends StatelessWidget {

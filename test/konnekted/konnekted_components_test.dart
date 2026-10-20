@@ -97,6 +97,41 @@ void main() {
     expect(find.text('4 songs'), findsNWidgets(3));
   });
 
+  testWidgets('a Cover Flow tap plays that song with the whole shelf queued', (
+    tester,
+  ) async {
+    final recent = [_track('r1'), _track('r2'), _track('r3')];
+    Song? played;
+    List<Song>? queue;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          konnektedLibraryProvider.overrideWithValue(AsyncData(recent)),
+          konnektedRecentSongsProvider.overrideWith(
+            (ref) => Stream.value(recent),
+          ),
+        ],
+        child: _app(
+          KonnektedCoverFlowSection(
+            onPlay: (song, shelf) {
+              played = song;
+              queue = shelf;
+            },
+            onOpenFlow: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Track r1'), findsOneWidget);
+    final stage = find.bySemanticsLabel(RegExp('^Cover Flow'));
+    await tester.tapAt(tester.getCenter(stage) + const Offset(150, 0));
+    await tester.pumpAndSettle();
+    expect(played?.id, 'r2');
+    expect(queue?.map((s) => s.id), ['r1', 'r2', 'r3']);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('no mixes, no sections', (tester) async {
     await tester.pumpWidget(
       _app(
@@ -146,8 +181,16 @@ void main() {
         find.text('Your listening streak has some momentum.'),
         findsOneWidget,
       );
+      // Top right opens Settings; the logo, top left, opens Appearance.
+      await tester.tap(find.bySemanticsLabel('Settings'));
+      await tester.tap(find.bySemanticsLabel('Appearance'));
+      expect(find.byTooltip('Settings'), findsOneWidget);
       await tester.tap(find.bySemanticsLabel('Open Flow'));
-      expect(opened, [KonnektedDestination.flow]);
+      expect(opened, [
+        KonnektedDestination.allSettings,
+        KonnektedDestination.appearance,
+        KonnektedDestination.flow,
+      ]);
       await tester.scrollUntilVisible(find.text('Add your music'), 180);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add your music'));

@@ -145,8 +145,10 @@ class _YoutubeMusicSignInSheetState extends State<YoutubeMusicSignInSheet> {
                 javaScriptEnabled: true,
                 thirdPartyCookiesEnabled: true,
                 domStorageEnabled: true,
-                useShouldOverrideUrlLoading: true,
                 mediaPlaybackRequiresUserGesture: true,
+                // Drawn as a texture: as a hybrid-composition view the page
+                // stays black under Impeller on Android 12 and later.
+                useHybridComposition: false,
               ),
               onLoadStop: _capture,
               onReceivedError: (controller, request, error) {

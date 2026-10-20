@@ -104,7 +104,15 @@ class _KonnektedDockState extends State<KonnektedDock>
       // A critically damped spring, so a flick that reverses mid-fold carries
       // its speed into the new direction instead of restarting a curve.
       _collapse.animateWith(
-        SpringSimulation(_spring, _collapse.value, target, _collapse.velocity),
+        SpringSimulation(
+          _spring,
+          _collapse.value,
+          target,
+          _collapse.velocity,
+          // Without this the spring rests a hair short of 0 and the folded
+          // layer stays on top of the tabs, swallowing their taps.
+          snapToEnd: true,
+        ),
       );
     }
   }
@@ -297,84 +305,91 @@ class _TabCapsuleState extends State<_TabCapsule> {
           fit: StackFit.expand,
           children: [
             if (open > 0)
-              Opacity(
-                opacity: Curves.easeIn.transform(open),
-                child: ExcludeSemantics(
-                  excluding: widget.collapse > .5,
-                  child: OverflowBox(
-                    alignment: Alignment.centerLeft,
-                    minWidth: widget.width,
-                    maxWidth: widget.width,
-                    child: GestureDetector(
-                      onHorizontalDragStart: (d) => _drag(d.localPosition.dx),
-                      onHorizontalDragUpdate: (d) => _drag(d.localPosition.dx),
-                      onHorizontalDragEnd: (_) => _endDrag(),
-                      onHorizontalDragCancel: _endDrag,
-                      child: Stack(
-                        children: [
-                          AnimatedPositioned(
-                            duration: reduceMotion || _dragX != null
-                                ? Duration.zero
-                                : const Duration(milliseconds: 380),
-                            curve: Curves.easeOutBack,
-                            left: lensLeft,
-                            top: _inset,
-                            bottom: _inset,
-                            width: _slot,
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 200),
-                              opacity: selectedIndex < 0 && _dragX == null
-                                  ? 0
-                                  : 1,
-                              child: AnimatedScale(
+              IgnorePointer(
+                ignoring: widget.collapse > .5,
+                child: Opacity(
+                  opacity: Curves.easeIn.transform(open),
+                  child: ExcludeSemantics(
+                    excluding: widget.collapse > .5,
+                    child: OverflowBox(
+                      alignment: Alignment.centerLeft,
+                      minWidth: widget.width,
+                      maxWidth: widget.width,
+                      child: GestureDetector(
+                        onHorizontalDragStart: (d) => _drag(d.localPosition.dx),
+                        onHorizontalDragUpdate: (d) =>
+                            _drag(d.localPosition.dx),
+                        onHorizontalDragEnd: (_) => _endDrag(),
+                        onHorizontalDragCancel: _endDrag,
+                        child: Stack(
+                          children: [
+                            AnimatedPositioned(
+                              duration: reduceMotion || _dragX != null
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 380),
+                              curve: Curves.easeOutBack,
+                              left: lensLeft,
+                              top: _inset,
+                              bottom: _inset,
+                              width: _slot,
+                              child: AnimatedOpacity(
                                 duration: const Duration(milliseconds: 200),
-                                scale: _dragX != null && !reduceMotion
-                                    ? 1.08
+                                opacity: selectedIndex < 0 && _dragX == null
+                                    ? 0
                                     : 1,
-                                child: _Lens(
-                                  color: t.accent,
-                                  active: _dragX != null && !reduceMotion,
+                                child: AnimatedScale(
+                                  duration: const Duration(milliseconds: 200),
+                                  scale: _dragX != null && !reduceMotion
+                                      ? 1.08
+                                      : 1,
+                                  child: _Lens(
+                                    color: t.accent,
+                                    active: _dragX != null && !reduceMotion,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(_inset),
-                            child: Row(
-                              children: [
-                                for (final (i, tab) in _tabs.indexed)
-                                  Expanded(
-                                    child: _TabButton(
-                                      tab: tab,
-                                      selected: _dragIndex != null
-                                          ? i == _dragIndex
-                                          : tab == widget.selected,
-                                      onTap: () => widget.onSelect(tab),
+                            Padding(
+                              padding: const EdgeInsets.all(_inset),
+                              child: Row(
+                                children: [
+                                  for (final (i, tab) in _tabs.indexed)
+                                    Expanded(
+                                      child: _TabButton(
+                                        tab: tab,
+                                        selected: _dragIndex != null
+                                            ? i == _dragIndex
+                                            : tab == widget.selected,
+                                        onTap: () => widget.onSelect(tab),
+                                      ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             if (widget.collapse > 0)
-              Opacity(
-                opacity: Curves.easeOut.transform(widget.collapse),
-                child: ExcludeSemantics(
-                  excluding: widget.collapse <= .5,
-                  child: Semantics(
-                    button: true,
-                    label: 'Show tabs. ${shown.label}',
-                    onTap: widget.onExpand,
-                    excludeSemantics: true,
-                    child: InkWell(
+              IgnorePointer(
+                ignoring: widget.collapse <= .5,
+                child: Opacity(
+                  opacity: Curves.easeOut.transform(widget.collapse),
+                  child: ExcludeSemantics(
+                    excluding: widget.collapse <= .5,
+                    child: Semantics(
+                      button: true,
+                      label: 'Show tabs. ${shown.label}',
                       onTap: widget.onExpand,
-                      customBorder: const CircleBorder(),
-                      child: Icon(shown.icon, color: t.accent, size: 24),
+                      excludeSemantics: true,
+                      child: InkWell(
+                        onTap: widget.onExpand,
+                        customBorder: const CircleBorder(),
+                        child: Icon(shown.icon, color: t.accent, size: 24),
+                      ),
                     ),
                   ),
                 ),

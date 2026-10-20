@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flick/widgets/lokal/lokal_logo.dart';
 
 /// A hand-painted vinyl record — concentric grooves, a tinted center label
-/// with the Flick logo, and a center hole. Sized at 104×104 by default.
+/// with the Lokal logo, and a center hole. Sized at 104×104 by default.
 class VinylRecord extends StatelessWidget {
-  const VinylRecord({
-    super.key,
-    this.size = 104,
-    this.labelColor,
-  });
+  const VinylRecord({super.key, this.size = 104, this.labelColor});
 
   final double size;
   final Color? labelColor;
@@ -25,12 +21,7 @@ class VinylRecord extends StatelessWidget {
           grooveColor: color.withValues(alpha: 0.18),
         ),
         child: Center(
-          child: SvgPicture.asset(
-            'assets/icons/flicklogo_svg.svg',
-            width: size * 0.19,
-            height: size * 0.23,
-            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
-          ),
+          child: ExcludeSemantics(child: LokalLogo(size: size * 0.26)),
         ),
       ),
     );

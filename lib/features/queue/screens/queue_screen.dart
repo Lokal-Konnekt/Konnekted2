@@ -12,14 +12,35 @@ import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/l10n/l10n.dart';
 
-class QueueScreen extends ConsumerStatefulWidget {
+class QueueScreen extends StatelessWidget {
   const QueueScreen({super.key});
 
   @override
-  ConsumerState<QueueScreen> createState() => _QueueScreenState();
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.transparent,
+      body: BlurredSongBackground(
+        child: SafeArea(bottom: false, child: QueueList()),
+      ),
+    );
+  }
 }
 
-class _QueueScreenState extends ConsumerState<QueueScreen> {
+/// The queue: now playing, up next and the manual queue, with reorder, swipe
+/// to remove, play from here and multi-select. [QueueScreen] shows it as a
+/// page; Now Playing embeds it ([embedded]) in its in-place queue reveal, where
+/// the player's own header already shows the current song and the rows sit on
+/// the player's dark backdrop as glass.
+class QueueList extends ConsumerStatefulWidget {
+  const QueueList({super.key, this.embedded = false});
+
+  final bool embedded;
+
+  @override
+  ConsumerState<QueueList> createState() => _QueueListState();
+}
+
+class _QueueListState extends ConsumerState<QueueList> {
   bool _selectionMode = false;
   final Set<String> _selectedKeys = {};
 
@@ -94,52 +115,135 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
     final queue = ref.watch(queueProvider);
     final upNext = ref.watch(upNextProvider);
     final currentSong = ref.watch(currentSongProvider);
+    final embedded = widget.embedded;
+    final hPad = embedded ? 0.0 : AppConstants.spacingLg;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: BlurredSongBackground(
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-          children: [
-            if (_selectionMode)
-              _buildSelectionHeader(upNext.length + queue.length)
-            else
-              _Header(
-                queueCount: upNext.length + queue.length,
-                canClear: upNext.isNotEmpty || queue.isNotEmpty,
-                onClear: () async {
-                  await ref.read(playerProvider.notifier).clearAllUpcoming();
-                },
-                onSelectMode: () => _enterSelectionMode(null),
-              ),
-            Expanded(
-              child: upNext.isEmpty && currentSong == null
-                  ? const _EmptyQueue()
-                  : CustomScrollView(
-                      slivers: [
-                        if (currentSong != null)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                AppConstants.spacingLg,
-                                0,
-                                AppConstants.spacingLg,
-                                AppConstants.spacingMd,
-                              ),
-                              child: _NowPlayingCard(song: currentSong),
-                            ),
-                          ),
+    final content = Column(
+      children: [
+        if (_selectionMode)
+          _buildSelectionHeader(upNext.length + queue.length)
+        else
+          _Header(
+            queueCount: upNext.length + queue.length,
+            canClear: upNext.isNotEmpty || queue.isNotEmpty,
+            onClear: () async {
+              await ref.read(playerProvider.notifier).clearAllUpcoming();
+            },
+            onSelectMode: () => _enterSelectionMode(null),
+            showBack: !embedded,
+          ),
+        Expanded(
+          child: upNext.isEmpty && currentSong == null
+              ? const _EmptyQueue()
+              : _fadeTop(
+                  embedded,
+                  CustomScrollView(
+                    slivers: [
+                      if (currentSong != null && !embedded)
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppConstants.spacingLg,
+                            padding: EdgeInsets.fromLTRB(
+                              hPad,
                               0,
-                              AppConstants.spacingLg,
+                              hPad,
+                              AppConstants.spacingMd,
+                            ),
+                            child: _NowPlayingCard(song: currentSong),
+                          ),
+                        ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            hPad,
+                            0,
+                            hPad,
+                            AppConstants.spacingSm,
+                          ),
+                          child: Text(
+                            l10n.upNext,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: context.adaptiveTextSecondary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
+                      ),
+                      if (upNext.isEmpty)
+                        const SliverToBoxAdapter(child: _EmptyUpcomingState())
+                      else
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                            hPad,
+                            0,
+                            hPad,
+                            AppConstants.spacingLg,
+                          ),
+                          sliver: _selectionMode
+                              ? SliverList.builder(
+                                  itemCount: upNext.length,
+                                  itemBuilder: (context, index) {
+                                    final song = upNext[index];
+                                    final key = _upNextKey(index);
+                                    final isSelected = _selectedKeys.contains(
+                                      key,
+                                    );
+                                    return _UpcomingTile(
+                                      song: song,
+                                      index: index,
+                                      isSelectionMode: true,
+                                      isSelected: isSelected,
+                                      glass: embedded,
+                                      onTap: () => _toggleSelection(key),
+                                      onLongPress: () {},
+                                    );
+                                  },
+                                )
+                              : SliverReorderableList(
+                                  itemCount: upNext.length,
+                                  onReorder: (oldIndex, newIndex) async {
+                                    final targetIndex = newIndex > oldIndex
+                                        ? newIndex - 1
+                                        : newIndex;
+                                    await ref
+                                        .read(playerProvider.notifier)
+                                        .moveUpNextItem(oldIndex, targetIndex);
+                                  },
+                                  itemBuilder: (context, index) {
+                                    final song = upNext[index];
+                                    return _UpcomingTile(
+                                      key: ValueKey('upnext-${song.id}-$index'),
+                                      song: song,
+                                      index: index,
+                                      glass: embedded,
+                                      onTap: () async {
+                                        await ref
+                                            .read(playerProvider.notifier)
+                                            .playFromUpNextIndex(index);
+                                      },
+                                      onLongPress: () => _enterSelectionMode(
+                                        _upNextKey(index),
+                                      ),
+                                      onRemove: () async {
+                                        await ref
+                                            .read(playerProvider.notifier)
+                                            .removeFromUpNext(index);
+                                      },
+                                    );
+                                  },
+                                ),
+                        ),
+                      if (queue.isNotEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              hPad,
+                              0,
+                              hPad,
                               AppConstants.spacingSm,
                             ),
                             child: Text(
-                              l10n.upNext,
+                              l10n.manualQueue,
                               style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
                                     color: context.adaptiveTextSecondary,
@@ -148,170 +252,108 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
                             ),
                           ),
                         ),
-                        if (upNext.isEmpty)
-                          const SliverToBoxAdapter(child: _EmptyUpcomingState())
-                        else
-                          SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppConstants.spacingLg,
-                              0,
-                              AppConstants.spacingLg,
-                              AppConstants.spacingLg,
-                            ),
-                            sliver: _selectionMode
-                                ? SliverList.builder(
-                                    itemCount: upNext.length,
-                                    itemBuilder: (context, index) {
-                                      final song = upNext[index];
-                                      final key = _upNextKey(index);
-                                      final isSelected =
-                                          _selectedKeys.contains(key);
-                                      return _UpcomingTile(
-                                        song: song,
-                                        index: index,
-                                        isSelectionMode: true,
-                                        isSelected: isSelected,
-                                        onTap: () => _toggleSelection(key),
-                                        onLongPress: () {},
-                                      );
-                                    },
-                                  )
-                                : SliverReorderableList(
-                                    itemCount: upNext.length,
-                                    onReorder: (oldIndex, newIndex) async {
-                                      final targetIndex = newIndex > oldIndex
-                                          ? newIndex - 1
-                                          : newIndex;
-                                      await ref
-                                          .read(playerProvider.notifier)
-                                          .moveUpNextItem(oldIndex, targetIndex);
-                                    },
-                                    itemBuilder: (context, index) {
-                                      final song = upNext[index];
-                                      return _UpcomingTile(
-                                        key: ValueKey('upnext-${song.id}-$index'),
-                                        song: song,
-                                        index: index,
-                                        onTap: () async {
-                                          await ref
-                                              .read(playerProvider.notifier)
-                                              .playFromUpNextIndex(index);
-                                        },
-                                        onLongPress: () =>
-                                            _enterSelectionMode(
-                                                _upNextKey(index)),
-                                        onRemove: () async {
-                                          await ref
-                                              .read(playerProvider.notifier)
-                                              .removeFromUpNext(index);
-                                        },
-                                      );
-                                    },
-                                  ),
+                      if (queue.isNotEmpty)
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                            hPad,
+                            0,
+                            hPad,
+                            embedded
+                                ? AppConstants.spacingLg
+                                : AppConstants.navBarHeight + 120,
                           ),
-                        if (queue.isNotEmpty)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                AppConstants.spacingLg,
-                                0,
-                                AppConstants.spacingLg,
-                                AppConstants.spacingSm,
-                              ),
-                              child: Text(
-                                l10n.manualQueue,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(
-                                      color: context.adaptiveTextSecondary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
-                            ),
-                          ),
-                        if (queue.isNotEmpty)
-                          SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppConstants.spacingLg,
-                              0,
-                              AppConstants.spacingLg,
-                              AppConstants.navBarHeight + 120,
-                            ),
-                            sliver: _selectionMode
-                                ? SliverList.builder(
-                                    itemCount: queue.length,
-                                    itemBuilder: (context, index) {
-                                      final song = queue[index];
-                                      final key = _queueKey(index);
-                                      final isSelected =
-                                          _selectedKeys.contains(key);
-                                      return _QueueTile(
-                                        key: ValueKey(
-                                            'queue-sel-${song.id}-$index'),
-                                        song: song,
-                                        index: index,
-                                        isSelectionMode: true,
-                                        isSelected: isSelected,
-                                        onTap: () =>
-                                            _toggleSelection(key),
-                                        onLongPress: () {},
-                                        onRemove: () async {
-                                          await ref
-                                              .read(playerProvider.notifier)
-                                              .removeFromQueue(index);
-                                        },
-                                        onMoveToNext: null,
-                                      );
-                                    },
-                                  )
-                                : SliverReorderableList(
-                                    itemCount: queue.length,
-                                    onReorder: (oldIndex, newIndex) async {
-                                      final targetIndex = newIndex > oldIndex
-                                          ? newIndex - 1
-                                          : newIndex;
-                                      await ref
-                                          .read(playerProvider.notifier)
-                                          .moveQueueItem(oldIndex, targetIndex);
-                                    },
-                                    itemBuilder: (context, index) {
-                                      final song = queue[index];
-                                      return _QueueTile(
-                                        key: ValueKey('${song.id}-$index'),
-                                        song: song,
-                                        index: index,
-                                        onTap: () async {
-                                          await ref
-                                              .read(playerProvider.notifier)
-                                              .playFromQueueIndex(index);
-                                        },
-                                        onLongPress: () =>
-                                            _enterSelectionMode(
-                                                _queueKey(index)),
-                                        onRemove: () async {
-                                          await ref
-                                              .read(playerProvider.notifier)
-                                              .removeFromQueue(index);
-                                        },
-                                        onMoveToNext: index == 0
-                                            ? null
-                                            : () async {
-                                                await ref
-                                                    .read(playerProvider
-                                                        .notifier)
-                                                    .moveQueueItemToNext(
-                                                        index);
-                                              },
-                                      );
-                                    },
-                                  ),
-                          ),
-                      ],
-                    ),
-            ),
-          ],
+                          sliver: _selectionMode
+                              ? SliverList.builder(
+                                  itemCount: queue.length,
+                                  itemBuilder: (context, index) {
+                                    final song = queue[index];
+                                    final key = _queueKey(index);
+                                    final isSelected = _selectedKeys.contains(
+                                      key,
+                                    );
+                                    return _QueueTile(
+                                      key: ValueKey(
+                                        'queue-sel-${song.id}-$index',
+                                      ),
+                                      song: song,
+                                      index: index,
+                                      isSelectionMode: true,
+                                      isSelected: isSelected,
+                                      glass: embedded,
+                                      onTap: () => _toggleSelection(key),
+                                      onLongPress: () {},
+                                      onRemove: () async {
+                                        await ref
+                                            .read(playerProvider.notifier)
+                                            .removeFromQueue(index);
+                                      },
+                                      onMoveToNext: null,
+                                    );
+                                  },
+                                )
+                              : SliverReorderableList(
+                                  itemCount: queue.length,
+                                  onReorder: (oldIndex, newIndex) async {
+                                    final targetIndex = newIndex > oldIndex
+                                        ? newIndex - 1
+                                        : newIndex;
+                                    await ref
+                                        .read(playerProvider.notifier)
+                                        .moveQueueItem(oldIndex, targetIndex);
+                                  },
+                                  itemBuilder: (context, index) {
+                                    final song = queue[index];
+                                    return _QueueTile(
+                                      key: ValueKey('${song.id}-$index'),
+                                      song: song,
+                                      index: index,
+                                      glass: embedded,
+                                      onTap: () async {
+                                        await ref
+                                            .read(playerProvider.notifier)
+                                            .playFromQueueIndex(index);
+                                      },
+                                      onLongPress: () =>
+                                          _enterSelectionMode(_queueKey(index)),
+                                      onRemove: () async {
+                                        await ref
+                                            .read(playerProvider.notifier)
+                                            .removeFromQueue(index);
+                                      },
+                                      onMoveToNext: index == 0
+                                          ? null
+                                          : () async {
+                                              await ref
+                                                  .read(playerProvider.notifier)
+                                                  .moveQueueItemToNext(index);
+                                            },
+                                    );
+                                  },
+                                ),
+                        ),
+                    ],
+                  ),
+                ),
         ),
-      ),
-      ),
+      ],
+    );
+    if (!embedded) return content;
+    // The player's backdrop is always dark, whatever the app theme.
+    return AdaptiveColorProvider(backgroundColor: Colors.black, child: content);
+  }
+
+  /// Embedded, rows fade out under the player's header rather than being cut.
+  static Widget _fadeTop(bool embedded, Widget list) {
+    if (!embedded) return list;
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (r) => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Colors.transparent, Colors.black],
+        stops: [0, .05],
+      ).createShader(r),
+      child: list,
     );
   }
 
@@ -342,15 +384,14 @@ class _QueueScreenState extends ConsumerState<QueueScreen> {
                 Text(
                   l10n.queue,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: context.adaptiveTextPrimary,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: context.adaptiveTextPrimary,
+                  ),
                 ),
                 Text(
                   l10n.selectedOfSong(count, queueCount),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: context.adaptiveTextTertiary),
                 ),
               ],
             ),
@@ -388,23 +429,28 @@ class _Header extends StatelessWidget {
     required this.canClear,
     required this.onClear,
     required this.onSelectMode,
+    this.showBack = true,
   });
+
+  final bool showBack;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingLg,
-        vertical: AppConstants.spacingMd,
+      padding: EdgeInsets.symmetric(
+        horizontal: showBack ? AppConstants.spacingLg : AppConstants.spacingXs,
+        vertical: showBack ? AppConstants.spacingMd : AppConstants.spacingXs,
       ),
       child: Row(
         children: [
-          SurfaceIconButton.icon(
-            icon: LucideIcons.chevronLeft,
-            onPressed: () => Navigator.of(context).pop(),
-            iconColor: context.adaptiveTextPrimary,
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
+          if (showBack) ...[
+            SurfaceIconButton.icon(
+              icon: LucideIcons.chevronLeft,
+              onPressed: () => Navigator.of(context).pop(),
+              iconColor: context.adaptiveTextPrimary,
+            ),
+            const SizedBox(width: AppConstants.spacingMd),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -412,15 +458,14 @@ class _Header extends StatelessWidget {
                 Text(
                   l10n.queue,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: context.adaptiveTextPrimary,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: context.adaptiveTextPrimary,
+                  ),
                 ),
                 Text(
                   l10n.upcomingSong(queueCount),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: context.adaptiveTextTertiary),
                 ),
               ],
             ),
@@ -459,17 +504,16 @@ class _EmptyQueue extends StatelessWidget {
             Text(
               l10n.queueIsEmpty,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: context.adaptiveTextSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: context.adaptiveTextSecondary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: AppConstants.spacingSm),
             Text(
               l10n.addSongsFromThePlayerOr,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: context.adaptiveTextTertiary),
             ),
           ],
         ),
@@ -506,9 +550,8 @@ class _EmptyUpcomingState extends StatelessWidget {
             Expanded(
               child: Text(
                 l10n.noUpcomingQueueItemsYet,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.adaptiveTextSecondary,
-                    ),
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: context.adaptiveTextSecondary),
               ),
             ),
           ],
@@ -550,9 +593,9 @@ class _NowPlayingCard extends StatelessWidget {
                 Text(
                   l10n.nowPlaying2,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: AppColors.accent,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -560,18 +603,17 @@ class _NowPlayingCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: context.adaptiveTextPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   song.artist,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextSecondary,
-                      ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: context.adaptiveTextSecondary),
                 ),
               ],
             ),
@@ -600,7 +642,11 @@ class _UpcomingTile extends StatelessWidget {
     this.onRemove,
     this.isSelectionMode = false,
     this.isSelected = false,
+    this.glass = false,
   });
+
+  /// On the player's backdrop: frosted white instead of the theme surface.
+  final bool glass;
 
   @override
   Widget build(BuildContext context) {
@@ -620,18 +666,7 @@ class _UpcomingTile extends StatelessWidget {
               horizontal: AppConstants.spacingMd,
               vertical: AppConstants.spacingSm,
             ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.surfaceLight.withValues(alpha: 0.7),
-                  AppColors.surface.withValues(alpha: 0.82),
-                ],
-              ),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
+            decoration: _tileDecoration(glass),
             child: Row(
               children: [
                 if (isSelectionMode) ...[
@@ -668,17 +703,17 @@ class _UpcomingTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: context.adaptiveTextPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: context.adaptiveTextPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         song.artist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.adaptiveTextSecondary),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: context.adaptiveTextSecondary),
                       ),
                     ],
                   ),
@@ -686,9 +721,8 @@ class _UpcomingTile extends StatelessWidget {
                 if (!isSelectionMode)
                   Text(
                     song.formattedDuration,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.adaptiveTextTertiary,
-                        ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: context.adaptiveTextTertiary),
                   ),
               ],
             ),
@@ -708,9 +742,7 @@ class _UpcomingTile extends StatelessWidget {
           color: Colors.redAccent.withValues(alpha: 0.18),
           border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppConstants.spacingLg,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingLg),
         alignment: Alignment.centerRight,
         child: const Icon(LucideIcons.trash2, color: Colors.redAccent),
       ),
@@ -740,7 +772,11 @@ class _QueueTile extends StatelessWidget {
     required this.onMoveToNext,
     this.isSelectionMode = false,
     this.isSelected = false,
+    this.glass = false,
   });
+
+  /// On the player's backdrop: frosted white instead of the theme surface.
+  final bool glass;
 
   static void _noop() {}
 
@@ -762,18 +798,7 @@ class _QueueTile extends StatelessWidget {
               horizontal: AppConstants.spacingMd,
               vertical: AppConstants.spacingSm,
             ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.surfaceLight.withValues(alpha: 0.7),
-                  AppColors.surface.withValues(alpha: 0.82),
-                ],
-              ),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
+            decoration: _tileDecoration(glass),
             child: Row(
               children: [
                 if (isSelectionMode) ...[
@@ -810,17 +835,17 @@ class _QueueTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: context.adaptiveTextPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          color: context.adaptiveTextPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         song.artist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.adaptiveTextSecondary),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: context.adaptiveTextSecondary),
                       ),
                     ],
                   ),
@@ -871,9 +896,7 @@ class _QueueTile extends StatelessWidget {
           color: Colors.redAccent.withValues(alpha: 0.18),
           border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppConstants.spacingLg,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingLg),
         alignment: Alignment.centerRight,
         child: const Icon(LucideIcons.trash2, color: Colors.redAccent),
       ),
@@ -917,3 +940,25 @@ class _Artwork extends StatelessWidget {
 }
 
 enum _QueueAction { playNext, remove }
+
+BoxDecoration _tileDecoration(bool glass) {
+  if (glass) {
+    return BoxDecoration(
+      borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+      color: Colors.white.withValues(alpha: 0.08),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+    );
+  }
+  return BoxDecoration(
+    borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        AppColors.surfaceLight.withValues(alpha: 0.7),
+        AppColors.surface.withValues(alpha: 0.82),
+      ],
+    ),
+    border: Border.all(color: AppColors.glassBorder),
+  );
+}

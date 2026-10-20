@@ -37,9 +37,10 @@ Map<String, String> spotiflacSignedHeaders(
 }) {
   final at = (now ?? DateTime.now()).toUtc();
   final prefix = config['headerPrefix'] as String? ?? 'X-Sig-';
-  final timestamp = at.toIso8601String().replaceFirst(
+  // JavaScript's toISOString: milliseconds only, while Dart may add micros.
+  final timestamp = at.toIso8601String().replaceFirstMapped(
     RegExp(r'\.(\d{3})\d*Z$'),
-    r'.$1Z',
+    (match) => '.${match[1]}Z',
   );
   final bodyHash = _sha256(utf8.encode(body));
   final windowSeconds = (config['timeWindowSeconds'] as num?)?.toInt() ?? 300;

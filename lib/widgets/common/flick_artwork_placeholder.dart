@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
-/// Centered Flick logo used when album art is missing.
+import 'package:flick/core/theme/lokal_tokens.dart';
+
+/// Lokal's placeholder for missing album art: a centred music note.
 ///
-/// Used as placeholder/errorWidget inside [CachedImageWidget] fallbacks.
-/// The SVG `assets/icons/flicklogo_svg.svg` is white `#F5F5F5` on
-/// transparent, so it is rendered on a dark surface and dimmed via
-/// [opacity] to match the previous `Icon(..., white 0.48)` look.
+/// The class keeps its historical name so its many call sites (and the
+/// [CachedImageWidget] fallbacks) need no change, but it no longer draws the
+/// Flick logo. The note takes [color] when given, else the Lokal muted
+/// colour (`context.lokal`, which falls back to the dark Lokal tokens
+/// outside a Lokal-themed subtree), scaled to [size] and dimmed by
+/// [opacity].
 class FlickArtworkPlaceholder extends StatelessWidget {
   const FlickArtworkPlaceholder({
     super.key,
@@ -21,23 +24,16 @@ class FlickArtworkPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // SVG viewBox is 606×734 (0.826 ratio). Constrain both axes so layout
-    // stays square and centered regardless of parent constraints.
-    final logo = SvgPicture.asset(
-      'assets/icons/flicklogo_svg.svg',
-      width: size,
-      height: size,
-      fit: BoxFit.contain,
-      colorFilter: color != null
-          ? ColorFilter.mode(color!, BlendMode.srcIn)
-          : null,
+    final note = ExcludeSemantics(
+      child: Icon(
+        Icons.music_note_rounded,
+        size: size,
+        color: color ?? context.lokal.muted,
+      ),
     );
-
-    if (opacity >= 1.0) {
-      return Center(child: logo);
-    }
+    if (opacity >= 1.0) return Center(child: note);
     return Center(
-      child: Opacity(opacity: opacity, child: logo),
+      child: Opacity(opacity: opacity.clamp(0.0, 1.0), child: note),
     );
   }
 }

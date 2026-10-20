@@ -163,6 +163,8 @@ class _SpotiflacAuthSheetState extends State<SpotiflacAuthSheet> {
                 useShouldOverrideUrlLoading: true,
                 mediaPlaybackRequiresUserGesture: true,
                 incognito: true,
+                // Same black-page workaround as the YouTube Music sign-in.
+                useHybridComposition: false,
               ),
               shouldOverrideUrlLoading: _navigate,
               onReceivedError: (controller, request, error) {

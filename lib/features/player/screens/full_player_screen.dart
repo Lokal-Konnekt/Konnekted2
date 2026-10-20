@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -11,9 +11,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/player/lokal_lyrics_subline.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
+import 'package:flick/features/queue/screens/queue_screen.dart';
 import 'package:flick/widgets/lokal/lokal_like_burst.dart';
 import 'package:flick/widgets/lokal/lokal_pull_to_dismiss.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
+import 'package:flick/widgets/lokal/lokal_queue_reveal.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/player/screens/classic_full_player_screen.dart';
 import 'package:flick/features/player/widgets/loop_mode_sheet.dart';
@@ -52,7 +54,8 @@ class FullPlayerScreen extends ConsumerStatefulWidget {
   ConsumerState<FullPlayerScreen> createState() => _FullPlayerScreenState();
 }
 
-class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
+class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
+    with SingleTickerProviderStateMixin {
   final PlayerService _player = PlayerService();
   final FavoritesService _favorites = FavoritesService();
   final LyricsService _lyricsService = LyricsService();
@@ -76,6 +79,16 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
   bool _draggingVolume = false;
 
   bool _carouselDragging = false;
+
+  /// The queue opens in place: the cover shrinks into a header row and the
+  /// list rises under it, all off this one value (0 = player, 1 = queue).
+  late final AnimationController _queueProgress = AnimationController(
+    vsync: this,
+  );
+  late final LokalQueueRevealMotion _queue = LokalQueueRevealMotion(
+    _queueProgress,
+  )..addListener(_onQueueTargetChanged);
+
   int _burst = 0;
   bool _burstVisible = false;
 
@@ -91,6 +104,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
 
   @override
   void dispose() {
+    _queue.dispose();
+    _queueProgress.dispose();
     _player.currentSongNotifier.removeListener(_onSongChanged);
     _player.favoriteNotificationToggleNotifier.removeListener(_refreshFavorite);
     super.dispose();
@@ -152,8 +167,34 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
   }
 
   void _toggleLyrics() {
+    // Lyrics take the queue's place outright rather than animating over it.
+    if (!_showLyrics && _queue.isOpen) _queue.setOpen(false, animate: false);
     setState(() => _showLyrics = !_showLyrics);
     if (_showLyrics) _loadLyrics();
+  }
+
+  // ───────────────────────────── queue reveal ─────────────────────────────
+
+  void _onQueueTargetChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _animate => !MediaQuery.disableAnimationsOf(context);
+
+  void _setQueueOpen(bool open) {
+    if (open == _queue.isOpen) return;
+    HapticFeedback.selectionClick();
+    if (open && _showLyrics) setState(() => _showLyrics = false);
+    _queue.setOpen(open, animate: _animate);
+  }
+
+  void _toggleQueue() => _setQueueOpen(!_queue.isOpen);
+
+  void _releaseQueue(double upVelocity) {
+    final was = _queue.isOpen;
+    if (_queue.release(upVelocity, animate: _animate) != was) {
+      HapticFeedback.selectionClick();
+    }
   }
 
   void _close() => Navigator.of(context).pop();
@@ -234,15 +275,24 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
           ];
 
     return PopScope(
-      // Back closes the lyrics first, then the player.
-      canPop: !_showLyrics,
+      // Back puts the queue or the lyrics away first, then closes the player.
+      canPop: !_showLyrics && !_queue.isOpen,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _showLyrics) _toggleLyrics();
+        if (didPop) return;
+        if (_queue.isOpen) {
+          _setQueueOpen(false);
+        } else if (_showLyrics) {
+          _toggleLyrics();
+        }
       },
       child: LokalPullToDismiss(
         onDismiss: _close,
-        onPullUp: _showLyrics ? null : () => _navigation.openQueue(context),
-        isBlocked: () => _carouselDragging,
+        // Pulling up drags the queue in, following the finger.
+        onPullUpUpdate: _showLyrics ? null : _queue.dragBy,
+        onPullUpEnd: _showLyrics ? null : _releaseQueue,
+        // While the queue is out, its header owns vertical drags.
+        isBlocked: () =>
+            _carouselDragging || _queue.isOpen || _queueProgress.value > 0,
         child: _scaffold(colors, isCasting, diagnostics),
       ),
     );
@@ -418,83 +468,98 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
   // ───────────────────────────── artwork / lyrics ─────────────────────────────
 
   Widget _artArea(Song song, bool compact) {
-    return Column(
+    final titleSize = compact ? 26.0 : 32.0;
+    return LayoutBuilder(
       key: const ValueKey('art'),
-      children: [
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, c) {
-              final side = math.min(c.maxWidth, c.maxHeight);
-              // Follows the finger; neighbours slide in beside the cover.
-              return ValueListenableBuilder<List<Song>>(
-                valueListenable: _player.upNextNotifier,
-                builder: (context, _, __) => ValueListenableBuilder<int>(
-                  valueListenable: _player.currentIndexNotifier,
-                  builder: (context, _, __) => SongStageCarousel(
-                    currentSong: song,
-                    nextSong: _player.peekNext,
-                    prevSong: _player.peekPrevious,
-                    onDragStateChanged: (v) => _carouselDragging = v,
-                    onNext: _player.next,
-                    onPrevious: _player.previousBySwipe,
-                    stageBuilder: (s) => Center(
-                      child: _artwork(s, side, current: s.id == song.id),
+      builder: (context, c) {
+        // A finger travels about the cover's height for the whole reveal.
+        _queue.travel = math.max(math.min(c.maxWidth, c.maxHeight) * .8, 200);
+        return LokalQueueReveal(
+          progress: _queueProgress,
+          open: _queue.isOpen,
+          artGap: compact ? 8 : 16,
+          onHeaderTap: () => _setQueueOpen(false),
+          onHeaderDragUpdate: _queue.dragBy,
+          onHeaderDragEnd: _releaseQueue,
+          artwork: (context, size, p) {
+            final atRest = p == 0 && !_queue.isOpen;
+            // Follows the finger; neighbours slide in beside the cover.
+            return ValueListenableBuilder<List<Song>>(
+              valueListenable: _player.upNextNotifier,
+              builder: (context, _, __) => ValueListenableBuilder<int>(
+                valueListenable: _player.currentIndexNotifier,
+                builder: (context, _, __) => SongStageCarousel(
+                  currentSong: song,
+                  nextSong: _player.peekNext,
+                  prevSong: _player.peekPrevious,
+                  enabled: atRest,
+                  onDragStateChanged: (v) => _carouselDragging = v,
+                  onNext: _player.next,
+                  onPrevious: _player.previousBySwipe,
+                  stageBuilder: (s) => Align(
+                    alignment: LokalQueueReveal.coverAlignment(p),
+                    child: _artwork(
+                      s,
+                      size,
+                      current: s.id == song.id,
+                      progress: p,
                     ),
                   ),
                 ),
-              );
-            },
+              ),
+            );
+          },
+          info: (context, p) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                song.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: _font,
+                  fontSize: lerpDouble(titleSize, 18, p),
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: lerpDouble(2, 1, p)),
+              Text(
+                [
+                  song.artist,
+                  if ((song.album ?? '').trim().isNotEmpty) song.album!.trim(),
+                  if (song.year != null && song.year! > 0) '${song.year}',
+                ].join('  ·  '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: _font,
+                  fontSize: lerpDouble(14, 13, p),
+                  color: Colors.white.withValues(alpha: 0.72),
+                ),
+              ),
+            ],
           ),
-        ),
-        SizedBox(height: compact ? 8 : 16),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            song.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontFamily: _font,
-              fontSize: compact ? 26 : 32,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            [
-              song.artist,
-              if ((song.album ?? '').trim().isNotEmpty) song.album!.trim(),
-              if (song.year != null && song.year! > 0) '${song.year}',
-            ].join('  ·  '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontFamily: _font,
-              fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.72),
-            ),
-          ),
-        ),
-        // Desktop's quality pill, in desktop's colours on every theme.
-        if (LokalQualityTier.of(song) case final tier?) ...[
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: LokalQualityPill(tier: tier),
-          ),
-        ],
-        const SizedBox(height: 6),
-      ],
+          // Desktop's quality pill, in desktop's colours on every theme.
+          badge: switch (LokalQualityTier.of(song)) {
+            final tier? => LokalQualityPill(tier: tier),
+            null => null,
+          },
+          queue: const QueueList(embedded: true),
+        );
+      },
     );
   }
 
-  Widget _artwork(Song song, double side, {required bool current}) {
+  Widget _artwork(
+    Song song,
+    double side, {
+    required bool current,
+    double progress = 0,
+  }) {
     final art = ClipRRect(
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(lerpDouble(28, 12, progress)!),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 280),
         child: CachedImageWidget(
@@ -509,7 +574,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
     );
     final shown = _burst;
     return GestureDetector(
-      onDoubleTap: current ? _likeFromArtwork : null,
+      onDoubleTap: current && progress == 0 ? _likeFromArtwork : null,
       child: SizedBox(
         width: side,
         height: side,
@@ -1036,7 +1101,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen> {
           chip(
             LucideIcons.listMusic,
             l10n.queue,
-            () => _navigation.openQueue(context),
+            _toggleQueue,
+            active: _queue.isOpen,
           ),
           chip(
             LucideIcons.messageSquareQuote,

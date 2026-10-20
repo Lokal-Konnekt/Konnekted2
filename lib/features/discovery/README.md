@@ -14,9 +14,10 @@ Add `const DiscoveryScreen()` to the shell's destinations. It owns its Scaffold,
 app bar, source configuration route and search state. The host must initialize
 the existing app normally (`RustLib.init()`, database and player infrastructure)
 and retain its normal player controls/mini-player. No PlayerService patch is
-needed for this cached-playback implementation. No dependencies were added.
-The implementation uses existing `http` (lockfile 1.6.0, including
-`AbortableRequest`), secure storage, path_provider, crypto, path, and url_launcher.
+needed for this cached-playback implementation. The account Discovery path also
+uses `flutter_inappwebview` for interactive Google sign-in. The guest catalog
+and addon search paths continue to use the existing `http`, secure storage,
+path_provider, crypto, path and url_launcher dependencies.
 
 `DiscoveryScreen` accepts optional `http.Client` and `DiscoverySettingsStore`
 injections; injected clients remain caller-owned. `SourceSettingsScreen` accepts

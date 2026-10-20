@@ -135,6 +135,7 @@ Future<Map<String, dynamic>> _fetchRadioCatalogAtUrl(
     try {
       final decoded = jsonDecode(utf8.decode(bytes.takeBytes()));
       if (decoded is Map<String, dynamic> && decoded['stations'] is List) {
+        parseRadioCatalog(decoded);
         return decoded;
       }
       if (decoded is Map &&
@@ -145,6 +146,7 @@ Future<Map<String, dynamic>> _fetchRadioCatalogAtUrl(
         );
         final catalog = jsonDecode(utf8.decode(raw));
         if (catalog is Map<String, dynamic> && catalog['stations'] is List) {
+          parseRadioCatalog(catalog);
           return catalog;
         }
       }

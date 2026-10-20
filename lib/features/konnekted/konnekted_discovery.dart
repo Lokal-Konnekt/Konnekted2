@@ -67,6 +67,7 @@ class KonnektedYoutubeMusicNotifier extends AsyncNotifier<YoutubeMusicSession?> 
     await ref.read(konnektedYoutubeMusicStoreProvider).clear();
     forgetYoutubeMusicAccount();
     state = const AsyncData(null);
+    ref.read(konnektedDiscoveryProvider.notifier).clearYoutubeMusicAccount();
   }
 }
 
@@ -143,6 +144,18 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
     } catch (_) {
       // Last.fm remains the default.
     }
+  }
+
+  /// Clears displayed account data immediately when the user signs out.
+  void clearYoutubeMusicAccount() {
+    if (state.source != KonnektedDiscoverySource.youtube) return;
+    ++_generation;
+    _page = 0;
+    _account = null;
+    state = const KonnektedDiscoveryState(
+      connected: false,
+      source: KonnektedDiscoverySource.youtube,
+    );
   }
 
   /// Loads the selected provider. A refresh rotates between provider picks.

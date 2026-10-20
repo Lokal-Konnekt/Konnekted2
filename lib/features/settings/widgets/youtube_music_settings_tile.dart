@@ -67,7 +67,7 @@ class _YoutubeMusicSettingsTileState
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(konnektedYoutubeMusicSessionProvider);
-    final signedIn = session.valueOrNull?.signedIn == true;
+    final signedIn = session.value?.signedIn == true;
     final subtitle = session.when(
       data: (value) => value?.signedIn == true
           ? 'Signed in · Account Discovery available'
@@ -89,7 +89,7 @@ class _YoutubeMusicSettingsTileState
               onPressed: _activate,
               child: Text(signedIn ? 'Sign out' : 'Sign in'),
             ),
-      onTap: _activate,
+      onTap: _busy || session.isLoading ? null : _activate,
     );
   }
 }

@@ -24,6 +24,30 @@ optional initial settings/store/client and returns saved `DiscoverySettings` thr
 `Navigator.pop`. Reopening discovery loads persisted settings. An already mounted
 discovery screen applies changes made through its own settings route immediately.
 
+## Account Discovery (Konnekted Home)
+
+YouTube Music account Discovery is a separate, opt-in path from the guest catalog
+search described below. The user explicitly signs in from Integrations or from
+the YouTube Music source chip on Home's Discovery tab. Its cookies and Innertube
+page context are stored with FlutterSecureStorage; they are not written to
+SharedPreferences or source code. The source selector is saved as
+`lokal_discovery_source`, but account credentials remain in secure storage.
+
+The account client requests the signed-in Likes (`VLLM`), Home
+(`FEmusic_home`) and History (`FEmusic_history`) pages, follows bounded
+continuations and presents provider-native mixes, Likes, history, artists and
+Fresh Finds. Saved account tracks keep their video ID and known duration so
+playback can resolve the exact recording without a title search. Mix playback
+stages a bounded first batch of tracks; inaccessible recordings are skipped.
+Spotify remains a placeholder and does not make network requests.
+
+This is an unofficial, changeable Innertube interface. Google may refuse
+embedded-browser sign-in or later invalidate cookies / alter response formats.
+The account sign-in and authenticated calls need real-device validation; a
+unit test of request signing does not prove Google will accept the session.
+Signing out clears the stored app session and WebView cookies. The account
+cookies are credentials: do not copy them into logs, reports or issues.
+
 ## What works
 
 * All sources default off. Opening discovery makes no HTTP requests. Enabling a

@@ -22,7 +22,7 @@ class _YoutubeMusicSettingsTileState
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final current = ref.read(konnektedYoutubeMusicSessionProvider).valueOrNull;
+      final current = ref.read(konnektedYoutubeMusicSessionProvider).value;
       if (current == null) {
         final session = await YoutubeMusicSignInSheet.show(context);
         if (!mounted || session == null) return;

@@ -71,12 +71,6 @@
             <meta-data
                 android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
                 android:resource="@xml/device_filter" />
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="konnekted" android:host="oauth" android:path="/spotify" />
-            </intent-filter>
         </activity>
         <!-- Launcher icons whose sticker takes the accent, like desktop's Dock
              and taskbar icon. Exactly one alias is enabled; LauncherIcon.kt

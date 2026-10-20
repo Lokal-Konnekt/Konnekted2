@@ -159,6 +159,12 @@ class SpotifyApi implements SpotifyLibraryApi {
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer ${tokens.accessToken}',
+          'App-platform': 'WebPlayer',
+          'Origin': 'https://open.spotify.com',
+          'Referer': 'https://open.spotify.com/',
+          'User-Agent': _webPlayerUserAgent,
+          if (tokens.clientToken case final clientToken?)
+            'Client-Token': clientToken,
         },
         cancellation: cancellation,
       );
@@ -282,6 +288,11 @@ class SpotifyApi implements SpotifyLibraryApi {
     }
     return tracks;
   }
+
+  static const _webPlayerUserAgent =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+      'AppleWebKit/537.36 (KHTML, like Gecko) '
+      'Chrome/122.0.0.0 Safari/537.36';
 
   String? _imageUrl(Object? images) {
     if (images is! List) return null;

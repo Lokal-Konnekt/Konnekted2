@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
@@ -39,52 +37,28 @@ class _MemoryTokens implements SpotifyTokenStore {
 }
 
 class _Browser implements SpotifyOAuthBrowser {
-  Uri? opened;
-  String? callback;
+  var authenticateCount = 0;
+  String? sessionCookie = 'session-cookie';
+  SpotifyTokens? minted = SpotifyTokens(
+    accessToken: 'access',
+    refreshToken: null,
+    expiresAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
+  );
 
   @override
-  Future<String?> authenticate({
-    required Uri authorizationUrl,
-    required String redirectUri,
-  }) async {
-    opened = authorizationUrl;
-    callback = '$redirectUri?code=one-use-code&state=${authorizationUrl.queryParameters['state']}';
-    return callback;
+  Future<String?> authenticate() async {
+    authenticateCount++;
+    return sessionCookie;
   }
+
+  @override
+  Future<SpotifyTokens?> mintTokens(String sessionCookie) async => minted;
 
   @override
   Future<void> cancel() async {}
-}
-
-class _Exchange implements SpotifyTokenExchange {
-  String? codeVerifier;
 
   @override
-  Future<SpotifyTokens> exchangeCode({
-    required String clientId,
-    required String code,
-    required String codeVerifier,
-    required String redirectUri,
-  }) async {
-    this.codeVerifier = codeVerifier;
-    return SpotifyTokens(
-      accessToken: 'access',
-      refreshToken: 'refresh',
-      expiresAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
-    );
-  }
-
-  @override
-  Future<SpotifyTokens> refreshToken({
-    required String clientId,
-    required String refreshToken,
-  }) async {
-    return SpotifyTokens(
-      accessToken: 'refreshed',
-      refreshToken: refreshToken,
-      expiresAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
-    );
-  }
+  Future<void> clearSession() async {}
 }
 
 Song _song(String id, String title, String artist, int seconds) => Song(
@@ -96,53 +70,34 @@ Song _song(String id, String title, String artist, int seconds) => Song(
     );
 
 void main() {
-  test('PKCE callback is exact, state-bound, and one-use', () async {
-    final preferences = _MemoryPreferences();
+  test('BitChord-style web session is stored after in-app sign-in', () async {
     final tokens = _MemoryTokens();
-    final settings = SpotifySettingsStore(
-      preferences: preferences,
-      tokenStore: tokens,
-    );
-    await settings.saveClientId('client-id');
     final browser = _Browser();
-    final exchange = _Exchange();
     final oauth = SpotifyOAuthService(
-      settings: settings,
       tokenStore: tokens,
       browser: browser,
-      exchange: exchange,
-      random: Random(2),
     );
 
     final result = await oauth.signIn();
 
     expect(result.accessToken, 'access');
-    expect(browser.opened?.scheme, 'https');
-    expect(browser.opened?.host, 'accounts.spotify.com');
-    expect(browser.opened?.queryParameters['code_challenge_method'], 'S256');
-    expect(exchange.codeVerifier, isNotEmpty);
-    await expectLater(
-      oauth.finishAuthorization(browser.callback!),
-      throwsA(isA<SpotifyOAuthException>()),
-    );
+    expect(browser.authenticateCount, 1);
+    expect((await tokens.readTokens())?.sessionCookie, 'session-cookie');
   });
 
   test('Spotify API follows same-origin pages and parses real metadata', () async {
-    final preferences = _MemoryPreferences();
     final tokens = _MemoryTokens()
       ..value = SpotifyTokens(
         accessToken: 'access',
         refreshToken: 'refresh',
         expiresAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
+        clientToken: 'client-token',
       );
-    final settings = SpotifySettingsStore(
-      preferences: preferences,
-      tokenStore: tokens,
-    );
-    await settings.saveClientId('client-id');
-    final oauth = SpotifyOAuthService(settings: settings, tokenStore: tokens);
+    final oauth = SpotifyOAuthService(tokenStore: tokens);
     final client = MockClient((request) async {
       expect(request.headers['authorization'], 'Bearer access');
+      expect(request.headers['client-token'], 'client-token');
+      expect(request.headers['app-platform'], 'WebPlayer');
       if (request.url.queryParameters['offset'] == '0') {
         return http.Response(
           '{"items":[{"id":"p1","name":"Road trip","tracks":{"total":2},"owner":{"display_name":"Me"}}],"next":"https://api.spotify.com/v1/me/playlists?limit=50&offset=50"}',

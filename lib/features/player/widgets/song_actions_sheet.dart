@@ -21,6 +21,8 @@ import 'package:flick/features/player/widgets/pitch_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/features/music_videos/music_videos_page.dart';
+import 'package:flick/providers/opt_in_source_provider.dart';
 
 class SongActionsSheet extends ConsumerWidget {
   final BuildContext parentContext;
@@ -289,6 +291,16 @@ class SongActionsSheet extends ConsumerWidget {
                               SongMetadataSheet.show(context, activeSong);
                             },
                           ),
+                          if (ref.watch(musicVideosEnabledProvider))
+                            _buildSongActionTile(
+                              context: sheetContext,
+                              icon: LucideIcons.monitorPlay,
+                              label: 'Watch video',
+                              onTap: () {
+                                Navigator.pop(sheetContext);
+                                watchMusicVideo(context, ref, activeSong);
+                              },
+                            ),
                           _buildSongActionTile(
                             context: sheetContext,
                             icon: LucideIcons.fileText,

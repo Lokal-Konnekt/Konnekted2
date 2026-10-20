@@ -10,8 +10,20 @@ class YoutubeMusicCatalog {
   final DiscoveryHttp http;
 
   Future<List<DiscoveryTrack>> search(String query) async {
+    if (query.trim().isEmpty) return [];
+    return parse(await rawSearch(query));
+  }
+
+  /// YouTube Music's videos filter (desktop's VIDEOS_PARAMS).
+  static const videosFilter = 'EgWKAQIQAWoMEA4QChADEAQQCRAF';
+  static const _songsFilter = 'EgWKAQIIAWoKEAkQChAFEAMQBA==';
+
+  /// The search response itself, songs filter unless [params] names another.
+  Future<Map<String, dynamic>> rawSearch(
+    String query, {
+    String params = _songsFilter,
+  }) async {
     final trimmed = query.trim();
-    if (trimmed.isEmpty) return [];
     if (trimmed.length > 200) {
       throw const DiscoveryException('Search is limited to 200 characters.');
     }
@@ -36,10 +48,10 @@ class YoutubeMusicCatalog {
           },
         },
         'query': trimmed,
-        'params': 'EgWKAQIIAWoKEAkQChAFEAMQBA==',
+        'params': params,
       },
     );
-    return parse(response);
+    return response;
   }
 
   static List<DiscoveryTrack> parse(Map<String, dynamic> response) {

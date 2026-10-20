@@ -209,15 +209,6 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
       source: source,
     );
 
-    if (source == KonnektedDiscoverySource.spotify) {
-      state = const KonnektedDiscoveryState(
-        connected: false,
-        error: 'Spotify Discovery is coming soon.',
-        source: KonnektedDiscoverySource.spotify,
-      );
-      return;
-    }
-
     if (source == KonnektedDiscoverySource.youtube) {
       YoutubeMusicSession? session;
       try {

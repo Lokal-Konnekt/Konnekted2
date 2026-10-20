@@ -246,6 +246,7 @@ class _KonnektedDiscoveryViewState
     final t = context.lokal;
     final discovery = ref.watch(konnektedDiscoveryProvider);
     final data = discovery.data;
+    final source = discovery.source;
     // Rebuild when the library changes, so "in your library" stays right.
     final library = KonnektedLibraryIndex.of(
       ref.watch(konnektedLibraryProvider).value ?? const [],
@@ -262,7 +263,6 @@ class _KonnektedDiscoveryViewState
     final quick = data?.quickPicks ?? const <LokalDiscoveryTrack>[];
     final history = data?.history ?? const <LokalDiscoveryTrack>[];
     final mixes = data?.mixes ?? const <LokalDiscoveryMix>[];
-    final source = discovery.source;
     final albums = data?.albums ?? const <LokalDiscoveryAlbum>[];
     final artists = data?.artists ?? const <LokalDiscoveryArtist>[];
 
@@ -366,15 +366,6 @@ class _KonnektedDiscoveryViewState
                   section: LokalOnlineSections.accounts,
                 ),
               ),
-            ),
-          )
-        else if (source == KonnektedDiscoverySource.spotify)
-          const Padding(
-            padding: EdgeInsets.only(top: 20),
-            child: KonnektedMessage(
-              title: 'Spotify Discovery is coming soon',
-              message: 'Select Last.fm or YouTube Music for account-based recommendations.',
-              icon: Icons.music_note_rounded,
             ),
           )
         else if (data == null && discovery.loading)
@@ -604,7 +595,12 @@ class _KonnektedDiscoveryViewState
                 'Sign in to Spotify in the Spotify library page, then return here to load your shelves.',
             icon: Icons.auto_awesome_rounded,
             actionLabel: 'Open Spotify',
-            onAction: () => widget.onNavigate(KonnektedDestination.spotify),
+            onAction: () => widget.onNavigate(
+              const KonnektedDestination.settingsAt(
+                LokalSettingsGroup.integrations,
+                section: LokalOnlineSections.accounts,
+              ),
+            ),
           )
         else if (data == null || data.isEmpty)
           const KonnektedMessage(

@@ -331,6 +331,46 @@ void main() {
     },
   );
 
+  testWidgets('pulling the mini player up hands the drag to Now Playing', (
+    tester,
+  ) async {
+    final moves = <String>[];
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            height: 58,
+            child: KonnektedMiniPlayerContent(
+              song: _song,
+              isPlaying: true,
+              onOpen: () => moves.add('tap'),
+              onPlayPause: () {},
+              onNext: () {},
+              onQueue: () {},
+              progress: const SizedBox(),
+              onPullUpStart: () => moves.add('start'),
+              onPullUpUpdate: (dy) => moves.add('move'),
+              onPullUpEnd: (v) => moves.add(v < 0 ? 'up' : 'end'),
+            ),
+          ),
+        ),
+      ),
+    );
+    final mini = find.byType(KonnektedMiniPlayerContent);
+    await tester.fling(mini, const Offset(0, -120), 1200);
+    await tester.pumpAndSettle();
+    expect(moves.first, 'start');
+    expect(moves, contains('move'));
+    expect(moves.last, 'up');
+
+    // A drag that starts downward is left alone.
+    moves.clear();
+    await tester.drag(mini, const Offset(0, 80));
+    await tester.pumpAndSettle();
+    expect(moves, isEmpty);
+  });
+
   testWidgets('compact dock keeps player, pause, queue, and all tabs usable', (
     tester,
   ) async {

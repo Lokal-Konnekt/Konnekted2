@@ -163,6 +163,7 @@ void main() {
   group('network requests', () {
     late HttpServer server;
     late String base;
+    var stallRequests = 0;
 
     setUp(() async {
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -187,6 +188,15 @@ void main() {
           case '/hop':
             response.statusCode = 302;
             response.headers.set('location', '/echo');
+          case '/stall':
+            // The first answer goes quiet halfway; the second is whole.
+            response.contentLength = 8;
+            if (++stallRequests == 1) {
+              response.add([1, 2, 3, 4]);
+              await response.flush();
+              return; // Never finished.
+            }
+            response.add([1, 2, 3, 4, 5, 6, 7, 8]);
           default:
             response.statusCode = 404;
         }
@@ -217,6 +227,45 @@ void main() {
         net.close();
       },
     );
+
+    test('a download that goes quiet is dropped and tried again', () async {
+      stallRequests = 0;
+      final host = SpotiflacHost(
+        addon: SpotiflacAddonInfo(
+          key: namespace,
+          name: 'deezer',
+          manifest: const {
+            'permissions': {
+              'network': ['127.0.0.1'],
+              'file': true,
+            },
+          },
+        ),
+        storage: storage,
+        network: network(),
+        native: native,
+        root: p.join(dir.path, 'files'),
+        stallTimeout: const Duration(milliseconds: 300),
+      );
+      final result = await host.call('file.download', [
+        '$base/stall',
+        'song.flac',
+        const {'maxAttempts': 3},
+      ], (descriptor, args, {strict = false}) async {});
+      expect(result, containsPair('success', true));
+      expect(result, containsPair('attempts', 2));
+      expect(File(p.join(dir.path, 'files', 'song.flac')).readAsBytesSync(), [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+      ]);
+      host.network.close();
+    });
 
     test('refuses redirects to hosts outside its permissions', () async {
       final net = network();

@@ -24,6 +24,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/album_color_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/player_provider.dart';
+import 'package:flick/widgets/lokal/lokal_player_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
@@ -186,12 +187,46 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
     ),
   );
 
-  Future<void> _openPlayer() async {
+  /// The mini player, for where Now Playing rises from and sinks back to.
+  final _miniPlayerKey = GlobalKey();
+
+  /// Now Playing while a finger pulls it up out of the mini player.
+  LokalPlayerPull? _pull;
+
+  /// The mini player's top edge on screen, or null when it isn't showing.
+  double? _miniPlayerTop() {
+    final box = _miniPlayerKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero).dy;
+  }
+
+  static const _playerHero = 'konnekted-player-art';
+
+  Future<void> _openPlayer({double? from}) async {
     final result = await NavigationHelper.navigateToFullPlayer(
       context,
-      heroTag: 'konnekted-player-art',
+      heroTag: _playerHero,
+      startTop: _miniPlayerTop,
+      initialProgress: from,
     );
     if (result != null && mounted) _legacyNavigate(result);
+  }
+
+  void _pullPlayerStart() {
+    _pull?.end(0);
+    _pull = NavigationHelper.pullFullPlayer(
+      context,
+      heroTag: _playerHero,
+      startTop: _miniPlayerTop,
+      onOpen: (progress) {
+        if (mounted) unawaited(_openPlayer(from: progress));
+      },
+    );
+  }
+
+  void _pullPlayerEnd(double velocityDown) {
+    _pull?.end(velocityDown);
+    _pull = null;
   }
 
   Future<void> _play(Song song, List<Song> songs) async {
@@ -343,7 +378,11 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                               miniPlayer: TutorialTargetAnchor(
                                 target: TutorialTarget.miniPlayer,
                                 child: KonnektedMiniPlayer(
+                                  key: _miniPlayerKey,
                                   onOpen: _openPlayer,
+                                  onPullUpStart: _pullPlayerStart,
+                                  onPullUpUpdate: (dy) => _pull?.dragBy(dy),
+                                  onPullUpEnd: _pullPlayerEnd,
                                   onQueue: () =>
                                       _navigate(KonnektedDestination.queue),
                                 ),

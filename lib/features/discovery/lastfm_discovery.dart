@@ -27,6 +27,8 @@ class LokalDiscoveryTrack {
     this.reason,
     this.scrobbleCount,
     this.seedArtist,
+    this.videoId,
+    this.duration,
   });
 
   final String title;
@@ -43,6 +45,12 @@ class LokalDiscoveryTrack {
   final String? reason;
   final int? scrobbleCount;
   final String? seedArtist;
+
+  /// Direct YouTube recording ID; avoids a catalog search on playback.
+  final String? videoId;
+
+  /// Duration supplied by the source, when available.
+  final Duration? duration;
 
   /// One per artist and title, as desktop's `songKey`.
   String get key => lastfmSongKey(artist, title);
@@ -62,6 +70,8 @@ class LokalDiscoveryTrack {
     reason: reason ?? this.reason,
     scrobbleCount: scrobbleCount ?? this.scrobbleCount,
     seedArtist: seedArtist ?? this.seedArtist,
+    videoId: videoId,
+    duration: duration,
   );
 }
 
@@ -95,6 +105,21 @@ class LokalDiscoveryAlbum {
   final String url;
 }
 
+/// A provider-owned mix or radio, such as YouTube Music's "My Supermix".
+class LokalDiscoveryMix {
+  const LokalDiscoveryMix({
+    required this.id,
+    required this.title,
+    this.author = '',
+    this.artworkUrl = '',
+  });
+
+  final String id;
+  final String title;
+  final String author;
+  final String artworkUrl;
+}
+
 /// Discovery's shelves. A shelf whose request failed is null, so the app can
 /// keep showing the last one that loaded.
 class LokalDiscovery {
@@ -102,6 +127,9 @@ class LokalDiscovery {
     required this.account,
     required this.page,
     this.warnings = const [],
+    this.mixes,
+    this.mixError,
+    this.liked,
     this.quickPicks,
     this.history,
     this.artists,
@@ -113,6 +141,9 @@ class LokalDiscovery {
   final String account;
   final int page;
   final List<String> warnings;
+  final List<LokalDiscoveryMix>? mixes;
+  final String? mixError;
+  final List<LokalDiscoveryTrack>? liked;
   final List<LokalDiscoveryTrack>? quickPicks;
   final List<LokalDiscoveryTrack>? history;
   final List<LokalDiscoveryArtist>? artists;
@@ -127,6 +158,9 @@ class LokalDiscovery {
           account: account,
           page: page,
           warnings: warnings,
+          mixes: mixes ?? previous.mixes,
+          mixError: mixError,
+          liked: liked ?? previous.liked,
           quickPicks: quickPicks ?? previous.quickPicks,
           history: history ?? previous.history,
           artists: artists ?? previous.artists,
@@ -136,6 +170,8 @@ class LokalDiscovery {
         );
 
   bool get isEmpty =>
+      (mixes ?? const []).isEmpty &&
+      (liked ?? const []).isEmpty &&
       (quickPicks ?? const []).isEmpty &&
       (history ?? const []).isEmpty &&
       (artists ?? const []).isEmpty &&

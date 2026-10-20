@@ -1,5 +1,6 @@
 import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/konnekted/konnekted_destination.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
@@ -119,6 +120,56 @@ void main() {
     final on = tester.widget<Text>(find.text('ON'));
     expect(on.style?.fontFamily, LokalTheme.mono);
     handle.dispose();
+  });
+
+  testWidgets('settings pages are solid theme surfaces, never a blur', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(const LokalSettingsPage(sectionsBuilder: _fakeSections)),
+    );
+    await tester.pumpAndSettle();
+    final context = tester.element(find.byType(LokalSettingsPage));
+    final t = Theme.of(context).extension<LokalTokens>()!;
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(
+      tester
+          .widget<Scaffold>(
+            find.descendant(
+              of: find.byType(LokalSettingsPage),
+              matching: find.byType(Scaffold),
+            ),
+          )
+          .backgroundColor,
+      t.bg,
+    );
+    final card = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byType(LokalSettingsCard),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect((card.decoration! as BoxDecoration).color, t.surface);
+
+    await tester.pumpWidget(
+      _app(
+        LokalSettingsScaffold(
+          title: 'Sub-page',
+          children: [
+            LokalSettingsSection(
+              title: 'Rows',
+              children: [LokalSettingRow(label: 'A row')],
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(find.text('Sub-page'), findsOneWidget);
+    expect(find.text('A row'), findsOneWidget);
   });
 
   testWidgets('a disabled row ignores taps', (tester) async {

@@ -5,6 +5,10 @@ import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
 
+import 'lokal_settings_surfaces.dart';
+
+export 'lokal_settings_surfaces.dart';
+
 /// Lokal's settings kit: desktop's `Section` and `Row` (src/pages/Settings.jsx)
 /// for the phone.
 ///
@@ -28,7 +32,7 @@ bool lokalSettingsMatch(String text, String query) {
 String _searchText(String label, String? description) =>
     description == null ? label : '$label $description';
 
-/// A DM Mono title over a glass card of rows.
+/// A DM Mono title over a solid card of rows.
 class LokalSettingsSection extends StatelessWidget {
   const LokalSettingsSection({
     super.key,
@@ -89,28 +93,15 @@ class LokalSettingsSection extends StatelessWidget {
               ),
             ),
           ),
-          LokalGlass(
-            borderRadius: const BorderRadius.all(Radius.circular(20)),
-            thickness: LokalGlassThickness.thin,
-            shadow: false,
-            child: Material(
-              type: MaterialType.transparency,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < children.length; i++) ...[
-                    if (i > 0)
-                      Divider(
-                        height: 1,
-                        thickness: 1,
-                        indent: 16,
-                        endIndent: 16,
-                        color: t.border,
-                      ),
-                    children[i],
-                  ],
+          LokalSettingsCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0) const LokalSettingsDivider(),
+                  children[i],
                 ],
-              ),
+              ],
             ),
           ),
         ],
@@ -575,32 +566,20 @@ class LokalSettingChoice<T> extends StatelessWidget implements LokalSearchable {
   String get searchText => _searchText(label, description);
 
   Future<void> _pick(BuildContext context) async {
-    final t = context.lokal;
-    final picked = await showModalBottomSheet<LokalSegment<T>>(
+    final picked = await showLokalSettingsSheet<LokalSegment<T>>(
       context: context,
-      backgroundColor: t.surface,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-              child: Text(label.toUpperCase(), style: LokalTheme.label(t)),
+      title: label,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final option in options)
+            LokalSheetOption(
+              label: option.label,
+              selected: option.value == value,
+              onTap: () => Navigator.of(context).pop(option),
             ),
-            for (final option in options)
-              ListTile(
-                title: Text(option.label),
-                trailing: option.value == value
-                    ? Icon(Icons.check_rounded, color: t.accent)
-                    : null,
-                selected: option.value == value,
-                onTap: () => Navigator.of(context).pop(option),
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
+        ],
       ),
     );
     if (picked != null && picked.value != value) onChanged(picked.value);
@@ -704,7 +683,7 @@ class LokalSettingCustom extends StatelessWidget implements LokalSearchable {
   Widget build(BuildContext context) => child;
 }
 
-/// The settings search field: a glass capsule.
+/// The settings search field: a solid capsule on the theme's surface.
 class LokalSettingsSearchField extends StatelessWidget {
   const LokalSettingsSearchField({
     super.key,
@@ -718,9 +697,12 @@ class LokalSettingsSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.lokal;
-    return LokalGlass.capsule(
-      thickness: LokalGlassThickness.thin,
-      shadow: false,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: t.surface2,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: t.border),
+      ),
       child: Material(
         type: MaterialType.transparency,
         child: ValueListenableBuilder<TextEditingValue>(
@@ -764,10 +746,18 @@ class LokalSettingsSearchField extends StatelessWidget {
 /// The large title at the top of a settings page, with a glass back button
 /// when there is somewhere to go back to.
 class LokalSettingsHeader extends StatelessWidget {
-  const LokalSettingsHeader({super.key, required this.title, this.subtitle});
+  const LokalSettingsHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.actions = const [],
+  });
 
   final String title;
   final String? subtitle;
+
+  /// Small controls on the right of the back button's row.
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -778,14 +768,24 @@ class LokalSettingsHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (canPop)
+          if (canPop || actions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
-              child: LokalGlassButton(
-                semanticLabel: 'Back',
-                size: 40,
-                onPressed: () => Navigator.of(context).maybePop(),
-                child: Icon(Icons.chevron_left_rounded, color: t.text),
+              child: Row(
+                children: [
+                  if (canPop)
+                    LokalGlassButton(
+                      semanticLabel: 'Back',
+                      size: 40,
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      child: Icon(Icons.chevron_left_rounded, color: t.text),
+                    ),
+                  const Spacer(),
+                  for (final (i, action) in actions.indexed) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    action,
+                  ],
+                ],
               ),
             ),
           Padding(
@@ -817,4 +817,64 @@ class LokalSettingsHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A settings sub-page: the theme's background (like Home and Library), the
+/// large title with its back button, and [children] scrolling under it.
+///
+/// [children] are usually [LokalSettingsSection]s; wrap free content in
+/// [LokalSettingsBlock] to line it up with them.
+class LokalSettingsScaffold extends StatelessWidget {
+  const LokalSettingsScaffold({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.actions = const [],
+    required this.children,
+    this.controller,
+  });
+
+  final String title;
+  final String? subtitle;
+
+  /// Small controls beside the back button.
+  final List<Widget> actions;
+  final List<Widget> children;
+  final ScrollController? controller;
+
+  @override
+  Widget build(BuildContext context) => LokalSettingsPageFrame(
+    controller: controller,
+    header: LokalSettingsHeader(
+      title: title,
+      subtitle: subtitle,
+      actions: actions,
+    ),
+    children: children,
+  );
+}
+
+/// A round glass button for a settings header's actions.
+class LokalSettingsHeaderAction extends StatelessWidget {
+  const LokalSettingsHeaderAction({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: LokalGlassButton(
+      semanticLabel: tooltip,
+      size: 40,
+      onPressed: onPressed,
+      child: Icon(icon, size: 20, color: context.lokal.text),
+    ),
+  );
 }

@@ -142,6 +142,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('HTTP music add-ons'), findsOneWidget);
+    expect(find.byKey(const ValueKey('http-addon-manifest-url')), findsOneWidget);
+    expect(find.byKey(const ValueKey('http-addon-add')), findsOneWidget);
+    expect(find.text('Add music addon'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

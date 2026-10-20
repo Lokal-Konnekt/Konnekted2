@@ -378,6 +378,12 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Added to {arg1}'**
+  /// Toast shown after adding songs to the playback queue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Added to the queue} other{Added {count} songs to the queue}}'**
+  String addedSongsToQueue(int count);
+
   String addedTo(Object arg1);
 
   /// lib/features/player/widgets/add_to_playlist_sheet.dart:157

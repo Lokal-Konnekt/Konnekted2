@@ -113,7 +113,7 @@ void main() {
 
     final args = shares.single.arguments as Map;
     final path = (args['paths'] as List).single as String;
-    expect(p.basename(path), matches(r'^flick_logs_.*\.txt$'));
+    expect(p.basename(path), matches(r'^lokal_logs_.*\.txt$'));
     expect(args['subject'], 'Lokal logs');
     expect(args['mimeTypes'], ['text/plain']);
     expect(args['text'], isNull);
@@ -157,7 +157,7 @@ void main() {
       await tester.tap(find.text(l10n.saveAsText));
       await tester.pumpAndSettle();
       expect(picker.mimeType, 'text/plain');
-      expect(picker.fileName, matches(r'^flick_logs_.*\.txt$'));
+      expect(picker.fileName, matches(r'^lokal_logs_.*\.txt$'));
       await tapAndShare(tester, find.text(l10n.share));
 
       final args = shares.single.arguments as Map;
@@ -197,7 +197,9 @@ void main() {
     await http.runWithClient(() async {
       await tester.pumpWidget(_host(const LogsScreen()));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip(l10n.copyLink));
+      await tester.tap(find.byTooltip(l10n.more));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.copyLink));
       await tester.pumpAndSettle();
       expect(requests, isEmpty);
       await tester.tap(find.text(l10n.upload));

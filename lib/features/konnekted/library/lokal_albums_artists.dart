@@ -7,6 +7,7 @@ import 'package:flick/features/albums/widgets/identify_album_sheet.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/features/konnekted/konnekted_home.dart';
 import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/favorites_provider.dart';
 import 'package:flutter/material.dart';
@@ -558,7 +559,7 @@ class LokalArtistPage extends ConsumerWidget {
             const SizedBox(height: 4),
             Text(
               '${lokalSongCount(songs.length)} · ${albums.length} '
-                      '${albums.length == 1 ? 'album' : 'albums'}'
+                      '${albums.length == 1 ? l10n.album : l10n.albums}'
                   .toUpperCase(),
               style: LokalTheme.label(t),
             ),

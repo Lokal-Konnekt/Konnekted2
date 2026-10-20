@@ -174,6 +174,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String addedSongsToQueue(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      one: 'Added to the queue',
+      other: 'Added $count songs to the queue',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String addedTo(Object arg1) {
     return 'Added to $arg1';
   }

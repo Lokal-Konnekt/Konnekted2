@@ -160,6 +160,8 @@ class RadioPlayback {
 class RadioPlayerNotifier extends Notifier<RadioPlayback> {
   ja.AudioPlayer? _player;
   int _playRequest = 0;
+  int? _failingPlayRequest;
+  Timer? _bufferingTimer;
   StreamSubscription<ja.PlayerState>? _states;
   String? _notified;
   final Map<String, String> _iconFiles = {};
@@ -179,6 +181,7 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
       if (playing && state.station != null) unawaited(stop());
     });
     ref.onDispose(() {
+      _bufferingTimer?.cancel();
       NotificationService().release(_notificationOwner);
       unawaited(_states?.cancel());
       unawaited(_player?.dispose());
@@ -193,10 +196,24 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
     _states = player.playerStateStream.listen((s) {
       // Once a failed request is reported, late buffering/loading events from
       // that same request must not put the spinner back on screen.
-      if (state.station == null || state.error != null) return;
+      if (state.station == null || state.error != null) {
+        _bufferingTimer?.cancel();
+        _bufferingTimer = null;
+        return;
+      }
       final loading =
           s.processingState == ja.ProcessingState.loading ||
           s.processingState == ja.ProcessingState.buffering;
+      if (loading) {
+        _bufferingTimer ??= Timer(_radioLoadTimeout, () {
+          _bufferingTimer = null;
+          final station = state.station;
+          if (station != null) unawaited(_failPlay(_playRequest, station));
+        });
+      } else {
+        _bufferingTimer?.cancel();
+        _bufferingTimer = null;
+      }
       state = RadioPlayback(
         station: state.station,
         playing: s.playing && s.processingState != ja.ProcessingState.completed,
@@ -270,23 +287,33 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
       state.station?.id == station.id;
 
   Future<void> _failPlay(int request, RadioStation station) async {
-    if (!_isCurrentPlay(request, station)) return;
+    if (!_isCurrentPlay(request, station) || _failingPlayRequest == request) {
+      return;
+    }
+    _failingPlayRequest = request;
+    _bufferingTimer?.cancel();
+    _bufferingTimer = null;
     try {
       await _player?.stop().timeout(_radioStopTimeout);
     } catch (_) {
       // The UI still needs to leave its loading state if the engine stalls.
     }
-    if (!_isCurrentPlay(request, station)) return;
-    state = RadioPlayback(
-      station: station,
-      error: 'This station could not start. Check the stream or try another.',
-    );
-    _syncNotification();
+    if (_isCurrentPlay(request, station)) {
+      state = RadioPlayback(
+        station: station,
+        error: 'This station could not start. Check the stream or try another.',
+      );
+      _syncNotification();
+    }
+    if (_failingPlayRequest == request) _failingPlayRequest = null;
   }
 
   Future<void> play(RadioStation station) async {
     if (!ref.read(internetRadioEnabledProvider)) return;
     final request = ++_playRequest;
+    _bufferingTimer?.cancel();
+    _bufferingTimer = null;
+    _failingPlayRequest = null;
     // Set loading before awaiting session/player setup so every failure path
     // is visible and can also be cleared by stop().
     state = RadioPlayback(station: station, loading: true);
@@ -379,6 +406,9 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
   Future<void> stop() async {
     // Ignore completions from an earlier setUrl/play request.
     _playRequest++;
+    _bufferingTimer?.cancel();
+    _bufferingTimer = null;
+    _failingPlayRequest = null;
     final wasOn = state.station != null;
     state = const RadioPlayback();
     try {

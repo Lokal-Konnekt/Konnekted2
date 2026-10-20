@@ -12,6 +12,7 @@ import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/core/utils/uri_display_utils.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
@@ -326,9 +327,8 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
                 ),
                 Text(
                   l10n.musicFolders(_folders.length),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: context.adaptiveTextTertiary),
                 ),
               ],
             ),
@@ -375,9 +375,8 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
           const SizedBox(height: AppConstants.spacingSm),
           Text(
             l10n.addMusicFoldersInSettings,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: context.adaptiveTextTertiary,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: context.adaptiveTextTertiary),
           ),
         ],
       ),
@@ -1184,9 +1183,8 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
                     ],
                     Text(
                       l10n.items(count),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: context.adaptiveTextTertiary),
                     ),
                   ],
                 ),
@@ -1248,9 +1246,8 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
               parents[i],
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.adaptiveTextSecondary,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: context.adaptiveTextSecondary),
             ),
           ),
         ),
@@ -1369,9 +1366,8 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
           const SizedBox(height: AppConstants.spacingSm),
           Text(
             l10n.thisFolderAppearsToBeEmpty,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: context.adaptiveTextTertiary,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: context.adaptiveTextTertiary),
           ),
         ],
       ),
@@ -1691,6 +1687,7 @@ class _SongTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
         onTap: onTap,
+        onLongPress: () => SongActionsBottomSheet.show(context, song),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppConstants.spacingMd,
@@ -1740,9 +1737,8 @@ class _SongTile extends StatelessWidget {
                       '${song.artist} • ${song.fileType.toUpperCase()}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextSecondary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: context.adaptiveTextSecondary),
                     ),
                   ],
                 ),
@@ -1754,6 +1750,15 @@ class _SongTile extends StatelessWidget {
                   color: context.adaptiveTextTertiary,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
+              ),
+              IconButton(
+                tooltip: context.l10n.moreActions,
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  Icons.more_horiz_rounded,
+                  color: context.adaptiveTextSecondary,
+                ),
+                onPressed: () => SongActionsBottomSheet.show(context, song),
               ),
             ],
           ),
@@ -1836,9 +1841,7 @@ class _FolderTreeViewState extends State<_FolderTreeView> {
         }
         final song = widget.rootSongs[index - widget.roots.length];
         return Padding(
-          padding: EdgeInsets.only(
-            bottom: isLast ? 0 : AppConstants.spacingSm,
-          ),
+          padding: EdgeInsets.only(bottom: isLast ? 0 : AppConstants.spacingSm),
           child: _FolderTreeSongTile(
             song: song,
             depth: 0,
@@ -2301,9 +2304,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
                 thumbColor: AppColors.textPrimary,
                 overlayColor: AppColors.textPrimary.withValues(alpha: 0.15),
                 trackHeight: 4,
-                thumbShape: const RoundSliderThumbShape(
-                  enabledThumbRadius: 10,
-                ),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
               ),
               child: Slider(
                 value: _pageSize,
@@ -2394,11 +2395,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
                 ),
               ),
               if (isSelected)
-                Icon(
-                  Icons.check_rounded,
-                  size: 20,
-                  color: AppColors.accent,
-                ),
+                Icon(Icons.check_rounded, size: 20, color: AppColors.accent),
             ],
           ),
         ),
@@ -2556,11 +2553,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
                 ),
               ),
               if (isSelected)
-                Icon(
-                  Icons.check_rounded,
-                  size: 20,
-                  color: AppColors.accent,
-                ),
+                Icon(Icons.check_rounded, size: 20, color: AppColors.accent),
             ],
           ),
         ),

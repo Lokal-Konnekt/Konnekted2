@@ -3,7 +3,7 @@
   "@aLittleRecordOfWhatStayed": {
     "description": "lib/features/recap/screens/listening_recap_screen.dart:476"
   },
-  "aNewerFlickBuildIsOn": "A newer Flick build is on the Play Store.",
+  "aNewerFlickBuildIsOn": "A newer Lokal build is on the Play Store.",
   "@aNewerFlickBuildIsOn": {
     "description": "lib/features/menu/screens/menu_screen.dart:1234"
   },
@@ -120,10 +120,6 @@
   "addDescription2": "Add description",
   "@addDescription2": {
     "description": "lib/features/albums/screens/album_detail_screen.dart:338"
-  },
-  "addMusicFolder": "Add Music Folder",
-  "@addMusicFolder": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2117"
   },
   "addMusicFoldersInSettings": "Add music folders in Settings",
   "@addMusicFoldersInSettings": {
@@ -337,10 +333,6 @@
   "@albumArt2": {
     "description": "lib/features/recap/screens/replay_studio_screen.dart:598"
   },
-  "albumArtImport": "Album Art Import",
-  "@albumArtImport": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:64"
-  },
   "albumArtist": "Album Artist",
   "@albumArtist": {
     "description": "lib/features/player/widgets/song_metadata_sheet.dart:68"
@@ -423,14 +415,6 @@
   "@allClearNoDuplicates": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:264"
   },
-  "allDataIsStoredLocallyOn": "All data is stored locally on your device only: music library metadata, play history, playlists, equalizer presets, and app preferences. Last.fm credentials are stored securely on-device. This data never leaves your device unless you explicitly use an integration.",
-  "@allDataIsStoredLocallyOn": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:41"
-  },
-  "allFolders": "All Folders",
-  "@allFolders": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:682"
-  },
   "allFormats": "All Formats",
   "@allFormats": {
     "description": "lib/providers/songs_provider.dart:116"
@@ -454,10 +438,6 @@
   "allWordsStamped": "All words stamped",
   "@allWordsStamped": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:1392"
-  },
-  "allowFlickToRunWithoutAggressive": "Allow Flick to run without aggressive background limits so rescans and background features keep working",
-  "@allowFlickToRunWithoutAggressive": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1982"
   },
   "allowed": "Allowed",
   "@allowed": {
@@ -483,18 +463,6 @@
   "amber": "Amber",
   "@amber": {
     "description": "lib/features/settings/screens/widget_settings_screen.dart:275"
-  },
-  "analyzeLoudnessAndWriteReplaygainTags": "Analyze loudness and write ReplayGain tags for all songs",
-  "@analyzeLoudnessAndWriteReplaygainTags": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2141"
-  },
-  "analyzingAudio": "Analyzing audio",
-  "@analyzingAudio": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:798"
-  },
-  "analyzingLoudness": "Analyzing loudness",
-  "@analyzingLoudness": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:825"
   },
   "andArtwork": " and artwork",
   "@andArtwork": {
@@ -669,10 +637,6 @@
   "artwork": "Artwork",
   "@artwork": {
     "description": "lib/features/recap/widgets/replay_card_options.dart:12"
-  },
-  "artworkCacheCleared": "Artwork cache cleared",
-  "@artworkCacheCleared": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:286"
   },
   "artworkCard": "Artwork Card",
   "@artworkCard": {
@@ -1177,32 +1141,6 @@
   "@byteInterleavedLrlrStream": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1773"
   },
-  "cacheWaveformsAndLoudnessForAll": "Cache waveforms and loudness for all songs",
-  "@cacheWaveformsAndLoudnessForAll": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2133"
-  },
-  "cachedAlbumArtWillBeRemoved": "Cached album art ({arg1}) will be removed. Artwork reloads automatically as you browse.",
-  "@cachedAlbumArtWillBeRemoved": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:272",
-    "placeholders": {
-      "arg1": {
-        "type": "Object"
-      }
-    }
-  },
-  "cachedWavConversionsWillBeRemoved": "Cached WAV conversions ({size}) will be removed. Files convert again on next playback.",
-  "@cachedWavConversionsWillBeRemoved": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:402",
-    "placeholders": {
-      "size": {
-        "type": "Object"
-      }
-    }
-  },
-  "calculatingSize": "Calculating size...",
-  "@calculatingSize": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:250"
-  },
   "calmFrequencies": "Calm Frequencies",
   "@calmFrequencies": {
     "description": "lib/models/song.dart:313"
@@ -1214,14 +1152,6 @@
   "cameraAccessIsNeededYouCan": "Camera access is needed. You can enable it in Android settings.",
   "@cameraAccessIsNeededYouCan": {
     "description": "lib/features/recap/screens/replay_studio_screen.dart:146"
-  },
-  "cameraAndPhotoLibraryAccessIs": "Camera and photo library access is used solely for the Flick Replay feature to create custom poster backgrounds for listening recap posters. Photos are only used at your explicit request and remain entirely on your device. No images are uploaded or transmitted.",
-  "@cameraAndPhotoLibraryAccessIs": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:46"
-  },
-  "cameraAndPhotos": "Camera and Photos",
-  "@cameraAndPhotos": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:44"
   },
   "cancel": "Cancel",
   "@cancel": {
@@ -1358,14 +1288,6 @@
   "@checkVersionsToKeepUncheckedWill": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:321"
   },
-  "checking": "Checking…",
-  "@checking": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1118"
-  },
-  "childrenSPrivacy": "Children's Privacy",
-  "@childrenSPrivacy": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:79"
-  },
   "chooseAction": "Choose Action",
   "@chooseAction": {
     "description": "lib/features/settings/screens/player_layout_settings_screen.dart:968"
@@ -1394,7 +1316,7 @@
   "@cityBeats": {
     "description": "lib/models/song.dart:331"
   },
-  "claimedByFlick": "Claimed by Flick",
+  "claimedByFlick": "Claimed by Lokal",
   "@claimedByFlick": {
     "description": "lib/features/settings/screens/uac2_settings_screen.dart:703"
   },
@@ -1414,22 +1336,6 @@
   "@clearAllUac2Settings": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:558"
   },
-  "clearArtworkCache": "Clear Artwork Cache?",
-  "@clearArtworkCache": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:270"
-  },
-  "clearArtworkCache2": "Clear Artwork Cache",
-  "@clearArtworkCache2": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2162"
-  },
-  "clearConvertedAudio": "Clear Converted Audio",
-  "@clearConvertedAudio": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2176"
-  },
-  "clearConvertedAudioCache": "Clear Converted Audio Cache?",
-  "@clearConvertedAudioCache": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:400"
-  },
   "clearFilters": "Clear filters",
   "@clearFilters": {
     "description": "lib/features/player/widgets/online_lyrics_search_sheet.dart:807"
@@ -1442,10 +1348,6 @@
   "@clearLogs": {
     "description": "lib/features/settings/screens/logs_screen.dart:230"
   },
-  "clearTheCounterAndAnyUnlocked": "Clear the counter and any unlocked streak milestones",
-  "@clearTheCounterAndAnyUnlocked": {
-    "description": "lib/features/settings/screens/interface_settings_screen.dart:174"
-  },
   "clearWord": "Clear Word",
   "@clearWord": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:1594"
@@ -1453,10 +1355,6 @@
   "clearWords": "Clear Words",
   "@clearWords": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:1418"
-  },
-  "clearing": "Clearing...",
-  "@clearing": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:249"
   },
   "close": "Close",
   "@close": {
@@ -1642,10 +1540,6 @@
       }
     }
   },
-  "convertedAudioCacheCleared": "Converted audio cache cleared",
-  "@convertedAudioCacheCleared": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:416"
-  },
   "convertedSuccessfully": "{fileName} converted successfully",
   "@convertedSuccessfully": {
     "description": "lib/widgets/alac_conversion_indicator.dart:233",
@@ -1803,18 +1697,6 @@
   "@countingFiles": {
     "description": "lib/features/settings/screens/library_settings_screen.dart:985"
   },
-  "covers": "{done} / {total} covers",
-  "@covers": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:979",
-    "placeholders": {
-      "done": {
-        "type": "Object"
-      },
-      "total": {
-        "type": "Object"
-      }
-    }
-  },
   "create": "Create",
   "@create": {
     "description": "lib/features/playlists/screens/playlists_screen.dart:403"
@@ -1842,10 +1724,6 @@
   "createNewPlaylist2": "Create New Playlist",
   "@createNewPlaylist2": {
     "description": "lib/features/songs/widgets/song_actions_bottom_sheet.dart:464"
-  },
-  "createOrRefreshPlaylistsFoundInside": "Create or refresh playlists found inside scanned folders",
-  "@createOrRefreshPlaylistsFoundInside": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1856"
   },
   "createPlaylist": "Create Playlist",
   "@createPlaylist": {
@@ -2042,10 +1920,6 @@
   "@dark": {
     "description": "lib/features/settings/screens/widget_settings_screen.dart:180"
   },
-  "dataCollection": "Data Collection",
-  "@dataCollection": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:34"
-  },
   "date": "Date",
   "@date": {
     "description": "lib/features/songs/widgets/song_actions_bottom_sheet.dart:697"
@@ -2073,10 +1947,6 @@
   "dayStreak3": "Day Streak",
   "@dayStreak3": {
     "description": "lib/features/milestone/screens/milestones_screen.dart:378"
-  },
-  "dayStreaks": "Day Streaks",
-  "@dayStreaks": {
-    "description": "lib/features/settings/screens/interface_settings_screen.dart:161"
   },
   "dayUnit": "{count, plural, =1{day} other{days}}",
   "@dayUnit": {
@@ -2165,37 +2035,17 @@
   "@decode": {
     "description": "lib/features/player/widgets/bit_perfect_indicator.dart:917"
   },
-  "decodeSongsAfterScanningToCache": "Decode songs after scanning to cache waveform peaks and loudness metrics",
-  "@decodeSongsAfterScanningToCache": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1899"
-  },
   "deepEarth": "Deep Earth",
   "@deepEarth": {
     "description": "lib/models/song.dart:353"
   },
-  "deepScan": "Deep Scan",
-  "@deepScan": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1868"
-  },
-  "deepScanOff": "Deep scan off",
-  "@deepScanOff": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1694"
-  },
-  "deepScanOn": "Deep scan on",
-  "@deepScanOn": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1694"
-  },
-  "defaultAndroidPlaybackEngineUsedBy": "Default Android playback engine used by Flick right now.",
+  "defaultAndroidPlaybackEngineUsedBy": "Default Android playback engine used by Lokal right now.",
   "@defaultAndroidPlaybackEngineUsedBy": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:761"
   },
   "defaultAndroidPlayerPlaysEverything": "Default Android player — plays everything reliably. The safest choice for most listeners.",
   "@defaultAndroidPlayerPlaysEverything": {
     "description": "lib/features/menu/screens/menu_screen.dart:484"
-  },
-  "del": "Del",
-  "@del": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1019"
   },
   "delays": "Delays",
   "@delays": {
@@ -2365,14 +2215,6 @@
   "directUsbExperimental": "Direct USB experimental",
   "@directUsbExperimental": {
     "description": "lib/features/player/widgets/bit_perfect_indicator.dart:500"
-  },
-  "disableBatteryOptimization": "Disable Battery Optimization",
-  "@disableBatteryOptimization": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1972"
-  },
-  "disableBatteryOptimizationRecommended": "Disable Battery Optimization (Recommended)",
-  "@disableBatteryOptimizationRecommended": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1971"
   },
   "disabled": "Disabled",
   "@disabled": {
@@ -2644,10 +2486,6 @@
   "@emptyLine": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:1143"
   },
-  "emptyTheLibraryFilesOnDisk": "Empty the library; files on disk are kept",
-  "@emptyTheLibraryFilesOnDisk": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2184"
-  },
   "enable": "Enable",
   "@enable": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1589"
@@ -2659,10 +2497,6 @@
   "enableEqToEdit": "Enable EQ to edit",
   "@enableEqToEdit": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:384"
-  },
-  "enableFullLibraryAccess": "Enable Full Library Access",
-  "@enableFullLibraryAccess": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2049"
   },
   "enabled": "Enabled",
   "@enabled": {
@@ -2717,10 +2551,6 @@
         "type": "Object"
       }
     }
-  },
-  "eqDynamics": "EQ & Dynamics",
-  "@eqDynamics": {
-    "description": "lib/features/settings/screens/equalizer_screen.dart:88"
   },
   "equalizer": "Equalizer",
   "@equalizer": {
@@ -2786,17 +2616,9 @@
   "@everyAlbumHasArtistAndAlbum": {
     "description": "lib/features/settings/screens/missing_metadata_screen.dart:78"
   },
-  "everySongIsRemovedFromYour": "Every song is removed from your library. Files on disk are kept; rescan your folders to add them again.",
-  "@everySongIsRemovedFromYour": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:430"
-  },
   "exactMatch": "Exact Match",
   "@exactMatch": {
     "description": "lib/features/player/widgets/online_lyrics_search_sheet.dart:363"
-  },
-  "excludeTinyClipsPreviewsAndAccidental": "Exclude tiny clips, previews, and accidental scraps",
-  "@excludeTinyClipsPreviewsAndAccidental": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1830"
   },
   "exclusiveDirectPcmIsActiveAnd": "Exclusive direct PCM is active and bypassing the Android mixer at the track's native rate.",
   "@exclusiveDirectPcmIsActiveAnd": {
@@ -2917,29 +2739,11 @@
   "@failedToActivateFallback": {
     "description": "lib/widgets/uac2/uac2_fallback_manager.dart:61"
   },
-  "failedToAddFolder": "Failed to add folder: {e}",
-  "@failedToAddFolder": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:488",
-    "placeholders": {
-      "e": {
-        "type": "Object"
-      }
-    }
-  },
   "failedToAddToFavorites": "Failed to add \"{arg1}\" to favorites",
   "@failedToAddToFavorites": {
     "description": "lib/features/songs/screens/songs_screen.dart:1289",
     "placeholders": {
       "arg1": {
-        "type": "Object"
-      }
-    }
-  },
-  "failedToClearCache": "Failed to clear cache: {e}",
-  "@failedToClearCache": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:288",
-    "placeholders": {
-      "e": {
         "type": "Object"
       }
     }
@@ -2951,42 +2755,6 @@
   "failedToImportPresetFile": "Failed to import preset file.",
   "@failedToImportPresetFile": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:566"
-  },
-  "failedToOpenAllFilesAccess": "Failed to open All Files Access settings: {e}",
-  "@failedToOpenAllFilesAccess": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:224",
-    "placeholders": {
-      "e": {
-        "type": "Object"
-      }
-    }
-  },
-  "failedToOpenBatteryOptimizationSettings": "Failed to open battery optimization settings: {e}",
-  "@failedToOpenBatteryOptimizationSettings": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:203",
-    "placeholders": {
-      "e": {
-        "type": "Object"
-      }
-    }
-  },
-  "failedToRemoveFolder": "Failed to remove folder: {e}",
-  "@failedToRemoveFolder": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:501",
-    "placeholders": {
-      "e": {
-        "type": "Object"
-      }
-    }
-  },
-  "failedToRemoveSongs": "Failed to remove songs: {e}",
-  "@failedToRemoveSongs": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:445",
-    "placeholders": {
-      "e": {
-        "type": "Object"
-      }
-    }
   },
   "failedToSaveMetadata": "Failed to save metadata: {e}",
   "@failedToSaveMetadata": {
@@ -3073,33 +2841,12 @@
   "@filePath": {
     "description": "lib/features/player/widgets/song_metadata_sheet.dart:82"
   },
-  "files": "{done} / {total} files",
-  "@files": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:982",
-    "placeholders": {
-      "done": {
-        "type": "Object"
-      },
-      "total": {
-        "type": "Object"
-      }
-    }
-  },
   "files2": "{count, plural, =1{{count} file} other{{count} files}}",
   "@files2": {
     "description": "lib/features/settings/screens/missing_metadata_screen.dart:128",
     "placeholders": {
       "count": {
         "type": "int"
-      }
-    }
-  },
-  "filesChecked": "{arg1} files checked…",
-  "@filesChecked": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:984",
-    "placeholders": {
-      "arg1": {
-        "type": "Object"
       }
     }
   },
@@ -3111,33 +2858,17 @@
   "@filterByFormat": {
     "description": "lib/features/songs/screens/songs_screen.dart:2894"
   },
-  "filterFilesSizeLimitsAndPlaylist": "Filter files, size limits, and playlist import options",
-  "@filterFilesSizeLimitsAndPlaylist": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1781"
-  },
   "filterLogs": "Filter logs…",
   "@filterLogs": {
     "description": "lib/features/settings/screens/logs_screen.dart:355"
-  },
-  "filterNonMusicFilesFolders": "Filter Non-Music Files & Folders",
-  "@filterNonMusicFilesFolders": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1815"
   },
   "findAndCleanUpDuplicateSongs": "Find and clean up duplicate songs",
   "@findAndCleanUpDuplicateSongs": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:395"
   },
-  "findAndRemoveDuplicateSongs": "Find and remove duplicate songs",
-  "@findAndRemoveDuplicateSongs": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2148"
-  },
   "findSongsArtistsAlbumsFolders": "Find songs, artists, albums, folders…",
   "@findSongsArtistsAlbumsFolders": {
     "description": "lib/features/search/screens/search_screen.dart:249"
-  },
-  "finishingMetadataEnrichment": "Finishing metadata enrichment…",
-  "@finishingMetadataEnrichment": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1170"
   },
   "finishingMetadataForSongs": "{count, plural, =1{Finishing metadata for {count} song…} other{Finishing metadata for {count} songs…}}",
   "@finishingMetadataForSongs": {
@@ -3185,37 +2916,21 @@
   "@flatResponse": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:1748"
   },
-  "flickCanAttemptToPreferA": "Flick can attempt to prefer a specific codec above, but success depends on your device, headset, and Android version. Codec forcing uses a hidden system API and may not work on non-rooted devices.",
+  "flickCanAttemptToPreferA": "Lokal can attempt to prefer a specific codec above, but success depends on your device, headset, and Android version. Codec forcing uses a hidden system API and may not work on non-rooted devices.",
   "@flickCanAttemptToPreferA": {
     "description": "lib/features/settings/screens/bluetooth_settings_screen.dart:604"
   },
-  "flickCanReceivePlaybackHandoffsFrom": "Flick can receive playback handoffs from Locker (another Moss app). Playback intents contain only song file paths/metadata. No personal data is exchanged. The integration is entirely local.",
-  "@flickCanReceivePlaybackHandoffsFrom": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:71"
-  },
-  "flickLogs": "Flick logs",
-  "@flickLogs": {
-    "description": "lib/features/settings/screens/logs_screen.dart:110"
-  },
-  "flickPlayerDoesNotCollectStore": "Flick Player does not collect, store, or transmit any personal data. No personal information, usage analytics, crash reports, or advertising identifiers are gathered. No data is shared with third parties.",
-  "@flickPlayerDoesNotCollectStore": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:36"
-  },
-  "flickPreview": "Flick Preview",
+  "flickPreview": "Lokal Preview",
   "@flickPreview": {
     "description": "lib/features/player/widgets/player_layout_sheet.dart:930"
   },
-  "flickReplay": "Flick Replay",
+  "flickReplay": "Lokal Replay",
   "@flickReplay": {
     "description": "lib/features/menu/screens/menu_screen.dart:1089"
   },
-  "flickWillForceYourChosenCodec": "Flick will force your chosen codec on connect",
+  "flickWillForceYourChosenCodec": "Lokal will force your chosen codec on connect",
   "@flickWillForceYourChosenCodec": {
     "description": "lib/features/settings/screens/bluetooth_settings_screen.dart:343"
-  },
-  "flickplayer": "FlickPlayer",
-  "@flickplayer": {
-    "description": "lib/features/settings/screens/app_info_settings_screen.dart:230"
   },
   "folder": "Folder",
   "@folder": {
@@ -3228,18 +2943,6 @@
   "folderName": "Folder Name",
   "@folderName": {
     "description": "lib/features/folders/screens/folders_screen.dart:2588"
-  },
-  "folderOf": "Folder {current} of {total}",
-  "@folderOf": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:996",
-    "placeholders": {
-      "current": {
-        "type": "Object"
-      },
-      "total": {
-        "type": "Object"
-      }
-    }
   },
   "folderOf2": "Folder {current} of {total}",
   "@folderOf2": {
@@ -3260,15 +2963,6 @@
   "folders": "Folders",
   "@folders": {
     "description": "lib/features/folders/screens/folders_screen.dart:320"
-  },
-  "folders2": "{arg1} folders",
-  "@folders2": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1474",
-    "placeholders": {
-      "arg1": {
-        "type": "Object"
-      }
-    }
   },
   "foldersShownPerPage": "Folders shown per page",
   "@foldersShownPerPage": {
@@ -3373,17 +3067,9 @@
   "@fullBleedAlbumArtWithThe": {
     "description": "lib/models/player_screen_mode.dart:26"
   },
-  "fullLibraryAccess": "Full Library Access",
-  "@fullLibraryAccess": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1884"
-  },
   "fullPlayer": "Full Player",
   "@fullPlayer": {
     "description": "lib/providers/tutorial_provider.dart:48"
-  },
-  "fullScan": "Full scan",
-  "@fullScan": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:708"
   },
   "fullSpectrum": "Full Spectrum",
   "@fullSpectrum": {
@@ -3474,10 +3160,6 @@
   "@grantBluetoothAccess": {
     "description": "lib/features/settings/screens/bluetooth_settings_screen.dart:235"
   },
-  "grantedScansReadEveryVolumeDirectly": "Granted — scans read every volume directly, including DSD/DSF/WavPack",
-  "@grantedScansReadEveryVolumeDirectly": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1886"
-  },
   "graphic": "Graphic",
   "@graphic": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:4162"
@@ -3566,10 +3248,6 @@
   "hidePassword": "Hide password",
   "@hidePassword": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:765"
-  },
-  "hideShortStingersRingtonesAndVoice": "Hide short stingers, ringtones, and voice fragments",
-  "@hideShortStingersRingtonesAndVoice": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1843"
   },
   "hideVisualizer": "Hide visualizer",
   "@hideVisualizer": {
@@ -3687,25 +3365,9 @@
   "@identifyAlbum2": {
     "description": "lib/features/albums/widgets/identify_album_sheet.dart:215"
   },
-  "identifyAlbumsWithUnknownArtistOr": "Identify albums with unknown artist or title tags",
-  "@identifyAlbumsWithUnknownArtistOr": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2214"
-  },
   "idle": "Idle",
   "@idle": {
     "description": "lib/features/settings/screens/uac2_settings_screen.dart:899"
-  },
-  "ifYouConnectYourLastFm": "If you connect your Last.fm account, credentials are stored securely on-device. Play data is sent only to Last.fm. We do not receive or process this data.",
-  "@ifYouConnectYourLastFm": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:61"
-  },
-  "ignoreTracksUnder500Kb": "Ignore Tracks Under 500 KB",
-  "@ignoreTracksUnder500Kb": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1828"
-  },
-  "ignoreTracksUnder60Seconds": "Ignore Tracks Under 60 Seconds",
-  "@ignoreTracksUnder60Seconds": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1841"
   },
   "immersive": "Immersive",
   "@immersive": {
@@ -3723,10 +3385,6 @@
   "importM3uM3u8": "Import M3U/M3U8",
   "@importM3uM3u8": {
     "description": "lib/features/playlists/screens/playlists_screen.dart:134"
-  },
-  "importM3uM3u8Playlists": "Import M3U/M3U8 Playlists",
-  "@importM3uM3u8Playlists": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1854"
   },
   "importPresetFile": "Import preset file",
   "@importPresetFile": {
@@ -3768,10 +3426,6 @@
   "@impulseResponse": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:3762"
   },
-  "inAppUpdates": "In-App Updates",
-  "@inAppUpdates": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:74"
-  },
   "inLabel": "in {folder}",
   "@inLabel": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:1555",
@@ -3798,14 +3452,6 @@
   "@incredibleOverAMonthOfDaily": {
     "description": "lib/features/milestone/widgets/streak_popup.dart:96"
   },
-  "info2": "Info",
-  "@info2": {
-    "description": "lib/features/settings/screens/casting_settings_screen.dart:126"
-  },
-  "initializing": "Initializing…",
-  "@initializing": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1171"
-  },
   "inputGain": "Input Gain",
   "@inputGain": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:3406"
@@ -3829,15 +3475,6 @@
   "interfaceClaimed": "Interface claimed",
   "@interfaceClaimed": {
     "description": "lib/features/player/widgets/bit_perfect_indicator.dart:693"
-  },
-  "isOfflineRetainedSongsStillListed": "{folder} is offline — retained songs still listed",
-  "@isOfflineRetainedSongsStillListed": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1254",
-    "placeholders": {
-      "folder": {
-        "type": "Object"
-      }
-    }
   },
   "isochronousUsb": "Isochronous USB",
   "@isochronousUsb": {
@@ -3913,7 +3550,7 @@
   "@keepItGoingOpenTomorrowTo": {
     "description": "lib/features/milestone/widgets/streak_popup.dart:94"
   },
-  "keepListeningWithFlick": "Keep listening with Flick",
+  "keepListeningWithFlick": "Keep listening with Lokal",
   "@keepListeningWithFlick": {
     "description": "lib/features/recap/widgets/replay_poster.dart:195"
   },
@@ -4061,17 +3698,9 @@
   "@lastFmConnected2": {
     "description": "lib/features/settings/widgets/lastfm_settings_tile.dart:97"
   },
-  "lastFmScrobbling": "Last.fm Scrobbling",
-  "@lastFmScrobbling": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:59"
-  },
   "lastPick": "Last pick",
   "@lastPick": {
     "description": "lib/features/menu/screens/menu_screen.dart:1361"
-  },
-  "lastUpdated": "Last Updated",
-  "@lastUpdated": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:98"
   },
   "lastWeek": "Last Week",
   "@lastWeek": {
@@ -4173,14 +3802,6 @@
   "letSTakeAQuickTour": "Let's take a quick tour of your new music player.",
   "@letSTakeAQuickTour": {
     "description": "lib/providers/tutorial_provider.dart:8"
-  },
-  "letsFlickScanYourEntireLibrary": "Lets Flick scan your entire library directly, including DSD/DSF/WavPack files some devices hide from the system media index",
-  "@letsFlickScanYourEntireLibrary": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2057"
-  },
-  "libraryEmptied": "Library emptied",
-  "@libraryEmptied": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:443"
   },
   "libraryLabel": "Library",
   "@libraryLabel": {
@@ -4307,7 +3928,7 @@
   "@listeningHours": {
     "description": "lib/features/milestone/screens/milestones_screen.dart:377"
   },
-  "listeningToByOnFlick": "Listening to {arg1} by {arg2} on Flick",
+  "listeningToByOnFlick": "Listening to {arg1} by {arg2} on Lokal",
   "@listeningToByOnFlick": {
     "description": "lib/features/player/widgets/share/share_bottom_sheet.dart:134",
     "placeholders": {
@@ -4356,10 +3977,6 @@
       }
     }
   },
-  "loadingArtwork": "Loading artwork",
-  "@loadingArtwork": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:629"
-  },
   "loadingArtwork2": "Loading artwork…",
   "@loadingArtwork2": {
     "description": "lib/features/settings/screens/library_settings_screen.dart:961"
@@ -4375,10 +3992,6 @@
   "loadingSession": "Loading session...",
   "@loadingSession": {
     "description": "lib/features/settings/widgets/lastfm_settings_tile.dart:737"
-  },
-  "localData": "Local Data",
-  "@localData": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:39"
   },
   "@@locale": "en",
   "locked": "Locked",
@@ -4508,10 +4121,6 @@
   "@makeup": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:3372"
   },
-  "manual": "Manual",
-  "@manual": {
-    "description": "lib/features/manual/screens/manual_screen.dart:133"
-  },
   "manualOrder": "Manual Order",
   "@manualOrder": {
     "description": "lib/features/playlists/widgets/playlist_sort_bottom_sheet.dart:21"
@@ -4570,10 +4179,6 @@
   "@may": {
     "description": "lib/features/milestone/screens/milestones_screen.dart:506"
   },
-  "may42026": "May 4, 2026",
-  "@may42026": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:108"
-  },
   "mb": "{arg1} MB",
   "@mb": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:24",
@@ -4590,10 +4195,6 @@
   "menu": "Menu",
   "@menu": {
     "description": "lib/models/nav_bar_config.dart:5"
-  },
-  "metadata": "Metadata",
-  "@metadata": {
-    "description": "lib/features/settings/screens/integrations_settings_screen.dart:23"
   },
   "metropolitan": "Metropolitan",
   "@metropolitan": {
@@ -4665,10 +4266,6 @@
   "@minimal": {
     "description": "lib/features/player/widgets/share/share_template.dart:13"
   },
-  "minimize": "Minimize",
-  "@minimize": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1058"
-  },
   "minimserverServiioKodi": "MinimServer · Serviio · Kodi",
   "@minimserverServiioKodi": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:82"
@@ -4714,10 +4311,6 @@
         "type": "Object"
       }
     }
-  },
-  "mod": "Mod",
-  "@mod": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1014"
   },
   "moderate": "Moderate",
   "@moderate": {
@@ -4799,10 +4392,6 @@
         "type": "Object"
       }
     }
-  },
-  "mossEcosystem": "Moss Ecosystem",
-  "@mossEcosystem": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:69"
   },
   "mostDlnaServersNeedNoPassword": "Most DLNA servers need no password",
   "@mostDlnaServersNeedNoPassword": {
@@ -4941,10 +4530,6 @@
   "@nativeDsdExperimentalMayBeBuggy": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1643"
   },
-  "nativeFlickPresetFormat": "Native Flick preset format",
-  "@nativeFlickPresetFormat": {
-    "description": "lib/features/settings/screens/equalizer_screen.dart:661"
-  },
   "naturalEqualizerFeelResponsiveYetSmooth": "Natural equalizer feel — responsive yet smooth",
   "@naturalEqualizerFeelResponsiveYetSmooth": {
     "description": "lib/features/settings/screens/visualizer_settings_screen.dart:178"
@@ -5003,10 +4588,6 @@
   "@neverSynced": {
     "description": "lib/features/settings/screens/network_sources_screen.dart:318"
   },
-  "newLabel": "New",
-  "@newLabel": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1009"
-  },
   "next": "Next",
   "@next": {
     "description": "lib/features/onboarding/screens/onboarding_screen.dart:269"
@@ -5046,10 +4627,6 @@
   "@no": {
     "description": "lib/features/settings/screens/logs_screen.dart:220"
   },
-  "noAchievementsYetKeepListening": "No achievements yet — keep listening",
-  "@noAchievementsYetKeepListening": {
-    "description": "lib/features/settings/screens/settings_screen.dart:254"
-  },
   "noAlbumDataYet": "No album data yet",
   "@noAlbumDataYet": {
     "description": "lib/features/recap/widgets/replay_poster.dart:228"
@@ -5074,10 +4651,6 @@
         "type": "Object"
       }
     }
-  },
-  "noAudioWasFoundIfThis": "No audio was found. If this folder contains music, a .nomedia file may be hiding it, or Android hasn't indexed it yet. Try enabling deep scan, or remove any .nomedia file and re-scan.",
-  "@noAudioWasFoundIfThis": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1427"
   },
   "noCastingDevicesFoundMakeSure": "No casting devices found. Make sure your phone and the receiver are on the same network.",
   "@noCastingDevicesFoundMakeSure": {
@@ -5266,10 +4839,6 @@
   "@notFoundOnlineTryADifferent": {
     "description": "lib/features/settings/screens/widgets/autoeq_search_sheet.dart:123"
   },
-  "notGrantedEnableSoScansCover": "Not granted — enable so scans cover DSD/DSF/WavPack files the system index may skip",
-  "@notGrantedEnableSoScansCover": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1888"
-  },
   "notHeld": "Not held",
   "@notHeld": {
     "description": "lib/features/settings/screens/uac2_settings_screen.dart:715"
@@ -5342,10 +4911,6 @@
   "@off": {
     "description": "lib/features/settings/screens/audio_settings_screen.dart:189"
   },
-  "offCropsToFillTheSquare": "Off crops to fill the square; on stretches the artwork edge-to-edge",
-  "@offCropsToFillTheSquare": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2197"
-  },
   "onAndroidTheStandardJustAudio": "On Android, the standard just_audio playback path now applies native counterparts for EQ, dynamics, balance, and spatial FX on supported devices. The Rust engine still delivers the most exact version of these controls, so some Android results are approximate.",
   "@onAndroidTheStandardJustAudio": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:3911"
@@ -5361,10 +4926,6 @@
   "onlyLibraryEntriesAreRemovedYour": "Only library entries are removed — your audio files stay on disk.",
   "@onlyLibraryEntriesAreRemovedYour": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:557"
-  },
-  "onlyReReadFilesThatAre": "Only re-read files that are new or changed.",
-  "@onlyReReadFilesThatAre": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:702"
   },
   "open": "Open",
   "@open": {
@@ -5620,27 +5181,6 @@
   "@playNext": {
     "description": "lib/features/queue/screens/queue_screen.dart:843"
   },
-  "playStoreUpdatesUseGooglePlay": "Play Store updates use Google Play In-App Update API (governed by Google's privacy policies). Patch notes are fetched from GitHub Releases API without sending personal data.",
-  "@playStoreUpdatesUseGooglePlay": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:76"
-  },
-  "playbackCacheLimit": "Playback Cache Limit",
-  "@playbackCacheLimit": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:336"
-  },
-  "playbackCacheLimit2": "Playback cache limit: {arg1}",
-  "@playbackCacheLimit2": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:328",
-    "placeholders": {
-      "arg1": {
-        "type": "Object"
-      }
-    }
-  },
-  "playbackCacheUnlimited": "Playback cache unlimited",
-  "@playbackCacheUnlimited": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:327"
-  },
   "playbackContinuesWhenABluetoothDevice": "Playback continues when a Bluetooth device connects",
   "@playbackContinuesWhenABluetoothDevice": {
     "description": "lib/features/settings/screens/bluetooth_settings_screen.dart:263"
@@ -5790,34 +5330,6 @@
   "@preamp": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:1262"
   },
-  "preferences": "Preferences",
-  "@preferences": {
-    "description": "lib/features/settings/screens/uac2_settings_screen.dart:147"
-  },
-  "preloadAudioData": "Preload audio data",
-  "@preloadAudioData": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1897"
-  },
-  "preloadLibraryAudio": "Preload Library Audio",
-  "@preloadLibraryAudio": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2132"
-  },
-  "preloadingAudio": "Preloading Audio",
-  "@preloadingAudio": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:785"
-  },
-  "preloadingAudio2": "Preloading audio {arg1}/{arg2}",
-  "@preloadingAudio2": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1376",
-    "placeholders": {
-      "arg1": {
-        "type": "Object"
-      },
-      "arg2": {
-        "type": "Object"
-      }
-    }
-  },
   "preloadingAudio3": "Preloading audio",
   "@preloadingAudio3": {
     "description": "lib/widgets/common/floating_scan_progress.dart:379"
@@ -5874,10 +5386,6 @@
   "prioritiseConnectionStability": "Prioritise connection stability",
   "@prioritiseConnectionStability": {
     "description": "lib/features/settings/screens/bluetooth_settings_screen.dart:504"
-  },
-  "privacyPolicy": "Privacy Policy",
-  "@privacyPolicy": {
-    "description": "lib/features/settings/screens/app_info_settings_screen.dart:666"
   },
   "processingLive": "Processing live",
   "@processingLive": {
@@ -5955,21 +5463,9 @@
   "@quickActions": {
     "description": "lib/features/player/widgets/player_layout_sheet.dart:333"
   },
-  "quickOrFullReIndexOf": "Quick or full re-index of all folders",
-  "@quickOrFullReIndexOf": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2126"
-  },
-  "quickScan": "Quick scan",
-  "@quickScan": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:701"
-  },
   "random": "Random",
   "@random": {
     "description": "lib/models/advance_list_order.dart:9"
-  },
-  "rate": "Rate",
-  "@rate": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1035"
   },
   "rating": "Rating",
   "@rating": {
@@ -5986,10 +5482,6 @@
   "rawPcm": "→ Raw PCM",
   "@rawPcm": {
     "description": "lib/features/player/widgets/bit_perfect_indicator.dart:918"
-  },
-  "reReadMetadataForEveryFile": "Re-read metadata for every file. Slower; use when tags look stale.",
-  "@reReadMetadataForEveryFile": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:710"
   },
   "readMode": "Read Mode",
   "@readMode": {
@@ -6113,34 +5605,13 @@
   "@removeAll": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:927"
   },
-  "removeAllSongs": "Remove All Songs?",
-  "@removeAllSongs": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:428"
-  },
-  "removeAllSongs2": "Remove All Songs",
-  "@removeAllSongs2": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2183"
-  },
   "removeAllWithBestPicks": "Remove all with best picks?",
   "@removeAllWithBestPicks": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:924"
   },
-  "removeAndAllOfItsSongs": "Remove \"{arg1}\" and all of its songs from your library? Files on disk are not deleted.",
-  "@removeAndAllOfItsSongs": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:838",
-    "placeholders": {
-      "arg1": {
-        "type": "Object"
-      }
-    }
-  },
   "removeCustomArt": "Remove Custom Art",
   "@removeCustomArt": {
     "description": "lib/features/songs/widgets/album_art_picker_bottom_sheet.dart:357"
-  },
-  "removeDuplicates": "Remove Duplicates",
-  "@removeDuplicates": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2147"
   },
   "removeDuplicates2": "Remove {toRemove} duplicates?",
   "@removeDuplicates2": {
@@ -6159,10 +5630,6 @@
         "type": "Object"
       }
     }
-  },
-  "removeFolder": "Remove Folder?",
-  "@removeFolder": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:836"
   },
   "removeFromFavorites": "Remove from Favorites",
   "@removeFromFavorites": {
@@ -6340,10 +5807,6 @@
   "@replayStudio": {
     "description": "lib/features/recap/screens/replay_studio_screen.dart:304"
   },
-  "replaygainScan": "ReplayGain Scan",
-  "@replaygainScan": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:812"
-  },
   "reportedOutputRate": "Reported Output Rate",
   "@reportedOutputRate": {
     "description": "lib/features/settings/screens/uac2_settings_screen.dart:676"
@@ -6359,10 +5822,6 @@
   "resampler": "Resampler",
   "@resampler": {
     "description": "lib/features/player/widgets/bit_perfect_indicator.dart:669"
-  },
-  "rescanLibrary": "Rescan Library",
-  "@rescanLibrary": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:693"
   },
   "reset": "Reset",
   "@reset": {
@@ -6418,14 +5877,6 @@
   "@resetPreferences": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:557"
   },
-  "resetStreakData": "Reset streak data?",
-  "@resetStreakData": {
-    "description": "lib/features/settings/screens/interface_settings_screen.dart:20"
-  },
-  "resetStreakData2": "Reset Streak Data",
-  "@resetStreakData2": {
-    "description": "lib/features/settings/screens/interface_settings_screen.dart:173"
-  },
   "resetTo0Db": "Reset to 0 dB",
   "@resetTo0Db": {
     "description": "lib/features/settings/screens/equalizer_screen.dart:2746"
@@ -6454,7 +5905,7 @@
   "@restartYourDeviceToApplyOutput": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1000"
   },
-  "restartingFlick": "Restarting Flick",
+  "restartingFlick": "Restarting Lokal",
   "@restartingFlick": {
     "description": "lib/features/menu/screens/restarting_screen.dart:126"
   },
@@ -6609,7 +6060,7 @@
   "@saveConnect": {
     "description": "lib/features/settings/widgets/lastfm_settings_tile.dart:656"
   },
-  "saveCreatesAnLrcFileIf": "Save creates an `.lrc` file. If some lines are not stamped yet, Flick fills their times automatically so the file stays usable. Lines with fully stamped words export with per-word karaoke timing.",
+  "saveCreatesAnLrcFileIf": "Save creates an `.lrc` file. If some lines are not stamped yet, Lokal fills their times automatically so the file stays usable. Lines with fully stamped words export with per-word karaoke timing.",
   "@saveCreatesAnLrcFileIf": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:2040"
   },
@@ -6621,7 +6072,7 @@
   "@saveCustomizeReplay": {
     "description": "lib/features/recap/screens/listening_recap_screen.dart:221"
   },
-  "saveInFlick": "Save in Flick",
+  "saveInFlick": "Save in Lokal",
   "@saveInFlick": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:503"
   },
@@ -6736,14 +6187,6 @@
   "@scanAgain": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:285"
   },
-  "scanComplete": "Scan Complete",
-  "@scanComplete": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1299"
-  },
-  "scanFailedPleaseTryAgain": "Scan failed. Please try again.",
-  "@scanFailedPleaseTryAgain": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:556"
-  },
   "scanForDevices": "Scan for devices",
   "@scanForDevices": {
     "description": "lib/features/settings/screens/casting_settings_screen.dart:75"
@@ -6752,26 +6195,9 @@
   "@scanProgress": {
     "description": "lib/widgets/common/floating_scan_progress.dart:489"
   },
-  "scanReplaygain": "Scan ReplayGain",
-  "@scanReplaygain": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2139"
-  },
   "scanningForDuplicates": "Scanning for duplicates…",
   "@scanningForDuplicates": {
     "description": "lib/features/settings/screens/duplicate_cleaner_screen.dart:142"
-  },
-  "scanningSettings": "Scanning Settings",
-  "@scanningSettings": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1775"
-  },
-  "scanningSongsFound": "Scanning... {count} songs found",
-  "@scanningSongsFound": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1640",
-    "placeholders": {
-      "count": {
-        "type": "Object"
-      }
-    }
   },
   "scanningYourLibrary": "Scanning your library…",
   "@scanningYourLibrary": {
@@ -6895,10 +6321,6 @@
   "select": "Select",
   "@select": {
     "description": "lib/features/favorites/screens/favorites_screen.dart:182"
-  },
-  "selectAFolderToScan": "Select a folder to scan",
-  "@selectAFolderToScan": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2118"
   },
   "selectALineAndEdit": "1. Select a line and edit its timestamp directly, or use \"Use Current Time\".\n2. In the word timeline, drag a boundary to stretch or shrink the segment before it — edits snap to 10ms.\n3. Tap letters in the inspector to split a word into separately timed syllables (slow-then-fast pacing), then drag their boundaries.\n4. Drag the last boundary (or use Length ±) to retime the next line. Use Auto-fill to seed evenly spaced words.\n5. Use the shift controls to move all stamped lyrics together.\n6. Save to generate the final `.lrc` file.",
   "@selectALineAndEdit": {
@@ -7417,10 +6839,6 @@
   "@skip": {
     "description": "lib/features/onboarding/screens/onboarding_screen.dart:167"
   },
-  "skipUnsupportedFilesAndHiddenNomedia": "Skip unsupported files and hidden .nomedia directories",
-  "@skipUnsupportedFilesAndHiddenNomedia": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1817"
-  },
   "skippedUnmatchedEntr": " Skipped {count, plural, =1{{count} unmatched entry} other{{count} unmatched entries}}.",
   "@skippedUnmatchedEntr": {
     "description": "lib/features/playlists/screens/playlists_screen.dart:493",
@@ -7844,22 +7262,6 @@
       }
     }
   },
-  "storage": "Storage",
-  "@storage": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2157"
-  },
-  "storageAccessIsRequiredToScan": "Storage access is required to scan and read music files, extract metadata, import/export EQ presets, and save recap images. All processing happens on-device.",
-  "@storageAccessIsRequiredToScan": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:51"
-  },
-  "storagePermissionIsRequiredToAdd": "Storage permission is required to add music folders",
-  "@storagePermissionIsRequiredToAdd": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:461"
-  },
-  "storagePermissions": "Storage Permissions",
-  "@storagePermissions": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:49"
-  },
   "storeOn": "Store on",
   "@storeOn": {
     "description": "lib/features/playlists/screens/playlists_screen.dart:372"
@@ -7899,10 +7301,6 @@
   "streamingFromQueue": "Streaming from queue",
   "@streamingFromQueue": {
     "description": "lib/features/menu/screens/menu_screen.dart:1359"
-  },
-  "stretchNonSquareArt": "Stretch Non-Square Art",
-  "@stretchNonSquareArt": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:2195"
   },
   "strong": "Strong",
   "@strong": {
@@ -8144,14 +7542,6 @@
   "@thatSTheTour": {
     "description": "lib/providers/tutorial_provider.dart:53"
   },
-  "theAppDoesNotKnowinglyCollect": "The app does not knowingly collect any information from anyone, regardless of age.",
-  "@theAppDoesNotKnowinglyCollect": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:81"
-  },
-  "theAppQueriesPublicApisMusicbrainz": "The app queries public APIs (MusicBrainz/Cover Art Archive, iTunes, Deezer) to find matching album art. Search queries use local music metadata. Downloaded images are cached locally.",
-  "@theAppQueriesPublicApisMusicbrainz": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:66"
-  },
   "theAudioEngineDeterminesHowYour": "The audio engine determines how your music is played back. Each option balances reliability, quality, and compatibility differently.",
   "@theAudioEngineDeterminesHowYour": {
     "description": "lib/features/menu/screens/menu_screen.dart:473"
@@ -8179,10 +7569,6 @@
   "thisAppIsBuiltByA": "This app is built by a solo developer with zero budget. If you love high-fidelity audio, consider supporting its development on Ko-fi.",
   "@thisAppIsBuiltByA": {
     "description": "lib/features/menu/screens/menu_screen.dart:313"
-  },
-  "thisClearsYourCurrentDayStreak": "This clears your current day streak and any unlocked streak milestones. This cannot be undone.",
-  "@thisClearsYourCurrentDayStreak": {
-    "description": "lib/features/settings/screens/interface_settings_screen.dart:22"
   },
   "thisDevice": "This device",
   "@thisDevice": {
@@ -8249,10 +7635,6 @@
   "@tidal": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:97"
   },
-  "time": "Time",
-  "@time": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1030"
-  },
   "timeShift": "Time Shift",
   "@timeShift": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:1979"
@@ -8313,10 +7695,6 @@
   "@topSongs2": {
     "description": "lib/features/recap/widgets/replay_poster.dart:16"
   },
-  "total": "Total",
-  "@total": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1333"
-  },
   "track": "Track",
   "@track": {
     "description": "lib/features/settings/screens/audio_settings_screen.dart:197"
@@ -8341,10 +7719,6 @@
   "trackChannels": "Track Channels",
   "@trackChannels": {
     "description": "lib/features/settings/screens/uac2_settings_screen.dart:655"
-  },
-  "trackConsecutiveListeningDaysAndShow": "Track consecutive listening days and show the popup",
-  "@trackConsecutiveListeningDaysAndShow": {
-    "description": "lib/features/settings/screens/interface_settings_screen.dart:162"
   },
   "trackCount": "Track Count",
   "@trackCount": {
@@ -8585,14 +7959,6 @@
   "@unableToCheckForUpdatesRight": {
     "description": "lib/providers/update_check_provider.dart:177"
   },
-  "unableToOpenAllFilesAccess": "Unable to open All Files Access settings",
-  "@unableToOpenAllFilesAccess": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:220"
-  },
-  "unableToOpenBatteryOptimizationSettings": "Unable to open battery optimization settings",
-  "@unableToOpenBatteryOptimizationSettings": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:199"
-  },
   "unavailable": "{featureName} Unavailable",
   "@unavailable": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:1473",
@@ -8668,18 +8034,6 @@
     "description": "lib/features/milestone/screens/milestones_screen.dart:316",
     "placeholders": {
       "unlocked": {
-        "type": "Object"
-      },
-      "arg1": {
-        "type": "Object"
-      }
-    }
-  },
-  "unlocked3": "{_milestonesUnlocked} / {arg1} unlocked",
-  "@unlocked3": {
-    "description": "lib/features/settings/screens/settings_screen.dart:255",
-    "placeholders": {
-      "_milestonesUnlocked": {
         "type": "Object"
       },
       "arg1": {
@@ -8802,10 +8156,6 @@
   "@urbanEchoes": {
     "description": "lib/models/song.dart:330"
   },
-  "usbAudioClass20Devices": "USB Audio Class 2.0 devices (external DACs/AMPs) are accessed locally for bit-perfect audio playback. No USB device information is transmitted externally.",
-  "@usbAudioClass20Devices": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:56"
-  },
   "usbAudioDevice": "USB Audio Device",
   "@usbAudioDevice": {
     "description": "lib/widgets/uac2/uac2_device_selector.dart:36"
@@ -8818,17 +8168,9 @@
   "@usbAudioError": {
     "description": "lib/widgets/uac2/uac2_error_notification.dart:55"
   },
-  "usbAudioUac2": "USB Audio (UAC2)",
-  "@usbAudioUac2": {
-    "description": "lib/features/settings/screens/audio_settings_screen.dart:49"
-  },
   "usbDacAutoBitPerfectOffers": "USB DAC auto bit-perfect offers reset.",
   "@usbDacAutoBitPerfectOffers": {
     "description": "lib/features/settings/screens/uac2_preferences_screen.dart:522"
-  },
-  "usbDeviceAccess": "USB Device Access",
-  "@usbDeviceAccess": {
-    "description": "lib/features/settings/screens/privacy_policy_screen.dart:54"
   },
   "usbNotConnected": "USB not connected",
   "@usbNotConnected": {
@@ -8837,10 +8179,6 @@
   "usbRouteVolume": "USB Route Volume",
   "@usbRouteVolume": {
     "description": "lib/widgets/uac2/uac2_volume_control.dart:162"
-  },
-  "usbStorageNotConnected": "USB storage not connected",
-  "@usbStorageNotConnected": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1244"
   },
   "usbVolume": "USB Volume",
   "@usbVolume": {
@@ -8870,13 +8208,9 @@
   "@useExistingFile": {
     "description": "lib/features/player/widgets/inline_lyrics_panel.dart:214"
   },
-  "useExistingFileInTheLyrics": "- \"Use Existing File\" in the lyrics panel links an `.lrc`, `.txt`, or `.xml` file.\n- If some lines are not stamped, Flick fills their times automatically.\n- Save writes beside the song when possible, otherwise Flick stores a linked copy.",
+  "useExistingFileInTheLyrics": "- \"Use Existing File\" in the lyrics panel links an `.lrc`, `.txt`, or `.xml` file.\n- If some lines are not stamped, Lokal fills their times automatically.\n- Save writes beside the song when possible, otherwise Lokal stores a linked copy.",
   "@useExistingFileInTheLyrics": {
     "description": "lib/features/player/screens/lyrics_sync_screen.dart:712"
-  },
-  "useFilesystemLevelScanningInsteadOf": "Use filesystem-level scanning instead of MediaStore for full tag accuracy",
-  "@useFilesystemLevelScanningInsteadOf": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:1870"
   },
   "useMmSsCcEG": "Use mm:ss.cc, e.g. 01:23.45",
   "@useMmSsCcEG": {
@@ -8905,24 +8239,6 @@
   "username": "Username",
   "@username": {
     "description": "lib/features/settings/screens/network_server_edit_screen.dart:450"
-  },
-  "using": "Using {arg1}",
-  "@using": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:251",
-    "placeholders": {
-      "arg1": {
-        "type": "Object"
-      }
-    }
-  },
-  "using2": "Using {arg1}",
-  "@using2": {
-    "description": "lib/features/settings/screens/library_settings_screen.dart:307",
-    "placeholders": {
-      "arg1": {
-        "type": "Object"
-      }
-    }
   },
   "variableBitrateLowLatency": "Variable bitrate, low latency",
   "@variableBitrateLowLatency": {
@@ -9084,11 +8400,11 @@
   "@welcomeBackLetSStartA": {
     "description": "lib/features/milestone/widgets/streak_popup.dart:93"
   },
-  "welcomeToFlick": "Welcome to Flick!",
+  "welcomeToFlick": "Welcome to Lokal!",
   "@welcomeToFlick": {
     "description": "lib/features/menu/screens/menu_screen.dart:305"
   },
-  "welcomeToFlick2": "Welcome to Flick",
+  "welcomeToFlick2": "Welcome to Lokal",
   "@welcomeToFlick2": {
     "description": "lib/providers/tutorial_provider.dart:7"
   },
@@ -9306,7 +8622,7 @@
   "@yourListeningHistoryIsStillYours": {
     "description": "lib/features/recap/screens/listening_recap_screen.dart:249"
   },
-  "yourListensWillRemainOnListenbrainz": "Your listens will remain on ListenBrainz, but Flick will stop submitting them.",
+  "yourListensWillRemainOnListenbrainz": "Your listens will remain on ListenBrainz, but Lokal will stop submitting them.",
   "@yourListensWillRemainOnListenbrainz": {
     "description": "lib/features/settings/widgets/listenbrainz_settings_tile.dart:136"
   },
@@ -9334,7 +8650,7 @@
   "@yourMusicOnRepeat": {
     "description": "lib/features/recap/widgets/replay_poster.dart:108"
   },
-  "yourNewAudioEngineIsReady": "Your new audio engine is ready. Restart Flick to apply it.",
+  "yourNewAudioEngineIsReady": "Your new audio engine is ready. Restart Lokal to apply it.",
   "@yourNewAudioEngineIsReady": {
     "description": "lib/widgets/common/engine_restart_notice.dart:54"
   },
@@ -9350,7 +8666,7 @@
   "@yourPlaylists": {
     "description": "lib/features/menu/screens/menu_screen.dart:972"
   },
-  "yourScrobblingHistoryWillRemainOn": "Your scrobbling history will remain on Last.fm, but Flick will stop sending scrobbles.",
+  "yourScrobblingHistoryWillRemainOn": "Your scrobbling history will remain on Last.fm, but Lokal will stop sending scrobbles.",
   "@yourScrobblingHistoryWillRemainOn": {
     "description": "lib/features/settings/widgets/lastfm_settings_tile.dart:198"
   },

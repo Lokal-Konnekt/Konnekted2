@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/data/repositories/song_repository.dart';
+import 'package:flick/features/albums/widgets/identify_album_sheet.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/features/konnekted/konnekted_home.dart';
 import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
@@ -344,6 +345,14 @@ class LokalAlbumPage extends ConsumerWidget {
             'radio' => unawaited(
               startLokalRadio(context, artist: album.albumArtist),
             ),
+            'identify' => unawaited(
+              IdentifyAlbumSheet.show(
+                context,
+                songs: songs,
+                initialArtist: album.albumArtist,
+                initialAlbum: album.albumName,
+              ),
+            ),
             _ => null,
           },
           itemBuilder: (_) => [
@@ -359,6 +368,10 @@ class LokalAlbumPage extends ConsumerWidget {
             const PopupMenuItem(
               value: 'radio',
               child: Text('Start artist radio'),
+            ),
+            const PopupMenuItem(
+              value: 'identify',
+              child: Text('Identify album'),
             ),
           ],
         ),

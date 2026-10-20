@@ -14,7 +14,10 @@ import 'package:flick/features/player/widgets/player_action_button_row.dart';
 import 'package:flick/features/player/widgets/player_controls.dart';
 import 'package:flick/features/player/widgets/player_layout_sheet.dart';
 import 'package:flick/features/player/widgets/player_navigation.dart';
-import 'package:flick/features/player/widgets/song_actions_sheet.dart';
+import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
+import 'package:flick/features/player/widgets/pitch_bottom_sheet.dart';
+import 'package:flick/features/player/widgets/speed_bottom_sheet.dart';
+import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/song_stage.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
@@ -50,10 +53,12 @@ class ClassicFullPlayerScreen extends ConsumerStatefulWidget {
   const ClassicFullPlayerScreen({super.key, this.heroTag = 'album_art_hero'});
 
   @override
-  ConsumerState<ClassicFullPlayerScreen> createState() => _ClassicFullPlayerScreenState();
+  ConsumerState<ClassicFullPlayerScreen> createState() =>
+      _ClassicFullPlayerScreenState();
 }
 
-class _ClassicFullPlayerScreenState extends ConsumerState<ClassicFullPlayerScreen>
+class _ClassicFullPlayerScreenState
+    extends ConsumerState<ClassicFullPlayerScreen>
     with TickerProviderStateMixin {
   final PlayerService _playerService = PlayerService();
   final ExternalPlaybackService _externalPlaybackService =
@@ -600,21 +605,52 @@ class _ClassicFullPlayerScreenState extends ConsumerState<ClassicFullPlayerScree
                 icon: Icons.more_vert,
                 albumColor: albumColor,
                 albumColorMode: albumColorMode,
-                onTap: () => SongActionsSheet.show(
+                onTap: () => SongActionsBottomSheet.show(
                   context,
-                  playerService: _playerService,
-                  song: song,
-                  isVisualizationMode: _isVisualizationMode,
-                  onShowLyrics: () => _setLyricsMode(true),
-                  onToggleVisualization: (v) => _setVisualizationMode(v),
-                  onShowPlayerLayout: (ctx) => PlayerLayoutSheet.show(
-                    ctx,
-                    playerService: _playerService,
-                    currentMode: _playerScreenMode,
-                    onModeChanged: _setPlayerScreenMode,
-                    song: _playerService.currentSongNotifier.value,
-                  ),
-                  navigation: _navigation,
+                  song,
+                  extras: [
+                    LokalSongMenuAction(
+                      icon: Icons.lyrics_outlined,
+                      label: 'Lyrics',
+                      onTap: () => _setLyricsMode(true),
+                    ),
+                    LokalSongMenuAction(
+                      icon: Icons.graphic_eq_rounded,
+                      label: _isVisualizationMode
+                          ? 'Hide visualizer'
+                          : 'Show visualizer',
+                      onTap: () => _setVisualizationMode(!_isVisualizationMode),
+                    ),
+                    LokalSongMenuAction(
+                      icon: Icons.dashboard_customize_outlined,
+                      label: 'Player layout',
+                      onTap: () => PlayerLayoutSheet.show(
+                        context,
+                        playerService: _playerService,
+                        currentMode: _playerScreenMode,
+                        onModeChanged: _setPlayerScreenMode,
+                        song: _playerService.currentSongNotifier.value,
+                      ),
+                    ),
+                    LokalSongMenuAction(
+                      icon: Icons.speed_rounded,
+                      label: 'Playback speed',
+                      onTap: () =>
+                          SpeedBottomSheet.show(context, _playerService),
+                    ),
+                    LokalSongMenuAction(
+                      icon: Icons.tune_rounded,
+                      label: 'Pitch',
+                      onTap: () =>
+                          PitchBottomSheet.show(context, _playerService),
+                    ),
+                    LokalSongMenuAction(
+                      icon: Icons.bedtime_outlined,
+                      label: 'Sleep timer',
+                      onTap: () =>
+                          SleepTimerBottomSheet.show(context, _playerService),
+                    ),
+                  ],
                 ),
               ),
             ],

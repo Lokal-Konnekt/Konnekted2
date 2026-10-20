@@ -10,6 +10,7 @@ import '../core/utils/string_sort_utils.dart';
 import '../data/repositories/song_repository.dart';
 import '../models/song.dart';
 import 'album_art_service.dart';
+import 'metadata_editor_service.dart';
 import 'player_service.dart';
 import 'sources/network_source_service.dart';
 
@@ -119,9 +120,7 @@ class AlbumArtImportService {
 
     if (candidates.length < 12) {
       try {
-        candidates.addAll(
-          await _searchITunes(album: album, artist: artist),
-        );
+        candidates.addAll(await _searchITunes(album: album, artist: artist));
       } catch (error) {
         lastError ??= error;
       }
@@ -129,9 +128,7 @@ class AlbumArtImportService {
 
     if (candidates.length < 12) {
       try {
-        candidates.addAll(
-          await _searchDeezer(album: album, artist: artist),
-        );
+        candidates.addAll(await _searchDeezer(album: album, artist: artist));
       } catch (error) {
         lastError ??= error;
       }
@@ -192,6 +189,7 @@ class AlbumArtImportService {
     final file = await _writeCustomArtwork(group.key, bytes);
 
     await _songRepository.updateAlbumArtPaths(filePaths, file.path);
+    await _embedInFiles(group.songs, bytes);
 
     return AlbumArtUpdateResult(
       albumName: group.albumName,
@@ -247,13 +245,12 @@ class AlbumArtImportService {
 
     final filePath = song.filePath;
     if (filePath == null || filePath.isEmpty) {
-      throw const AlbumArtImportException(
-        'Song has no file path.',
-      );
+      throw const AlbumArtImportException('Song has no file path.');
     }
 
     final file = await _writeCustomArtwork(filePath, bytes);
     await _songRepository.updateAlbumArtPath(filePath, file.path);
+    await _embedInFiles([song], bytes);
 
     return AlbumArtUpdateResult(
       albumName: song.album ?? song.title,
@@ -266,9 +263,7 @@ class AlbumArtImportService {
   Future<AlbumArtUpdateResult> removeCustomArtworkForSong(Song song) async {
     final filePath = song.filePath;
     if (filePath == null || filePath.isEmpty) {
-      throw const AlbumArtImportException(
-        'Song has no file path.',
-      );
+      throw const AlbumArtImportException('Song has no file path.');
     }
 
     final currentPath = song.albumArt;
@@ -490,8 +485,7 @@ class AlbumArtImportService {
         continue;
       }
 
-      final itunesArtist =
-          (result['artistName'] as String?)?.trim() ?? '';
+      final itunesArtist = (result['artistName'] as String?)?.trim() ?? '';
       final releaseDate = (result['releaseDate'] as String?)?.trim();
       final artworkUrl = (result['artworkUrl100'] as String?)?.trim();
       if (artworkUrl == null || artworkUrl.isEmpty) {
@@ -522,10 +516,7 @@ class AlbumArtImportService {
   }) async {
     final query = 'album:"$album" artist:"$artist"';
     final response = await _getJson(
-      Uri.https('api.deezer.com', '/search/album', {
-        'q': query,
-        'limit': '10',
-      }),
+      Uri.https('api.deezer.com', '/search/album', {'q': query, 'limit': '10'}),
     );
 
     final data = response['data'];
@@ -546,8 +537,8 @@ class AlbumArtImportService {
 
       final deezerArtist = item['artist'] is Map<String, dynamic>
           ? ((item['artist'] as Map<String, dynamic>)['name'] as String?)
-                  ?.trim() ??
-              ''
+                    ?.trim() ??
+                ''
           : '';
       final releaseDate = (item['release_date'] as String?)?.trim();
       final coverUrl = (item['cover_big'] as String?)?.trim();
@@ -657,6 +648,18 @@ class AlbumArtImportService {
 
   Map<String, String> _downloadHeaders() {
     return const {'User-Agent': 'FlickPlayer/0.12.0 (album-art-lookup)'};
+  }
+
+  /// Writes the picked cover into each song's audio file as well, as the
+  /// desktop app does, so it travels with the file. Best effort per file:
+  /// read-only, network or CUE tracks keep only the in-app override.
+  Future<void> _embedInFiles(List<Song> songs, Uint8List bytes) async {
+    final seen = <String>{};
+    for (final song in songs) {
+      final path = song.filePath;
+      if (path == null || !seen.add(path)) continue;
+      await MetadataEditorService.instance.writeCoverArt(song, bytes);
+    }
   }
 
   Future<AlbumGroup> _resolveAlbumGroup(Song song) async {

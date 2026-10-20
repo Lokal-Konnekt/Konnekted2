@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:flick/data/repositories/song_repository.dart';
@@ -101,6 +103,81 @@ class MetadataEditorService {
         message: l10n.failedToSaveMetadata(e),
       );
     }
+  }
+
+  /// Embeds [image] as the front cover of [song]'s audio file, like the
+  /// desktop app does when a cover is replaced. Best effort: returns false
+  /// (and leaves the file untouched) when the song has no writable file or
+  /// Android refuses the write; the in-app cover override still applies.
+  Future<bool> writeCoverArt(Song song, Uint8List image) async {
+    final path = song.filePath;
+    if (path == null || path.isEmpty) return false;
+    if (song.startOffsetMs != null || song.isExternal) return false;
+    return writeCoverArtToPath(path, image, folderUri: song.folderUri);
+  }
+
+  /// [writeCoverArt] for a bare [path]. Tries an in-place write first and
+  /// falls back to the SAF copy-back pipeline through [folderUri].
+  Future<bool> writeCoverArtToPath(
+    String path,
+    Uint8List image, {
+    String? folderUri,
+  }) async {
+    final scheme = Uri.tryParse(path)?.scheme ?? '';
+    // Only plain files: content:// and network shares can't be opened by
+    // the Rust tagger.
+    if (scheme.length > 1) return false;
+    try {
+      final cover = await _coverBytes(image);
+      if (cover == null) return false;
+      final direct = await rust_metadata.writeCoverArt(
+        path: path,
+        image: cover,
+      );
+      if (direct.success) return true;
+      if (folderUri == null || folderUri.isEmpty) return false;
+
+      final cache = await getTemporaryDirectory();
+      final tempDir = Directory('${cache.path}/metadata_edits');
+      await tempDir.create(recursive: true);
+      final temp = await rust_metadata.writeCoverArtToTemp(
+        path: path,
+        image: cover,
+        tempDir: tempDir.path,
+      );
+      final tempPath = temp.tempPath;
+      if (!temp.success || tempPath == null) return false;
+      final copied = await _writeFileBytesViaSaf(folderUri, path, tempPath);
+      try {
+        await File(tempPath).delete();
+      } catch (_) {}
+      return copied;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// JPEG and PNG embed as they are; other formats (WebP, GIF, BMP) are
+  /// re-encoded as JPEG, which every tag format accepts. Null when [image]
+  /// can't be decoded.
+  static Future<Uint8List?> _coverBytes(Uint8List image) async {
+    final isJpeg =
+        image.length > 3 &&
+        image[0] == 0xFF &&
+        image[1] == 0xD8 &&
+        image[2] == 0xFF;
+    final isPng =
+        image.length > 8 &&
+        image[0] == 0x89 &&
+        image[1] == 0x50 &&
+        image[2] == 0x4E &&
+        image[3] == 0x47;
+    if (isJpeg || isPng) return image;
+    return Isolate.run(() {
+      final decoded = img.decodeImage(image);
+      if (decoded == null) return null;
+      return Uint8List.fromList(img.encodeJpg(decoded, quality: 92));
+    });
   }
 
   /// Re-reads the file's tags, confirms they match [fields], then mirrors the

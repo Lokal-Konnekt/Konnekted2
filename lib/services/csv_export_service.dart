@@ -89,7 +89,7 @@ class CsvExportService {
   String _buildCsv(ListeningRecap recap) {
     final buf = StringBuffer();
 
-    buf.writeln('Flick Replay — ${recap.period.label} Recap');
+    buf.writeln('Lokal Replay — ${recap.period.label} Recap');
     buf.writeln();
     buf.writeln('Period: ${_formatDateTime(recap.start)} → ${_formatDateTime(recap.endExclusive)}');
     buf.writeln('Total Plays: ${recap.totalPlays}');

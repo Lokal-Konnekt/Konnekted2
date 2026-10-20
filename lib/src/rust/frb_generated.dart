@@ -83,7 +83,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1681542750;
+  int get rustContentHash => -983183974;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -551,6 +551,17 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<bool> crateApiUac2ApiUac2StopStreaming();
+
+  Future<TagWriteResult> crateApiMetadataEditorWriteCoverArt({
+    required String path,
+    required List<int> image,
+  });
+
+  Future<TagWriteResult> crateApiMetadataEditorWriteCoverArtToTemp({
+    required String path,
+    required List<int> image,
+    required String tempDir,
+  });
 
   Future<void> crateApiReplaygainWriteReplaygainTags({
     required String path,
@@ -4686,6 +4697,78 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "uac2_stop_streaming", argNames: []);
 
   @override
+  Future<TagWriteResult> crateApiMetadataEditorWriteCoverArt({
+    required String path,
+    required List<int> image,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_list_prim_u_8_loose(image, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 135,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_tag_write_result,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiMetadataEditorWriteCoverArtConstMeta,
+        argValues: [path, image],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMetadataEditorWriteCoverArtConstMeta =>
+      const TaskConstMeta(
+        debugName: "write_cover_art",
+        argNames: ["path", "image"],
+      );
+
+  @override
+  Future<TagWriteResult> crateApiMetadataEditorWriteCoverArtToTemp({
+    required String path,
+    required List<int> image,
+    required String tempDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_list_prim_u_8_loose(image, serializer);
+          sse_encode_String(tempDir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 136,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_tag_write_result,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiMetadataEditorWriteCoverArtToTempConstMeta,
+        argValues: [path, image, tempDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMetadataEditorWriteCoverArtToTempConstMeta =>
+      const TaskConstMeta(
+        debugName: "write_cover_art_to_temp",
+        argNames: ["path", "image", "tempDir"],
+      );
+
+  @override
   Future<void> crateApiReplaygainWriteReplaygainTags({
     required String path,
     required ReplayGainTagFields fields,
@@ -4699,7 +4782,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 135,
+            funcId: 137,
             port: port_,
           );
         },
@@ -4734,7 +4817,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 136,
+            funcId: 138,
             port: port_,
           );
         },
@@ -4771,7 +4854,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 137,
+            funcId: 139,
             port: port_,
           );
         },

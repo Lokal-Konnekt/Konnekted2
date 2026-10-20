@@ -12,7 +12,7 @@ class GallerySaveService {
   Future<String> saveImage({
     required Uint8List bytes,
     required String fileName,
-    String albumName = 'Flick',
+    String albumName = 'Lokal',
     bool retryOnPermissionRequest = true,
   }) async {
     if (!Platform.isAndroid) {

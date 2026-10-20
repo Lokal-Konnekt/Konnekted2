@@ -293,7 +293,7 @@ class MainActivity: FlutterActivity() {
                 "saveImageToGallery" -> {
                     val bytes = call.argument<ByteArray>("bytes")
                     val fileName = call.argument<String>("fileName") ?: "flick_recap.png"
-                    val albumName = call.argument<String>("albumName") ?: "Flick"
+                    val albumName = call.argument<String>("albumName") ?: "Lokal"
                     if (bytes == null || bytes.isEmpty()) {
                         result.error("INVALID_ARGUMENT", "bytes are required", null)
                     } else {
@@ -707,6 +707,7 @@ class MainActivity: FlutterActivity() {
                         }
                     }
                     val isCasting = call.argument<Boolean>("isCasting") ?: false
+                    val isLive = call.argument<Boolean>("isLive") ?: false
                     val castDeviceName = call.argument<String>("castDeviceName")
                     val castVolume = call.argument<Int>("castVolume")
 
@@ -720,6 +721,7 @@ class MainActivity: FlutterActivity() {
                         putExtra("isShuffle", isShuffle)
                         putExtra("isFavorite", isFavorite)
                         putExtra("isCasting", isCasting)
+                        putExtra("isLive", isLive)
                         castDeviceName?.let { putExtra("castDeviceName", it) }
                         castVolume?.let { putExtra("castVolume", it) }
                         color?.let { putExtra("color", it) }
@@ -762,6 +764,7 @@ class MainActivity: FlutterActivity() {
                         }
                     }
                     val isCasting = call.argument<Boolean>("isCasting")
+                    val isLive = call.argument<Boolean>("isLive")
                     val castDeviceName = call.argument<String>("castDeviceName")
                     val castVolume = call.argument<Int>("castVolume")
 
@@ -775,6 +778,7 @@ class MainActivity: FlutterActivity() {
                         isShuffle?.let { putExtra("isShuffle", it) }
                         isFavorite?.let { putExtra("isFavorite", it) }
                         isCasting?.let { putExtra("isCasting", it) }
+                        isLive?.let { putExtra("isLive", it) }
                         castDeviceName?.let { putExtra("castDeviceName", it) }
                         castVolume?.let { putExtra("castVolume", it) }
                         color?.let { putExtra("color", it) }
@@ -1443,7 +1447,7 @@ class MainActivity: FlutterActivity() {
         } else {
             "$fileName.png"
         }
-        val safeAlbumName = albumName.ifBlank { "Flick" }
+        val safeAlbumName = albumName.ifBlank { "Lokal" }
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         } else {

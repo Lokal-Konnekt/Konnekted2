@@ -2,6 +2,22 @@ import 'package:flutter/services.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
+/// A player other than the library player (internet radio) that holds the
+/// media notification and lock-screen session for now.
+class MediaNotificationOwner {
+  const MediaNotificationOwner({
+    required this.onTogglePlayPause,
+    required this.onPlay,
+    required this.onPause,
+    required this.onStop,
+  });
+
+  final VoidCallback onTogglePlayPause;
+  final VoidCallback onPlay;
+  final VoidCallback onPause;
+  final VoidCallback onStop;
+}
+
 /// Flutter service to communicate with native Android notification service.
 /// Handles media playback notifications with controls.
 class NotificationService {
@@ -13,6 +29,45 @@ class NotificationService {
 
   bool _isNotificationVisible = false;
   bool get isNotificationVisible => _isNotificationVisible;
+
+  /// While set, notification and headset commands go to this owner and the
+  /// library player's own updates are held back, so the one media session
+  /// shows what is actually playing.
+  MediaNotificationOwner? _owner;
+  bool get isClaimed => _owner != null;
+
+  /// Shows [song] in the media notification on behalf of [owner], routing
+  /// its play/pause/stop buttons there until [release].
+  Future<void> showFor(
+    MediaNotificationOwner owner, {
+    required Song song,
+    required bool isPlaying,
+  }) async {
+    _owner = owner;
+    try {
+      await _channel.invokeMethod('showNotification', <String, dynamic>{
+        'title': song.title,
+        'artist': song.artist,
+        'albumArtPath': song.albumArt,
+        'isPlaying': isPlaying,
+        'duration': 0,
+        'position': 0,
+        'isShuffle': false,
+        'isFavorite': false,
+        'isCasting': false,
+        // A live station: the notification shows play/pause only.
+        'isLive': true,
+      });
+      _isNotificationVisible = true;
+    } catch (e) {
+      devLog('Failed to show notification: $e');
+    }
+  }
+
+  /// Hands the notification back to the library player.
+  void release(MediaNotificationOwner owner) {
+    if (identical(_owner, owner)) _owner = null;
+  }
 
   /// Initialize the notification service and set up method call handler
   /// for receiving commands from the notification buttons.
@@ -30,6 +85,21 @@ class NotificationService {
     Function(double)? onSetCastVolume,
   }) {
     _channel.setMethodCallHandler((call) async {
+      final owner = _owner;
+      if (owner != null) {
+        switch (call.method) {
+          case 'togglePlayPause':
+            owner.onTogglePlayPause();
+          case 'play':
+            owner.onPlay();
+          case 'pause':
+            owner.onPause();
+          case 'stop':
+            owner.onStop();
+        }
+        // A live stream has no next/previous, seek, shuffle or favorite.
+        return;
+      }
       switch (call.method) {
         case 'togglePlayPause':
           onTogglePlayPause();
@@ -85,6 +155,7 @@ class NotificationService {
     String? castDeviceName,
     int? castVolumePercent,
   }) async {
+    if (_owner != null) return;
     try {
       final args = <String, dynamic>{
         'title': song.title,
@@ -96,6 +167,7 @@ class NotificationService {
         'isShuffle': isShuffle,
         'isFavorite': isFavorite,
         'isCasting': isCasting,
+        'isLive': false,
       };
       if (castDeviceName != null) args['castDeviceName'] = castDeviceName;
       if (castVolumePercent != null) {
@@ -114,7 +186,7 @@ class NotificationService {
     required bool isPlaying,
     Duration? position,
   }) async {
-    if (!_isNotificationVisible) return;
+    if (!_isNotificationVisible || _owner != null) return;
 
     try {
       final args = <String, dynamic>{'isPlaying': isPlaying};
@@ -140,6 +212,7 @@ class NotificationService {
     String? castDeviceName,
     int? castVolumePercent,
   }) async {
+    if (_owner != null) return;
     try {
       final args = <String, dynamic>{
         'title': song.title,
@@ -148,6 +221,7 @@ class NotificationService {
         'isPlaying': isPlaying,
         'duration': duration?.inMilliseconds ?? 0,
         'position': position?.inMilliseconds ?? 0,
+        'isLive': false,
       };
 
       if (isShuffle != null) args['isShuffle'] = isShuffle;
@@ -174,7 +248,7 @@ class NotificationService {
     String? castDeviceName,
     int? castVolumePercent,
   }) async {
-    if (!_isNotificationVisible) return;
+    if (!_isNotificationVisible || _owner != null) return;
     try {
       final args = <String, dynamic>{
         'isCasting': isCasting,

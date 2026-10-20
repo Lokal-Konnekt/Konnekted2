@@ -8,9 +8,9 @@ import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/models/nav_bar_config.dart';
+import 'package:flick/models/playlist.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
-import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/glass_search_bar.dart';
@@ -21,9 +21,9 @@ import 'package:flick/features/search/providers/global_search_provider.dart';
 import 'package:flick/features/search/providers/search_filter_provider.dart';
 import 'package:flick/features/search/widgets/online_search_section.dart';
 import 'package:flick/features/search/widgets/search_filter_chips.dart';
-import 'package:flick/features/artists/screens/artist_detail_screen.dart';
-import 'package:flick/features/albums/screens/album_detail_screen.dart';
-import 'package:flick/features/playlists/screens/playlist_detail_screen.dart';
+import 'package:flick/features/konnekted/library/lokal_albums_artists.dart';
+import 'package:flick/features/konnekted/library/lokal_library_kit.dart';
+import 'package:flick/features/konnekted/library/lokal_navigation.dart';
 import 'package:flick/l10n/l10n.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -584,42 +584,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
-  void _openArtist(BuildContext context, String name, List<Song> songs) {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-        builder: (_) => ArtistDetailScreen(
-          artistName: name,
-          songs: songs,
-          artistArt: null,
-          artistArtSourcePath: null,
-          playerService: PlayerService(),
-        ),
-      ),
-    );
-  }
+  void _openArtist(BuildContext context, String name, List<Song> songs) =>
+      unawaited(
+        songs.isEmpty
+            ? openLokalArtist(context, name: name)
+            : pushLokal(context, LokalArtistPage(name: name, songs: songs)),
+      );
 
-  void _openAlbum(BuildContext context, AlbumGroup album) {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-        builder: (_) => AlbumDetailScreen(
-          albumName: album.albumName,
-          albumArtist: album.albumArtist,
-          songs: album.songs,
-          albumArt: album.songs.firstOrNull?.albumArt,
-          albumArtSourcePath: album.songs.firstOrNull?.filePath,
-          playerService: PlayerService(),
-        ),
-      ),
-    );
-  }
+  void _openAlbum(BuildContext context, AlbumGroup album) =>
+      unawaited(pushLokal(context, LokalAlbumPage(album: album)));
 
-  void _openPlaylist(BuildContext context, dynamic playlist) {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-        builder: (_) => PlaylistDetailScreen(playlist: playlist),
-      ),
-    );
-  }
+  void _openPlaylist(BuildContext context, Playlist playlist) =>
+      unawaited(openLokalPlaylist(context, playlist.id));
 }
 
 class _SectionHeader extends StatelessWidget {

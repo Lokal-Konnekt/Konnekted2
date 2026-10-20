@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_tag_fields`, `id3_text_frame`, `read_dsd_id3_tag`, `tag_read_result_from_id3`
+// These functions are ignored because they are not marked as `pub`: `apply_cover_art`, `apply_tag_fields`, `failed_write`, `id3_text_frame`, `open_for_write`, `read_dsd_id3_tag`, `stage_temp_copy`, `tag_read_result_from_id3`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`
 
 Future<TagReadResult> readTags({required String path}) =>
@@ -28,6 +28,29 @@ Future<TagWriteResult> writeTagsToTemp({
 }) => RustLib.instance.api.crateApiMetadataEditorWriteTagsToTemp(
   path: path,
   fields: fields,
+  tempDir: tempDir,
+);
+
+/// Replaces the front cover embedded in the file at [path] with [image]
+/// (JPEG or PNG bytes), the way the desktop app writes a picked cover into
+/// the audio itself rather than only into its artwork cache.
+Future<TagWriteResult> writeCoverArt({
+  required String path,
+  required List<int> image,
+}) => RustLib.instance.api.crateApiMetadataEditorWriteCoverArt(
+  path: path,
+  image: image,
+);
+
+/// Like [write_cover_art] but writes a copy of the file into [temp_dir], so
+/// callers can copy it back through a storage grant (Android SAF).
+Future<TagWriteResult> writeCoverArtToTemp({
+  required String path,
+  required List<int> image,
+  required String tempDir,
+}) => RustLib.instance.api.crateApiMetadataEditorWriteCoverArtToTemp(
+  path: path,
+  image: image,
   tempDir: tempDir,
 );
 

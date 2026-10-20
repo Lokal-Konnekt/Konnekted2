@@ -117,7 +117,7 @@ List<LokalSettingsSection> playbackSettings(
           label: 'Gapless playback',
           description: player.isBitPerfectModeEnabled
               ? 'Off in bit-perfect mode.'
-              : 'Play one song straight into the next, with no silence between.',
+              : 'Play one song straight into the next when the output format can stay open.',
           value: player.gaplessPlaybackEnabledNotifier.value,
           onChanged: player.setGaplessPlaybackEnabled,
         ),
@@ -349,7 +349,8 @@ List<LokalSettingsSection> outputSettings(BuildContext context, WidgetRef ref) {
       children: [
         LokalSettingRow.toggle(
           label: 'Background playback anchor',
-          description: 'Keep bit-perfect audio alive in the background. Off: some phones may stop it.',
+          description:
+              'Help keep bit-perfect audio alive in the background. Some phones and routes may still stop it.',
           value: prefs.priorityAnchorEnabled,
           onChanged: (value) {
             player.setPriorityAnchorEnabled(value);

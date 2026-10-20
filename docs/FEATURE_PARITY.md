@@ -22,7 +22,7 @@ does not mean a USB DAC or every Android OEM has been tested here.
 | YouTube Music catalog search | Delivered | Explicit guest catalog search; opens canonical source page |
 | Authorized addon search/playback | Delivered | Opt-in HTTPS manifest/search/stream subset; bounded staging and native probe |
 | Ordered multi-addon source registry | Delivered | Up to eight named sources; secure v1 migration; draft-only edit/reorder/enable/remove; source-bound credentials and stale-row refusal; `test/discovery/` |
-| YouTube Music account sign-in/personalized shelves | Not yet ported | The guest catalog path is available; authenticated YT Music session import is intentionally not silently substituted |
+| YouTube Music account sign-in/personalized shelves | Delivered | Opt-in in-app WebView session import, secure session storage, account shelves and local/add-on playback matching |
 | Listen Together / jam invite links | Not yet ported | Requires a listener-owned realtime coordination service and lifecycle design; no fake local-only “sync” control is exposed |
 | Classipod click-wheel shell and Cover Flow | Delivered local-library slice | Library entry; accessible wheel, songs/albums/artists, real shared playback/queue, Cover Flow-like artwork; 20 host tests; broader Kotlin/provider parity not claimed |
 | Spotify/Tidal/Apple/community animated canvas providers | Partial | Flick animated artwork/theming is inherited; the full Konnekted provider precedence and canvas cache are not yet ported |
@@ -98,9 +98,8 @@ Remaining gaps include unported product features and real-device validation:
    explicit library-only versus filesystem-delete choice.
 3. Validate preload cache hits through MediaStore/SAF, including removable
    storage and unsupported-format behavior.
-4. Port the remaining source-backed features above: authenticated YouTube
-   sessions, Listen Together, provider canvas precedence, and the Konnekted
-   source registry/fallback graph.
+4. Port the remaining source-backed features above: Listen Together, provider
+   canvas precedence, and the Konnekted source registry/fallback graph.
 5. Update inherited localization/tutorial copy from Flick to Konnekted.
 6. Run the Spotify OAuth flow with a registered Spotify developer app and an
    authorized account.

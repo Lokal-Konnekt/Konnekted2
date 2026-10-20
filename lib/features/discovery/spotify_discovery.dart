@@ -286,7 +286,10 @@ String? _text(Object? value) =>
 String _image(Object? raw) {
   if (raw is! List) return '';
   for (final value in raw) {
-    if (value is Map && _text(value['url']) case final url?) return url;
+    if (value is Map) {
+      final url = _text(value['url']);
+      if (url != null) return url;
+    }
   }
   return '';
 }

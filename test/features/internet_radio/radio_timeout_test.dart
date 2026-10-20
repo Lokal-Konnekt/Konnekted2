@@ -78,6 +78,41 @@ void main() {
     expect(catalog.stations.single.title, 'Station One');
   });
 
+  test('uses the GitHub contents endpoint if the default raw catalogue fails', () async {
+    final source = Uri.parse(defaultRadioCatalogUrl);
+    final apiUrl = Uri.https(
+      'api.github.com',
+      '/repos/sipbuu/lokal/contents/radios.json',
+      {'ref': 'main'},
+    );
+    final catalogJson = jsonEncode({
+      'version': 1,
+      'title': 'Fallback radio',
+      'stations': [
+        {'title': 'Fallback Station', 'url': 'https://stream.example.test/live'},
+      ],
+    });
+    final client = MockClient((request) async {
+      if (request.url == source) {
+        return http.Response('raw mirror unavailable', 503);
+      }
+      expect(request.url, apiUrl);
+      return http.Response(
+        jsonEncode({
+          'encoding': 'base64',
+          'content': base64Encode(utf8.encode(catalogJson)),
+        }),
+        200,
+      );
+    });
+    addTearDown(client.close);
+
+    final json = await fetchRadioCatalogJson(client, source);
+    final catalog = parseRadioCatalog(json);
+    expect(catalog.title, 'Fallback radio');
+    expect(catalog.stations.single.title, 'Fallback Station');
+  });
+
   test('refuses an HTTPS catalogue redirect to insecure HTTP', () async {
     final source = Uri.parse(defaultRadioCatalogUrl);
     final client = MockClient((request) async => http.Response(

@@ -31,6 +31,31 @@ Future<Map<String, dynamic>> fetchRadioCatalogJson(
   http.Client client,
   Uri initialUrl,
 ) async {
+  try {
+    return await _fetchRadioCatalogAtUrl(client, initialUrl);
+  } catch (_) {
+    // If the same default raw file is unavailable from raw.githubusercontent.com
+    // on a network, try GitHub's contents endpoint. Custom catalogue URLs
+    // never fall back to another host.
+    if (initialUrl.toString() != defaultRadioCatalogUrl) rethrow;
+    final apiUrl = Uri.https(
+      'api.github.com',
+      '/repos/sipbuu/lokal/contents/radios.json',
+      {'ref': 'main'},
+    );
+    return _fetchRadioCatalogAtUrl(
+      client,
+      apiUrl,
+      accept: 'application/vnd.github.raw+json',
+    );
+  }
+}
+
+Future<Map<String, dynamic>> _fetchRadioCatalogAtUrl(
+  http.Client client,
+  Uri initialUrl, {
+  String accept = 'application/json',
+}) async {
   var url = initialUrl;
   for (var redirects = 0; redirects <= 5; redirects++) {
     if (url.scheme != 'https' ||
@@ -43,7 +68,8 @@ Future<Map<String, dynamic>> fetchRadioCatalogJson(
     }
     final request = http.Request('GET', url)
       ..followRedirects = false
-      ..headers['Accept'] = 'application/json';
+      ..headers['Accept'] = accept
+      ..headers['User-Agent'] = 'Konnekted2';
     final response = await radioWithTimeout(
       client.send(request),
       timeout: _radioLoadTimeout,
@@ -108,9 +134,22 @@ Future<Map<String, dynamic>> fetchRadioCatalogJson(
     }
     try {
       final decoded = jsonDecode(utf8.decode(bytes.takeBytes()));
-      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map<String, dynamic> && decoded['stations'] is List) {
+        return decoded;
+      }
+      if (decoded is Map &&
+          decoded['encoding'] == 'base64' &&
+          decoded['content'] is String) {
+        final raw = base64Decode(
+          (decoded['content'] as String).replaceAll(RegExp(r'\s+'), ''),
+        );
+        final catalog = jsonDecode(utf8.decode(raw));
+        if (catalog is Map<String, dynamic> && catalog['stations'] is List) {
+          return catalog;
+        }
+      }
     } on FormatException {
-      // Do not expose the raw response, which may contain a secret token.
+      // Do not expose the raw response, which may contain tokens or URLs.
     }
     throw const RadioCatalogException('The station list is not valid JSON.');
   }

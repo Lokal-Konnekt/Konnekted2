@@ -98,8 +98,8 @@ class ListenBrainzScrobbleService {
     required bool includeListenedAt,
   }) {
     final additionalInfo = <String, dynamic>{
-      'media_player': 'Flick',
-      'submission_client': 'Flick',
+      'media_player': 'Lokal',
+      'submission_client': 'Lokal',
       'submission_client_version': kAppVersion,
     };
 

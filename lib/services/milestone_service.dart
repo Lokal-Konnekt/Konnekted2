@@ -107,37 +107,31 @@ extension MilestoneTypeX on MilestoneType {
   String get message {
     return switch (this) {
       MilestoneType.songs100 =>
-        "You've listened to 100 songs on Flick! If you're enjoying the app, a small donation helps keep the engine running and brings DSD playback closer.",
+        "You've listened to 100 songs on Lokal. Here's to many more.",
       MilestoneType.songs500 =>
-        "500 songs and counting! Flick is built by a solo developer — consider fueling the next round of features on Ko-fi.",
-      MilestoneType.songs1000 =>
-        "1,000 songs deep in your Flick journey. Your support helps fund things like audio testing equipment and USB DAC improvements.",
-      MilestoneType.songs2500 =>
-        "2,500 songs in — you're a Flick regular. Donations help the solo dev keep the lights on and new features rolling.",
+        "500 songs and counting. Your library is getting a proper workout.",
+      MilestoneType.songs1000 => "1,000 songs deep in your Lokal journey.",
+      MilestoneType.songs2500 => "2,500 songs in. You're a Lokal regular now.",
       MilestoneType.songs5000 =>
-        "5,000 songs! That's a library's worth of listening. Support helps fund native DSD and broader DAC coverage.",
-      MilestoneType.songs10000 =>
-        "10,000 songs on Flick — legendary status. Your support keeps independent audio software alive.",
+        "5,000 songs! That's a library's worth of listening.",
+      MilestoneType.songs10000 => "10,000 songs on Lokal. Legendary status.",
       MilestoneType.hours10 =>
-        "You've spent 10 hours with Flick. Time flies with great audio — if Flick adds value to your day, a donation helps keep it growing.",
+        "You've spent 10 hours with Lokal. Time flies with great audio.",
       MilestoneType.hours50 =>
-        "50 hours on Flick — that's some serious listening. Consider tipping the developer to help fund native DSD/DSF playback.",
+        "50 hours on Lokal. That's some serious listening.",
       MilestoneType.hours100 =>
-        "100 hours locked in. You clearly love great audio — a tip helps the solo dev fund testing gear and DAC work.",
+        "100 hours locked in. You clearly love great audio.",
       MilestoneType.hours250 =>
-        "250 hours on Flick — you're in the all-time tier. Support keeps independent hi-fi software thriving.",
+        "250 hours on Lokal. You're in the all-time tier.",
       MilestoneType.streak7 =>
-        "A 7-day Flick streak! Consistency deserves a nod — if you're enjoying the daily sessions, consider a small donation.",
+        "A 7-day Lokal streak! Consistency deserves a nod.",
       MilestoneType.streak30 =>
-        "30 days of Flick in a row — that's a full month of great audio. A tip helps the solo dev keep the grind going.",
-      MilestoneType.streak100 =>
-        "100-day streak — dedication personified. Your support keeps Flick improving every single day.",
-      MilestoneType.artists25 =>
-        "You've explored 25 unique artists on Flick. Broad taste deserves applause — a donation helps keep the catalog growing.",
+        "30 days of Lokal in a row. A full month of great audio.",
+      MilestoneType.streak100 => "100-day streak. Dedication personified.",
+      MilestoneType.artists25 => "You've explored 25 unique artists on Lokal. Broad taste deserves applause.",
       MilestoneType.artists100 =>
-        "100 distinct artists and counting. Your varied taste funds the solo dev's quest for better audio for everyone.",
-      MilestoneType.artists250 =>
-        "250 unique artists — a true sonic explorer. Support keeps Flick unlocking new music for listeners like you.",
+        "100 distinct artists and counting. Your taste keeps widening.",
+      MilestoneType.artists250 => "250 unique artists. A true sonic explorer.",
     };
   }
 
@@ -311,13 +305,14 @@ class MilestoneService {
     Future<int> Function()? listenSecondsOverride,
     Future<int> Function()? dayStreakOverride,
     Future<int> Function()? uniqueArtistsOverride,
-  }) : _repository = (playCountOverride == null || uniqueArtistsOverride == null)
-            ? (repository ?? RecentlyPlayedRepository())
-            : repository,
-        _playCountOverride = playCountOverride,
-        _listenSecondsOverride = listenSecondsOverride,
-        _dayStreakOverride = dayStreakOverride,
-        _uniqueArtistsOverride = uniqueArtistsOverride;
+  }) : _repository =
+           (playCountOverride == null || uniqueArtistsOverride == null)
+           ? (repository ?? RecentlyPlayedRepository())
+           : repository,
+       _playCountOverride = playCountOverride,
+       _listenSecondsOverride = listenSecondsOverride,
+       _dayStreakOverride = dayStreakOverride,
+       _uniqueArtistsOverride = uniqueArtistsOverride;
 
   Future<int> _getPlayCount() {
     final override = _playCountOverride;
@@ -422,7 +417,9 @@ class MilestoneService {
     await prefs.remove(_streakLastActiveDayKey);
     await prefs.remove(_streakPopupSnoozedUntilKey);
     final shown = await getShownMilestones();
-    final filtered = shown.where((r) => r.type.category != MilestoneCategory.dayStreak).toList();
+    final filtered = shown
+        .where((r) => r.type.category != MilestoneCategory.dayStreak)
+        .toList();
     final raw = jsonEncode(filtered.map((r) => r.toJson()).toList());
     await prefs.setString(_shownMilestonesKey, raw);
   }
@@ -462,10 +459,11 @@ class MilestoneService {
     final values = await _currentValues();
 
     for (final category in MilestoneCategory.values) {
-      final tiers = MilestoneType.values
-          .where((t) => t.category == category && !shownSet.contains(t))
-          .toList()
-        ..sort((a, b) => b.threshold.compareTo(a.threshold));
+      final tiers =
+          MilestoneType.values
+              .where((t) => t.category == category && !shownSet.contains(t))
+              .toList()
+            ..sort((a, b) => b.threshold.compareTo(a.threshold));
       for (final type in tiers) {
         if (values[category]! >= type.threshold) return type;
       }

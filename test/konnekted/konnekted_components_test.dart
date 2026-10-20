@@ -6,6 +6,7 @@ import 'package:flick/features/konnekted/konnekted_dock.dart';
 import 'package:flick/features/konnekted/konnekted_home.dart';
 import 'package:flick/features/konnekted/konnekted_library.dart';
 import 'package:flick/features/konnekted/lokal_mixes.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flutter/material.dart';
@@ -187,14 +188,20 @@ void main() {
       expect(find.byTooltip('Settings'), findsOneWidget);
       await tester.tap(find.bySemanticsLabel('Open Flow'));
       expect(opened, [
-        KonnektedDestination.allSettings,
-        KonnektedDestination.appearance,
+        KonnektedDestination.settings,
+        const KonnektedDestination.settingsAt(LokalSettingsGroup.appearance),
         KonnektedDestination.flow,
       ]);
       await tester.scrollUntilVisible(find.text('Add your music'), 180);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add your music'));
-      expect(opened.last, KonnektedDestination.librarySettings);
+      expect(
+        opened.last,
+        const KonnektedDestination.settingsAt(
+          LokalSettingsGroup.library,
+          section: 'Folders',
+        ),
+      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -221,7 +228,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Albums'));
       expect(opened, [
-        KonnektedDestination.librarySettings,
+        const KonnektedDestination.settingsAt(
+          LokalSettingsGroup.library,
+          section: 'Folders',
+        ),
         KonnektedDestination.albums,
       ]);
       expect(tester.takeException(), isNull);

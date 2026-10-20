@@ -1,0 +1,153 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:flick/features/settings/screens/duplicate_cleaner_screen.dart';
+import 'package:flick/features/settings/screens/library_settings_screen.dart';
+import 'package:flick/features/settings/screens/missing_metadata_screen.dart';
+import 'package:flick/providers/library_scan_preferences_provider.dart';
+import 'package:flick/services/apple_music/apple_music_settings.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
+
+void _push(BuildContext context, Widget page) => unawaited(
+  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page)),
+);
+
+/// Minimum length's three stops over the two scan switches it replaces:
+/// keep everything, skip files under 500 KB, and also skip songs under 60 s.
+const _minimumLengthLabels = ['Off', '500 KB', '60 s'];
+
+List<LokalSettingsSection> librarySettings(
+  BuildContext context,
+  WidgetRef ref,
+) {
+  final scan = ref.watch(libraryScanPreferencesProvider);
+  final notifier = ref.read(libraryScanPreferencesProvider.notifier);
+  final minimum = scan.ignoreTracksShorterThan60Seconds
+      ? 2
+      : scan.ignoreTracksSmallerThan500Kb
+      ? 1
+      : 0;
+  return [
+    LokalSettingsSection(
+      title: 'Folders',
+      children: [
+        LokalSettingLink(
+          label: 'Folders and rescan',
+          description: 'Add or remove music folders and rescan them, quick or full. ReplayGain scan and audio preload are there too.',
+          onTap: () => _push(context, const LibrarySettingsScreen()),
+        ),
+        if (Platform.isAndroid)
+          LokalSettingRow.toggle(
+            label: 'Deep scan',
+            description: 'Read folders directly instead of asking Android’s media index, to find everything.',
+            value: scan.useDeepScan,
+            onChanged: notifier.setUseDeepScan,
+          ),
+      ],
+    ),
+    LokalSettingsSection(
+      title: 'Scanning',
+      children: [
+        LokalSettingRow.toggle(
+          label: 'Skip non-music files',
+          description: 'Leave out unsupported files and folders marked hidden or .nomedia.',
+          value: scan.filterNonMusicFilesAndFolders,
+          onChanged: notifier.setFilterNonMusicFilesAndFolders,
+        ),
+        LokalSettingSlider(
+          label: 'Minimum length',
+          description: 'Leave out tiny files when scanning, like clips, ringtones and voice notes. Off keeps everything.',
+          value: minimum.toDouble(),
+          min: 0,
+          max: 2,
+          divisions: 2,
+          valueLabel: (v) => _minimumLengthLabels[v.round()],
+          onChanged: (v) async {
+            final stop = v.round();
+            await notifier.setIgnoreTracksSmallerThan500Kb(stop >= 1);
+            await notifier.setIgnoreTracksShorterThan60Seconds(stop >= 2);
+          },
+        ),
+        LokalSettingRow.toggle(
+          label: 'Import M3U',
+          description: 'Make playlists from the M3U and M3U8 files in your folders, and keep them up to date.',
+          value: scan.createPlaylistsFromM3uFiles,
+          onChanged: notifier.setCreatePlaylistsFromM3uFiles,
+        ),
+        LokalSettingRow.toggle(
+          label: 'Prepare audio after scanning',
+          description: 'Decode new songs after a scan so waveforms and loudness are ready.',
+          value: scan.preloadAudioData,
+          onChanged: notifier.setPreloadAudioData,
+        ),
+      ],
+    ),
+    const LokalSettingsSection(
+      title: 'Look up missing info',
+      children: [_LookUpMissingInfo()],
+    ),
+    LokalSettingsSection(
+      title: 'Maintenance',
+      children: [
+        LokalSettingLink(
+          label: 'Find duplicates',
+          description:
+              'Find songs you have more than once and remove the copies.',
+          onTap: () => _push(context, const DuplicateCleanerScreen()),
+        ),
+        LokalSettingLink(
+          label: 'Missing metadata',
+          description: 'Albums with an unknown artist or no cover, to fix.',
+          onTap: () => _push(context, const MissingMetadataScreen()),
+        ),
+      ],
+    ),
+  ];
+}
+
+/// Apple Music's catalogue fills in untagged albums after a scan.
+class _LookUpMissingInfo extends StatefulWidget implements LokalSearchable {
+  const _LookUpMissingInfo();
+
+  static const _label = 'Look up missing info';
+  static const _description =
+      'After a scan, match files with missing tags against Apple Music. Only confident matches apply.';
+
+  @override
+  String get searchText => '$_label $_description Apple Music';
+
+  @override
+  State<_LookUpMissingInfo> createState() => _LookUpMissingInfoState();
+}
+
+class _LookUpMissingInfoState extends State<_LookUpMissingInfo> {
+  final _settings = AppleMusicSettings();
+  bool? _enabled;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      _settings.autoEnrichEnabled().then((value) {
+        if (mounted) setState(() => _enabled = value);
+      }),
+    );
+  }
+
+  Future<void> _set(bool value) async {
+    setState(() => _enabled = value);
+    await _settings.setAutoEnrichEnabled(value);
+  }
+
+  @override
+  Widget build(BuildContext context) => LokalSettingRow.toggle(
+    label: _LookUpMissingInfo._label,
+    description: _LookUpMissingInfo._description,
+    value: _enabled ?? false,
+    enabled: _enabled != null,
+    onChanged: _set,
+  );
+}

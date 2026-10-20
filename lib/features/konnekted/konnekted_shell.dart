@@ -7,7 +7,6 @@ import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/albums/screens/albums_screen.dart';
-import 'package:flick/features/appearance/lokal_appearance_screen.dart';
 import 'package:flick/features/artists/screens/artists_screen.dart';
 import 'package:flick/features/discovery/discovery_screen.dart';
 import 'package:flick/features/favorites/screens/favorites_screen.dart';
@@ -20,14 +19,7 @@ import 'package:flick/features/playlist_links/linked_playlists_screen.dart';
 import 'package:flick/features/recently_added/screens/recently_added_screen.dart';
 import 'package:flick/features/recently_played/screens/recently_played_screen.dart';
 import 'package:flick/features/search/screens/search_screen.dart';
-import 'package:flick/features/settings/screens/audio_settings_screen.dart';
-import 'package:flick/features/settings/screens/equalizer_screen.dart';
-import 'package:flick/features/settings/screens/integrations_settings_screen.dart';
-import 'package:flick/features/settings/screens/library_settings_screen.dart';
-import 'package:flick/features/settings/screens/lyrics_settings_screen.dart';
-import 'package:flick/features/settings/screens/settings_screen.dart';
-import 'package:flick/features/settings/screens/uac2_settings_screen.dart';
-import 'package:flick/features/spotify/spotify_library_screen.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
 import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/album_color_provider.dart';
@@ -131,6 +123,18 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
     }
     final navigator = nestedNavigatorKey.currentState;
     if (navigator == null) return;
+    if (destination.isSettings) {
+      unawaited(
+        navigator.push<void>(
+          lokalSettingsRoute(
+            context,
+            group: destination.settingsGroup,
+            section: destination.settingsSection,
+          ),
+        ),
+      );
+      return;
+    }
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : AppConstants.animationNormal;
@@ -149,41 +153,33 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
   }
 
   Widget _destination(KonnektedDestination destination) =>
-      switch (destination) {
-        KonnektedDestination.flow => const FlowScreen(),
-        KonnektedDestination.search => const SearchScreen(),
-        KonnektedDestination.songs => _withBack(
+      switch (destination.name) {
+        'flow' => const FlowScreen(),
+        'search' => const SearchScreen(),
+        'songs' => _withBack(
           'Songs',
           SongsScreen(onNavigationRequested: _legacyNavigate),
         ),
-        KonnektedDestination.albums => const AlbumsScreen(),
-        KonnektedDestination.artists => const ArtistsScreen(),
-        KonnektedDestination.folders => const FoldersScreen(),
-        KonnektedDestination.playlists => const PlaylistsScreen(),
-        KonnektedDestination.favorites => const FavoritesScreen(),
-        KonnektedDestination.recentlyPlayed => const RecentlyPlayedScreen(),
-        KonnektedDestination.recentlyAdded => const RecentlyAddedScreen(),
-        KonnektedDestination.librarySettings => const LibrarySettingsScreen(),
-        KonnektedDestination.audio => const AudioSettingsScreen(),
-        KonnektedDestination.equalizer => const EqualizerScreen(),
-        KonnektedDestination.output => const Uac2SettingsScreen(),
-        KonnektedDestination.lyricsSettings => const LyricsSettingsScreen(),
-        KonnektedDestination.allSettings => _withBack(
-          'All settings',
-          const SettingsScreen(),
-        ),
-        KonnektedDestination.appearance => const LokalAppearanceScreen(),
-        KonnektedDestination.inheritedHome => _withBack(
+        'albums' => const AlbumsScreen(),
+        'artists' => const ArtistsScreen(),
+        'folders' => const FoldersScreen(),
+        'playlists' => const PlaylistsScreen(),
+        'favorites' => const FavoritesScreen(),
+        'recentlyPlayed' => const RecentlyPlayedScreen(),
+        'recentlyAdded' => const RecentlyAddedScreen(),
+        'inheritedHome' => _withBack(
           'Listening hub',
           MenuScreen(onNavigateToTab: _legacyNavigate),
         ),
-        KonnektedDestination.queue => const SizedBox.shrink(),
-        KonnektedDestination.linkedPlaylists => const LinkedPlaylistsScreen(),
-        KonnektedDestination.spotify => const SpotifyLibraryScreen(),
-        KonnektedDestination.integrations => const IntegrationsSettingsScreen(),
+        'linkedPlaylists' => const LinkedPlaylistsScreen(),
+        'settings' => lokalSettingsPage(
+          group: destination.settingsGroup,
+          section: destination.settingsSection,
+        ),
+        _ => const SizedBox.shrink(),
       };
 
-  // These three inherited screens were top-level tabs without a back button.
+  // These inherited screens were top-level tabs without a back button.
   Widget _withBack(String title, Widget child) => Scaffold(
     backgroundColor: context.lokal.bg,
     appBar: AppBar(title: Text(title), backgroundColor: context.lokal.bg),

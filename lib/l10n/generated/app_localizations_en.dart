@@ -10,10 +10,6 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get aDraggableOverlayShowsWhileUsing =>
-      'A draggable overlay shows while using other apps';
-
-  @override
   String get aLittleRecordOfWhatStayed =>
       'A little record of what stayed on repeat.';
 
@@ -24,10 +20,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aPlaylistWithThisNameAlready =>
       'A playlist with this name already exists';
-
-  @override
-  String get aPremiumMusicPlayerWithCustom =>
-      'A premium music player with custom UAC 2.0 powered by Rust for the best audio experience.';
 
   @override
   String get aSmoothContinuousWaveAcrossFrequencies =>
@@ -56,9 +48,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get about => 'About';
-
-  @override
-  String get aboutFlickPlayer => 'About Flick Player';
 
   @override
   String get aboutThisAlbum => 'About this album';
@@ -93,12 +82,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get activeDays => 'Active days';
-
-  @override
-  String get activeQueue => 'Active Queue';
-
-  @override
-  String get adaptive => 'Adaptive';
 
   @override
   String get add => 'Add';
@@ -216,9 +199,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Adds pre-drive and catches peaks against a final output ceiling.';
 
   @override
-  String get adjustAudioFrequencies => 'Adjust audio frequencies';
-
-  @override
   String get adjustMetadataTextSizeInArtwork =>
       'Adjust metadata text size in artwork card mode';
 
@@ -227,16 +207,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Adjust metadata text size in immersive mode';
 
   @override
-  String get adjustSpacingBetweenButtons => 'Adjust spacing between buttons';
-
-  @override
   String get adjustTheMiniPlayerSurface => 'Adjust the mini player surface';
-
-  @override
-  String get adjustTheSizeOfTheBottom => 'Adjust the size of the bottom bar';
-
-  @override
-  String get adjustTheSizeOfTheIcons => 'Adjust the size of the icons';
 
   @override
   String get advanceToARandomCategory => 'Advance to a random category';
@@ -331,15 +302,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get alignLyricTextToTheCenter => 'Align lyric text to the center';
-
-  @override
-  String get alignLyricTextToTheLeft => 'Align lyric text to the left edge';
-
-  @override
-  String get alignLyricTextToTheRight => 'Align lyric text to the right edge';
-
-  @override
   String get all => 'All';
 
   @override
@@ -383,10 +345,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get alphabetical => 'Alphabetical';
-
-  @override
-  String get alphabeticalIndexRailOnTheSongs =>
-      'Alphabetical index rail on the songs screen';
 
   @override
   String get alsoRespectsYourSystemTextSize =>
@@ -443,35 +401,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get androidUsbRoute => 'Android USB route';
 
   @override
-  String get animatedAlbumArt => 'Animated Album Art';
-
-  @override
   String get animationStyle => 'Animation Style';
 
   @override
-  String get animationStyleAndFrequencyFocus =>
-      'Animation style and frequency focus';
-
-  @override
-  String get animations => 'Animations';
-
-  @override
-  String get animationsAndHapticFeedback => 'Animations and haptic feedback';
-
-  @override
   String get apiKey => 'API Key';
-
-  @override
-  String get appInfo => 'App Info';
 
   @override
   String get appTitle => 'Lokal';
 
   @override
   String get appearance => 'Appearance';
-
-  @override
-  String get appearsInTheOverflowMenu => 'Appears in the overflow menu';
 
   @override
   String get appleMusicDataUnavailable => 'Apple Music data unavailable';
@@ -482,10 +421,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get appleMusicLookupFailedCheckYour =>
       'Apple Music lookup failed. Check your connection.';
-
-  @override
-  String get appleMusicMotionArtOnAlbums =>
-      'Apple Music Motion Art on albums plus pan/zoom, ambient glow and smooth fade on heroes';
 
   @override
   String appliedAutoeqFor(Object arg1) {
@@ -537,9 +472,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get areYouSureYouWantTo3 =>
       'Are you sure you want to reset all UAC2 preferences? This action cannot be undone.';
-
-  @override
-  String get artResolution => 'Art Resolution';
 
   @override
   String get artist => 'Artist';
@@ -609,9 +541,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attack => 'Attack';
 
   @override
-  String get audio => 'Audio';
-
-  @override
   String get audioFocus => 'Audio Focus';
 
   @override
@@ -622,9 +551,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audioSignalPath => 'Audio Signal Path';
-
-  @override
-  String get audioTestingEquipment => 'Audio Testing Equipment';
 
   @override
   String get aug => 'Aug';
@@ -643,19 +569,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoBitPerfectForUsbDacs => 'Auto Bit-perfect for USB DACs';
 
   @override
-  String get autoCollapse => 'Auto Collapse';
-
-  @override
   String get autoFill => 'Auto-fill';
 
   @override
-  String get autoFocusSearch => 'Auto-Focus Search';
-
-  @override
   String get autoFullView => 'Auto Full View';
-
-  @override
-  String get autoHideTimeout => 'Auto-hide Timeout';
 
   @override
   String get autoIdentifyUntaggedAlbums => 'Auto-identify untagged albums';
@@ -672,10 +589,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Auto-show full view after inactivity';
 
   @override
-  String get autoShowTheSpotifyStyleImmersive =>
-      'Auto-show the Spotify-style immersive full view after inactivity';
-
-  @override
   String get autoU8ByteInterleavedRecommended =>
       'Auto — U8 byte-interleaved (recommended)';
 
@@ -687,16 +600,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get automatic => 'Automatic';
-
-  @override
-  String get automaticUpdateChecks => 'Automatic Update Checks';
-
-  @override
-  String get automaticallyOpenKeyboardWhenSwitchingTo =>
-      'Automatically open keyboard when switching to search';
-
-  @override
-  String get autoplayOnQueueEnd => 'Autoplay on Queue End';
 
   @override
   String get availableDevices => 'Available Devices';
@@ -726,9 +629,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backgroundOpacity => 'Background Opacity';
-
-  @override
-  String get backgroundPlaybackAnchor => 'Background Playback Anchor';
 
   @override
   String get balance => 'Balance';
@@ -788,14 +688,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get barHeight => 'Bar Height';
-
-  @override
   String get bars => 'Bars';
-
-  @override
-  String get baseAlbumArtSizeForEach =>
-      'Base album-art size for each song card';
 
   @override
   String get bass => 'Bass';
@@ -923,9 +816,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Bold, saturated colors from album art.';
 
   @override
-  String get boostBeyond100UpTo200 => 'Boost beyond 100% (up to 200%)';
-
-  @override
   String get border => 'Border';
 
   @override
@@ -936,23 +826,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bottom => 'Bottom';
 
   @override
-  String get bottomBar => 'Bottom Bar';
-
-  @override
-  String get bottomBarAlwaysVisible => 'Bottom Bar Always Visible';
-
-  @override
   String get bouncy => 'Bouncy';
 
   @override
   String get browseByArtworkOpenAnyAlbum =>
       'Browse by artwork, open any album, and jump straight into the tracklist.';
-
-  @override
-  String get browseMore => 'Browse More';
-
-  @override
-  String get browseTheFullControlsGuide => 'Browse the full controls guide';
 
   @override
   String get browseYourArtistLibrary => 'Browse your artist library';
@@ -970,28 +848,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get buildFlavor => 'Build Flavor';
-
-  @override
-  String get buildFlavorFull => 'full — direct download build';
-
-  @override
-  String get buildFlavorPlay => 'play — Google Play build';
-
-  @override
   String get buildingYourMusicHome => 'Building your music home';
 
   @override
   String get builtIn => 'Built-in';
-
-  @override
-  String get buttonSpacing => 'Button Spacing';
-
-  @override
-  String get buttons => 'Buttons';
-
-  @override
-  String get buyMeACoffee => 'Buy Me a Coffee';
 
   @override
   String by(Object arg1, Object arg2) {
@@ -1043,10 +903,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancel => 'Cancel';
 
   @override
-  String get capAt60hzBalancedSmoothnessAnd =>
-      'Cap at 60Hz — balanced smoothness and battery';
-
-  @override
   String capMs(Object arg1) {
     return 'cap $arg1 ms';
   }
@@ -1059,12 +915,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get capabilityState => 'Capability State';
-
-  @override
-  String get cardSize => 'Card Size';
-
-  @override
-  String get cardWidth => 'Card Width';
 
   @override
   String get cast => 'Cast';
@@ -1093,13 +943,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get center => 'Center';
-
-  @override
-  String get centerTheTitleAndInfoIn =>
-      'Center the title and info in the detail header';
-
-  @override
-  String get centeredHeaderTitle => 'Centered Header Title';
 
   @override
   String get centeredWidensToFitYourControls =>
@@ -1138,9 +981,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get checkAgain => 'Check Again';
-
-  @override
   String get checkTheVersionsYouWantTo =>
       'Check the versions you want to keep — unchecked ones will be removed from your library. At least one must stay.';
 
@@ -1150,12 +990,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get checking => 'Checking…';
-
-  @override
-  String get checkingForUpdates => 'Checking for Updates';
-
-  @override
-  String get checkingForUpdates2 => 'Checking for Updates...';
 
   @override
   String get childrenSPrivacy => 'Children\'s Privacy';
@@ -1257,9 +1091,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get codecU0026Audio => 'Codec & Audio';
 
   @override
-  String get collapseAfter => 'Collapse After';
-
-  @override
   String get collapsed => 'Collapsed';
 
   @override
@@ -1278,10 +1109,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compatibleWithPowerampEq => 'Compatible with Poweramp EQ';
 
   @override
-  String get completelyHiddenFromTheBottomBar =>
-      'Completely hidden from the bottom bar';
-
-  @override
   String get compressor => 'Compressor';
 
   @override
@@ -1289,12 +1116,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get compressorOn => 'Compressor on';
-
-  @override
-  String get configureUsbDacAmpDevices => 'Configure USB DAC/AMP devices';
-
-  @override
-  String get configureYourMusicExperience => 'Configure your music experience';
 
   @override
   String get connect => 'Connect';
@@ -1324,10 +1145,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Connect to submit your listening history';
 
   @override
-  String get connectToTheInternetToCheck =>
-      'Connect to the internet to check for updates.';
-
-  @override
   String get connected => 'Connected';
 
   @override
@@ -1354,13 +1171,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get connectionManagement => 'Connection Management';
 
   @override
-  String get connectionNotices => 'Connection notices';
-
-  @override
-  String get connectionNoticesDescription =>
-      'Show offline and back-online notices';
-
-  @override
   String get connectionOk => 'Connection OK';
 
   @override
@@ -1385,14 +1195,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get continueLabel => 'Continue';
-
-  @override
-  String get continueThroughTheSearchResults =>
-      'Continue through the search results';
-
-  @override
-  String get continueThroughYourEntireLibrary =>
-      'Continue through your entire library';
 
   @override
   String conversionFailed(Object error) {
@@ -1443,9 +1245,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cosmicOrchestra => 'Cosmic Orchestra';
 
   @override
-  String get couldNotCheckForUpdates => 'Could Not Check for Updates';
-
-  @override
   String get couldNotConnectToLastFm =>
       'Could not connect to Last.fm. Check your API credentials and try again.';
 
@@ -1479,9 +1278,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not open Ko-fi. Please try again.';
 
   @override
-  String get couldNotOpenLink => 'Could not open link';
-
-  @override
   String couldNotOpenLink2(Object e) {
     return 'Could not open link: $e';
   }
@@ -1491,23 +1287,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not open that photo. Try another image.';
 
   @override
-  String get couldNotOpenTheLink => 'Could not open the link';
-
-  @override
-  String couldNotOpenTheLink2(Object e) {
-    return 'Could not open the link: $e';
-  }
-
-  @override
   String get couldNotOpenThePlayStore => 'Could not open the Play Store.';
 
   @override
   String couldNotOpenThePlayStore2(Object error) {
     return 'Could not open the Play Store: $error';
   }
-
-  @override
-  String get couldNotOpenThePlayStore3 => 'Could not open the Play Store';
 
   @override
   String get couldNotReadTheCoverColors =>
@@ -1607,30 +1392,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get credentialsSavedSuccessfully => 'Credentials saved successfully!';
 
   @override
-  String get crispestHeavierDuringFastScrolling =>
-      'Crispest — heavier during fast scrolling';
-
-  @override
-  String get crossfade => 'Crossfade';
-
-  @override
-  String get crossfadeIsMostReliableOnThe =>
-      'Crossfade is most reliable on the Standard engine. On the high-quality (Rust) engine it can be unstable — switch to Standard for consistent crossfades.';
-
-  @override
-  String get crossfeed => 'Crossfeed';
-
-  @override
-  String get crossfeedBs2b => 'Crossfeed (BS2B)';
-
-  @override
-  String get crossfeedEasy => 'Crossfeed easy';
-
-  @override
-  String get crossfeedRunsOnTheHighQuality =>
-      'Crossfeed runs on the high-quality (Rust) engine only. The Standard engine plays without it.';
-
-  @override
   String get crystalCaverns => 'Crystal Caverns';
 
   @override
@@ -1660,20 +1421,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get currentStreak => 'Current Streak';
-
-  @override
-  String get curvature => 'Curvature';
-
-  @override
-  String get curvatureSizingDepthAndVisuals =>
-      'Curvature, sizing, depth, and visuals';
-
-  @override
-  String get curve => 'Curve';
-
-  @override
-  String get curveOfTheOrbitArcHigher =>
-      'Curve of the orbit arc — higher is gentler';
 
   @override
   String get curvePreview => 'Curve Preview';
@@ -1708,16 +1455,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get customizeBottomBar => 'Customize Bottom Bar';
-
-  @override
-  String get customizeHomeScreenWidgets => 'Customize home screen widgets';
-
-  @override
-  String get customizeOrbital => 'Customize Orbital';
-
-  @override
-  String get customizeWhichTabsAppearAndTheir =>
-      'Customize which tabs appear and their size';
 
   @override
   String dAgo(Object arg1) {
@@ -1865,9 +1602,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Default Android player — plays everything reliably. The safest choice for most listeners.';
 
   @override
-  String get defaultLabel => 'Default';
-
-  @override
   String get del => 'Del';
 
   @override
@@ -1929,16 +1663,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get depth => 'Depth';
-
-  @override
   String get deselectAll => 'Deselect all';
 
   @override
   String get designed => 'Designed';
-
-  @override
-  String get detailScreens => 'Detail Screens';
 
   @override
   String get details => 'Details';
@@ -2008,9 +1736,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get disabled => 'Disabled';
 
   @override
-  String get disabledInBitPerfectMode => 'Disabled in bit-perfect mode';
-
-  @override
   String get disabledInBitPerfectUsbDac =>
       'Disabled in Bit-perfect (USB DAC) mode (exact rate required)';
 
@@ -2037,10 +1762,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get disconnect => 'Disconnect';
 
   @override
-  String get disconnectBehaviorAndCodecInfo =>
-      'Disconnect behavior and codec info';
-
-  @override
   String disconnectFrom(Object arg1) {
     return 'Disconnect from $arg1';
   }
@@ -2052,17 +1773,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get disconnectListenbrainz => 'Disconnect ListenBrainz?';
 
   @override
-  String get discord => 'Discord';
-
-  @override
   String get discoversDlnaUpnpAndChromecastReceivers =>
       'Discovers DLNA, UPnP and Chromecast receivers on your network';
 
   @override
   String get dismiss => 'Dismiss';
-
-  @override
-  String get display => 'Display';
 
   @override
   String get displayFileFormatAndBitrateIn =>
@@ -2071,9 +1786,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get displayFileFormatAndBitrateIn2 =>
       'Display file format and bitrate in artwork card mode';
-
-  @override
-  String get displayTextLabelsBelowIcons => 'Display text labels below icons';
 
   @override
   String get displayTheAlbumNameInArtwork =>
@@ -2096,10 +1808,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Display the track title in immersive mode';
 
   @override
-  String get distanceBetweenSongsAlongTheArc =>
-      'Distance between songs along the arc';
-
-  @override
   String get dlnaAndUpnpReceiversAreControlled =>
       'DLNA and UPnP receivers are controlled directly in pure Dart — no extra dependencies. Chromecast support uses the native Cast SDK. Network sources (Subsonic, WebDAV, Jellyfin, UPnP), local files, and cached songs can all be cast — locals are served straight from this phone. While casting, volume keys and the system volume panel control the connected device.';
 
@@ -2107,18 +1815,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dlnaUpnp => 'DLNA / UPnP';
 
   @override
-  String get dlnaUpnpAndChromecastReceivers =>
-      'DLNA, UPnP and Chromecast receivers';
-
-  @override
   String get donTShowAgainToday => 'Don\'t show again today';
-
-  @override
-  String get donate => 'Donate';
-
-  @override
-  String get donateFundFeaturesAndKeepThe =>
-      'Donate, fund features, and keep the app alive';
 
   @override
   String get done => 'Done';
@@ -2142,13 +1839,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String down(Object arg1) {
     return '$arg1 down';
   }
-
-  @override
-  String get downloadTheLatestApkFromFlick =>
-      'Download the latest APK from flick-player.site';
-
-  @override
-  String get downloadUpdate => 'Download Update';
 
   @override
   String dp(Object arg1) {
@@ -2182,16 +1872,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dragVerticallyToChangeGain => 'Drag vertically to change gain';
 
   @override
-  String get drawTheCurvedArcBehindThe =>
-      'Draw the curved arc behind the songs';
-
-  @override
   String driftMs(Object arg1) {
     return 'Drift $arg1 ms';
   }
-
-  @override
-  String get dsdDsfPlayback => 'DSD / DSF Playback';
 
   @override
   String get dsdMode => 'DSD mode';
@@ -2201,9 +1884,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dsdStream => 'DSD stream';
-
-  @override
-  String get duckOnNotifications => 'Duck on Notifications';
 
   @override
   String get duplicateCleaner => 'Duplicate Cleaner';
@@ -2269,18 +1949,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enable432HzTuning => 'Enable 432 Hz Tuning?';
 
   @override
-  String get enableAnimatedTransitionsAndEffects =>
-      'Enable animated transitions and effects';
-
-  @override
   String get enableEqToEdit => 'Enable EQ to edit';
 
   @override
   String get enableFullLibraryAccess => 'Enable Full Library Access';
-
-  @override
-  String get enableVibrationOnInteractions =>
-      'Enable vibration on interactions';
 
   @override
   String get enabled => 'Enabled';
@@ -2290,12 +1962,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get engine => 'Engine';
-
-  @override
-  String get engineSelector => 'Engine Selector';
-
-  @override
-  String get english => 'English';
 
   @override
   String enterAValidNumber(Object label) {
@@ -2323,9 +1989,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get eqDynamics => 'EQ & Dynamics';
-
-  @override
-  String get equalPower => 'Equal Power';
 
   @override
   String get equalizer => 'Equalizer';
@@ -2404,9 +2067,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get expanded => 'Expanded';
 
   @override
-  String get expandedHeaderArt => 'Expanded Header Art';
-
-  @override
   String get experimental => 'Experimental';
 
   @override
@@ -2453,9 +2113,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String exportedSongsTo(Object arg1, Object arg2) {
     return 'Exported $arg1 songs to \"$arg2\".';
   }
-
-  @override
-  String get extendedVolume => 'Extended Volume';
 
   @override
   String get externalLabel => 'External';
@@ -2551,13 +2208,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Fast direct tracking — immediate response';
 
   @override
-  String get fastIndexScrolling => 'Fast Index Scrolling';
-
-  @override
   String get favoriteAll => 'Favorite all';
-
-  @override
-  String get favoriteRemoval => 'Favorite Removal';
 
   @override
   String get favoriteSongs => 'Favorite Songs';
@@ -2574,13 +2225,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get feedback => 'Feedback';
-
-  @override
-  String get fetchLyricsAutomatically => 'Fetch Lyrics Automatically';
-
-  @override
-  String get fetchLyricsAutomaticallyDescription =>
-      'Off: songs only show the lyrics they carry themselves (in their tags or a .lrc next to them). Searching online from the lyrics view still works.';
 
   @override
   String get file => 'File';
@@ -2640,9 +2284,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Find songs, artists, albums, folders…';
 
   @override
-  String get fineTuneTheOverallGain => 'Fine-tune the overall gain';
-
-  @override
   String get finishingMetadataEnrichment => 'Finishing metadata enrichment…';
 
   @override
@@ -2683,9 +2324,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flatResponse => 'Flat response';
 
   @override
-  String get flick => 'Flick';
-
-  @override
   String get flickCanAttemptToPreferA =>
       'Flick can attempt to prefer a specific codec above, but success depends on your device, headset, and Android version. Codec forcing uses a hidden system API and may not work on non-rooted devices.';
 
@@ -2694,18 +2332,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Flick can receive playback handoffs from Locker (another Moss app). Playback intents contain only song file paths/metadata. No personal data is exchanged. The integration is entirely local.';
 
   @override
-  String get flickChecksFlickPlayerSiteFor =>
-      'Flick checks flick-player.site for updates whenever you are online';
-
-  @override
-  String get flickIsBuiltAndMaintainedBy =>
-      'Flick is built and maintained by one person with zero budget. No team, no funding, no ads.';
-
-  @override
   String get flickLogs => 'Flick logs';
-
-  @override
-  String get flickPlayer => 'Flick Player';
 
   @override
   String get flickPlayerDoesNotCollectStore =>
@@ -2718,25 +2345,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get flickReplay => 'Flick Replay';
 
   @override
-  String get flickScansForPlayStoreUpdates =>
-      'Flick scans for Play Store updates whenever you are online';
-
-  @override
-  String get flickWillAlwaysBeFreeDonations =>
-      'Flick will always be free. Donations keep the project alive without paywalls or subscriptions.';
-
-  @override
   String get flickWillForceYourChosenCodec =>
       'Flick will force your chosen codec on connect';
 
   @override
   String get flickplayer => 'FlickPlayer';
-
-  @override
-  String get floatingIsland => 'Floating Island';
-
-  @override
-  String get floatingMiniPlayer => 'Floating Mini-Player';
 
   @override
   String get folder => 'Folder';
@@ -2767,10 +2380,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String folders2(Object arg1) {
     return '$arg1 folders';
   }
-
-  @override
-  String get foldersScanningAndDuplicates =>
-      'Folders, scanning, and duplicates';
 
   @override
   String get foldersShownPerPage => 'Folders shown per page';
@@ -2828,9 +2437,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get freeOpenSource => 'Free & Open Source';
-
-  @override
   String get freq => 'Freq';
 
   @override
@@ -2856,9 +2462,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Full-bleed album art with the current cinematic look.';
 
   @override
-  String get fullLibrary => 'Full Library';
-
-  @override
   String get fullLibraryAccess => 'Full Library Access';
 
   @override
@@ -2880,10 +2483,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fullscreen => 'Fullscreen';
 
   @override
-  String get fundingNativeDsdDsfPlaybackDevelopment =>
-      'Funding native DSD/DSF playback development — a highly requested feature for audiophiles.';
-
-  @override
   String get fxOff => 'FX off';
 
   @override
@@ -2899,13 +2498,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gapAboveNavigation => 'Gap Above Navigation';
 
   @override
-  String get gaplessPlayback => 'Gapless Playback';
-
-  @override
-  String get gaplessViewModeAndAppearance =>
-      'Gapless, view mode, and appearance';
-
-  @override
   String gb(Object arg1) {
     return '$arg1 GB';
   }
@@ -2918,20 +2510,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get genre => 'Genre';
 
   @override
-  String get geometry => 'Geometry';
-
-  @override
   String get getStarted => 'Get Started';
 
   @override
-  String get getTheLatestApkFromFlick =>
-      'Get the latest APK from flick-player.site';
-
-  @override
   String get getYourApiCredentials => 'Get your API credentials';
-
-  @override
-  String get github => 'GitHub';
 
   @override
   String get goToAlbum => 'Go to Album';
@@ -2994,9 +2576,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get hapticFeedback => 'Haptic Feedback';
-
-  @override
   String get hardwareUsbDac => 'Hardware (USB DAC)';
 
   @override
@@ -3007,33 +2586,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hasArtwork => 'Has artwork';
 
   @override
-  String get havingMoreThan4ButtonsMay =>
-      'Having more than 4 buttons may cause text labels to compress. Consider reducing the button spacing below.';
-
-  @override
   String get heavyRotation => 'Heavy Rotation';
 
   @override
   String get held => 'Held';
 
   @override
-  String get help => 'Help';
-
-  @override
-  String get helpManual => 'Help & Manual';
-
-  @override
   String get hiResDirect => 'Hi-Res Direct';
 
   @override
-  String get hidden => 'Hidden';
-
-  @override
   String get hideLyrics => 'Hide lyrics';
-
-  @override
-  String get hideNavigationButtonsAfterBeingIdle =>
-      'Hide navigation buttons after being idle';
 
   @override
   String get hidePassword => 'Hide password';
@@ -3043,24 +2605,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Hide short stingers, ringtones, and voice fragments';
 
   @override
-  String get hideTheFloatingMiniPlayerPill =>
-      'Hide the floating mini-player pill';
-
-  @override
-  String get hideTheIndexRailAfterInactivity =>
-      'Hide the index rail after inactivity';
-
-  @override
   String get hideVisualizer => 'Hide visualizer';
 
   @override
   String get hideVisualizer2 => 'Hide Visualizer';
-
-  @override
-  String get high => 'High';
-
-  @override
-  String get high120hz => 'High (120Hz)';
 
   @override
   String get highFrequenciesOnly => 'High frequencies only';
@@ -3093,15 +2641,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get historyCleared => 'History cleared';
 
   @override
-  String get holdASongToUnfavorite => 'Hold a song to unfavorite';
-
-  @override
-  String get homeScreenSections => 'Home Screen Sections';
-
-  @override
-  String get horizontalReach => 'Horizontal Reach';
-
-  @override
   String hourUnit(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -3111,21 +2650,6 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
-
-  @override
-  String get howFarTheArcOpensFrom =>
-      'How far the arc opens from the left edge';
-
-  @override
-  String get howMuchSideCardsShrinkAway =>
-      'How much side cards shrink away from center';
-
-  @override
-  String get howWeHandleYourData => 'How we handle your data';
-
-  @override
-  String get howWideEachCardSpansAcross =>
-      'How wide each card spans across the screen';
 
   @override
   String get httpBasicNeedsItRecoverableStored =>
@@ -3151,9 +2675,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hzTuning => '432 Hz Tuning';
-
-  @override
-  String get iconSize => 'Icon Size';
 
   @override
   String identified(int count, Object note) {
@@ -3191,9 +2712,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get immersive => 'Immersive';
-
-  @override
-  String get immersiveFullViewTimer => 'Immersive Full View Timer';
 
   @override
   String importFailed(Object e) {
@@ -3275,19 +2793,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get instrumental => 'Instrumental';
 
   @override
-  String get integrations => 'Integrations';
-
-  @override
   String get interactiveEq => 'Interactive EQ';
 
   @override
-  String get interactiveTutorial => 'Interactive Tutorial';
-
-  @override
   String get interfaceClaimed => 'Interface claimed';
-
-  @override
-  String get interfaceLabel => 'Interface';
 
   @override
   String isOfflineRetainedSongsStillListed(Object folder) {
@@ -3296,9 +2805,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get isochronousUsb => 'Isochronous USB';
-
-  @override
-  String get itemSpacing => 'Item Spacing';
 
   @override
   String items(Object count) {
@@ -3321,10 +2827,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get jumpBackIn => 'Jump Back In';
 
   @override
-  String get jumpToTheFlickListingAnd =>
-      'Jump to the Flick listing and update from there';
-
-  @override
   String get jun => 'Jun';
 
   @override
@@ -3335,9 +2837,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get justNow => 'Just now';
-
-  @override
-  String get karaokeEffect => 'Karaoke effect';
 
   @override
   String get karaokePreview => 'Karaoke Preview';
@@ -3361,18 +2860,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get keepListeningWithFlick => 'Keep listening with Flick';
 
   @override
-  String get keepMiniPlayerAndNavVisible => 'Keep mini player and nav visible';
-
-  @override
   String get keepPlaybackPausedWhenADevice =>
       'Keep playback paused when a device reconnects';
-
-  @override
-  String get keepPlayingOnQuit => 'Keep Playing on Quit';
-
-  @override
-  String get keepRelativeLevelsInsideEachAlbum =>
-      'Keep relative levels inside each album';
 
   @override
   String get keepTheSessionMovingOrHead =>
@@ -3393,10 +2882,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get keepingThisVersion => 'Keeping this version';
-
-  @override
-  String get keepsBitPerfectAudioAliveIn =>
-      'Keeps bit-perfect audio alive in the background';
 
   @override
   String get keepsSoftwareVolumeAndDspActive =>
@@ -3437,23 +2922,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get koFi => 'Ko-fi';
-
-  @override
   String get label => 'Label';
 
   @override
   String get labelOrganization => 'Label / Organization';
-
-  @override
-  String get language => 'Language';
-
-  @override
-  String get languageSectionDescription =>
-      'Choose the language used across the app.';
-
-  @override
-  String get languageSystemDefault => 'System default';
 
   @override
   String get lastFm => 'Last.fm';
@@ -3466,10 +2938,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lastFmConnected2 => 'Last.fm connected!';
-
-  @override
-  String get lastFmListenbrainzScrobbling =>
-      'Last.fm & ListenBrainz scrobbling';
 
   @override
   String get lastFmScrobbling => 'Last.fm Scrobbling';
@@ -3491,17 +2959,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Latest arrivals from your library';
 
   @override
-  String get latestUpdate => 'Latest Update';
-
-  @override
   String get layered => 'Layered';
 
   @override
   String get layoutMode => 'Layout Mode';
-
-  @override
-  String get layoutModeSizingAndQuickActions =>
-      'Layout mode, sizing, and quick actions';
 
   @override
   String get ldac330Kbps => 'LDAC 330 kbps';
@@ -3531,9 +2992,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Leave empty to keep the current credentials';
 
   @override
-  String get left => 'Left';
-
-  @override
   String get leftBottom => 'Left (bottom)';
 
   @override
@@ -3547,9 +3005,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get length => 'Length:';
-
-  @override
-  String get lengthOfTheOverlap => 'Length of the overlap';
 
   @override
   String lengthS(Object arg1) {
@@ -3577,27 +3032,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Let\'s take a quick tour of your new music player.';
 
   @override
-  String get letTheSystemDecideBestBattery =>
-      'Let the system decide — best battery life';
-
-  @override
   String get letsFlickScanYourEntireLibrary =>
       'Lets Flick scan your entire library directly, including DSD/DSF/WavPack files some devices hide from the system media index';
-
-  @override
-  String get level => 'Level';
 
   @override
   String get libraryEmptied => 'Library emptied';
 
   @override
-  String get libraryGlanceCard => 'Library Glance Card';
-
-  @override
   String get libraryLabel => 'Library';
-
-  @override
-  String get licenses => 'Licenses';
 
   @override
   String get light => 'Light';
@@ -3616,10 +3058,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get limit => 'Limit';
-
-  @override
-  String get limitPositiveGainSoTheLevel =>
-      'Limit positive gain so the level never exceeds full scale';
 
   @override
   String get limiter => 'Limiter';
@@ -3647,9 +3085,6 @@ class AppLocalizationsEn extends AppLocalizations {
   ) {
     return 'Line $arg1 of $arg2  ·  $captured/$segmentCount words';
   }
-
-  @override
-  String get linear => 'Linear';
 
   @override
   String get lines => 'Lines';
@@ -3731,9 +3166,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Loading favorites, recent sessions, generated mixes, and playlists.';
 
   @override
-  String get loadingPatchNotes => 'Loading patch notes...';
-
-  @override
   String get loadingReplay => 'Loading Replay';
 
   @override
@@ -3755,9 +3187,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logsCopied => 'Logs copied';
 
   @override
-  String get longPress => 'Long Press';
-
-  @override
   String get longSongTitles => 'Long Song Titles';
 
   @override
@@ -3768,22 +3197,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Looking for cover art from MusicBrainz and Cover Art Archive.';
 
   @override
-  String get lookingForTheLatestFlickRelease =>
-      'Looking for the latest Flick release right now';
-
-  @override
-  String get lookingForTheLatestPlayStore =>
-      'Looking for the latest Play Store update right now';
-
-  @override
   String get lossless => ' Lossless';
 
   @override
   String get losslessQualityPreservedDuringConversion =>
       'Lossless quality preserved during conversion';
-
-  @override
-  String get low => 'Low';
 
   @override
   String get lowAndHighFrequenciesScoopedMids =>
@@ -3818,9 +3236,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lyricsSavedFromLrclib => 'Lyrics saved from LRCLib.';
-
-  @override
-  String get lyricsSavingBehavior => 'Lyrics saving behavior';
 
   @override
   String get lyricsSyncHelp => 'Lyrics Sync Help';
@@ -3871,9 +3286,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get masterBypassed => 'Master bypassed';
 
   @override
-  String get matchAudioFilename => 'Match Audio Filename';
-
-  @override
   String matchByArtistAlbumAndTrack(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -3902,26 +3314,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get maximumAudioQuality => 'Maximum audio quality';
 
   @override
-  String get maximumSmoothnessUsesMoreBattery =>
-      'Maximum smoothness — uses more battery';
-
-  @override
   String get may => 'May';
 
   @override
   String get may42026 => 'May 4, 2026';
 
   @override
-  String get mayStopInTheBackgroundOn =>
-      'May stop in the background on some devices';
-
-  @override
   String mb(Object arg1) {
     return '$arg1 MB';
   }
-
-  @override
-  String get media => 'Media';
 
   @override
   String get medium => 'Medium';
@@ -4057,9 +3458,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moreFromArtist => 'More from artist';
 
   @override
-  String get moreFromArtist2 => 'More from Artist';
-
-  @override
   String moreTo(Object arg1, Object arg2) {
     return '$arg1 more to $arg2';
   }
@@ -4083,17 +3481,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String mostReplayed(Object arg1) {
     return 'Most replayed · $arg1';
   }
-
-  @override
-  String get motionArtInBitPerfect => 'Motion Art in Bit-Perfect';
-
-  @override
-  String get motionArtIsReplacedWhileBit =>
-      'Motion art is replaced while bit-perfect output is active';
-
-  @override
-  String get motionArtPlaysDuringBitPerfect =>
-      'Motion art plays during bit-perfect audio (may interrupt playback on some DAPs)';
 
   @override
   String get motionArtRefreshed => 'Motion art refreshed';
@@ -4183,13 +3570,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navidromeAirsonicGonic => 'Navidrome · Airsonic · Gonic';
 
   @override
-  String get navigationAppearance => 'Navigation Appearance';
-
-  @override
   String get navigationBar => 'Navigation Bar';
-
-  @override
-  String get navigationDefaultsRestored => 'Navigation defaults restored';
 
   @override
   String get needsMetadata => 'Needs metadata';
@@ -4339,16 +3720,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noNewAdditionsYet => 'No New Additions Yet';
 
   @override
-  String get noNewUpdateFound => 'No new update found.';
-
-  @override
   String get noOnlineArtworkFound => 'No online artwork found';
 
   @override
   String get noOutputDevicesAvailable => 'No output devices available.';
-
-  @override
-  String get noPatchNotesAvailableYet => 'No patch notes available yet.';
 
   @override
   String get noPlaybackYet => 'No playback yet';
@@ -4401,9 +3776,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noUpcomingQueueItemsYet => 'No upcoming queue items yet.';
 
   @override
-  String get noUpdateAvailable => 'No Update Available';
-
-  @override
   String get noUrbData => 'No URB data';
 
   @override
@@ -4417,15 +3789,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get none => 'None';
 
   @override
-  String get normalizeEachTrackToMatchLoudness =>
-      'Normalize each track to match loudness';
-
-  @override
   String get notAnAlacFile => 'Not an ALAC file';
-
-  @override
-  String get notAvailableInBitPerfectMode =>
-      'Not available in bit-perfect mode';
 
   @override
   String get notFoundOnlineTryADifferent =>
@@ -4497,9 +3861,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Off crops to fill the square; on stretches the artwork edge-to-edge';
 
   @override
-  String get offline => 'Offline';
-
-  @override
   String get onAndroidTheStandardJustAudio =>
       'On Android, the standard just_audio playback path now applies native counterparts for EQ, dynamics, balance, and spatial FX on supported devices. The Rust engine still delivers the most exact version of these controls, so some Android results are approximate.';
 
@@ -4527,16 +3888,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openBluetoothCodecSettings => 'Open Bluetooth Codec Settings';
 
   @override
-  String get openFullNotes => 'Open Full Notes';
-
-  @override
   String get openInAppleMusic => 'Open in Apple Music';
 
   @override
   String get openInBrowser => 'Open in browser';
-
-  @override
-  String get openInPlayStore => 'Open in Play Store';
 
   @override
   String get openLibrary => 'Open Library';
@@ -4549,16 +3904,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get openPlayer => 'Open Player';
-
-  @override
-  String get openReleaseNotes => 'Open Release Notes';
-
-  @override
-  String get openSourceLicenses => 'Open source licenses';
-
-  @override
-  String get openThePlayStoreToInstall =>
-      'Open the Play Store to install the latest Flick build';
 
   @override
   String get openedFromLocker => 'Opened from Locker';
@@ -4575,9 +3920,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orbital => 'Orbital';
-
-  @override
-  String get orbitalSettingsReset => 'Orbital settings reset';
 
   @override
   String get otherPlaylists => 'Other Playlists';
@@ -4600,14 +3942,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get outputRate => 'Output rate';
-
-  @override
-  String get overlapTheEndOfATrack =>
-      'Overlap the end of a track with the next';
-
-  @override
-  String get overlayPermissionIsRequiredToShow =>
-      'Overlay permission is required to show the floating player';
 
   @override
   String get overviewMetricsChooseUpTo3 => 'Overview metrics · choose up to 3';
@@ -4638,9 +3972,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pasteYourListenbrainzToken => 'Paste your ListenBrainz token';
-
-  @override
-  String get patchNotes => 'Patch Notes';
 
   @override
   String get pause => 'Pause';
@@ -4719,9 +4050,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pixelatedLightestOnMemory => 'Pixelated — lightest on memory';
-
-  @override
   String get plain => 'Plain';
 
   @override
@@ -4739,14 +4067,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Play a few tracks today to build your daily recap.';
 
   @override
-  String get playARandomLibrarySongWhen =>
-      'Play a random library song when the queue ends';
-
-  @override
   String get playAgain => 'Play Again';
-
-  @override
-  String get playAtTheRecordedLevel => 'Play at the recorded level';
 
   @override
   String get playBadges => 'Play badges';
@@ -4764,9 +4085,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get playStoreUpdatesUseGooglePlay =>
       'Play Store updates use Google Play In-App Update API (governed by Google\'s privacy policies). Patch notes are fetched from GitHub Releases API without sending personal data.';
-
-  @override
-  String get playback => 'Playback';
 
   @override
   String get playbackCacheLimit => 'Playback Cache Limit';
@@ -4794,13 +4112,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get playbackContinuesWhenAudioOutput =>
       'Playback continues when audio output disconnects';
-
-  @override
-  String get playbackContinuesWhenTheAppIs =>
-      'Playback continues when the app is swiped away';
-
-  @override
-  String get playbackDisplay => 'Playback & Display';
 
   @override
   String get playbackEngine => 'Playback Engine';
@@ -4837,19 +4148,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Playback pauses when Bluetooth or headphones disconnect';
 
   @override
-  String get playbackPausesWhileNotificationSoundsPlay =>
-      'Playback pauses while notification sounds play';
-
-  @override
   String get playbackResumesWhenADeviceReconnects =>
       'Playback resumes when a device reconnects within 30 seconds';
 
   @override
   String get playbackSpeed => 'Playback Speed';
-
-  @override
-  String get playbackStopsWhenTheAppIs =>
-      'Playback stops when the app is swiped away';
 
   @override
   String played(int count) {
@@ -4922,9 +4225,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get preAmp => 'Pre-amp';
-
-  @override
   String get preamp => 'Preamp';
 
   @override
@@ -4969,9 +4269,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get presets => 'Presets';
 
   @override
-  String get preventClipping => 'Prevent Clipping';
-
-  @override
   String get preview => 'Preview';
 
   @override
@@ -5003,9 +4300,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get progress => 'Progress';
-
-  @override
-  String get progressBar => 'Progress Bar';
 
   @override
   String get protocol => 'Protocol';
@@ -5042,9 +4336,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String queuedSongs3(Object arg1) {
     return 'Queued $arg1 songs';
   }
-
-  @override
-  String get quickAccess => 'Quick Access';
 
   @override
   String get quickActions => 'Quick Actions';
@@ -5128,14 +4419,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reconnectNow => 'Reconnect Now';
 
   @override
-  String get reconnectToTheInternetToScan =>
-      'Reconnect to the internet to scan for updates';
-
-  @override
-  String get reconnectToWiFiOrMobile =>
-      'Reconnect to Wi-Fi or mobile data so Flick can scan again';
-
-  @override
   String get reconnectionFailed => 'Reconnection failed';
 
   @override
@@ -5158,9 +4441,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get refreshOutputs => 'Refresh outputs';
-
-  @override
-  String get refreshRate => 'Refresh Rate';
 
   @override
   String get refreshingAppleMusicData => 'Refreshing Apple Music data';
@@ -5334,13 +4614,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get replayStudio => 'Replay Studio';
 
   @override
-  String get replayTheTutorialAndFeatureGuide =>
-      'Replay the tutorial and feature guide';
-
-  @override
-  String get replaygain => 'ReplayGain';
-
-  @override
   String get replaygainScan => 'ReplayGain Scan';
 
   @override
@@ -5395,9 +4668,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetMiniPlayerToDefaults => 'Reset Mini Player to Defaults';
 
   @override
-  String get resetNavigationToDefaults => 'Reset Navigation to Defaults';
-
-  @override
   String get resetPreferences => 'Reset Preferences';
 
   @override
@@ -5408,9 +4678,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resetTo0Db => 'Reset to 0 dB';
-
-  @override
-  String get resetToDefaults => 'Reset to Defaults';
 
   @override
   String get resolution => 'Resolution';
@@ -5436,10 +4703,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get restartingFlick => 'Restarting Flick';
 
   @override
-  String get restoreTheOriginalOrbitalLayout =>
-      'Restore the original orbital layout';
-
-  @override
   String results(Object arg1) {
     return 'Results ($arg1)';
   }
@@ -5462,9 +4725,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewBeforeYouClean => 'Review before you clean';
-
-  @override
-  String get right => 'Right';
 
   @override
   String get rightBottom => 'Right (bottom)';
@@ -5503,14 +4763,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Routes Bluetooth through the Rust engine';
 
   @override
-  String get runAnotherPlayStoreUpdateScan =>
-      'Run another Play Store update scan right now';
-
-  @override
-  String get runAnotherUpdateScanRightNow =>
-      'Run another update scan right now';
-
-  @override
   String get rustViaOboe => 'Rust via Oboe';
 
   @override
@@ -5522,17 +4774,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String s2(Object arg1) {
-    return '$arg1 s';
-  }
-
-  @override
   String sAgo(Object arg1) {
     return '${arg1}s ago';
   }
-
-  @override
-  String get sCurve => 'S-Curve';
 
   @override
   String get sambaWindowsShareTransportPending => 'Samba · Windows share';
@@ -5654,13 +4898,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saving => 'Saving...';
 
   @override
-  String get saving2 => 'Saving';
-
-  @override
-  String get scaleOfTheCenteredFocusedSong =>
-      'Scale of the centered, focused song card';
-
-  @override
   String get scaleTheAlbumArtCard => 'Scale the album art card';
 
   @override
@@ -5711,10 +4948,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get scrollingPausesWhenReducedMotionIs =>
       'Scrolling pauses when reduced motion is enabled';
-
-  @override
-  String get seamlessTransitionBetweenTracks =>
-      'Seamless transition between tracks';
 
   @override
   String get search => 'Search';
@@ -5768,12 +5001,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchOnlineLyrics => 'Search Online Lyrics';
 
   @override
-  String get searchPlayback => 'Search Playback';
-
-  @override
-  String get searchResults => 'Search Results';
-
-  @override
   String get searchSongsArtists => 'Search songs, artists...';
 
   @override
@@ -5795,19 +5022,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchingTheLocalNetwork => 'Searching the local network…';
 
   @override
-  String get secondsOfInactivityBeforeCollapsing =>
-      'Seconds of inactivity before collapsing';
-
-  @override
   String get seeAll => 'See all';
 
   @override
   String seeAll2(Object count) {
     return 'See all $count';
   }
-
-  @override
-  String get seeWhatIsNewInThis => 'See what is new in this update';
 
   @override
   String get select => 'Select';
@@ -5846,9 +5066,6 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$selected selected of $_temp0';
   }
-
-  @override
-  String get selectedSize => 'Selected Size';
 
   @override
   String get sep => 'Sep';
@@ -5901,9 +5118,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sharedSecret => 'Shared Secret';
 
   @override
-  String get sharpRecommended => 'Sharp (recommended)';
-
-  @override
   String get shiftMetadataTextUpOrDown => 'Shift metadata text up or down';
 
   @override
@@ -5912,10 +5126,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get shiftOnlyTheSongDetailsUp =>
       'Shift only the song details up or down';
-
-  @override
-  String get showASystemOverlayMiniPlayer =>
-      'Show a system overlay mini-player over other apps';
 
   @override
   String get showAThinPlaybackProgressLine =>
@@ -5956,12 +5166,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showFrame2 => 'Show Frame';
 
   @override
-  String get showGlow => 'Show Glow';
-
-  @override
-  String get showLabels => 'Show Labels';
-
-  @override
   String get showLess => 'Show less';
 
   @override
@@ -5971,17 +5175,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showMore => 'Show more';
 
   @override
-  String get showMoreArtByFadingOnly =>
-      'Show more art by fading only the bottom of the header and lowering body content';
-
-  @override
-  String get showOrHideHomeScreenSections =>
-      'Show or hide home screen sections';
-
-  @override
-  String get showOrbitPath => 'Show Orbit Path';
-
-  @override
   String get showOtherArtistsOnAlbumPages =>
       'Show other artists on album pages';
 
@@ -5989,52 +5182,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showPassword => 'Show password';
 
   @override
-  String get showPlaylistPreviewsOnTheHome =>
-      'Show playlist previews on the home screen';
-
-  @override
-  String get showRecentlyPlayedArtistsOnThe =>
-      'Show recently played artists on the home screen';
-
-  @override
   String get showRelatedAlbumsOnAlbumPages =>
       'Show related albums on album pages';
-
-  @override
-  String get showSmartMixesGeneratedFromYour =>
-      'Show smart mixes generated from your listening habits';
 
   @override
   String get showTheArtistBelowTheSong =>
       'Show the artist below the song title';
 
   @override
-  String get showTheAtAGlanceSummary =>
-      'Show the \"at a glance\" summary on Artists/Albums';
-
-  @override
-  String get showTheAudioEnginePickerCard =>
-      'Show the audio engine picker card on the home screen';
-
-  @override
   String get showTheAudioVisualizerOffSaves =>
       'Show the audio visualizer (off saves battery)';
 
   @override
-  String get showTheBrowseChipsForLibrary =>
-      'Show the browse chips for library sections on the home screen';
-
-  @override
-  String get showTheFloatingMiniPlayerPill =>
-      'Show the floating mini-player pill on screens';
-
-  @override
   String get showTheGlassFrameAroundAlbum =>
       'Show the glass frame around album art';
-
-  @override
-  String get showTheGridOfShortcutCards =>
-      'Show the grid of shortcut cards on the home screen';
 
   @override
   String get showTheMiniPlayerAsIts =>
@@ -6044,20 +5205,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showTheNumberOverBlurredArt => 'Show the number over blurred art.';
 
   @override
-  String showTheTabInTheBottom(Object arg1) {
-    return 'Show the $arg1 tab in the bottom bar';
-  }
-
-  @override
   String get showTheTrackNumber => 'Show the track number.';
-
-  @override
-  String get showTheUsbVolumeBarOn =>
-      'Show the USB volume bar on the home screen';
-
-  @override
-  String get showTheUsbVolumeBarOn2 =>
-      'Show the USB volume bar on the UAC2 settings screen';
 
   @override
   String get showTitle => 'Show title';
@@ -6071,10 +5219,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showVisualizer => 'Show visualizer';
-
-  @override
-  String get showYourRecentListeningHistoryOn =>
-      'Show your recent listening history on the home screen';
 
   @override
   String showingAllAlbums(Object totalCount) {
@@ -6283,16 +5427,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simpleMode => 'Simple mode';
 
   @override
-  String get simplifiedChinese => 'Simplified Chinese';
-
-  @override
   String get single => 'Single';
 
   @override
   String get size => 'Size';
-
-  @override
-  String get sizing => 'Sizing';
 
   @override
   String get skip => 'Skip';
@@ -6339,20 +5477,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get snappy => 'Snappy';
 
   @override
-  String get softDetailBalanced => 'Soft detail, balanced';
-
-  @override
-  String get softHighlightBehindTheSelectedSong =>
-      'Soft highlight behind the selected song';
-
-  @override
   String get softwareAppControlled => 'Software (App-controlled)';
 
   @override
   String get solid => 'Solid';
-
-  @override
-  String get soloDeveloper => 'Solo Developer';
 
   @override
   String get someOnlineFeaturesMayNotWork =>
@@ -6417,12 +5545,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get songViewList => 'Song View: List';
-
-  @override
-  String get songViewOrbital => 'Song View: Orbital';
-
-  @override
   String songs(Object arg1, Object arg2) {
     return '$arg1 • $arg2 songs';
   }
@@ -6479,10 +5601,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String songsAlbums2(Object arg1, Object albumCount) {
     return '$arg1 songs · $albumCount albums';
   }
-
-  @override
-  String get songsBeforeTheTappedTrackQueue =>
-      'Songs before the tapped track queue at the end';
 
   @override
   String get songsCategories => 'Songs & Categories';
@@ -6578,9 +5696,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Spring physics — energetic and reactive';
 
   @override
-  String get squareRoot => 'Square Root';
-
-  @override
   String get stampNext => 'Stamp & Next';
 
   @override
@@ -6592,9 +5707,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get standard => 'Standard';
-
-  @override
-  String get standard60hz => 'Standard (60Hz)';
 
   @override
   String get standardBluetoothRoutingViaAndroid =>
@@ -6632,17 +5744,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get status => 'Status';
 
   @override
-  String get stepByStepWalkthroughOfThe =>
-      'Step-by-step walkthrough of the app';
-
-  @override
   String get stereo => 'Stereo';
 
   @override
   String get stop => 'Stop';
-
-  @override
-  String get stopAtTheEndOfThe => 'Stop at the end of the current list';
 
   @override
   String get stopCasting => 'Stop Casting';
@@ -6652,9 +5757,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stopUsbOnQuit => 'Stop USB on Quit';
-
-  @override
-  String get stopWhenTheQueueEnds => 'Stop when the queue ends';
 
   @override
   String stoppingIn(Object arg1) {
@@ -6736,21 +5838,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subsonic => 'Subsonic';
 
   @override
-  String get subsonicServersSyncAndStreaming =>
-      'Subsonic servers, sync, and streaming';
-
-  @override
   String get subtle => 'Subtle';
-
-  @override
-  String get support => 'Support';
-
-  @override
-  String get supportDevelopmentOnBuyMeACoffee =>
-      'Support development on Buy Me a Coffee';
-
-  @override
-  String get supportDevelopmentOnKoFi => 'Support development on Ko-fi';
 
   @override
   String get supportFlick => 'Support Flick';
@@ -6762,28 +5850,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get surfaceShading => 'Surface shading';
 
   @override
-  String get sweepAHighlightThroughWordsAs =>
-      'Sweep a highlight through words as they are sung';
-
-  @override
-  String get swipe => 'Swipe';
-
-  @override
-  String get swipeActions => 'Swipe Actions';
-
-  @override
   String get swipeHorizontallyToFineTuneEach =>
       'Swipe horizontally to fine-tune each center band.';
 
   @override
   String get swipeLeftRightToSkipTracks => 'Swipe left/right to skip tracks';
-
-  @override
-  String get swipeLeftToUnfavoriteASong => 'Swipe left to unfavorite a song';
-
-  @override
-  String get swipeSongsLeftToQueueOr =>
-      'Swipe songs left to queue or right to favorite';
 
   @override
   String get swipeToShowOrHideThe => 'Swipe to show or hide the visualizer';
@@ -6845,9 +5916,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get synthwaveCity => 'Synthwave City';
-
-  @override
-  String get system => 'System';
 
   @override
   String get systemAndroidMixer => 'System (Android mixer)';
@@ -7111,9 +6179,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trackSampleRate => 'Track Sample Rate';
 
   @override
-  String get trackThumbnails => 'Track Thumbnails';
-
-  @override
   String get trackTime => 'Track time';
 
   @override
@@ -7209,12 +6274,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Try picking a local image if the release metadata is uncommon.';
 
   @override
-  String get turnOff432HzTuningTo => 'Turn off 432 Hz tuning to use crossfade';
-
-  @override
-  String get turnOff432HzTuningTo2 => 'Turn off 432 Hz tuning to use crossfeed';
-
-  @override
   String get typeABrandAndModelTo => 'Type a brand and model to search online.';
 
   @override
@@ -7247,9 +6306,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'U8 — byte-interleaved, recommended default';
 
   @override
-  String get uac2AndEqualizer => 'UAC2 and equalizer';
-
-  @override
   String get uac2IsNotAvailableOnThis =>
       'UAC2 is not available on this platform';
 
@@ -7265,18 +6321,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'UAC2 preferences reset successfully';
 
   @override
-  String get uiCustomization => 'UI Customization';
-
-  @override
-  String get ultra => 'Ultra';
-
-  @override
   String get unableToCheckForUpdatesRight =>
       'Unable to check for updates right now.';
-
-  @override
-  String get unableToLoadPatchNotesRight =>
-      'Unable to load patch notes right now.';
 
   @override
   String get unableToOpenAllFilesAccess =>
@@ -7380,14 +6426,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateAvailable => 'Update Available';
 
   @override
-  String get updateAvailableDownloadFromFlickPlayer =>
-      'Update available — download from flick-player.site';
-
-  @override
-  String get updateAvailableOnThePlayStore =>
-      'Update available on the Play Store.';
-
-  @override
   String get updateNoticeHidden => 'Update notice hidden.';
 
   @override
@@ -7404,12 +6442,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String updatedAlbumArtFor2(Object arg1) {
     return 'Updated album art for \"$arg1\".';
   }
-
-  @override
-  String get updates => 'Updates';
-
-  @override
-  String get updatesAboutAndSupport => 'Updates, about, and support';
 
   @override
   String get upload => 'Upload';
@@ -7460,10 +6492,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'USB DAC auto bit-perfect offers reset.';
 
   @override
-  String get usbDacsHeadphonesAndReferenceGear =>
-      'USB DACs, headphones, and reference gear to test and improve playback quality.';
-
-  @override
   String get usbDeviceAccess => 'USB Device Access';
 
   @override
@@ -7477,12 +6505,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get usbVolume => 'USB Volume';
-
-  @override
-  String get usbVolumeInSettings => 'USB Volume in Settings';
-
-  @override
-  String get usbVolumeOnHome => 'USB Volume on Home';
 
   @override
   String get useAFixed48khz16bitOutput =>
@@ -7516,10 +6538,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get useMmSsCcEG => 'Use mm:ss.cc, e.g. 01:23.45';
 
   @override
-  String get useTheCurrentAudioFileS =>
-      'Use the current audio file\'s name when saving lyrics internally';
-
-  @override
   String get useTheDefaultMonochromeTheme =>
       'Use the default monochrome theme.';
 
@@ -7530,12 +6548,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get useTheLegacyOpenslEsBackend =>
       'Use the legacy OpenSL ES backend. Troubleshooting fallback for older or problematic devices.';
-
-  @override
-  String get useTheListSongsBrowser => 'Use the list songs browser';
-
-  @override
-  String get useTheOrbitalSongsBrowser => 'Use the orbital songs browser';
 
   @override
   String get useTheVerifiedDirectUsbPath =>
@@ -7577,11 +6589,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verified => 'Verified';
 
   @override
-  String version(Object kAppVersion) {
-    return 'Version $kAppVersion';
-  }
-
-  @override
   String version2(Object arg1) {
     return 'Version $arg1';
   }
@@ -7595,9 +6602,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Vertical bars that animate across the screen.';
 
   @override
-  String get verticalPosition => 'Vertical Position';
-
-  @override
   String get vibrant => 'Vibrant';
 
   @override
@@ -7608,9 +6612,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get viewMetadata => 'View Metadata';
-
-  @override
-  String get viewOnboarding => 'View Onboarding';
 
   @override
   String get viewQueue => 'View queue';
@@ -7647,17 +6648,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'A spectrum of colors across the visualizer';
 
   @override
-  String get visuals => 'Visuals';
-
-  @override
   String get volume => 'Volume';
 
   @override
   String get volumeControl => 'Volume Control';
-
-  @override
-  String get volumeDipsWhileNotificationSoundsPlay =>
-      'Volume dips while notification sounds play';
 
   @override
   String get volumeIsFixedWhileBitPerfect =>
@@ -7748,13 +6742,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get whereShouldTheLrcFileBe => 'Where should the .lrc file be saved?';
 
   @override
-  String get whereTheFocalSongSitsVertically =>
-      'Where the focal song sits vertically';
-
-  @override
-  String get whereYourMoneyGoes => 'Where Your Money Goes';
-
-  @override
   String get whisperWorld => 'Whisper World';
 
   @override
@@ -7765,9 +6752,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wholeAlbum => 'Whole album';
-
-  @override
-  String get whyDonate => 'Why Donate';
 
   @override
   String wide(Object amount) {
@@ -7814,12 +6798,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get wrapAroundAndQueueBehavior => 'Wrap-around and queue behavior';
-
-  @override
-  String get wrapAroundQueue => 'Wrap-around Queue';
-
-  @override
   String get writeADescription => 'Write a description';
 
   @override
@@ -7850,14 +6828,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yesterday => 'Yesterday';
-
-  @override
-  String get youAlreadyHaveTheLatestFlick =>
-      'You already have the latest Flick release';
-
-  @override
-  String get youAlreadyHaveTheLatestPlay =>
-      'You already have the latest Play Store release';
 
   @override
   String get youCanAlsoChangeTheCodec =>

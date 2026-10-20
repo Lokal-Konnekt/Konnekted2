@@ -1,5 +1,6 @@
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/classipod/classipod_screen.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'konnekted_data.dart';
 import 'konnekted_destination.dart';
 import 'konnekted_style.dart';
+
+/// Settings › Library › Folders, where music folders are added.
+const _folders = KonnektedDestination.settingsAt(
+  LokalSettingsGroup.library,
+  section: 'Folders',
+);
+
+/// Settings › Integrations › Accounts, where Spotify is.
+const _accounts = KonnektedDestination.settingsAt(
+  LokalSettingsGroup.integrations,
+  section: 'Accounts',
+);
 
 class KonnektedLibrary extends ConsumerWidget {
   const KonnektedLibrary({super.key, required this.onNavigate});
@@ -28,7 +41,7 @@ class KonnektedLibrary extends ConsumerWidget {
           eyebrow: 'Collected by you',
           action: IconButton.filledTonal(
             tooltip: 'Add music and manage folders',
-            onPressed: () => onNavigate(KonnektedDestination.librarySettings),
+            onPressed: () => onNavigate(_folders),
             icon: const Icon(Icons.add_rounded),
           ),
         ),
@@ -55,9 +68,7 @@ class KonnektedLibrary extends ConsumerWidget {
                     ? 'Add a music folder'
                     : 'Browse all songs',
                 onAction: () => onNavigate(
-                  songs.isEmpty
-                      ? KonnektedDestination.librarySettings
-                      : KonnektedDestination.songs,
+                  songs.isEmpty ? _folders : KonnektedDestination.songs,
                 ),
               ),
             ),
@@ -87,7 +98,7 @@ class KonnektedLibrary extends ConsumerWidget {
               'Spotify library',
               'Import playlists and sync Liked Songs',
               Icons.circle,
-              KonnektedDestination.spotify,
+              _accounts,
             ),
             KonnektedRouteEntry(
               'Recently played',
@@ -170,7 +181,7 @@ class KonnektedLibrary extends ConsumerWidget {
               'Manage library',
               'Folders, scanning, and metadata',
               Icons.create_new_folder_rounded,
-              KonnektedDestination.librarySettings,
+              KonnektedDestination.settingsAt(LokalSettingsGroup.library),
             ),
           ],
         ),
@@ -207,22 +218,25 @@ class KonnektedSettings extends StatelessWidget {
           onNavigate: onNavigate,
           entries: const [
             KonnektedRouteEntry(
-              'Audio & DSP',
-              'Playback engine and audio processing',
+              'Playback',
+              'ReplayGain, crossfade, queue and casting',
               Icons.tune_rounded,
-              KonnektedDestination.audio,
+              KonnektedDestination.settingsAt(LokalSettingsGroup.playback),
             ),
             KonnektedRouteEntry(
               'Equalizer',
               'EQ presets and headphone correction',
               Icons.equalizer_rounded,
-              KonnektedDestination.equalizer,
+              KonnektedDestination.settingsAt(
+                LokalSettingsGroup.playback,
+                section: 'Equalizer',
+              ),
             ),
             KonnektedRouteEntry(
-              'USB output',
-              'DAC connection and output diagnostics',
+              'Advanced output',
+              'USB DAC, bit-perfect, Bluetooth and volume',
               Icons.usb_rounded,
-              KonnektedDestination.output,
+              KonnektedDestination.settingsAt(LokalSettingsGroup.output),
             ),
             KonnektedRouteEntry(
               'Queue',
@@ -234,7 +248,10 @@ class KonnektedSettings extends StatelessWidget {
               'Lyrics settings',
               'Sources and lyric preferences',
               Icons.lyrics_rounded,
-              KonnektedDestination.lyricsSettings,
+              KonnektedDestination.settingsAt(
+                LokalSettingsGroup.playback,
+                section: 'Lyrics',
+              ),
             ),
           ],
         ),
@@ -246,25 +263,25 @@ class KonnektedSettings extends StatelessWidget {
               'Appearance',
               'Themes, accent, glass, and text size',
               Icons.palette_rounded,
-              KonnektedDestination.appearance,
+              KonnektedDestination.settingsAt(LokalSettingsGroup.appearance),
             ),
             KonnektedRouteEntry(
               'Music library',
               'Manage folders and scan your music',
               Icons.library_music_rounded,
-              KonnektedDestination.librarySettings,
+              KonnektedDestination.settingsAt(LokalSettingsGroup.library),
             ),
             KonnektedRouteEntry(
               'All settings',
-              'Player, network sources, integrations, and more',
+              'Integrations, playback, library, data and more',
               Icons.settings_rounded,
-              KonnektedDestination.allSettings,
+              KonnektedDestination.settings,
             ),
             KonnektedRouteEntry(
               'Spotify library',
               'Connect, import playlists, or sync Liked Songs',
               Icons.circle,
-              KonnektedDestination.spotify,
+              _accounts,
             ),
             KonnektedRouteEntry(
               'Linked playlists',

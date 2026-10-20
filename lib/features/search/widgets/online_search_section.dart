@@ -8,7 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
-import 'package:flick/features/spotiflac/spotiflac_addons_screen.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
 import 'package:flick/features/spotiflac/spotiflac_service.dart';
 import 'package:flick/providers/providers.dart';
 
@@ -124,10 +125,8 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     }
   }
 
-  void _openAddons() => Navigator.of(
-    context,
-    rootNavigator: true,
-  ).push(MaterialPageRoute(builder: (_) => const SpotiflacAddonsScreen()));
+  void _openAddons() =>
+      unawaited(openLokalSettings(context, group: LokalSettingsGroup.addons));
 
   @override
   Widget build(BuildContext context) {

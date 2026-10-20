@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +7,6 @@ import 'package:flick/models/nav_bar_config.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/providers/mini_player_config_provider.dart';
 import 'package:flick/features/settings/widgets/mini_player_customization.dart';
-import 'package:flick/features/settings/screens/bottom_bar_settings_screen.dart';
 import 'package:flick/widgets/common/mini_player_bar.dart';
 import 'package:flick/widgets/common/marquee_widget.dart';
 import 'package:flick/widgets/navigation/bottom_bar_geometry.dart';
@@ -331,105 +328,4 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
-
-  testWidgets('settings reset mini player without resetting navigation', (
-    tester,
-  ) async {
-    SharedPreferences.setMockInitialValues({
-      'nav_bar_size': 1.2,
-      'nav_bar_show_labels': false,
-      'bottom_bar_auto_collapse_enabled': true,
-      'separate_mini_player_from_nav_bar': true,
-      'mini_player_swipe_action': 'switchSongs',
-    });
-    final container = ProviderContainer(
-      overrides: [currentSongProvider.overrideWith((ref) => null)],
-    );
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: _host(const BottomBarSettingsScreen(), width: 320, textScale: 2),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await container
-        .read(miniPlayerConfigProvider.notifier)
-        .update((c) => c.copyWith(height: 88, showNext: true));
-    await tester.pumpAndSettle();
-    expect(find.text('Match navigation'), findsOneWidget);
-    final navigation = container.read(navBarConfigProvider);
-    await tester.ensureVisible(find.text('Reset Mini Player to Defaults'));
-    await tester.tap(find.text('Reset Mini Player to Defaults'));
-    await tester.pumpAndSettle();
-    expect(
-      container.read(miniPlayerConfigProvider).toJson(),
-      MiniPlayerConfig.defaultConfig.toJson(),
-    );
-    final prefs = container.read(appPreferencesProvider);
-    expect(prefs.separateMiniPlayerFromNavBar, isFalse);
-    expect(prefs.miniPlayerSwipeAction, 'visualizer');
-    expect(prefs.bottomBarAutoCollapseEnabled, isTrue);
-    expect(container.read(navBarConfigProvider), same(navigation));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('navigation reset preserves mini player and persists defaults', (
-    tester,
-  ) async {
-    final mini = MiniPlayerConfig.defaultConfig.copyWith(
-      widthMode: MiniPlayerWidthMode.custom,
-      widthFraction: 0.8,
-      height: 88,
-      showNext: true,
-    );
-    SharedPreferences.setMockInitialValues({
-      MiniPlayerConfigNotifier.preferencesKey: jsonEncode(mini.toJson()),
-      'nav_bar_buttons': 'albums,settings,songs',
-      'nav_bar_hidden': 'search',
-      'nav_bar_size': 1.2,
-      'nav_bar_spacing': 1.5,
-      'nav_bar_icon_size': 1.3,
-      'nav_bar_show_labels': false,
-      'bottom_bar_auto_collapse_enabled': true,
-      'bottom_bar_auto_collapse_seconds': 17,
-      'separate_mini_player_from_nav_bar': true,
-      'mini_player_swipe_action': 'switchSongs',
-    });
-    final container = ProviderContainer(
-      overrides: [currentSongProvider.overrideWith((ref) => null)],
-    );
-    addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: _host(const BottomBarSettingsScreen(), width: 320, textScale: 2),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(container.read(navBarConfigProvider).showLabels, isFalse);
-    await tester.ensureVisible(find.text('Reset Navigation to Defaults'));
-    await tester.tap(find.text('Reset Navigation to Defaults'));
-    await tester.pumpAndSettle();
-    expect(
-      container.read(navBarConfigProvider),
-      same(NavBarConfig.defaultConfig),
-    );
-    expect(container.read(miniPlayerConfigProvider).toJson(), mini.toJson());
-    final preferences = container.read(appPreferencesProvider);
-    expect(preferences.bottomBarAutoCollapseEnabled, isFalse);
-    expect(preferences.bottomBarAutoCollapseSeconds, 5);
-    expect(preferences.separateMiniPlayerFromNavBar, isTrue);
-    expect(preferences.miniPlayerSwipeAction, 'switchSongs');
-    final stored = await SharedPreferences.getInstance();
-    expect(stored.getString('nav_bar_buttons'), 'menu,songs,settings');
-    expect(stored.getString('nav_bar_hidden'), '');
-    expect(stored.getDouble('nav_bar_size'), 1);
-    expect(stored.getDouble('nav_bar_spacing'), 1);
-    expect(stored.getDouble('nav_bar_icon_size'), 1);
-    expect(stored.getBool('nav_bar_show_labels'), isTrue);
-    expect(stored.getBool('bottom_bar_auto_collapse_enabled'), isFalse);
-    expect(stored.getInt('bottom_bar_auto_collapse_seconds'), 5);
-    expect(tester.takeException(), isNull);
-  });
 }

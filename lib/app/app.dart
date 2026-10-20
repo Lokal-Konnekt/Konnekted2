@@ -10,8 +10,7 @@ import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/features/menu/screens/menu_screen.dart';
-import 'package:flick/features/settings/screens/settings_screen.dart';
-import 'package:flick/features/settings/screens/bottom_bar_settings_screen.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
 import 'package:flick/features/albums/screens/albums_screen.dart';
 import 'package:flick/features/artists/screens/artists_screen.dart';
 import 'package:flick/features/folders/screens/folders_screen.dart';
@@ -1000,7 +999,9 @@ class _MainShellState extends ConsumerState<MainShell>
           ref.read(navigationIndexProvider.notifier).setIndex(index);
         },
       ),
-      NavBarButton.settings => const SettingsScreen(key: ValueKey('settings')),
+      NavBarButton.settings => const LokalSettingsPage(
+        key: ValueKey('settings'),
+      ),
       NavBarButton.albums => const AlbumsScreen(key: ValueKey('albums')),
       NavBarButton.artists => const ArtistsScreen(key: ValueKey('artists')),
       NavBarButton.folders => const FoldersScreen(key: ValueKey('folders')),
@@ -1052,14 +1053,6 @@ class _MainShellState extends ConsumerState<MainShell>
           } else if (nested != null && nested.canPop()) {
             nested.popUntil((route) => route.isFirst);
           }
-        },
-        onBottomBarSettings: () {
-          NavigationHelper.pushOnRoot(
-            context,
-            MaterialPageRoute<void>(
-              builder: (_) => const BottomBarSettingsScreen(),
-            ),
-          );
         },
         showMiniPlayer: true,
         separateMiniPlayer: separated,

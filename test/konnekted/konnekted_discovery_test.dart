@@ -6,6 +6,7 @@ import 'package:flick/features/konnekted/konnekted_destination.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
 import 'package:flick/features/konnekted/konnekted_discovery_view.dart';
 import 'package:flick/features/konnekted/konnekted_home.dart';
+import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/models/song.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -239,7 +240,12 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open Integrations'));
-    expect(opened, [KonnektedDestination.integrations]);
+    expect(opened, [
+      const KonnektedDestination.settingsAt(
+        LokalSettingsGroup.integrations,
+        section: 'Scrobbling',
+      ),
+    ]);
   });
 
   testWidgets('Home switches between Local and Discovery', (tester) async {

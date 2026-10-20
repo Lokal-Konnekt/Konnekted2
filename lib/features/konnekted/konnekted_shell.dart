@@ -6,20 +6,14 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
-import 'package:flick/features/albums/screens/albums_screen.dart';
-import 'package:flick/features/artists/screens/artists_screen.dart';
 import 'package:flick/features/discovery/discovery_screen.dart';
-import 'package:flick/features/favorites/screens/favorites_screen.dart';
 import 'package:flick/features/flow/flow_screen.dart';
 import 'package:flick/features/folders/screens/folders_screen.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
-import 'package:flick/features/playlists/screens/playlists_screen.dart';
 import 'package:flick/features/playlist_links/linked_playlists_screen.dart';
-import 'package:flick/features/recently_added/screens/recently_added_screen.dart';
-import 'package:flick/features/recently_played/screens/recently_played_screen.dart';
+import 'package:flick/features/recap/screens/listening_recap_screen.dart';
 import 'package:flick/features/search/screens/search_screen.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
-import 'package:flick/features/songs/screens/songs_screen.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/album_color_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
@@ -36,6 +30,7 @@ import 'konnekted_home.dart';
 import 'konnekted_library.dart';
 import 'konnekted_runtime.dart';
 import 'konnekted_you.dart';
+import 'library/lokal_library_pages.dart';
 
 /// The post-onboarding entry point. Keep Flick's existing root navigator and
 /// bootstrap; this shell owns the nested navigator and native shell lifecycle.
@@ -154,20 +149,12 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
   }
 
   Widget _destination(KonnektedDestination destination) =>
+      lokalLibraryPage(destination.name) ??
       switch (destination.name) {
         'flow' => const FlowScreen(),
         'search' => const SearchScreen(),
-        'songs' => _withBack(
-          'Songs',
-          SongsScreen(onNavigationRequested: _legacyNavigate),
-        ),
-        'albums' => const AlbumsScreen(),
-        'artists' => const ArtistsScreen(),
         'folders' => const FoldersScreen(),
-        'playlists' => const PlaylistsScreen(),
-        'favorites' => const FavoritesScreen(),
-        'recentlyPlayed' => const RecentlyPlayedScreen(),
-        'recentlyAdded' => const RecentlyAddedScreen(),
+        'recap' => const ListeningRecapScreen(),
         'linkedPlaylists' => const LinkedPlaylistsScreen(),
         'settings' => lokalSettingsPage(
           group: destination.settingsGroup,
@@ -175,17 +162,6 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
         ),
         _ => const SizedBox.shrink(),
       };
-
-  // These inherited screens were top-level tabs without a back button.
-  Widget _withBack(String title, Widget child) => Scaffold(
-    backgroundColor: context.lokal.bg,
-    appBar: AppBar(title: Text(title), backgroundColor: context.lokal.bg),
-    body: MediaQuery.removePadding(
-      context: context,
-      removeTop: true,
-      child: child,
-    ),
-  );
 
   /// The mini player, for where Now Playing rises from and sinks back to.
   final _miniPlayerKey = GlobalKey();

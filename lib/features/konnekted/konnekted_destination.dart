@@ -38,6 +38,9 @@ final class KonnektedDestination {
   static const recentlyAdded = KonnektedDestination._('recentlyAdded');
   static const queue = KonnektedDestination._('queue');
   static const linkedPlaylists = KonnektedDestination._('linkedPlaylists');
+  static const genres = KonnektedDestination._('genres');
+  static const downloads = KonnektedDestination._('downloads');
+  static const recap = KonnektedDestination._('recap');
 
   /// The Settings page with its seven groups.
   static const settings = KonnektedDestination._('settings');
@@ -55,6 +58,9 @@ final class KonnektedDestination {
     recentlyAdded,
     queue,
     linkedPlaylists,
+    genres,
+    downloads,
+    recap,
     settings,
   ];
 

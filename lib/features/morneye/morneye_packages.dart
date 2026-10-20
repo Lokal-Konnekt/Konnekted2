@@ -1638,12 +1638,20 @@ class MorneyePackages {
           if (moved != null) file = host.file('$moved');
         }
       }
-      var info = await _native.mediaInfo(file);
+      Map<String, Object?> info;
       if (requiresContainerConversion) {
+        // Symphonia may not probe a FLAC bitstream wrapped in an MP4/DASH
+        // container. Try the probe first; if it is readable, ALAC-in-M4A can
+        // stay untouched and a FLAC bitstream can be remuxed without re-encoding.
+        try {
+          info = await _native.mediaInfo(file);
+        } catch (_) {
+          info = const {};
+        }
         final sourceCodec = '${info['codec']}'.toLowerCase();
-        // ALAC is valid in an M4A container. FLAC inside MP4 needs a real
-        // container conversion before Android's native player can open it.
-        if (!(sourceCodec == 'alac' && p.extension(file).toLowerCase() == '.m4a')) {
+        final alreadyPlayableAlac =
+            sourceCodec == 'alac' && p.extension(file).toLowerCase() == '.m4a';
+        if (!alreadyPlayableAlac) {
           final output = p.join(staged.path, 'playable.flac');
           final conversionCodec = sourceCodec == 'flac' ? 'copy' : 'flac';
           final convert = audioConverter;
@@ -1659,6 +1667,8 @@ class MorneyePackages {
           file = output;
           info = await _native.mediaInfo(file);
         }
+      } else {
+        info = await _native.mediaInfo(file);
       }
       final codec = '${info['codec']}';
       final expected = (track['duration_ms'] as num?)?.toInt() ?? 0;

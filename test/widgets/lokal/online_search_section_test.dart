@@ -30,7 +30,7 @@ OnlineSource _source(String id, String name, List<String> titles) =>
               id: '$id-$title',
               title: title,
               artist: 'Artist',
-              source: DiscoverySource.spotiflac,
+              source: DiscoverySource.morneye,
             ),
           ),
       ],

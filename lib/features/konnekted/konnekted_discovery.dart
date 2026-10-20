@@ -14,9 +14,9 @@ import 'package:flick/features/discovery/spotify_discovery.dart';
 import 'package:flick/features/discovery/youtube_audio.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_store.dart';
-import 'package:flick/features/spotiflac/spotiflac_packages.dart';
-import 'package:flick/features/spotiflac/spotiflac_runtime.dart';
-import 'package:flick/features/spotiflac/spotiflac_service.dart';
+import 'package:flick/features/morneye/morneye_packages.dart';
+import 'package:flick/features/morneye/morneye_runtime.dart';
+import 'package:flick/features/morneye/morneye_service.dart';
 import 'package:flick/features/spotify/spotify_api.dart';
 import 'package:flick/features/spotify/spotify_oauth.dart';
 import 'package:flick/features/spotify/spotify_storage.dart';
@@ -460,15 +460,15 @@ class OnlineSource {
 
 typedef _PlaybackSource = OnlineSource;
 
-/// Your SpotiFLAC add-ons that can play songs right now, as playback sources.
-Future<List<_PlaybackSource>> _spotiflacSources(
-  SpotiflacService service,
+/// Your Morneye add-ons that can play songs right now, as playback sources.
+Future<List<_PlaybackSource>> _morneyeSources(
+  MorneyeService service,
   DiscoveryPlaybackCache Function() cache,
   void Function(String status)? onStatus, {
   Future<void>? cancel,
 }) async {
-  final List<SpotiflacAddon> addons;
-  final SpotiflacPackages packages;
+  final List<MorneyeAddon> addons;
+  final MorneyePackages packages;
   try {
     packages = await service.packages;
     addons = await service.playable();
@@ -490,7 +490,7 @@ Future<List<_PlaybackSource>> _spotiflacSources(
                 artist: song.artist,
                 album: song.album,
                 duration: song.duration,
-                source: DiscoverySource.spotiflac,
+                source: DiscoverySource.morneye,
                 addonId: addon.key,
                 sourceName: addon.displayName,
                 artwork: song.thumbnail,
@@ -498,12 +498,12 @@ Future<List<_PlaybackSource>> _spotiflacSources(
             ),
         ],
         play: (found) async {
-          final progress = SpotiflacProgressText(
+          final progress = MorneyeProgressText(
             found.title,
             addon.displayName,
           );
           var finished = false;
-          final SpotiflacDownload download;
+          final MorneyeDownload download;
           try {
             download = await packages.download(
               addon.key,
@@ -520,9 +520,9 @@ Future<List<_PlaybackSource>> _spotiflacSources(
               },
               cancel: cancel,
             );
-          } on SpotiflacPackageError catch (error) {
+          } on MorneyePackageError catch (error) {
             throw DiscoveryException(error.message);
-          } on SpotiflacRuntimeError catch (error) {
+          } on MorneyeRuntimeError catch (error) {
             throw DiscoveryException(error.message);
           } on DiscoveryException {
             rethrow;
@@ -550,8 +550,8 @@ Future<List<_PlaybackSource>> _spotiflacSources(
 /// 42%", said only when it changes: percentages come several times a
 /// second, and the add-on's own status words ("Qobuz loading…") replace
 /// the percentage instead of being repeated after it.
-class SpotiflacProgressText {
-  SpotiflacProgressText(this.title, this.source);
+class MorneyeProgressText {
+  MorneyeProgressText(this.title, this.source);
 
   final String title;
   final String source;
@@ -596,14 +596,14 @@ DiscoveryPlaybackCache _playbackCache(
   },
 );
 
-/// YouTube Music, then your web add-ons, then your SpotiFLAC add-ons:
+/// YouTube Music, then your web add-ons, then your Morneye add-ons:
 /// desktop's order.
 Future<List<OnlineSource>> _playbackSources(
   DiscoveryHttp web,
   DiscoverySettings settings,
   DiscoveryPlaybackCache Function() cache,
   void Function(String status)? onStatus,
-  SpotiflacService spotiflac, {
+  MorneyeService morneye, {
   Future<void>? cancel,
 }) async {
   final registry = DiscoverySourceRegistry(web, settings);
@@ -637,7 +637,7 @@ Future<List<OnlineSource>> _playbackSources(
           cancel: cancel,
         ),
       ),
-    ...await _spotiflacSources(spotiflac, cache, onStatus, cancel: cancel),
+    ...await _morneyeSources(morneye, cache, onStatus, cancel: cancel),
   ];
 }
 
@@ -647,7 +647,7 @@ Future<List<OnlineSource>> onlineSources(
   http.Client client, {
   void Function(String status)? onStatus,
   DiscoverySettingsStore? store,
-  SpotiflacService? spotiflac,
+  MorneyeService? morneye,
 }) async {
   var settings = const DiscoverySettings();
   try {
@@ -661,7 +661,7 @@ Future<List<OnlineSource>> onlineSources(
     settings,
     () => _playbackCache(web, null),
     onStatus,
-    spotiflac ?? SpotiflacService.instance,
+    morneye ?? MorneyeService.instance,
   );
 }
 
@@ -676,7 +676,7 @@ Future<Song> playOnlineTrack(
   Future<void>? cancel,
   Set<String> Function()? additionalProtectedPaths,
   DiscoverySettingsStore? store,
-  SpotiflacService? spotiflac,
+  MorneyeService? morneye,
   http.Client? client,
 }) async {
   var settings = const DiscoverySettings();
@@ -694,7 +694,7 @@ Future<Song> playOnlineTrack(
       settings,
       () => _playbackCache(web, additionalProtectedPaths),
       onStatus,
-      spotiflac ?? SpotiflacService.instance,
+      morneye ?? MorneyeService.instance,
       cancel: cancel,
     );
     final source = sources.where((s) => s.id == sourceId).firstOrNull;
@@ -743,7 +743,7 @@ Future<Song?> findDiscoverySong(
   DiscoverySettingsStore? store,
   http.Client? client,
   Set<String> Function()? additionalProtectedPaths,
-  SpotiflacService? spotiflac,
+  MorneyeService? morneye,
   Future<void>? cancel,
 }) async {
   var cancelled = false;
@@ -763,24 +763,45 @@ Future<Song?> findDiscoverySong(
   try {
     final web = DiscoveryHttp(transport);
     final youtube = YoutubeAudio(web);
+    DiscoveryException? failure;
     if (track.videoId case final videoId?) {
       onStatus?.call('Getting ${track.title} directly from YouTube Music…');
-      final audio = await youtube.resolve(videoId);
-      check();
-      final direct = DiscoveryTrack(
-        id: videoId,
-        title: track.title,
-        artist: track.artist,
-        album: track.album,
-        duration: track.duration,
-        source: DiscoverySource.youtubeMusic,
-        sourceUrl: Uri.tryParse(track.url),
-        artwork: _artworkOf(track),
-      );
-      return await _playbackCache(
-        web,
-        additionalProtectedPaths,
-      ).prepare(direct, audio, cancel: cancel);
+      try {
+        final audio = await youtube.resolve(videoId);
+        check();
+        final direct = DiscoveryTrack(
+          id: videoId,
+          title: track.title,
+          artist: track.artist,
+          album: track.album,
+          duration: track.duration,
+          source: DiscoverySource.youtubeMusic,
+          sourceUrl: Uri.tryParse(track.url),
+          artwork: _artworkOf(track),
+        );
+        return await _playbackCache(
+          web,
+          additionalProtectedPaths,
+        ).prepare(direct, audio, cancel: cancel);
+      } on DiscoveryException catch (error) {
+        check();
+        if (error.message == 'Request cancelled.') rethrow;
+        // Public videos can be refused by one YouTube client as it rotates.
+        // Try the other configured sources rather than treating the first
+        // player response as proof the recording is unavailable in this region.
+        failure = error;
+        onStatus?.call(
+          'YouTube Music could not start ${track.title}. Trying another source…',
+        );
+      } catch (_) {
+        check();
+        failure = const DiscoveryException(
+          'YouTube Music could not resolve this recording. Trying another source.',
+        );
+        onStatus?.call(
+          'YouTube Music could not start ${track.title}. Trying another source…',
+        );
+      }
     }
     DiscoveryPlaybackCache cache() =>
         _playbackCache(web, additionalProtectedPaths);
@@ -789,12 +810,11 @@ Future<Song?> findDiscoverySong(
       settings,
       cache,
       onStatus,
-      spotiflac ?? SpotiflacService.instance,
+      morneye ?? MorneyeService.instance,
       cancel: cancel,
     );
     final candidate = discoveryCandidate(track);
     final queries = recommendationQueries(candidate).take(3).toList();
-    DiscoveryException? failure;
     for (final source in sources) {
       for (final query in queries) {
         check();

@@ -46,7 +46,7 @@ void main() {
   test('uses the same station catalogue URL as desktop Lokal', () {
     expect(
       defaultRadioCatalogUrl,
-      'https://raw.githubusercontent.com/CHEYCKIT/lokal/refs/heads/main/radios.json',
+      'https://raw.githubusercontent.com/sipbuu/lokal/refs/heads/main/radios.json',
     );
   });
 

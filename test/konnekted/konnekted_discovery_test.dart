@@ -300,7 +300,7 @@ void main() {
   });
 
   test('add-on progress is said once per change', () {
-    final text = SpotiflacProgressText('Song', 'Qobuz');
+    final text = MorneyeProgressText('Song', 'Qobuz');
     expect(text.update(percent: 10), 'Getting Song from Qobuz… 10%');
     expect(text.update(percent: 10.2), isNull);
     expect(

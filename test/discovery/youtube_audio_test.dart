@@ -63,7 +63,7 @@ void main() {
         isA<DiscoveryException>().having(
           (e) => e.message,
           'message',
-          contains('age-restricted'),
+          contains('requires additional verification'),
         ),
       ),
     );
@@ -74,6 +74,55 @@ void main() {
       ),
       throwsA(isA<DiscoveryException>()),
     );
+  });
+
+
+  test('does not mislabel every YouTube refusal as a country or age block', () {
+    expect(
+      () => YoutubeAudio.pick({
+        'playabilityStatus': {
+          'status': 'UNPLAYABLE',
+          'reason': 'Playback is not available for this client',
+        },
+      }, client),
+      throwsA(
+        isA<DiscoveryException>()
+            .having((e) => e.message, 'message', contains('UNPLAYABLE'))
+            .having((e) => e.message, 'message', isNot(contains('age-restricted')))
+            .having((e) => e.message, 'message', isNot(contains('country'))),
+      ),
+    );
+  });
+
+  test('falls back to the current Android client when older clients are refused', () async {
+    final asked = <String>[];
+    final http.Client fake = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final name = body['context']['client']['clientName'] as String;
+      asked.add(name);
+      if (name == 'VISIONOS' || name == 'ANDROID_VR') {
+        return http.Response(
+          jsonEncode({
+            'playabilityStatus': {
+              'status': 'UNPLAYABLE',
+              'reason': 'This client cannot play the recording',
+            },
+          }),
+          200,
+        );
+      }
+      expect(name, 'ANDROID');
+      return http.Response(
+        jsonEncode(_player([_format(140, 'audio/mp4; codecs="mp4a.40.2"', 130000)])),
+        200,
+      );
+    });
+    addTearDown(fake.close);
+
+    final audio = await YoutubeAudio(DiscoveryHttp(fake)).resolve('dQw4w9WgXcQ');
+    expect(asked, ['VISIONOS', 'ANDROID_VR', 'ANDROID']);
+    expect(audio.url.queryParameters['itag'], '140');
+    expect(audio.headers['User-Agent'], contains('com.google.android.youtube'));
   });
 
   test('asks as visionOS first, then the Quest app', () async {

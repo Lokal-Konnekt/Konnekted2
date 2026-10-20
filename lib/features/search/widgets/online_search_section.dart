@@ -13,7 +13,7 @@ import 'package:flick/features/search/library_download.dart';
 import 'package:flick/features/search/widgets/online_result_actions.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
-import 'package:flick/features/spotiflac/spotiflac_service.dart';
+import 'package:flick/features/morneye/morneye_service.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
@@ -79,13 +79,13 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   @override
   void initState() {
     super.initState();
-    SpotiflacService.instance.addListener(_load);
+    MorneyeService.instance.addListener(_load);
     _load();
   }
 
   @override
   void dispose() {
-    SpotiflacService.instance.removeListener(_load);
+    MorneyeService.instance.removeListener(_load);
     _progress.dispose();
     _client.close();
     super.dispose();
@@ -108,8 +108,8 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     });
     if (widget.sources != null) return; // Tests give their own sources.
     try {
-      final packages = await SpotiflacService.instance.packages;
-      final playable = await SpotiflacService.instance.playable();
+      final packages = await MorneyeService.instance.packages;
+      final playable = await MorneyeService.instance.playable();
       final inactive =
           packages.addons.where((a) => a.enabled && a.searches).length -
           playable.length;

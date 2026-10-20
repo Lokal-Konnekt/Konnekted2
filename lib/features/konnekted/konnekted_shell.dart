@@ -22,6 +22,7 @@ import 'package:flick/features/recently_played/screens/recently_played_screen.da
 import 'package:flick/features/search/screens/search_screen.dart';
 import 'package:flick/features/settings/screens/audio_settings_screen.dart';
 import 'package:flick/features/settings/screens/equalizer_screen.dart';
+import 'package:flick/features/settings/screens/integrations_settings_screen.dart';
 import 'package:flick/features/settings/screens/library_settings_screen.dart';
 import 'package:flick/features/settings/screens/lyrics_settings_screen.dart';
 import 'package:flick/features/settings/screens/settings_screen.dart';
@@ -179,6 +180,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
         KonnektedDestination.queue => const SizedBox.shrink(),
         KonnektedDestination.linkedPlaylists => const LinkedPlaylistsScreen(),
         KonnektedDestination.spotify => const SpotifyLibraryScreen(),
+        KonnektedDestination.integrations => const IntegrationsSettingsScreen(),
       };
 
   // These three inherited screens were top-level tabs without a back button.

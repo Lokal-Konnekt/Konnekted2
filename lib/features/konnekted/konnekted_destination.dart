@@ -21,4 +21,5 @@ enum KonnektedDestination {
   queue,
   linkedPlaylists,
   spotify,
+  integrations,
 }

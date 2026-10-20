@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/features/internet_radio/radio_providers.dart';
 import 'package:flick/features/settings/screens/network_sources_screen.dart';
+import 'package:flick/features/settings/screens/lokal_remote_settings_screen.dart';
+import 'package:flick/features/settings/screens/http_addons_settings_screen.dart';
 import 'package:flick/features/settings/widgets/lastfm_settings_tile.dart';
 import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart';
 import 'package:flick/features/settings/widgets/youtube_music_settings_tile.dart';
@@ -40,11 +42,24 @@ List<LokalSettingsSection> onlineSourcesSettings(
         description: 'Subsonic, Jellyfin, WebDAV and other servers you run.',
         onTap: () => _push(context, const NetworkSourcesScreen()),
       ),
+      LokalSettingLink(
+        label: 'Lokal desktop remote',
+        description: 'Control a Lokal desktop player over your local network.',
+        onTap: () => _push(context, const LokalRemoteSettingsScreen()),
+      ),
     ],
   ),
-  const LokalSettingsSection(
+  LokalSettingsSection(
     title: LokalOnlineSections.addons,
-    children: [SpotiflacAddonsPanel()],
+    children: [
+      const SpotiflacAddonsPanel(),
+      LokalSettingLink(
+        label: 'HTTP music add-ons',
+        description:
+            'Add authorized HTTP catalogues that appear in the new Search.',
+        onTap: () => _push(context, const HttpAddonsSettingsScreen()),
+      ),
+    ],
   ),
   const LokalSettingsSection(
     title: LokalOnlineSections.repositories,

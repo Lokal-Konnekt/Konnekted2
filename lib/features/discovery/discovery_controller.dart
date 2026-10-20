@@ -13,6 +13,7 @@ class DiscoverySearchResults {
     this.tracks = const [],
     this.errors = const [],
   });
+
   final List<DiscoveryTrack> tracks;
   final List<String> errors;
 }
@@ -52,8 +53,8 @@ Future<DiscoverySearchResults> searchDiscovery(
   );
 }
 
-/// Every edit invalidates in-flight requests immediately, not after debounce.
-/// A late success/error cannot resurrect results after clearing or opting out.
+/// Retained as a transport seam for addon protocol tests and non-UI callers.
+/// The app's user-facing search is [SearchScreen], not this controller.
 class DiscoveryController extends ChangeNotifier {
   DiscoveryController({
     required this._search,

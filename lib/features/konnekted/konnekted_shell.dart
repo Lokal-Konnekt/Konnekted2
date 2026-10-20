@@ -6,7 +6,6 @@ import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
-import 'package:flick/features/discovery/discovery_screen.dart';
 import 'package:flick/features/flow/flow_screen.dart';
 import 'package:flick/features/folders/screens/folders_screen.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
@@ -319,7 +318,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                                         onPlay: _play,
                                       ),
                                       KonnektedTab.explore =>
-                                        const DiscoveryScreen(),
+                                        const SearchScreen(),
                                       KonnektedTab.library => KonnektedLibrary(
                                         onNavigate: _navigate,
                                       ),

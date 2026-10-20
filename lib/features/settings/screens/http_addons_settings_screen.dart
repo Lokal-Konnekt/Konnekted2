@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import 'discovery_http.dart';
-import 'discovery_models.dart';
-import 'discovery_settings.dart';
-import 'discovery_sources.dart';
+import 'package:flick/features/discovery/discovery_http.dart';
+import 'package:flick/features/discovery/discovery_models.dart';
+import 'package:flick/features/discovery/discovery_settings.dart';
+import 'package:flick/features/discovery/discovery_sources.dart';
 
-class SourceSettingsScreen extends StatefulWidget {
-  const SourceSettingsScreen({
+class HttpAddonsSettingsScreen extends StatefulWidget {
+  const HttpAddonsSettingsScreen({
     super.key,
     this.initial,
     this.store,
@@ -22,10 +22,11 @@ class SourceSettingsScreen extends StatefulWidget {
   final http.Client? client;
 
   @override
-  State<SourceSettingsScreen> createState() => _SourceSettingsScreenState();
+  State<HttpAddonsSettingsScreen> createState() =>
+      _HttpAddonsSettingsScreenState();
 }
 
-class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
+class _HttpAddonsSettingsScreenState extends State<HttpAddonsSettingsScreen> {
   late final http.Client _client;
   late final DiscoverySettingsStore _store;
   final _addons = <DiscoveryAddonConfig>[];
@@ -51,8 +52,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
       _youtube = settings.youtubeEnabled;
     } catch (_) {
       if (!mounted) return;
-      _error =
-          'Saved source settings could not be loaded securely. Reconfigure sources to continue.';
+      _error = 'Saved source settings could not be loaded securely. Reconfigure sources to continue.';
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -158,7 +158,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     canPop: !_saving || _saved,
     child: Scaffold(
       appBar: AppBar(
-        title: const Text('Online sources'),
+        title: const Text('HTTP music add-ons'),
         leading: IconButton(
           tooltip: 'Back',
           icon: const Icon(Icons.arrow_back),
@@ -481,8 +481,7 @@ class _AddonEditorState extends State<_AddonEditor> {
             enableSuggestions: false,
             decoration: const InputDecoration(
               labelText: 'Addon bearer token (optional)',
-              helperText:
-                  'Stored securely. Sent only to this addon API, never to media hosts. Cleared when the endpoint is edited.',
+              helperText: 'Stored securely. Sent only to this addon API, never to media hosts. Cleared when the endpoint is edited.',
               helperMaxLines: 3,
               border: OutlineInputBorder(),
             ),

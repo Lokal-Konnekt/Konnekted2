@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/discovery_settings.dart';
-import 'package:flick/features/discovery/source_settings_screen.dart';
+import 'package:flick/features/settings/screens/http_addons_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -244,7 +244,7 @@ void main() {
     );
     await _tap(tester, _key('save-sources'));
     expect(find.text('Each music addon must be unique.'), findsOneWidget);
-    expect(find.text('Online sources'), findsOneWidget);
+    expect(find.text('HTTP music add-ons'), findsOneWidget);
     expect(route.completed, isFalse);
     expect(store.saves, 0);
     _expectNoSecrets();
@@ -562,7 +562,7 @@ Future<_RouteResult> _open(
               route.result = await Navigator.of(context)
                   .push<DiscoverySettings>(
                     MaterialPageRoute(
-                      builder: (_) => SourceSettingsScreen(
+                      builder: (_) => HttpAddonsSettingsScreen(
                         initial: initial,
                         store: store,
                         client: client,

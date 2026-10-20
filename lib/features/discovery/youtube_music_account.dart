@@ -505,6 +505,33 @@ List<LokalDiscoveryMix> parseYoutubeMusicMixes(Object? root) {
   return mixes.values.toList();
 }
 
+/// The "More" browse endpoint attached to a named personal-mixes shelf.
+List<({String browseId, String? params})> _mixShelfBrowseEndpoints(Object? root) {
+  final endpoints = <String, ({String browseId, String? params})>{};
+  _walk(root, (node) {
+    final shelf = node['musicCarouselShelfRenderer'] ?? node['musicShelfRenderer'];
+    if (shelf is! Map || !_mixTitle.hasMatch(_shelfTitle(shelf))) return;
+    _walk(shelf['header'], (headerNode) {
+      final candidates = [
+        headerNode['browseEndpoint'],
+        _at(headerNode, ['navigationEndpoint', 'browseEndpoint']),
+        _at(headerNode, ['moreContentButton', 'buttonRenderer', 'navigationEndpoint', 'browseEndpoint']),
+      ];
+      for (final candidate in candidates.whereType<Map>()) {
+        final id = candidate['browseId'];
+        if (id is! String || id.isEmpty) continue;
+        final params = candidate['params'];
+        final key = id + '\u0000' + (params is String ? params : '');
+        endpoints[key] = (
+          browseId: id,
+          params: params is String ? params : null,
+        );
+      }
+    });
+  });
+  return endpoints.values.toList();
+}
+
 List<LokalDiscoveryArtist> parseYoutubeMusicArtists(Object? root) {
   final artists = <String, LokalDiscoveryArtist>{};
   _walk(root, (node) {
@@ -534,16 +561,16 @@ bool youtubeMusicLoggedOut(Map<String, dynamic> json) {
   if (context is! Map) return false;
   final web = context['mainAppWebResponseContext'];
   if (web is Map && web['loggedOut'] == true) return true;
+  final loginStates = <String>{};
   for (final service in _list(context['serviceTrackingParams'])) {
     if (service is! Map) continue;
     for (final param in _list(service['params'])) {
-      if (param is Map && param['key'] == 'logged_in' &&
-          (param['value'] ?? '').toString() == '0') {
-        return true;
+      if (param is Map && param['key'] == 'logged_in') {
+        loginStates.add((param['value'] ?? '').toString());
       }
     }
   }
-  return false;
+  return loginStates.contains('0') && !loginStates.contains('1');
 }
 
 bool _confirmsSignedIn(Map<String, dynamic> json) {
@@ -753,6 +780,12 @@ class YoutubeMusicAccount {
         return (pages: pages, error: 'Some YouTube Music recommendations could not be loaded.');
       }
     }
+    if (pending.isNotEmpty && pages.length >= 10) {
+      return (
+        pages: pages,
+        error: 'YouTube Music returned too many pages. Refresh to retry.',
+      );
+    }
     return (pages: pages, error: null);
   }
 
@@ -796,6 +829,20 @@ class YoutubeMusicAccount {
     final mixes = <String, LokalDiscoveryMix>{
       for (final mix in parseYoutubeMusicMixes(homePages)) mix.id: mix,
     };
+    for (final endpoint in _mixShelfBrowseEndpoints(homePages)) {
+      try {
+        final first = await browse(endpoint.browseId, params: endpoint.params);
+        final result = await _pages(endpoint.browseId, first);
+        mixError ??= result.error;
+        for (final mix in parseYoutubeMusicPlaylists(result.pages, limit: 500)) {
+          mixes.putIfAbsent(mix.id, () => mix);
+        }
+      } on YoutubeMusicSignedOut {
+        rethrow;
+      } catch (_) {
+        mixError ??= 'YouTube Music could not load every personal mix. Refresh to retry.';
+      }
+    }
     final likedTracks = liked == null ? null : parseYoutubeMusicTracks(liked, limit: limit);
     final homeTracks = parseYoutubeMusicTracks(homePages, limit: limit);
     final historyTracks = history == null

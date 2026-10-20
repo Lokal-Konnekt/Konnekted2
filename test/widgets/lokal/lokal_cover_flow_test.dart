@@ -2,6 +2,7 @@ import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
+import 'package:flick/features/konnekted/lokal_mixes.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/lokal/lokal_cover_flow.dart';
 import 'package:flutter/material.dart';
@@ -129,48 +130,26 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  test(
-    'cover shelves hold one song each: newest added, recent in play order',
-    () async {
-      final library = [
-        _track('old', 'Old', addedDay: 1),
-        _track('new', 'New', addedDay: 9),
-        _track('mid1', 'Mid', addedDay: 5),
-        _track('mid2', 'Mid', addedDay: 4),
-      ];
-      final container = ProviderContainer(
-        overrides: [
-          konnektedLibraryProvider.overrideWithValue(AsyncData(library)),
-          konnektedRecentSongsProvider.overrideWith(
-            (ref) => Stream.value([library[3], library[0], library[2]]),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-      final added = container.read(
-        konnektedCoverAlbumsProvider(KonnektedCoverShelf.added),
-      );
-      expect(added.value!.map((a) => a.songs.single.id), [
-        'new',
-        'mid1',
-        'mid2',
-        'old',
-      ]);
-      expect(added.value!.first.albumName, 'Track new');
-
-      final sub = container.listen(
-        konnektedCoverAlbumsProvider(KonnektedCoverShelf.recent),
-        (_, _) {},
-      );
-      addTearDown(sub.close);
-      await container.read(konnektedRecentSongsProvider.future);
-      expect(
-        container
-            .read(konnektedCoverAlbumsProvider(KonnektedCoverShelf.recent))
-            .value!
-            .map((a) => a.songs.single.id),
-        ['mid2', 'old', 'mid1'],
-      );
-    },
-  );
+  test('Cover Flow holds Made for you, one song per cover, no repeats', () {
+    final songs = [_track('a', 'A'), _track('b', 'B'), _track('a', 'A')];
+    const mix = LokalMix(
+      id: 'm',
+      name: 'Daily Mix',
+      type: LokalMixType.daily,
+      tracks: [],
+    );
+    final container = ProviderContainer(
+      overrides: [
+        konnektedMadeForYouProvider.overrideWithValue(
+          AsyncData([
+            for (final song in songs) LokalMadeForYouPick(song: song, mix: mix),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final covers = container.read(konnektedCoverAlbumsProvider).value!;
+    expect(covers.map((a) => a.songs.single.id), ['a', 'b']);
+    expect(covers.first.albumName, 'Track a');
+  });
 }

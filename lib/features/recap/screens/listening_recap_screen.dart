@@ -13,13 +13,21 @@ import '../widgets/replay_reveal.dart';
 import '../widgets/replay_sections.dart';
 import '../widgets/replay_style.dart';
 import 'replay_studio_screen.dart';
+
 import 'package:flick/l10n/l10n.dart';
 
 /// An artwork-led retrospective; poster-making lives in Replay Studio.
 class ListeningRecapScreen extends ConsumerStatefulWidget {
   final RecentlyPlayedRepository? repository;
 
-  const ListeningRecapScreen({super.key, this.repository});
+  /// The period the story opens at.
+  final ListeningRecapPeriod initialPeriod;
+
+  const ListeningRecapScreen({
+    super.key,
+    this.repository,
+    this.initialPeriod = ListeningRecapPeriod.daily,
+  });
 
   @override
   ConsumerState<ListeningRecapScreen> createState() =>
@@ -29,7 +37,7 @@ class ListeningRecapScreen extends ConsumerStatefulWidget {
 class _ListeningRecapScreenState extends ConsumerState<ListeningRecapScreen>
     with WidgetsBindingObserver {
   late final _repository = widget.repository ?? RecentlyPlayedRepository();
-  ListeningRecapPeriod _period = ListeningRecapPeriod.daily;
+  late ListeningRecapPeriod _period = widget.initialPeriod;
   Map<ListeningRecapPeriod, ListeningRecap> _recaps = {};
   StreamSubscription<void>? _history;
   Timer? _refreshDebounce;

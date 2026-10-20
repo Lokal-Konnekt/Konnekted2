@@ -46,9 +46,7 @@ Song _track(String id) => Song(
 );
 
 void main() {
-  testWidgets('Made for you and Your Mixes play with their own queues', (
-    tester,
-  ) async {
+  testWidgets('Your Mixes play with their own queues', (tester) async {
     final mixes = [
       for (final name in ['Daily Mix', 'New Arrivals', 'Most Played'])
         LokalMix(
@@ -57,11 +55,6 @@ void main() {
           type: LokalMixType.daily,
           tracks: [for (var i = 0; i < 4; i++) _track('$name $i')],
         ),
-    ];
-    final picks = [
-      for (final mix in mixes)
-        for (final song in mix.tracks.take(2))
-          LokalMadeForYouPick(song: song, mix: mix),
     ];
     final played = <(Song, List<Song>)>[];
     tester.view
@@ -72,10 +65,6 @@ void main() {
       _app(
         ListView(
           children: [
-            KonnektedMadeForYou(
-              picks: picks,
-              onPlay: (song, queue) => played.add((song, queue)),
-            ),
             KonnektedYourMixes(
               mixes: mixes,
               onPlay: (song, queue) => played.add((song, queue)),
@@ -84,12 +73,6 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Made for you'), findsOneWidget);
-    expect(find.text('DAILY MIX'), findsWidgets);
-    await tester.tap(find.text('Track Daily Mix 0'));
-    expect(played.single.$1, picks.first.song);
-    expect(played.single.$2, [for (final pick in picks) pick.song]);
-
     await tester.ensureVisible(find.text('Most Played'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Most Played'));
@@ -98,18 +81,26 @@ void main() {
     expect(find.text('4 songs'), findsNWidgets(3));
   });
 
-  testWidgets('a Cover Flow tap plays that song with the whole shelf queued', (
+  testWidgets('Cover Flow shows Made for you; a tap plays with it queued', (
     tester,
   ) async {
     final recent = [_track('r1'), _track('r2'), _track('r3')];
+    const mix = LokalMix(
+      id: 'm',
+      name: 'Daily Mix',
+      type: LokalMixType.daily,
+      tracks: [],
+    );
     Song? played;
     List<Song>? queue;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          konnektedLibraryProvider.overrideWithValue(AsyncData(recent)),
-          konnektedRecentSongsProvider.overrideWith(
-            (ref) => Stream.value(recent),
+          konnektedMadeForYouProvider.overrideWithValue(
+            AsyncData([
+              for (final song in recent)
+                LokalMadeForYouPick(song: song, mix: mix),
+            ]),
           ),
         ],
         child: _app(
@@ -124,6 +115,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.text('MADE FOR YOU'), findsOneWidget);
+    expect(find.text('RECENT'), findsNothing);
+    expect(find.text('NEW'), findsNothing);
     expect(find.text('Track r1'), findsOneWidget);
     final stage = find.bySemanticsLabel(RegExp('^Cover Flow'));
     await tester.tapAt(tester.getCenter(stage) + const Offset(150, 0));
@@ -137,14 +131,10 @@ void main() {
     await tester.pumpWidget(
       _app(
         Column(
-          children: [
-            KonnektedMadeForYou(picks: const [], onPlay: (_, _) {}),
-            KonnektedYourMixes(mixes: const [], onPlay: (_, _) {}),
-          ],
+          children: [KonnektedYourMixes(mixes: const [], onPlay: (_, _) {})],
         ),
       ),
     );
-    expect(find.text('Made for you'), findsNothing);
     expect(find.text('Your Mixes'), findsNothing);
   });
 
@@ -237,6 +227,32 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('Library: a gear opens Settings › Library, no duplicate rows', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(412, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final opened = <KonnektedDestination>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          konnektedLibraryProvider.overrideWithValue(const AsyncData([])),
+        ],
+        child: _app(KonnektedLibrary(onNavigate: opened.add)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Library settings'));
+    expect(opened, [
+      const KonnektedDestination.settingsAt(LokalSettingsGroup.library),
+    ]);
+    for (final gone in ['Classipod', 'Listening hub', 'Manage library']) {
+      expect(find.text(gone), findsNothing);
+    }
+    expect(find.text('Spotify library'), findsOneWidget);
+    expect(find.text('Linked playlists'), findsOneWidget);
+  });
 
   testWidgets('shelf reports errors and retry without pretending to be empty', (
     tester,

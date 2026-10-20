@@ -12,7 +12,6 @@ import 'package:flick/features/discovery/discovery_screen.dart';
 import 'package:flick/features/favorites/screens/favorites_screen.dart';
 import 'package:flick/features/flow/flow_screen.dart';
 import 'package:flick/features/folders/screens/folders_screen.dart';
-import 'package:flick/features/menu/screens/menu_screen.dart';
 import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/features/playlists/screens/playlists_screen.dart';
 import 'package:flick/features/playlist_links/linked_playlists_screen.dart';
@@ -35,6 +34,7 @@ import 'konnekted_dock.dart';
 import 'konnekted_home.dart';
 import 'konnekted_library.dart';
 import 'konnekted_runtime.dart';
+import 'konnekted_you.dart';
 
 /// The post-onboarding entry point. Keep Flick's existing root navigator and
 /// bootstrap; this shell owns the nested navigator and native shell lifecycle.
@@ -167,10 +167,6 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
         'favorites' => const FavoritesScreen(),
         'recentlyPlayed' => const RecentlyPlayedScreen(),
         'recentlyAdded' => const RecentlyAddedScreen(),
-        'inheritedHome' => _withBack(
-          'Listening hub',
-          MenuScreen(onNavigateToTab: _legacyNavigate),
-        ),
         'linkedPlaylists' => const LinkedPlaylistsScreen(),
         'settings' => lokalSettingsPage(
           group: destination.settingsGroup,
@@ -316,10 +312,9 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                                       KonnektedTab.library => KonnektedLibrary(
                                         onNavigate: _navigate,
                                       ),
-                                      KonnektedTab.settings =>
-                                        KonnektedSettings(
-                                          onNavigate: _navigate,
-                                        ),
+                                      KonnektedTab.settings => KonnektedYou(
+                                        onNavigate: _navigate,
+                                      ),
                                     },
                                   ),
                                 ),

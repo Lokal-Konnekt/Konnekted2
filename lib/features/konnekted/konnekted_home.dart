@@ -11,7 +11,6 @@ import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/lokal/lokal_cover_flow.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flick/widgets/lokal/lokal_logo.dart';
-import 'package:flick/widgets/lokal/lokal_made_for_you.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -147,12 +146,6 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
                         ),
                       )
                     : const SizedBox.shrink(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: KonnektedMadeForYou(
-                picks: ref.watch(konnektedMadeForYouProvider).value ?? const [],
-                onPlay: onPlay,
               ),
             ),
             SliverToBoxAdapter(
@@ -305,8 +298,7 @@ class KonnektedHomeTopBar extends StatelessWidget {
   }
 }
 
-/// Cover Flow of songs (recent, made for you, new), with a glass shelf
-/// switch and the Flow button. One tap on a cover plays that song, with the
+/// Cover Flow of Made for you's songs, with the Flow button. One tap on a cover plays that song, with the
 /// whole shelf as the queue.
 class KonnektedCoverFlowSection extends ConsumerStatefulWidget {
   const KonnektedCoverFlowSection({
@@ -325,20 +317,11 @@ class KonnektedCoverFlowSection extends ConsumerStatefulWidget {
 
 class _KonnektedCoverFlowSectionState
     extends ConsumerState<KonnektedCoverFlowSection> {
-  KonnektedCoverShelf _shelf = KonnektedCoverShelf.recent;
-
   @override
   Widget build(BuildContext context) {
     final t = context.lokal;
-    var albums = ref.watch(konnektedCoverAlbumsProvider(_shelf));
-    // Nothing played (or mixed) yet: show what's new, not an empty stage.
-    if (_shelf != KonnektedCoverShelf.added &&
-        (albums.value?.isEmpty ?? false)) {
-      albums = ref.watch(
-        konnektedCoverAlbumsProvider(KonnektedCoverShelf.added),
-      );
-    }
-    final list = albums.value ?? const <AlbumGroup>[];
+    final list =
+        ref.watch(konnektedCoverAlbumsProvider).value ?? const <AlbumGroup>[];
     // Flow needs no library, so an empty one still gets the way in.
     if (list.isEmpty) {
       return Padding(
@@ -348,29 +331,16 @@ class _KonnektedCoverFlowSectionState
     }
     return Column(
       children: [
-        const SizedBox(height: 12),
-        LokalGlass.capsule(
-          thickness: LokalGlassThickness.thin,
-          shadow: false,
-          padding: const EdgeInsets.all(4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final shelf in KonnektedCoverShelf.values)
-                _ShelfChip(
-                  label: shelf.label,
-                  selected: shelf == _shelf,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _shelf = shelf);
-                  },
-                ),
-            ],
+        const SizedBox(height: 18),
+        Semantics(
+          header: true,
+          child: Text(
+            'MADE FOR YOU',
+            style: LokalTheme.label(t, color: t.accent),
           ),
         ),
         const SizedBox(height: 8),
         LokalCoverFlow(
-          key: ValueKey(_shelf),
           albums: list,
           onPlay: widget.onPlay,
           onSelect: (i) => widget.onPlay(list[i].songs.first, [
@@ -635,172 +605,6 @@ class KonnektedArtwork extends StatelessWidget {
         useThumbnail: true,
         placeholder: placeholder,
         errorWidget: placeholder,
-      ),
-    );
-  }
-}
-
-/// Made for you: twelve songs, two from each of Your Mixes, on desktop's
-/// rolling carousel. Hidden until there are mixes.
-class KonnektedMadeForYou extends StatelessWidget {
-  const KonnektedMadeForYou({
-    super.key,
-    required this.picks,
-    required this.onPlay,
-  });
-
-  final List<LokalMadeForYouPick> picks;
-  final void Function(Song song, List<Song> queue) onPlay;
-
-  @override
-  Widget build(BuildContext context) {
-    if (picks.isEmpty) return const SizedBox.shrink();
-    final songs = [for (final pick in picks) pick.song];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const KonnektedSectionHeading(
-          title: 'Made for you',
-          icon: Icons.auto_awesome_rounded,
-        ),
-        LokalMadeForYouCarousel(
-          count: picks.length,
-          semanticLabel: (index) =>
-              'Play ${picks[index].song.title} by ${picks[index].song.artist}',
-          onPlay: (index) {
-            HapticFeedback.lightImpact();
-            onPlay(songs[index], songs);
-          },
-          card: (context, index) => _MadeForYouCard(pick: picks[index]),
-        ),
-      ],
-    );
-  }
-}
-
-class _MadeForYouCard extends StatelessWidget {
-  const _MadeForYouCard({required this.pick});
-
-  final LokalMadeForYouPick pick;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.lokal;
-    final song = pick.song;
-    final placeholder = DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white.withValues(alpha: .10), Colors.black],
-        ),
-      ),
-    );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        // Desktop's lift; softer on light themes, where black reads heavy.
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: t.isLight ? .18 : .45),
-            blurRadius: 40,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(color: t.surface2),
-            CachedImageWidget(
-              imagePath: song.albumArt,
-              audioSourcePath: song.filePath,
-              fit: BoxFit.cover,
-              useThumbnail: true,
-              placeholder: placeholder,
-              errorWidget: placeholder,
-            ),
-            const IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Color(0xD9000000),
-                      Color(0x66000000),
-                      Color(0x00000000),
-                    ],
-                    stops: [0, .33, .67],
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 12,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    song.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    song.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: .7),
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .15),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Text(
-                      pick.mix.title.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: LokalTheme.label(
-                        t,
-                        size: 9,
-                        color: Colors.white.withValues(alpha: .8),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // A hairline rim, as desktop's border-white/10.
-            IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: .10),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

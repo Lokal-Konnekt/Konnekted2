@@ -47,6 +47,7 @@ class _SpotifyLibraryScreenState extends State<SpotifyLibraryScreen> {
   String? _busyPlaylist;
   bool _loading = true;
   bool _connected = false;
+  bool _discoveryEnabled = false;
   bool _signingIn = false;
   SpotifyLikedSongsSyncReport? _likedReport;
   SpotifyPlaylistImportReport? _importReport;
@@ -68,13 +69,31 @@ class _SpotifyLibraryScreenState extends State<SpotifyLibraryScreen> {
   Future<void> _loadSettings() async {
     try {
       final connected = await _oauth.isConnected;
+      final discoveryEnabled = await _settings.loadDiscoveryEnabled();
       if (!mounted) return;
       setState(() {
         _connected = connected;
+        _discoveryEnabled = discoveryEnabled;
         _loading = false;
       });
     } catch (error) {
       if (mounted) setState(() { _loading = false; _error = _message(error); });
+    }
+  }
+
+  Future<void> _setDiscoveryEnabled(bool enabled) async {
+    try {
+      await _settings.saveDiscoveryEnabled(enabled);
+      if (mounted) {
+        setState(() {
+          _discoveryEnabled = enabled;
+          _status = enabled
+              ? 'Spotify Discovery enabled on Home.'
+              : 'Spotify Discovery disabled.';
+        });
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = _message(error));
     }
   }
 
@@ -188,6 +207,16 @@ class _SpotifyLibraryScreenState extends State<SpotifyLibraryScreen> {
             const SizedBox(height: 6),
             const Text('Sign in through Spotify’s real page in this app. The web session is stored securely, and Spotify recordings remain metadata until matched to local audio.'),
             const SizedBox(height: 16),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Spotify Discovery'),
+              subtitle: const Text(
+                'Opt in to Quick Picks, Recently Played, Liked Songs and Fresh Finds on Home.',
+              ),
+              value: _discoveryEnabled,
+              onChanged: _loading ? null : _setDiscoveryEnabled,
+            ),
+            const SizedBox(height: 8),
             Row(children: [
               if (!_connected)
                 FilledButton.icon(

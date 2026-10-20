@@ -55,6 +55,15 @@ class SpotifyApi implements SpotifyLibraryApi {
   final SpotifyHttp _http;
   final SpotifyDelay _delay;
 
+  /// Reads an authenticated Spotify Web API JSON resource while retaining the
+  /// same-origin, refresh, cancellation and rate-limit guards as library
+  /// pagination.
+  Future<Map<String, dynamic>> getJson(
+    Uri url, {
+    SpotifyCancellation? cancellation,
+  }) =>
+      _getJson(url, cancellation: cancellation);
+
   @override
   Future<List<SpotifyPlaylist>> getPlaylists({
     void Function(int loaded)? onProgress,

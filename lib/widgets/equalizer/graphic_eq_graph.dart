@@ -1,12 +1,13 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/widgets/equalizer/eq_graph_utils.dart' as equtils;
 
@@ -43,12 +44,10 @@ class GraphicEqGraph extends ConsumerWidget {
               final sampleCount = math.max(96, width.floor());
 
               final lineColor = enabled
-                  ? AdaptiveColorProvider.textPrimary(
-                      context,
-                    ).withValues(alpha: 0.90)
-                  : AdaptiveColorProvider.textTertiary(
-                      context,
-                    ).withValues(alpha: 0.70);
+                  ? AdaptiveColorProvider.textPrimary(context)
+                        .withValues(alpha: 0.90)
+                  : AdaptiveColorProvider.textTertiary(context)
+                        .withValues(alpha: 0.70);
 
               final curvePoints = equtils.buildGraphicCurvePoints(
                 freqs: freqs,
@@ -66,12 +65,15 @@ class GraphicEqGraph extends ConsumerWidget {
                 freqs.length,
                 (i) => FlSpot(
                   equtils.hzToX(freqs[i]),
-                  (gains[i] + equtils.bmtOffsetDbAtHz(
-                    freqs[i],
-                    bassDb: bassDb,
-                    midDb: midDb,
-                    trebleDb: trebleDb,
-                  )).clamp(equtils.eqMinDb, equtils.eqMaxDb).toDouble(),
+                  (gains[i] +
+                          equtils.bmtOffsetDbAtHz(
+                            freqs[i],
+                            bassDb: bassDb,
+                            midDb: midDb,
+                            trebleDb: trebleDb,
+                          ))
+                      .clamp(equtils.eqMinDb, equtils.eqMaxDb)
+                      .toDouble(),
                 ),
                 growable: false,
               );
@@ -82,14 +84,9 @@ class GraphicEqGraph extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppColors.glassBackgroundStrong.withValues(
-                      alpha: 0.10,
-                    ),
+                    color: context.lokal.surface3,
                     borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                    border: Border.all(
-                      color: AppColors.glassBorder.withValues(alpha: 0.5),
-                      width: 1,
-                    ),
+                    border: Border.all(color: context.lokal.border, width: 1),
                   ),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -98,7 +95,7 @@ class GraphicEqGraph extends ConsumerWidget {
                       width: contentWidth,
                       child: LineChart(
                         LineChartData(
-                           minX: equtils.eqLogMin,
+                          minX: equtils.eqLogMin,
                           maxX: equtils.eqLogMax,
                           minY: equtils.eqMinDb,
                           maxY: equtils.eqMaxDb,
@@ -122,7 +119,7 @@ class GraphicEqGraph extends ConsumerWidget {
                                 reservedSize: 20,
                                 getTitlesWidget: (value, meta) {
                                   // Map log10(x) back to labelled frequencies.
-                                   const freqs = <double>[
+                                  const freqs = <double>[
                                     20,
                                     50,
                                     100,
@@ -164,9 +161,9 @@ class GraphicEqGraph extends ConsumerWidget {
                                     child: Text(
                                       label,
                                       style: TextStyle(
-                                        fontFamily: 'GoogleSansFlex',
+                                        fontFamily: LokalTheme.sans,
                                         fontSize: 9,
-                                        color: AppColors.textTertiary,
+                                        color: context.lokal.muted2,
                                       ),
                                     ),
                                   );
@@ -185,19 +182,21 @@ class GraphicEqGraph extends ConsumerWidget {
                               return FlLine(
                                 color:
                                     (isZero
-                                            ? AppColors.glassBorderStrong
-                                            : AppColors.glassBorder)
+                                            ? context.lokal.border2
+                                            : context.lokal.border)
                                         .withValues(alpha: isZero ? 0.8 : 0.35),
                                 strokeWidth: isZero ? 1.2 : 1.0,
                               );
                             },
-                             getDrawingVerticalLine: (value) {
+                            getDrawingVerticalLine: (value) {
                               // We draw only a handful of guide lines at key freqs.
                               // fl_chart calls this for each 'value' step, so we
                               // return transparent for non-guide values.
-                              final alpha = equtils.isGuideLogX(value) ? 0.25 : 0.0;
+                              final alpha = equtils.isGuideLogX(value)
+                                  ? 0.25
+                                  : 0.0;
                               return FlLine(
-                                color: AppColors.glassBorder.withValues(
+                                color: context.lokal.border.withValues(
                                   alpha: alpha,
                                 ),
                                 strokeWidth: 1.0,

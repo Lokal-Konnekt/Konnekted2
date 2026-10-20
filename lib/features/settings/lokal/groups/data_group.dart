@@ -41,32 +41,13 @@ Future<bool> _confirm(
   required String action,
   bool destructive = false,
 }) async {
-  final t = context.lokal;
-  final ok = await showDialog<bool>(
+  return showLokalConfirmSheet(
     context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: t.surface,
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          style: destructive
-              ? FilledButton.styleFrom(
-                  backgroundColor: t.red,
-                  foregroundColor: Colors.white,
-                )
-              : null,
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text(action),
-        ),
-      ],
-    ),
+    title: title,
+    message: message,
+    confirmLabel: action,
+    destructive: destructive,
   );
-  return ok == true;
 }
 
 Future<void> _clear(

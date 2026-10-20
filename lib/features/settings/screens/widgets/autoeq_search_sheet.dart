@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
 
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/services/autoeq_catalog_service.dart';
-import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
 
 /// Opens the AutoEQ headphone picker. Returns the chosen entry, or null if
 /// dismissed. The caller applies the result to the equalizer.
 Future<AutoEqEntry?> showAutoEqSearchSheet(BuildContext context) {
+  final t = context.lokal;
   return showModalBottomSheet<AutoEqEntry>(
-      useRootNavigator: true,
+    useRootNavigator: true,
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withValues(alpha: 0.5),
-    builder: (context) => AppBottomSheetSurface(
-      maxHeightRatio: 0.9,
-      padding: EdgeInsets.zero,
+    useSafeArea: true,
+    // A solid theme surface over a dimmed page, no blur.
+    backgroundColor: t.surface,
+    barrierColor: Colors.black.withValues(alpha: t.isLight ? .25 : .5),
+    shape: RoundedRectangleBorder(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      side: BorderSide(color: t.border),
+    ),
+    builder: (context) => ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+      ),
       child: const _AutoEqSearchSheet(),
     ),
   );
@@ -156,8 +162,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
                   ),
                   children: [
                     _brandChip(context, null, l10n.all),
-                    for (final b in _brands)
-                      _brandChip(context, b, b),
+                    for (final b in _brands) _brandChip(context, b, b),
                   ],
                 ),
         ),
@@ -178,19 +183,15 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.headphones_rounded,
-            color: context.adaptiveTextPrimary,
-            size: 22,
-          ),
+          Icon(Icons.headphones_rounded, color: context.lokal.text, size: 22),
           const SizedBox(width: AppConstants.spacingSm),
           Expanded(
             child: Text(
               l10n.autoeqHeadphones2,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: context.adaptiveTextPrimary,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: context.lokal.text,
+              ),
             ),
           ),
           GestureDetector(
@@ -198,13 +199,13 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
             child: Container(
               padding: const EdgeInsets.all(AppConstants.spacingXs),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: context.lokal.surface2,
                 borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                border: Border.all(color: AppColors.glassBorder),
+                border: Border.all(color: context.lokal.border),
               ),
               child: Icon(
                 Icons.close_rounded,
-                color: context.adaptiveTextSecondary,
+                color: context.lokal.muted,
                 size: 20,
               ),
             ),
@@ -222,21 +223,21 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.glassBackgroundStrong,
+          color: context.lokal.surface3,
           borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-          border: Border.all(color: AppColors.glassBorder),
+          border: Border.all(color: context.lokal.border),
         ),
         child: TextField(
           controller: _queryController,
-          style: TextStyle(color: context.adaptiveTextPrimary),
+          style: TextStyle(color: context.lokal.text),
           decoration: InputDecoration(
             hintText: _all.isEmpty
                 ? l10n.searchHeadphones
                 : l10n.searchModelCount(_all.length),
-            hintStyle: TextStyle(color: context.adaptiveTextTertiary),
+            hintStyle: TextStyle(color: context.lokal.muted2),
             prefixIcon: Icon(
               Icons.search_rounded,
-              color: context.adaptiveTextSecondary,
+              color: context.lokal.muted,
               size: 20,
             ),
             suffixIcon: _queryController.text.isEmpty
@@ -244,7 +245,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
                 : IconButton(
                     icon: Icon(
                       Icons.clear_rounded,
-                      color: context.adaptiveTextSecondary,
+                      color: context.lokal.muted,
                       size: 20,
                     ),
                     onPressed: () {
@@ -279,13 +280,11 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
           ),
           decoration: BoxDecoration(
             color: selected
-                ? AppColors.accent.withValues(alpha: 0.18)
-                : AppColors.glassBackgroundStrong,
+                ? context.lokal.accent.withValues(alpha: 0.18)
+                : context.lokal.surface3,
             borderRadius: BorderRadius.circular(AppConstants.radiusRound),
             border: Border.all(
-              color: selected
-                  ? AppColors.accent
-                  : AppColors.glassBorder,
+              color: selected ? context.lokal.accent : context.lokal.border,
             ),
           ),
           child: Text(
@@ -293,9 +292,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: selected
-                  ? AppColors.accent
-                  : context.adaptiveTextSecondary,
+              color: selected ? context.lokal.accent : context.lokal.muted,
             ),
           ),
         ),
@@ -308,7 +305,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
       return Center(
         child: CircularProgressIndicator(
           strokeWidth: 2.5,
-          color: context.adaptiveTextPrimary,
+          color: context.lokal.text,
         ),
       );
     }
@@ -319,7 +316,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
           child: Text(
             l10n.noMatchesTryFewerWordsOr,
             textAlign: TextAlign.center,
-            style: TextStyle(color: context.adaptiveTextSecondary),
+            style: TextStyle(color: context.lokal.muted),
           ),
         ),
       );
@@ -344,11 +341,11 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
       margin: const EdgeInsets.only(bottom: AppConstants.spacingXs),
       decoration: BoxDecoration(
         color: selected
-            ? AppColors.accent.withValues(alpha: 0.12)
-            : AppColors.glassBackground,
+            ? context.lokal.accent.withValues(alpha: 0.12)
+            : context.lokal.surface2,
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
         border: Border.all(
-          color: selected ? AppColors.accent : AppColors.glassBorder,
+          color: selected ? context.lokal.accent : context.lokal.border,
         ),
       ),
       child: ListTile(
@@ -360,23 +357,22 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
         title: Text(
           entry.displayName,
           style: TextStyle(
-            color: context.adaptiveTextPrimary,
+            color: context.lokal.text,
             fontWeight: FontWeight.w600,
             fontSize: 15,
           ),
         ),
         subtitle: Text(
-          l10n.bandsPreampDb(entry.bands.length, entry.preampDb.toStringAsFixed(1), entry.source),
-          style: TextStyle(
-            color: context.adaptiveTextTertiary,
-            fontSize: 12,
+          l10n.bandsPreampDb(
+            entry.bands.length,
+            entry.preampDb.toStringAsFixed(1),
+            entry.source,
           ),
+          style: TextStyle(color: context.lokal.muted2, fontSize: 12),
         ),
         trailing: Icon(
           selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-          color: selected
-              ? AppColors.accent
-              : context.adaptiveTextTertiary,
+          color: selected ? context.lokal.accent : context.lokal.muted2,
           size: 22,
         ),
       ),
@@ -393,9 +389,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
         AppConstants.spacingMd,
       ),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppColors.glassBorder, width: 1),
-        ),
+        border: Border(top: BorderSide(color: context.lokal.border, width: 1)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -405,8 +399,8 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
               padding: EdgeInsets.only(bottom: AppConstants.spacingXs),
               child: LinearProgressIndicator(
                 minHeight: 2,
-                color: AppColors.accent,
-                backgroundColor: AppColors.glassBorder,
+                color: context.lokal.accent,
+                backgroundColor: context.lokal.border,
               ),
             ),
           Row(
@@ -420,14 +414,12 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
               FilledButton(
                 onPressed: canApply ? _apply : null,
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  disabledBackgroundColor:
-                      AppColors.surfaceLight.withValues(alpha: 0.6),
-                  foregroundColor: AppColors.onAccent,
-                  disabledForegroundColor: AppColors.textTertiary,
+                  backgroundColor: context.lokal.accent,
+                  disabledBackgroundColor: context.lokal.surface2,
+                  foregroundColor: context.lokal.onAccent,
+                  disabledForegroundColor: context.lokal.muted2,
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.radiusMd),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                   ),
                 ),
                 child: Text(

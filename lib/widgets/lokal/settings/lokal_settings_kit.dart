@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
-import 'package:flick/widgets/lokal/lokal_glass.dart';
 
 import 'lokal_settings_surfaces.dart';
 
@@ -836,9 +835,8 @@ class LokalSettingsHeader extends StatelessWidget {
               child: Row(
                 children: [
                   if (canPop)
-                    LokalGlassButton(
+                    _RoundButton(
                       semanticLabel: 'Back',
-                      size: 40,
                       onPressed: () => Navigator.of(context).maybePop(),
                       child: Icon(Icons.chevron_left_rounded, color: t.text),
                     ),
@@ -916,7 +914,7 @@ class LokalSettingsScaffold extends StatelessWidget {
   );
 }
 
-/// A round glass button for a settings header's actions.
+/// A round button for a settings header's actions: a solid theme surface.
 class LokalSettingsHeaderAction extends StatelessWidget {
   const LokalSettingsHeaderAction({
     super.key,
@@ -932,13 +930,44 @@ class LokalSettingsHeaderAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Tooltip(
     message: tooltip,
-    child: LokalGlassButton(
+    child: _RoundButton(
       semanticLabel: tooltip,
-      size: 40,
       onPressed: onPressed,
       child: Icon(icon, size: 20, color: context.lokal.text),
     ),
   );
+}
+
+/// The header's round button: the theme's raised surface and border, no
+/// blur of the page behind it.
+class _RoundButton extends StatelessWidget {
+  const _RoundButton({
+    required this.semanticLabel,
+    required this.onPressed,
+    required this.child,
+  });
+
+  final String semanticLabel;
+  final VoidCallback? onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: Material(
+        color: t.surface2,
+        shape: CircleBorder(side: BorderSide(color: t.border)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          child: SizedBox.square(dimension: 40, child: Center(child: child)),
+        ),
+      ),
+    );
+  }
 }
 
 class _OptionMark extends StatelessWidget {

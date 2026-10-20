@@ -1,30 +1,25 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
-
-import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'dart:math' as math;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/theme/app_theme.dart';
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/core/utils/responsive.dart';
-import 'package:flick/features/player/widgets/ambient_background.dart';
 import 'package:flick/providers/equalizer_provider.dart';
-import 'package:flick/providers/providers.dart';
 import 'package:flick/services/eq_preset_file_service.dart';
 import 'package:flick/services/eq_preset_service.dart';
 import 'package:flick/services/equalizer_service.dart';
 import 'package:flick/features/settings/screens/widgets/autoeq_search_sheet.dart';
-import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/widgets/common/rotary_knob.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 import 'package:flick/widgets/equalizer/parametric_eq_graph.dart';
 import 'package:flick/widgets/equalizer/graphic_eq_graph.dart';
@@ -33,6 +28,13 @@ import 'package:flick/l10n/l10n.dart';
 
 enum _PresetFileFormat { json, txt }
 
+/// Which part of the presets sheet is shown: the presets to apply, or
+/// importing and exporting preset files.
+enum _PresetsView { library, files }
+
+/// The equalizer: on the page itself the band EQ, presets and AutoEQ; the
+/// parametric EQ, tone, dynamics, FX, balance, convolver and preset files
+/// under a collapsible Advanced section on the same page.
 class EqualizerScreen extends ConsumerStatefulWidget {
   const EqualizerScreen({super.key});
 
@@ -41,12 +43,11 @@ class EqualizerScreen extends ConsumerStatefulWidget {
 }
 
 class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
-  static const _tabCount = 3;
   final _scrollController = ScrollController();
   final _graphicGraphKey = GlobalKey();
   final _parametricGraphKey = GlobalKey();
-  int _currentPage = 0;
-  int _pageDirection = 1;
+  final _advancedKey = GlobalKey();
+  bool _advancedOpen = false;
 
   @override
   void dispose() {
@@ -54,114 +55,249 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
     super.dispose();
   }
 
-  void _switchToPage(int index) {
-    if (index < 0 || index >= _tabCount || index == _currentPage) return;
-    setState(() {
-      _pageDirection = index > _currentPage ? 1 : -1;
-      _currentPage = index;
-    });
+  void _showPresets([_PresetsView view = _PresetsView.library]) {
+    showLokalSettingsSheet<void>(
+      context: context,
+      title: view == _PresetsView.library ? l10n.presets : 'Preset files',
+      isScrollControlled: true,
+      builder: (sheet) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(sheet).height * 0.75,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _PresetsSheet(view: view),
+        ),
+      ),
+    );
   }
 
-  void _showPresetsBottomSheet() {
-    GlassBottomSheet.show<void>(
-      context: context,
-      title: l10n.presets,
-      maxHeightRatio: 0.6,
-      content: _PresetsSheet(),
-    );
+  Future<void> _openAutoEq() async {
+    final entry = await showAutoEqSearchSheet(context);
+    if (entry == null || !mounted) return;
+    ref
+        .read(equalizerProvider.notifier)
+        .applyPreset(
+          presetName: entry.displayName,
+          enabled: true,
+          mode: EqMode.parametric,
+          preampDb: entry.preampDb,
+          graphicGainsDb: List<double>.filled(10, 0.0, growable: false),
+          parametricBands: entry.bands,
+        );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(l10n.appliedAutoeqFor(entry.displayName)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  /// Opens Advanced and brings it into view, e.g. to edit parametric bands.
+  void _openAdvanced() {
+    setState(() => _advancedOpen = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _advancedKey.currentContext;
+      if (target != null && target.mounted) {
+        Scrollable.ensureVisible(
+          target,
+          duration: AppConstants.animationNormal,
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final activePresetName = ref.watch(eqActivePresetNameProvider);
-    final currentSong = ref.watch(currentSongProvider);
+    final enabled = ref.watch(eqEnabledProvider);
+    final mode = ref.watch(eqModeProvider);
 
-    return Stack(
+    return LokalSettingsScaffold(
+      controller: _scrollController,
+      title: l10n.equalizer,
+      subtitle: activePresetName != null
+          ? l10n.preset(activePresetName)
+          : 'Shape the sound with the band EQ, a preset or your '
+                "headphones' AutoEQ profile.",
+      actions: [
+        LokalSettingsHeaderAction(
+          icon: Icons.library_music_rounded,
+          tooltip: l10n.presets,
+          onPressed: _showPresets,
+        ),
+      ],
       children: [
-        Positioned.fill(child: AmbientBackground(song: currentSong)),
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            bottom: false,
+        LokalSettingsBlock(
+          top: 16,
+          child: _GlassCard(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _Header(
-                  title: l10n.eqDynamics,
-                  subtitle: activePresetName != null
-                      ? l10n.preset(activePresetName)
-                      : null,
-                  onBack: () => Navigator.of(context).pop(),
-                  onPresets: _showPresetsBottomSheet,
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _EffectsTabBar(
-                        selectedIndex: _currentPage,
-                        onSelected: _switchToPage,
-                      ),
-                      const SizedBox(height: AppConstants.spacingMd),
-                      Expanded(
-                        child: GestureDetector(
-                          onHorizontalDragEnd: (details) {
-                            final velocity = details.primaryVelocity ?? 0;
-                            if (velocity < -250) {
-                              _switchToPage(_currentPage + 1);
-                            } else if (velocity > 250) {
-                              _switchToPage(_currentPage - 1);
-                            }
-                          },
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeInCubic,
-                            layoutBuilder:
-                                (currentChild, previousChildren) => Stack(
-                                  alignment: Alignment.topCenter,
-                                  children: [
-                                    ...previousChildren,
-                                    ?currentChild,
-                                  ],
-                                ),
-                            transitionBuilder: (child, animation) {
-                              final incoming =
-                                  (child.key as ValueKey).value ==
-                                      _currentPage;
-                              final beginX =
-                                  (incoming ? _pageDirection : -_pageDirection)
-                                      .toDouble();
-                              return SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: Offset(beginX, 0),
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: KeyedSubtree(
-                              key: ValueKey(_currentPage),
-                              child: switch (_currentPage) {
-                                0 => _EqPage(
-                                  scrollController: _scrollController,
-                                  graphicGraphKey: _graphicGraphKey,
-                                  parametricGraphKey: _parametricGraphKey,
-                                ),
-                                1 => const _DynamicsPage(),
-                                _ => const _FxPage(),
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _TopControlsRow(enabled: enabled),
+                _Divider(),
+                _PreampRow(enabled: enabled),
               ],
             ),
+          ),
+        ),
+        LokalSettingsSection(
+          title: l10n.presets,
+          children: [
+            LokalSettingLink(
+              label: 'Browse presets',
+              description: 'Built-in curves, your own, and saving this one.',
+              value: activePresetName,
+              onTap: _showPresets,
+            ),
+            LokalSettingLink(
+              label: l10n.autoeqHeadphones,
+              description: l10n.matchEqToYourHeadphoneModel,
+              onTap: _openAutoEq,
+            ),
+          ],
+        ),
+        LokalSettingsBlock(
+          child: mode == EqMode.graphic
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _GraphicEqView(graphKey: _graphicGraphKey),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () =>
+                            ref.read(equalizerProvider.notifier).resetGraphic(),
+                        icon: const Icon(LucideIcons.rotateCcw, size: 16),
+                        label: Text(l10n.reset),
+                        style: TextButton.styleFrom(
+                          foregroundColor: context.lokal.muted,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : _ParametricActiveCard(
+                  onEdit: _openAdvanced,
+                  onUseBandEq: () => ref
+                      .read(equalizerProvider.notifier)
+                      .setMode(EqMode.graphic),
+                ),
+        ),
+        LokalSettingsBlock(
+          key: _advancedKey,
+          child: _AdvancedHeader(
+            open: _advancedOpen,
+            onTap: () => setState(() => _advancedOpen = !_advancedOpen),
+          ),
+        ),
+        if (_advancedOpen) ...[
+          LokalSettingsBlock(
+            top: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SectionHeader(title: 'EQ type'),
+                _GlassCard(child: _ModeAndActionsRow(mode: mode)),
+                if (mode == EqMode.parametric) ...[
+                  const SizedBox(height: AppConstants.spacingLg),
+                  _ParametricEqView(graphKey: _parametricGraphKey),
+                ],
+              ],
+            ),
+          ),
+          LokalSettingsBlock(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SectionHeader(title: 'Tone'),
+                _BmtKnobsRow(enabled: enabled),
+              ],
+            ),
+          ),
+          const LokalSettingsBlock(child: _DynamicsSection()),
+          const LokalSettingsBlock(child: _CreativeFxSection()),
+          LokalSettingsSection(
+            title: 'Preset files',
+            children: [
+              LokalSettingLink(
+                label: 'Import or export',
+                description:
+                    '${l10n.loadAJsonOrTxtPreset} '
+                    '${l10n.saveTheCurrentEqAsJson}',
+                onTap: () => _showPresets(_PresetsView.files),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 96),
+      ],
+    );
+  }
+}
+
+/// Shown where the band EQ goes while the parametric EQ is in use (after
+/// AutoEQ or a parametric preset).
+class _ParametricActiveCard extends ConsumerWidget {
+  const _ParametricActiveCard({
+    required this.onEdit,
+    required this.onUseBandEq,
+  });
+
+  final VoidCallback onEdit;
+  final VoidCallback onUseBandEq;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = context.lokal;
+    final active = ref
+        .watch(equalizerProvider.select((s) => s.parametricBands))
+        .where((band) => band.enabled)
+        .length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeader(title: l10n.parametricEq),
+        LokalSettingsCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LokalStatusPill(label: l10n.activeBands(active), active: true),
+              const SizedBox(height: 10),
+              Text(
+                'The parametric EQ is shaping the sound, from AutoEQ or a '
+                'parametric preset. Edit its bands under Advanced, or go '
+                'back to the band EQ.',
+                style: TextStyle(
+                  fontFamily: LokalTheme.sans,
+                  fontSize: 13,
+                  height: 1.4,
+                  color: t.muted,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: LokalSettingsActionButton(
+                      label: 'Edit bands',
+                      onPressed: onEdit,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: LokalSettingsActionButton(
+                      label: 'Use band EQ',
+                      primary: false,
+                      onPressed: onUseBandEq,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
@@ -169,158 +305,63 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
   }
 }
 
-class _EffectsTabBar extends StatelessWidget {
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
+/// The Advanced section's header: tap to show or hide everything below.
+class _AdvancedHeader extends StatelessWidget {
+  const _AdvancedHeader({required this.open, required this.onTap});
 
-  const _EffectsTabBar({
-    required this.selectedIndex,
-    required this.onSelected,
-  });
+  final bool open;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final tabs = ['EQ', l10n.dynamics, 'FX'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
-      child: Row(
-        children: List.generate(tabs.length * 2 - 1, (i) {
-          if (i.isOdd) {
-            return const SizedBox(width: AppConstants.spacingXs);
-          }
-          final index = i ~/ 2;
-          final selected = index == selectedIndex;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onSelected(index),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppConstants.spacingSm,
-                ),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? AppColors.surface.withValues(alpha: 0.8)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                  border: selected
-                      ? Border.all(color: AppColors.glassBorder)
-                      : null,
-                ),
-                child: Text(
-                  tabs[index],
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: selected
-                        ? context.adaptiveTextPrimary
-                        : context.adaptiveTextTertiary,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+    final t = context.lokal;
+    return Semantics(
+      button: true,
+      expanded: open,
+      child: LokalSettingsCard(
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Icon(Icons.tune_rounded, color: t.accent, size: 22),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.advanced,
+                        style: TextStyle(
+                          fontFamily: LokalTheme.sans,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: t.text,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Parametric EQ, tone, compressor, limiter, balance, '
+                        'FX, convolver and preset files.',
+                        style: TextStyle(
+                          fontFamily: LokalTheme.sans,
+                          fontSize: 12.5,
+                          height: 1.35,
+                          color: t.muted,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _EqPage extends ConsumerWidget {
-  final ScrollController scrollController;
-  final GlobalKey graphicGraphKey;
-  final GlobalKey parametricGraphKey;
-
-  const _EqPage({
-    required this.scrollController,
-    required this.graphicGraphKey,
-    required this.parametricGraphKey,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(eqEnabledProvider);
-    final mode = ref.watch(eqModeProvider);
-
-      return NotificationListener<ScrollNotification>(
-        onNotification: (_) => true,
-        child: SingleChildScrollView(
-          controller: scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
-          child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _GlassCard(
-            child: Column(
-              children: [
-                _TopControlsRow(enabled: enabled),
-                _Divider(),
-                _PreampRow(enabled: enabled),
-                _Divider(),
-                _ModeAndActionsRow(mode: mode),
+                AnimatedRotation(
+                  turns: open ? .5 : 0,
+                  duration: AppConstants.animationFast,
+                  child: Icon(Icons.expand_more_rounded, color: t.muted),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: AppConstants.spacingLg),
-          _BmtKnobsRow(enabled: enabled),
-          const SizedBox(height: AppConstants.spacingLg),
-          AnimatedSwitcher(
-            duration: AppConstants.animationNormal,
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            child: mode == EqMode.graphic
-                ? _GraphicEqView(
-                    key: const ValueKey('graphic'),
-                    graphKey: graphicGraphKey,
-                  )
-                : _ParametricEqView(
-                    key: const ValueKey('param'),
-                    graphKey: parametricGraphKey,
-                  ),
-            ),
-          SizedBox(height: AppConstants.navBarHeight + 120),
-        ],
-      ),
-      ),
-    );
-  }
-}
-
-class _DynamicsPage extends ConsumerWidget {
-  const _DynamicsPage();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (_) => true,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _DynamicsSection(),
-            SizedBox(height: AppConstants.navBarHeight + 120),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FxPage extends ConsumerWidget {
-  const _FxPage();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (_) => true,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const _CreativeFxSection(),
-            SizedBox(height: AppConstants.navBarHeight + 120),
-          ],
         ),
       ),
     );
@@ -364,26 +405,24 @@ class _LabeledKnob extends StatelessWidget {
               Icon(
                 icon,
                 size: context.responsiveIcon(AppConstants.iconSizeSm),
-                color: enabled
-                    ? context.adaptiveTextSecondary
-                    : context.adaptiveTextTertiary,
+                color: enabled ? context.lokal.muted : context.lokal.muted2,
               ),
               const SizedBox(width: AppConstants.spacingXs),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: enabled
-                      ? context.adaptiveTextSecondary
-                      : context.adaptiveTextTertiary,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: enabled ? context.lokal.muted : context.lokal.muted2,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingSm),
           Tooltip(
-            message: enabled
-                ? l10n.doubleTapToReset
-                : l10n.enableEqToEdit,
+            message: enabled ? l10n.doubleTapToReset : l10n.enableEqToEdit,
             child: RotaryKnob(
               value: value,
               min: min,
@@ -392,9 +431,7 @@ class _LabeledKnob extends StatelessWidget {
               onChanged: onChanged,
               onDoubleTap: onReset,
               label: label,
-              accentColor: enabled
-                  ? context.adaptiveTextPrimary
-                  : context.adaptiveTextTertiary,
+              accentColor: enabled ? context.lokal.text : context.lokal.muted2,
             ),
           ),
           const SizedBox(height: AppConstants.spacingXs),
@@ -406,7 +443,9 @@ class _LabeledKnob extends StatelessWidget {
 }
 
 class _PresetsSheet extends ConsumerStatefulWidget {
-  const _PresetsSheet();
+  const _PresetsSheet({this.view = _PresetsView.library});
+
+  final _PresetsView view;
 
   @override
   ConsumerState<_PresetsSheet> createState() => _PresetsSheetState();
@@ -434,14 +473,13 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
   }
 
   Future<String?> _askForName(BuildContext context, {String? initial}) {
-    final result = FlickDialogs.input(
-      context,
+    return showLokalInputSheet(
+      context: context,
       title: initial == null ? l10n.savePreset : l10n.renamePreset,
-      hintText: l10n.presetName,
-      initialValue: initial,
+      hint: l10n.presetName,
+      initialValue: initial ?? '',
       confirmLabel: l10n.save,
     );
-    return result;
   }
 
   EqPreset _currentAsPreset({required String id, required String name}) {
@@ -486,7 +524,9 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
   Future<void> _openAutoEqSheet() async {
     final entry = await showAutoEqSearchSheet(context);
     if (entry == null) return;
-    ref.read(equalizerProvider.notifier).applyPreset(
+    ref
+        .read(equalizerProvider.notifier)
+        .applyPreset(
           presetName: entry.displayName,
           enabled: true,
           mode: EqMode.parametric,
@@ -570,33 +610,34 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
     List<String> warnings,
   ) async {
     if (!mounted) return;
-    await showDialog<void>(
+    await showLokalSettingsSheet<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.presetImportedWithAdjustments),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.containsValuesOutsideTheSupportedRanges(presetName),
-              ),
-              const SizedBox(height: 12),
-              for (final warning in warnings)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text('- $warning'),
+      isScrollControlled: true,
+      builder: (sheet) => SingleChildScrollView(
+        child: LokalSheetBody(
+          title: l10n.presetImportedWithAdjustments,
+          message: l10n.containsValuesOutsideTheSupportedRanges(presetName),
+          children: [
+            for (final warning in warnings)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '• $warning',
+                  style: TextStyle(
+                    fontFamily: LokalTheme.sans,
+                    fontSize: 13,
+                    color: sheet.lokal.text,
+                  ),
                 ),
-            ],
-          ),
+              ),
+            const SizedBox(height: 12),
+            LokalSettingsActionButton(
+              label: 'OK',
+              expand: true,
+              onPressed: () => Navigator.of(sheet).pop(),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
   }
@@ -650,30 +691,24 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
   }
 
   Future<_PresetFileFormat?> _askForExportFormat() async {
-    return showFlickDialog<_PresetFileFormat>(
+    return showLokalSettingsSheet<_PresetFileFormat>(
       context: context,
-      barrierLabel: l10n.exportFormat,
-      builder: (dialogContext) => FlickDialog(
-        title: l10n.format,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _FormatOption(
-              label: 'JSON',
-              description: l10n.nativeFlickPresetFormat,
-              onTap: () =>
-                  Navigator.of(dialogContext).pop(_PresetFileFormat.json),
-            ),
-            const SizedBox(height: AppConstants.spacingSm),
-            _FormatOption(
-              label: 'TXT',
-              description: l10n.compatibleWithPowerampEq,
-              onTap: () =>
-                  Navigator.of(dialogContext).pop(_PresetFileFormat.txt),
-            ),
-          ],
-        ),
+      title: l10n.exportFormat,
+      builder: (sheet) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LokalSheetOption(
+            label: 'JSON',
+            description: 'Lokal preset format',
+            onTap: () => Navigator.of(sheet).pop(_PresetFileFormat.json),
+          ),
+          LokalSheetOption(
+            label: 'TXT',
+            description: l10n.compatibleWithPowerampEq,
+            onTap: () => Navigator.of(sheet).pop(_PresetFileFormat.txt),
+          ),
+        ],
       ),
     );
   }
@@ -702,8 +737,8 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
   }
 
   Future<void> _deletePreset(EqPreset preset) async {
-    final confirmed = await FlickDialogs.confirm(
-      context,
+    final confirmed = await showLokalConfirmSheet(
+      context: context,
       title: l10n.deletePreset,
       message: l10n.deleteThisCannotBeUndone(preset.name),
       confirmLabel: l10n.delete,
@@ -722,16 +757,45 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
         child: Center(
           child: CircularProgressIndicator(
             strokeWidth: 2.5,
-            color: AppColors.textPrimary,
+            color: context.lokal.text,
           ),
         ),
+      );
+    }
+
+    if (widget.view == _PresetsView.files) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: AppConstants.spacingSm),
+          _GlassCard(
+            child: Column(
+              children: [
+                _PresetActionRow(
+                  icon: LucideIcons.fileUp,
+                  title: l10n.importPresetFile,
+                  subtitle: l10n.loadAJsonOrTxtPreset,
+                  onTap: _importPresetFile,
+                ),
+                _Divider(),
+                _PresetActionRow(
+                  icon: LucideIcons.fileDown,
+                  title: l10n.exportCurrentPreset,
+                  subtitle: l10n.saveTheCurrentEqAsJson,
+                  onTap: _exportCurrentPreset,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+        ],
       );
     }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: AppConstants.spacingMd),
+        const SizedBox(height: AppConstants.spacingSm),
         _GlassCard(
           child: Column(
             children: [
@@ -740,20 +804,6 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
                 title: l10n.saveCurrentAsPreset,
                 subtitle: l10n.createACustomPreset,
                 onTap: _saveNewPreset,
-              ),
-              _Divider(),
-              _PresetActionRow(
-                icon: LucideIcons.fileUp,
-                title: l10n.importPresetFile,
-                subtitle: l10n.loadAJsonOrTxtPreset,
-                onTap: _importPresetFile,
-              ),
-              _Divider(),
-              _PresetActionRow(
-                icon: LucideIcons.fileDown,
-                title: l10n.exportCurrentPreset,
-                subtitle: l10n.saveTheCurrentEqAsJson,
-                onTap: _exportCurrentPreset,
               ),
               _Divider(),
               _PresetActionRow(
@@ -773,7 +823,9 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
               for (final p in BuiltInEqPresets.presets) ...[
                 _PresetRow(
                   title: p.name,
-                  subtitle: p.mode == EqMode.graphic ? l10n.graphic : l10n.parametric,
+                  subtitle: p.mode == EqMode.graphic
+                      ? l10n.graphic
+                      : l10n.parametric,
                   onTap: () => _apply(p),
                 ),
                 if (p != BuiltInEqPresets.presets.last) _Divider(),
@@ -790,8 +842,8 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
                   child: Text(
                     l10n.noCustomPresetsYet,
                     style: TextStyle(
-                      fontFamily: 'GoogleSansFlex',
-                      color: AppColors.textSecondary,
+                      fontFamily: LokalTheme.sans,
+                      color: context.lokal.muted,
                     ),
                   ),
                 )
@@ -842,14 +894,10 @@ class _PresetActionRow extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.glassBackgroundStrong,
+                  color: context.lokal.surface3,
                   borderRadius: BorderRadius.circular(AppConstants.radiusSm),
                 ),
-                child: Icon(
-                  icon,
-                  color: context.adaptiveTextSecondary,
-                  size: 20,
-                ),
+                child: Icon(icon, color: context.lokal.muted, size: 20),
               ),
               const SizedBox(width: AppConstants.spacingMd),
               Expanded(
@@ -858,87 +906,21 @@ class _PresetActionRow extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(color: context.lokal.text),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: context.lokal.muted2),
                     ),
                   ],
                 ),
               ),
               Icon(
                 LucideIcons.chevronRight,
-                color: context.adaptiveTextTertiary,
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FormatOption extends StatelessWidget {
-  final String label;
-  final String description;
-  final VoidCallback onTap;
-
-  const _FormatOption({
-    required this.label,
-    required this.description,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
-          decoration: BoxDecoration(
-            color: AppColors.glassBackgroundStrong,
-            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-            border: Border.all(color: AppColors.glassBorder),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: context.adaptiveTextPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        color: context.adaptiveTextSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                LucideIcons.chevronRight,
-                color: context.adaptiveTextTertiary,
+                color: context.lokal.muted2,
                 size: 20,
               ),
             ],
@@ -974,12 +956,12 @@ class _PresetRow extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.glassBackgroundStrong,
+                  color: context.lokal.surface3,
                   borderRadius: BorderRadius.circular(AppConstants.radiusSm),
                 ),
                 child: Icon(
                   LucideIcons.bookmark,
-                  color: context.adaptiveTextSecondary,
+                  color: context.lokal.muted,
                   size: 20,
                 ),
               ),
@@ -990,25 +972,19 @@ class _PresetRow extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: context.adaptiveTextPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(color: context.lokal.text),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.adaptiveTextTertiary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: context.lokal.muted2),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                LucideIcons.check,
-                color: context.adaptiveTextTertiary,
-                size: 18,
-              ),
+              Icon(LucideIcons.check, color: context.lokal.muted2, size: 18),
             ],
           ),
         ),
@@ -1042,12 +1018,12 @@ class _CustomPresetRow extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: AppColors.glassBackgroundStrong,
+                color: context.lokal.surface3,
                 borderRadius: BorderRadius.circular(AppConstants.radiusSm),
               ),
               child: Icon(
                 LucideIcons.star,
-                color: context.adaptiveTextSecondary,
+                color: context.lokal.muted,
                 size: 20,
               ),
             ),
@@ -1058,16 +1034,16 @@ class _CustomPresetRow extends StatelessWidget {
                 children: [
                   Text(
                     preset.name,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: context.adaptiveTextPrimary,
-                    ),
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(color: context.lokal.text),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    preset.mode == EqMode.graphic ? l10n.graphic : l10n.parametric,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
+                    preset.mode == EqMode.graphic
+                        ? l10n.graphic
+                        : l10n.parametric,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: context.lokal.muted2),
                   ),
                 ],
               ),
@@ -1077,7 +1053,7 @@ class _CustomPresetRow extends StatelessWidget {
               onPressed: onApply,
               icon: Icon(
                 LucideIcons.check,
-                color: context.adaptiveTextPrimary,
+                color: context.lokal.text,
                 size: 18,
               ),
             ),
@@ -1086,7 +1062,7 @@ class _CustomPresetRow extends StatelessWidget {
               onPressed: onRename,
               icon: Icon(
                 LucideIcons.pencil,
-                color: context.adaptiveTextSecondary,
+                color: context.lokal.muted,
                 size: 18,
               ),
             ),
@@ -1101,75 +1077,6 @@ class _CustomPresetRow extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Header extends StatelessWidget {
-  final String title;
-  final String? subtitle;
-  final VoidCallback onBack;
-  final VoidCallback onPresets;
-
-  const _Header({
-    required this.title,
-    required this.onBack,
-    required this.onPresets,
-    this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingLg,
-        vertical: AppConstants.spacingMd,
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: Icon(
-              LucideIcons.chevronLeft,
-              color: context.adaptiveTextPrimary,
-              size: context.responsiveIcon(AppConstants.iconSizeMd),
-            ),
-            onPressed: onBack,
-            visualDensity: VisualDensity.compact,
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: context.adaptiveTextPrimary,
-                  ),
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: l10n.presets,
-            icon: Icon(
-              LucideIcons.library,
-              color: context.adaptiveTextPrimary,
-              size: context.responsiveIcon(AppConstants.iconSizeMd),
-            ),
-            onPressed: onPresets,
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
       ),
     );
   }
@@ -1194,16 +1101,14 @@ class _TopControlsRow extends ConsumerWidget {
                 children: [
                   Text(
                     l10n.equalizer,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: context.adaptiveTextPrimary,
-                    ),
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(color: context.lokal.text),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     enabled ? l10n.enabled : l10n.disabled,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: context.lokal.muted2),
                   ),
                 ],
               ),
@@ -1250,10 +1155,7 @@ class _PreampRow extends ConsumerWidget {
         padding: const EdgeInsets.all(AppConstants.spacingMd),
         child: Row(
           children: [
-            _IconTile(
-              icon: LucideIcons.gauge,
-              enabled: enabled && isNonZero,
-            ),
+            _IconTile(icon: LucideIcons.gauge, enabled: enabled && isNonZero),
             const SizedBox(width: AppConstants.spacingMd),
             Expanded(
               child: Column(
@@ -1263,9 +1165,8 @@ class _PreampRow extends ConsumerWidget {
                     children: [
                       Text(
                         l10n.preamp,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: context.adaptiveTextPrimary,
-                        ),
+                        style: Theme.of(context).textTheme.titleSmall
+                            ?.copyWith(color: context.lokal.text),
                       ),
                       const Spacer(),
                       Text(
@@ -1293,8 +1194,8 @@ class _PreampRow extends ConsumerWidget {
                       enabled: enabled,
                       onChanged: enabled
                           ? (v) => ref
-                              .read(equalizerProvider.notifier)
-                              .setPreamp(v)
+                                .read(equalizerProvider.notifier)
+                                .setPreamp(v)
                           : null,
                     ),
                   ),
@@ -1324,14 +1225,14 @@ class _ResetButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: AppColors.glassBackgroundStrong,
+            color: context.lokal.surface3,
             borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-            border: Border.all(color: AppColors.glassBorder),
+            border: Border.all(color: context.lokal.border),
           ),
           child: Icon(
             LucideIcons.rotateCcw,
             size: 14,
-            color: context.adaptiveTextSecondary,
+            color: context.lokal.muted,
           ),
         ),
       ),
@@ -1389,7 +1290,7 @@ class _PreampSlider extends StatelessWidget {
           data: SliderTheme.of(context).copyWith(
             trackHeight: 6,
             activeTrackColor: toneColor,
-            inactiveTrackColor: AppColors.glassBorderStrong,
+            inactiveTrackColor: context.lokal.border2,
             thumbColor: Colors.white,
             overlayColor: toneColor.withValues(alpha: 0.2),
             thumbShape: const _PreampThumbShape(),
@@ -1513,8 +1414,9 @@ class _PreampThumbShape extends SliderComponentShape {
     context.canvas.drawCircle(center, radius, paint);
 
     final borderPaint = Paint()
-      ..color = (sliderTheme.activeTrackColor ?? Colors.white)
-          .withValues(alpha: 0.3)
+      ..color = (sliderTheme.activeTrackColor ?? Colors.white).withValues(
+        alpha: 0.3,
+      )
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
 
@@ -1551,9 +1453,7 @@ class _ScaleLabel extends StatelessWidget {
     return Text(
       l10n.db2(value),
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        color: isCenter
-            ? context.adaptiveTextSecondary
-            : context.adaptiveTextTertiary,
+        color: isCenter ? context.lokal.muted : context.lokal.muted2,
         fontWeight: isCenter ? FontWeight.w600 : FontWeight.normal,
         fontSize: 10,
       ),
@@ -1611,9 +1511,7 @@ class _BmtKnobsRow extends ConsumerWidget {
 
     return _GlassCard(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: AppConstants.spacingMd,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingMd),
         child: Column(
           children: [
             Padding(
@@ -1622,10 +1520,7 @@ class _BmtKnobsRow extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  _IconTile(
-                    icon: LucideIcons.audioWaveform,
-                    enabled: enabled,
-                  ),
+                  _IconTile(icon: LucideIcons.audioWaveform, enabled: enabled),
                   const SizedBox(width: AppConstants.spacingMd),
                   Expanded(
                     child: Column(
@@ -1633,16 +1528,14 @@ class _BmtKnobsRow extends ConsumerWidget {
                       children: [
                         Text(
                           l10n.toneControls,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: context.adaptiveTextPrimary,
-                          ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(color: context.lokal.text),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           l10n.bassMidTreble,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.adaptiveTextTertiary,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.lokal.muted2),
                         ),
                       ],
                     ),
@@ -1672,8 +1565,7 @@ class _BmtKnobsRow extends ConsumerWidget {
                   min: EqualizerNotifier.gainMinDb,
                   max: EqualizerNotifier.gainMaxDb,
                   onChanged: enabled
-                      ? (v) =>
-                          ref.read(equalizerProvider.notifier).setBassDb(v)
+                      ? (v) => ref.read(equalizerProvider.notifier).setBassDb(v)
                       : null,
                   onReset: () =>
                       ref.read(equalizerProvider.notifier).setBassDb(0.0),
@@ -1687,8 +1579,7 @@ class _BmtKnobsRow extends ConsumerWidget {
                   min: EqualizerNotifier.gainMinDb,
                   max: EqualizerNotifier.gainMaxDb,
                   onChanged: enabled
-                      ? (v) =>
-                          ref.read(equalizerProvider.notifier).setMidDb(v)
+                      ? (v) => ref.read(equalizerProvider.notifier).setMidDb(v)
                       : null,
                   onReset: () =>
                       ref.read(equalizerProvider.notifier).setMidDb(0.0),
@@ -1703,7 +1594,7 @@ class _BmtKnobsRow extends ConsumerWidget {
                   max: EqualizerNotifier.gainMaxDb,
                   onChanged: enabled
                       ? (v) =>
-                          ref.read(equalizerProvider.notifier).setTrebleDb(v)
+                            ref.read(equalizerProvider.notifier).setTrebleDb(v)
                       : null,
                   onReset: () =>
                       ref.read(equalizerProvider.notifier).setTrebleDb(0.0),
@@ -1719,7 +1610,7 @@ class _BmtKnobsRow extends ConsumerWidget {
 
 class _GraphicEqView extends ConsumerWidget {
   final GlobalKey? graphKey;
-  const _GraphicEqView({super.key, this.graphKey});
+  const _GraphicEqView({this.graphKey});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1764,9 +1655,8 @@ class _GraphicEqView extends ConsumerWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const InteractiveEqGraphScreen(
-                    mode: EqMode.graphic,
-                  ),
+                  builder: (_) =>
+                      const InteractiveEqGraphScreen(mode: EqMode.graphic),
                 ),
               );
             },
@@ -1779,8 +1669,9 @@ class _GraphicEqView extends ConsumerWidget {
                   _CardHeader(
                     icon: LucideIcons.audioLines,
                     title: l10n.curvePreview,
-                    subtitle:
-                        l10n.fixedCenterFrequenciesWithADb(EqualizerNotifier.gainMaxDb.toStringAsFixed(0)),
+                    subtitle: l10n.fixedCenterFrequenciesWithADb(
+                      EqualizerNotifier.gainMaxDb.toStringAsFixed(0),
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1793,7 +1684,7 @@ class _GraphicEqView extends ConsumerWidget {
                         Icon(
                           LucideIcons.maximize2,
                           size: 16,
-                          color: context.adaptiveTextTertiary,
+                          color: context.lokal.muted2,
                         ),
                       ],
                     ),
@@ -1899,13 +1790,11 @@ class _GraphicBandSlider extends ConsumerWidget {
     final gainDb = ref.watch(eqGraphicGainDbProvider(index));
     final toneColor = gainDb > 0
         ? const Color(0xFFE0B66B)
-        : (gainDb < 0 ? const Color(0xFF7AB6D9) : AppColors.textTertiary);
+        : (gainDb < 0 ? const Color(0xFF7AB6D9) : context.lokal.muted2);
 
     return RepaintBoundary(
       child: Tooltip(
-        message: enabled
-            ? l10n.doubleTapToResetThisBand
-            : l10n.enableEqToEdit,
+        message: enabled ? l10n.doubleTapToResetThisBand : l10n.enableEqToEdit,
         child: GestureDetector(
           onDoubleTap: enabled
               ? () => ref
@@ -1917,12 +1806,12 @@ class _GraphicBandSlider extends ConsumerWidget {
             width: 88,
             padding: const EdgeInsets.all(AppConstants.spacingSm),
             decoration: BoxDecoration(
-              color: AppColors.surface.withValues(alpha: enabled ? 1.0 : 0.82),
+              color: context.lokal.surface,
               borderRadius: BorderRadius.circular(AppConstants.radiusMd),
               border: Border.all(
                 color: gainDb.abs() >= 0.1
                     ? toneColor.withValues(alpha: 0.45)
-                    : AppColors.glassBorder,
+                    : context.lokal.border,
               ),
             ),
             child: Column(
@@ -1933,7 +1822,7 @@ class _GraphicBandSlider extends ConsumerWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: context.lokal.surface,
                     borderRadius: BorderRadius.circular(
                       AppConstants.radiusRound,
                     ),
@@ -1942,8 +1831,8 @@ class _GraphicBandSlider extends ConsumerWidget {
                     _freqLabel(),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: enabled
-                          ? context.adaptiveTextPrimary
-                          : context.adaptiveTextTertiary,
+                          ? context.lokal.text
+                          : context.lokal.muted2,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1952,15 +1841,14 @@ class _GraphicBandSlider extends ConsumerWidget {
                 Text(
                   '${gainDb >= 0 ? '+' : ''}${gainDb.toStringAsFixed(1)}',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: enabled ? toneColor : context.adaptiveTextTertiary,
+                    color: enabled ? toneColor : context.lokal.muted2,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
                   'dB',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: context.lokal.muted2),
                 ),
                 const SizedBox(height: AppConstants.spacingSm),
                 Expanded(
@@ -1973,7 +1861,7 @@ class _GraphicBandSlider extends ConsumerWidget {
                         min: EqualizerNotifier.gainMinDb,
                         max: EqualizerNotifier.gainMaxDb,
                         activeTrackColor: toneColor,
-                        inactiveTrackColor: AppColors.glassBorderStrong,
+                        inactiveTrackColor: context.lokal.border2,
                         thumbColor: toneColor,
                         overlayColor: toneColor.withValues(alpha: 0.12),
                         onChanged: enabled
@@ -1989,7 +1877,7 @@ class _GraphicBandSlider extends ConsumerWidget {
                 Text(
                   _bandFamilyLabel(),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
+                    color: context.lokal.muted2,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -2106,7 +1994,7 @@ class _AnimatedSliderState extends State<_AnimatedSlider>
 
 class _ParametricEqView extends ConsumerStatefulWidget {
   final GlobalKey? graphKey;
-  const _ParametricEqView({super.key, this.graphKey});
+  const _ParametricEqView({this.graphKey});
 
   @override
   ConsumerState<_ParametricEqView> createState() => _ParametricEqViewState();
@@ -2170,10 +2058,7 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
               icon: LucideIcons.scanSearch,
               label: l10n.logFrequencyControl,
             ),
-            _StatPill(
-              icon: LucideIcons.funnel,
-              label: l10n.multiFilterBands,
-            ),
+            _StatPill(icon: LucideIcons.funnel, label: l10n.multiFilterBands),
             _StatPill(
               icon: LucideIcons.slidersHorizontal,
               label: l10n.bands(bands.length),
@@ -2187,9 +2072,8 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const InteractiveEqGraphScreen(
-                    mode: EqMode.parametric,
-                  ),
+                  builder: (_) =>
+                      const InteractiveEqGraphScreen(mode: EqMode.parametric),
                 ),
               );
             },
@@ -2202,12 +2086,13 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                   _CardHeader(
                     icon: LucideIcons.gitBranchPlus,
                     title: l10n.curvePreview,
-                    subtitle:
-                        l10n.parametricBandsWithIndependentFrequency(bands.length),
+                    subtitle: l10n.parametricBandsWithIndependentFrequency(
+                      bands.length,
+                    ),
                     trailing: Icon(
                       LucideIcons.maximize2,
                       size: 16,
-                      color: context.adaptiveTextTertiary,
+                      color: context.lokal.muted2,
                     ),
                   ),
                   const SizedBox(height: AppConstants.spacingMd),
@@ -2239,8 +2124,7 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                   _CardHeader(
                     icon: LucideIcons.slidersHorizontal,
                     title: l10n.bandEditors,
-                    subtitle:
-                        l10n.tapABandToExpandDrag,
+                    subtitle: l10n.tapABandToExpandDrag,
                   ),
                   const SizedBox(height: AppConstants.spacingMd),
                   SizedBox(
@@ -2264,8 +2148,7 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                           enabled: enabled,
                           isSelected: _selectedIndex == i,
                           onTap: () => setState(() {
-                            _selectedIndex =
-                                _selectedIndex == i ? null : i;
+                            _selectedIndex = _selectedIndex == i ? null : i;
                           }),
                           onRemove: bands.length > 1
                               ? () {
@@ -2307,14 +2190,13 @@ class _ParametricEqViewState extends ConsumerState<_ParametricEqView> {
                     ),
                   ),
                   const SizedBox(height: AppConstants.spacingSm),
-                  _ScrollProgressBar(
-                    controller: _bandScrollController,
-                  ),
+                  _ScrollProgressBar(controller: _bandScrollController),
                   AnimatedSize(
                     duration: AppConstants.animationNormal,
                     curve: Curves.easeInOutCubic,
                     alignment: Alignment.topCenter,
-                    child: (_selectedIndex != null &&
+                    child:
+                        (_selectedIndex != null &&
                             _selectedIndex! < bands.length)
                         ? Padding(
                             padding: const EdgeInsets.only(
@@ -2389,14 +2271,10 @@ class _ParametricBandSummary extends StatelessWidget {
                 vertical: 6,
               ),
               decoration: BoxDecoration(
-                color: active
-                    ? AppColors.glassBackgroundStrong.withValues(alpha: 0.55)
-                    : AppColors.glassBackground,
+                color: active ? context.lokal.surface3 : context.lokal.surface2,
                 borderRadius: BorderRadius.circular(AppConstants.radiusRound),
                 border: Border.all(
-                  color: active
-                      ? AppColors.glassBorderStrong
-                      : AppColors.glassBorder.withValues(alpha: 0.6),
+                  color: active ? context.lokal.border2 : context.lokal.border,
                 ),
               ),
               child: Row(
@@ -2405,9 +2283,7 @@ class _ParametricBandSummary extends StatelessWidget {
                   Text(
                     l10n.b(index + 1),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: active
-                          ? context.adaptiveTextPrimary
-                          : context.adaptiveTextTertiary,
+                      color: active ? context.lokal.text : context.lokal.muted2,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -2416,8 +2292,8 @@ class _ParametricBandSummary extends StatelessWidget {
                     l10n.u2022(_hzLabel(band.frequencyHz), valueLabel),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: active
-                          ? context.adaptiveTextSecondary
-                          : context.adaptiveTextTertiary,
+                          ? context.lokal.muted
+                          : context.lokal.muted2,
                     ),
                   ),
                 ],
@@ -2456,10 +2332,8 @@ class _ScrollProgressBar extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress.clamp(0.0, 1.0),
               minHeight: 3,
-              backgroundColor: AppColors.glassBorder,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                AppColors.glassBorderStrong,
-              ),
+              backgroundColor: context.lokal.border,
+              valueColor: AlwaysStoppedAnimation<Color>(context.lokal.border2),
             ),
           ),
         );
@@ -2513,7 +2387,7 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
     required double max,
     required ValueChanged<double> onSubmitted,
   }) {
-    showFlickDialog<void>(
+    showDialog<void>(
       context: context,
       barrierDismissible: true,
       barrierLabel: l10n.dismiss,
@@ -2535,20 +2409,16 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
     final editable = widget.enabled && band.enabled;
     final toneColor = band.gainDb > 0.1
         ? const Color(0xFFE0B66B)
-        : (band.gainDb < -0.1
-            ? const Color(0xFF7AB6D9)
-            : context.adaptiveTextTertiary);
+        : (band.gainDb < -0.1 ? const Color(0xFF7AB6D9) : context.lokal.muted2);
 
     return AnimatedContainer(
       duration: AppConstants.animationNormal,
       curve: Curves.easeOutCubic,
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.lokal.surface,
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        border: Border.all(
-          color: toneColor.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: toneColor.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2559,17 +2429,17 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: AppColors.glassBackground,
+                  color: context.lokal.surface2,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   '${widget.index + 1}',
                   style: TextStyle(
-                    fontFamily: 'GoogleSansFlex',
+                    fontFamily: LokalTheme.sans,
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
-                    color: AppColors.textPrimary,
+                    color: context.lokal.text,
                   ),
                 ),
               ),
@@ -2578,7 +2448,7 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                 child: Text(
                   l10n.bandU2022(widget.index + 1, band.type.displayName),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.adaptiveTextPrimary,
+                    color: context.lokal.text,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -2588,8 +2458,8 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                 compact: false,
                 onChanged: editable
                     ? (type) => ref
-                        .read(equalizerProvider.notifier)
-                        .setParamBandType(widget.index, type)
+                          .read(equalizerProvider.notifier)
+                          .setParamBandType(widget.index, type)
                     : null,
               ),
               const SizedBox(width: AppConstants.spacingSm),
@@ -2597,8 +2467,8 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                 value: band.enabled,
                 onChanged: widget.enabled
                     ? (v) => ref
-                        .read(equalizerProvider.notifier)
-                        .setParamBandEnabled(widget.index, v)
+                          .read(equalizerProvider.notifier)
+                          .setParamBandEnabled(widget.index, v)
                     : (_) {},
               ),
             ],
@@ -2618,23 +2488,23 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                   size: 100,
                   onChanged: editable
                       ? (t) => ref
-                          .read(equalizerProvider.notifier)
-                          .setParamBandFreqHz(widget.index, _tToHz(t))
+                            .read(equalizerProvider.notifier)
+                            .setParamBandFreqHz(widget.index, _tToHz(t))
                       : null,
                   label: l10n.freq,
                 ),
                 onTapValue: editable
                     ? () => _showEditor(
-                          context: context,
-                          value: band.frequencyHz,
-                          unit: l10n.hz5,
-                          label: l10n.frequency,
-                          min: 20.0,
-                          max: 20000.0,
-                          onSubmitted: (v) => ref
-                              .read(equalizerProvider.notifier)
-                              .setParamBandFreqHz(widget.index, v),
-                        )
+                        context: context,
+                        value: band.frequencyHz,
+                        unit: l10n.hz5,
+                        label: l10n.frequency,
+                        min: 20.0,
+                        max: 20000.0,
+                        onSubmitted: (v) => ref
+                            .read(equalizerProvider.notifier)
+                            .setParamBandFreqHz(widget.index, v),
+                      )
                     : null,
               ),
               if (band.type.supportsGain)
@@ -2656,40 +2526,40 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                     size: 100,
                     onChanged: editable
                         ? (v) => ref
-                            .read(equalizerProvider.notifier)
-                            .setParamBandGainDb(
-                              widget.index,
-                              band.type == ParametricBandType.notch
-                                  ? -v.abs()
-                                  : v,
-                            )
+                              .read(equalizerProvider.notifier)
+                              .setParamBandGainDb(
+                                widget.index,
+                                band.type == ParametricBandType.notch
+                                    ? -v.abs()
+                                    : v,
+                              )
                         : null,
                     label: l10n.gain,
                     accentColor: toneColor,
                   ),
                   onTapValue: editable
                       ? () => _showEditor(
-                            context: context,
-                            value: band.type == ParametricBandType.notch
-                                ? band.gainDb.abs()
-                                : band.gainDb,
-                            unit: 'dB',
-                            label: band.type == ParametricBandType.notch
-                                ? l10n.notchDepth
-                                : l10n.gain,
-                            min: band.type == ParametricBandType.notch
-                                ? 0.0
-                                : EqualizerNotifier.gainMinDb,
-                            max: EqualizerNotifier.gainMaxDb,
-                            onSubmitted: (v) => ref
-                                .read(equalizerProvider.notifier)
-                                .setParamBandGainDb(
-                                  widget.index,
-                                  band.type == ParametricBandType.notch
-                                      ? -v.abs()
-                                      : v,
-                                ),
-                          )
+                          context: context,
+                          value: band.type == ParametricBandType.notch
+                              ? band.gainDb.abs()
+                              : band.gainDb,
+                          unit: 'dB',
+                          label: band.type == ParametricBandType.notch
+                              ? l10n.notchDepth
+                              : l10n.gain,
+                          min: band.type == ParametricBandType.notch
+                              ? 0.0
+                              : EqualizerNotifier.gainMinDb,
+                          max: EqualizerNotifier.gainMaxDb,
+                          onSubmitted: (v) => ref
+                              .read(equalizerProvider.notifier)
+                              .setParamBandGainDb(
+                                widget.index,
+                                band.type == ParametricBandType.notch
+                                    ? -v.abs()
+                                    : v,
+                              ),
+                        )
                       : null,
                   accentColor: toneColor,
                 ),
@@ -2703,23 +2573,23 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                   size: 100,
                   onChanged: editable
                       ? (v) => ref
-                          .read(equalizerProvider.notifier)
-                          .setParamBandQ(widget.index, v)
+                            .read(equalizerProvider.notifier)
+                            .setParamBandQ(widget.index, v)
                       : null,
                   label: band.type.qLabel,
                 ),
                 onTapValue: editable
                     ? () => _showEditor(
-                          context: context,
-                          value: band.q,
-                          unit: 'Q',
-                          label: band.type.qLabel,
-                          min: EqualizerNotifier.qMin,
-                          max: EqualizerNotifier.qMax,
-                          onSubmitted: (v) => ref
-                              .read(equalizerProvider.notifier)
-                              .setParamBandQ(widget.index, v),
-                        )
+                        context: context,
+                        value: band.q,
+                        unit: 'Q',
+                        label: band.type.qLabel,
+                        min: EqualizerNotifier.qMin,
+                        max: EqualizerNotifier.qMax,
+                        onSubmitted: (v) => ref
+                            .read(equalizerProvider.notifier)
+                            .setParamBandQ(widget.index, v),
+                      )
                     : null,
               ),
             ],
@@ -2737,16 +2607,16 @@ class _BandDetailPanelState extends ConsumerState<_BandDetailPanel> {
                     vertical: AppConstants.spacingXs,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.glassBackground,
+                    color: context.lokal.surface2,
                     borderRadius: BorderRadius.circular(
                       AppConstants.radiusRound,
                     ),
-                    border: Border.all(color: AppColors.glassBorder),
+                    border: Border.all(color: context.lokal.border),
                   ),
                   child: Text(
                     l10n.resetTo0Db,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.adaptiveTextSecondary,
+                      color: context.lokal.muted,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2783,7 +2653,7 @@ class _DetailKnob extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: context.adaptiveTextTertiary,
+            color: context.lokal.muted2,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -2798,15 +2668,15 @@ class _DetailKnob extends StatelessWidget {
               vertical: 4,
             ),
             decoration: BoxDecoration(
-              color: AppColors.glassBackground.withValues(alpha: 0.5),
+              color: context.lokal.surface2,
               borderRadius: BorderRadius.circular(AppConstants.radiusRound),
             ),
             child: Text(
               value,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: accentColor ?? context.adaptiveTextPrimary,
+                color: accentColor ?? context.lokal.text,
                 fontWeight: FontWeight.w700,
-                fontFamily: 'GoogleSansFlex',
+                fontFamily: LokalTheme.sans,
               ),
             ),
           ),
@@ -2878,9 +2748,9 @@ class _InlineValueEditorState extends State<_InlineValueEditor> {
             width: 240,
             padding: const EdgeInsets.all(AppConstants.spacingMd),
             decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
+              color: context.lokal.surface2,
               borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-              border: Border.all(color: AppColors.glassBorderStrong),
+              border: Border.all(color: context.lokal.border2),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.4),
@@ -2895,9 +2765,8 @@ class _InlineValueEditorState extends State<_InlineValueEditor> {
               children: [
                 Text(
                   widget.label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.adaptiveTextSecondary,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: context.lokal.muted),
                 ),
                 const SizedBox(height: AppConstants.spacingSm),
                 TextField(
@@ -2909,8 +2778,8 @@ class _InlineValueEditorState extends State<_InlineValueEditor> {
                   ),
                   textInputAction: TextInputAction.done,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: context.adaptiveTextPrimary,
-                    fontFamily: 'GoogleSansFlex',
+                    color: context.lokal.text,
+                    fontFamily: LokalTheme.sans,
                   ),
                   decoration: InputDecoration(
                     isDense: true,
@@ -2920,26 +2789,24 @@ class _InlineValueEditorState extends State<_InlineValueEditor> {
                     ),
                     suffixText: widget.unit,
                     suffixStyle: Theme.of(context).textTheme.labelSmall
-                        ?.copyWith(color: context.adaptiveTextTertiary),
+                        ?.copyWith(color: context.lokal.muted2),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
                         AppConstants.radiusSm,
                       ),
-                      borderSide: BorderSide(color: AppColors.glassBorder),
+                      borderSide: BorderSide(color: context.lokal.border),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
                         AppConstants.radiusSm,
                       ),
-                      borderSide: BorderSide(color: AppColors.glassBorder),
+                      borderSide: BorderSide(color: context.lokal.border),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
                         AppConstants.radiusSm,
                       ),
-                      borderSide: BorderSide(
-                        color: context.adaptiveTextPrimary,
-                      ),
+                      borderSide: BorderSide(color: context.lokal.text),
                     ),
                   ),
                   onSubmitted: (_) => _submit(),
@@ -2952,7 +2819,7 @@ class _InlineValueEditorState extends State<_InlineValueEditor> {
                     child: Text(
                       l10n.done,
                       style: TextStyle(
-                        fontFamily: 'GoogleSansFlex',
+                        fontFamily: LokalTheme.sans,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -2967,7 +2834,6 @@ class _InlineValueEditorState extends State<_InlineValueEditor> {
   }
 }
 
-
 class _AddBandCard extends ConsumerWidget {
   final bool enabled;
   final VoidCallback? onAdd;
@@ -2976,29 +2842,22 @@ class _AddBandCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bands = ref.watch(
-      equalizerProvider.select((s) => s.parametricBands),
-    );
-    final atLimit =
-        bands.length >= EqualizerNotifier.maxParametricBands;
+    final bands = ref.watch(equalizerProvider.select((s) => s.parametricBands));
+    final atLimit = bands.length >= EqualizerNotifier.maxParametricBands;
 
     return SizedBox(
       width: 140,
       child: GestureDetector(
-        onTap: atLimit || !enabled || onAdd == null
-            ? null
-            : onAdd,
+        onTap: atLimit || !enabled || onAdd == null ? null : onAdd,
         child: AnimatedContainer(
           duration: AppConstants.animationFast,
           decoration: BoxDecoration(
-            color: AppColors.surface.withValues(
-              alpha: enabled && !atLimit ? 0.85 : 0.5,
-            ),
+            color: context.lokal.surface,
             borderRadius: BorderRadius.circular(AppConstants.radiusMd),
             border: Border.all(
               color: enabled && !atLimit
-                  ? AppColors.glassBorderStrong
-                  : AppColors.glassBorder.withValues(alpha: 0.5),
+                  ? context.lokal.border2
+                  : context.lokal.border,
             ),
           ),
           alignment: Alignment.center,
@@ -3009,16 +2868,16 @@ class _AddBandCard extends ConsumerWidget {
                 LucideIcons.plus,
                 size: 32,
                 color: enabled && !atLimit
-                    ? context.adaptiveTextSecondary
-                    : context.adaptiveTextTertiary,
+                    ? context.lokal.muted
+                    : context.lokal.muted2,
               ),
               const SizedBox(height: AppConstants.spacingSm),
               Text(
                 atLimit ? l10n.limit : l10n.add,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: enabled && !atLimit
-                      ? context.adaptiveTextSecondary
-                      : context.adaptiveTextTertiary,
+                      ? context.lokal.muted
+                      : context.lokal.muted2,
                 ),
               ),
             ],
@@ -3058,9 +2917,7 @@ class _ParametricBandEditor extends ConsumerWidget {
     final editable = enabled && band.enabled;
     final toneColor = band.gainDb > 0.1
         ? const Color(0xFFE0B66B)
-        : (band.gainDb < -0.1
-            ? const Color(0xFF7AB6D9)
-            : context.adaptiveTextTertiary);
+        : (band.gainDb < -0.1 ? const Color(0xFF7AB6D9) : context.lokal.muted2);
 
     return SizedBox(
       width: 160,
@@ -3068,22 +2925,20 @@ class _ParametricBandEditor extends ConsumerWidget {
         onTap: onTap,
         onDoubleTap: editable
             ? () => ref
-                .read(equalizerProvider.notifier)
-                .setParamBandGainDb(index, 0.0)
+                  .read(equalizerProvider.notifier)
+                  .setParamBandGainDb(index, 0.0)
             : null,
         child: AnimatedContainer(
           duration: AppConstants.animationFast,
           decoration: BoxDecoration(
-            color: AppColors.surface.withValues(
-              alpha: editable ? 1.0 : 0.82,
-            ),
+            color: context.lokal.surface,
             borderRadius: BorderRadius.circular(AppConstants.radiusMd),
             border: Border.all(
               color: isSelected
                   ? toneColor.withValues(alpha: 0.6)
                   : band.gainDb.abs() >= 0.1 && editable
-                      ? toneColor.withValues(alpha: 0.35)
-                      : AppColors.glassBorder,
+                  ? toneColor.withValues(alpha: 0.35)
+                  : context.lokal.border,
               width: isSelected ? 2.0 : 1.0,
             ),
             boxShadow: isSelected
@@ -3111,17 +2966,17 @@ class _ParametricBandEditor extends ConsumerWidget {
                       width: 24,
                       height: 24,
                       decoration: BoxDecoration(
-                        color: AppColors.glassBackground,
+                        color: context.lokal.surface2,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         '${index + 1}',
                         style: TextStyle(
-                          fontFamily: 'GoogleSansFlex',
+                          fontFamily: LokalTheme.sans,
                           fontWeight: FontWeight.w700,
                           fontSize: 11,
-                          color: AppColors.textPrimary,
+                          color: context.lokal.text,
                         ),
                       ),
                     ),
@@ -3133,8 +2988,8 @@ class _ParametricBandEditor extends ConsumerWidget {
                           LucideIcons.x,
                           size: 16,
                           color: onRemove == null
-                              ? AppColors.glassBorder
-                              : context.adaptiveTextTertiary,
+                              ? context.lokal.border
+                              : context.lokal.muted2,
                         ),
                       ),
                     ),
@@ -3146,7 +3001,7 @@ class _ParametricBandEditor extends ConsumerWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.glassBackground,
+                    color: context.lokal.surface2,
                     borderRadius: BorderRadius.circular(
                       AppConstants.radiusRound,
                     ),
@@ -3155,8 +3010,8 @@ class _ParametricBandEditor extends ConsumerWidget {
                     _hzLabel(band.frequencyHz),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: editable
-                          ? context.adaptiveTextPrimary
-                          : context.adaptiveTextTertiary,
+                          ? context.lokal.text
+                          : context.lokal.muted2,
                       fontWeight: FontWeight.w700,
                       fontSize: 11,
                     ),
@@ -3174,13 +3029,13 @@ class _ParametricBandEditor extends ConsumerWidget {
                     size: 110,
                     onChanged: editable
                         ? (v) => ref
-                            .read(equalizerProvider.notifier)
-                            .setParamBandGainDb(
-                              index,
-                              band.type == ParametricBandType.notch
-                                  ? -v.abs()
-                                  : v,
-                            )
+                              .read(equalizerProvider.notifier)
+                              .setParamBandGainDb(
+                                index,
+                                band.type == ParametricBandType.notch
+                                    ? -v.abs()
+                                    : v,
+                              )
                         : null,
                     label: l10n.gain,
                     accentColor: toneColor,
@@ -3191,7 +3046,7 @@ class _ParametricBandEditor extends ConsumerWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.glassBackground.withValues(alpha: 0.5),
+                      color: context.lokal.surface2,
                       borderRadius: BorderRadius.circular(
                         AppConstants.radiusRound,
                       ),
@@ -3201,11 +3056,9 @@ class _ParametricBandEditor extends ConsumerWidget {
                           ? l10n.db9(band.gainDb.abs().toStringAsFixed(1))
                           : '${band.gainDb >= 0 ? '+' : ''}${band.gainDb.toStringAsFixed(1)} dB',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: editable
-                            ? toneColor
-                            : context.adaptiveTextTertiary,
+                        color: editable ? toneColor : context.lokal.muted2,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'GoogleSansFlex',
+                        fontFamily: LokalTheme.sans,
                       ),
                     ),
                   ),
@@ -3213,21 +3066,17 @@ class _ParametricBandEditor extends ConsumerWidget {
                   const SizedBox(height: 110, width: 110),
                   Text(
                     band.type.displayName,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                      fontSize: 11,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: context.lokal.muted2, fontSize: 11),
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
                 Icon(
-                  isSelected
-                      ? LucideIcons.chevronUp
-                      : LucideIcons.chevronDown,
+                  isSelected ? LucideIcons.chevronUp : LucideIcons.chevronDown,
                   size: 14,
-                  color: context.adaptiveTextTertiary,
+                  color: context.lokal.muted2,
                 ),
               ],
             ),
@@ -3261,7 +3110,9 @@ class _DynamicsSection extends ConsumerWidget {
               icon: compressor.enabled
                   ? LucideIcons.badgeCheck
                   : LucideIcons.circleOff,
-              label: compressor.enabled ? l10n.compressorOn : l10n.compressorOff,
+              label: compressor.enabled
+                  ? l10n.compressorOn
+                  : l10n.compressorOff,
             ),
             _StatPill(
               icon: limiter.enabled
@@ -3285,13 +3136,11 @@ class _DynamicsSection extends ConsumerWidget {
             label: Text(
               l10n.resetDynamics,
               style: TextStyle(
-                fontFamily: 'GoogleSansFlex',
+                fontFamily: LokalTheme.sans,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            style: TextButton.styleFrom(
-              foregroundColor: context.adaptiveTextPrimary,
-            ),
+            style: TextButton.styleFrom(foregroundColor: context.lokal.text),
           ),
         ),
         if (_showAndroidNote) ...[
@@ -3302,8 +3151,7 @@ class _DynamicsSection extends ConsumerWidget {
         _DynamicsCard(
           icon: LucideIcons.activity,
           title: l10n.compressor,
-          subtitle:
-              l10n.smoothsPeaksAndRaisesBodyBefore,
+          subtitle: l10n.smoothsPeaksAndRaisesBodyBefore,
           active: enabled && compressor.enabled,
           toggleValue: compressor.enabled,
           onToggleChanged: (value) =>
@@ -3317,15 +3165,16 @@ class _DynamicsSection extends ConsumerWidget {
                 _LabeledKnob(
                   icon: LucideIcons.arrowDownWideNarrow,
                   label: l10n.threshold,
-                  valueLabel:
-                      l10n.db10(compressor.thresholdDb.toStringAsFixed(1)),
+                  valueLabel: l10n.db10(
+                    compressor.thresholdDb.toStringAsFixed(1),
+                  ),
                   value: compressor.thresholdDb,
                   min: EqualizerNotifier.compressorThresholdMinDb,
                   max: EqualizerNotifier.compressorThresholdMaxDb,
                   onChanged: enabled && compressor.enabled
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setCompressorThresholdDb(value)
+                            .read(equalizerProvider.notifier)
+                            .setCompressorThresholdDb(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3337,8 +3186,8 @@ class _DynamicsSection extends ConsumerWidget {
                   max: EqualizerNotifier.compressorRatioMax,
                   onChanged: enabled && compressor.enabled
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setCompressorRatio(value)
+                            .read(equalizerProvider.notifier)
+                            .setCompressorRatio(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3350,22 +3199,21 @@ class _DynamicsSection extends ConsumerWidget {
                   max: EqualizerNotifier.compressorAttackMaxMs,
                   onChanged: enabled && compressor.enabled
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setCompressorAttackMs(value)
+                            .read(equalizerProvider.notifier)
+                            .setCompressorAttackMs(value)
                       : null,
                 ),
                 _LabeledKnob(
                   icon: LucideIcons.timerReset,
                   label: l10n.release,
-                  valueLabel:
-                      l10n.ms3(compressor.releaseMs.toStringAsFixed(0)),
+                  valueLabel: l10n.ms3(compressor.releaseMs.toStringAsFixed(0)),
                   value: compressor.releaseMs,
                   min: EqualizerNotifier.compressorReleaseMinMs,
                   max: EqualizerNotifier.compressorReleaseMaxMs,
                   onChanged: enabled && compressor.enabled
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setCompressorReleaseMs(value)
+                            .read(equalizerProvider.notifier)
+                            .setCompressorReleaseMs(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3378,8 +3226,8 @@ class _DynamicsSection extends ConsumerWidget {
                   max: EqualizerNotifier.gainMaxDb,
                   onChanged: enabled && compressor.enabled
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setCompressorMakeupGainDb(value)
+                            .read(equalizerProvider.notifier)
+                            .setCompressorMakeupGainDb(value)
                       : null,
                 ),
               ],
@@ -3390,8 +3238,7 @@ class _DynamicsSection extends ConsumerWidget {
         _DynamicsCard(
           icon: LucideIcons.shieldCheck,
           title: l10n.limiter,
-          subtitle:
-              l10n.addsPreDriveAndCatchesPeaks,
+          subtitle: l10n.addsPreDriveAndCatchesPeaks,
           active: enabled && limiter.enabled,
           toggleValue: limiter.enabled,
           onToggleChanged: (value) =>
@@ -3412,8 +3259,8 @@ class _DynamicsSection extends ConsumerWidget {
                   max: EqualizerNotifier.limiterInputGainMaxDb,
                   onChanged: enabled && limiter.enabled
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setLimiterInputGainDb(value)
+                            .read(equalizerProvider.notifier)
+                            .setLimiterInputGainDb(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3425,8 +3272,8 @@ class _DynamicsSection extends ConsumerWidget {
                   max: EqualizerNotifier.limiterCeilingMaxDb,
                   onChanged: enabled && limiter.enabled
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setLimiterCeilingDb(value)
+                            .read(equalizerProvider.notifier)
+                            .setLimiterCeilingDb(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3438,8 +3285,8 @@ class _DynamicsSection extends ConsumerWidget {
                   max: EqualizerNotifier.limiterReleaseMaxMs,
                   onChanged: enabled && limiter.enabled
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setLimiterReleaseMs(value)
+                            .read(equalizerProvider.notifier)
+                            .setLimiterReleaseMs(value)
                       : null,
                 ),
               ],
@@ -3534,21 +3381,18 @@ class _CreativeFxSection extends ConsumerWidget {
             label: Text(
               l10n.resetFx,
               style: TextStyle(
-                fontFamily: 'GoogleSansFlex',
+                fontFamily: LokalTheme.sans,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            style: TextButton.styleFrom(
-              foregroundColor: context.adaptiveTextPrimary,
-            ),
+            style: TextButton.styleFrom(foregroundColor: context.lokal.text),
           ),
         ),
         const SizedBox(height: AppConstants.spacingMd),
         _DynamicsCard(
           icon: LucideIcons.sparkles,
           title: l10n.spatialTime,
-          subtitle:
-              l10n.balanceTempoDampFilterDelaysSize,
+          subtitle: l10n.balanceTempoDampFilterDelaysSize,
           active: enabled && fx.enabled,
           toggleValue: fx.enabled,
           onToggleChanged: (value) =>
@@ -3568,8 +3412,8 @@ class _CreativeFxSection extends ConsumerWidget {
                   max: EqualizerNotifier.fxBalanceMax,
                   onChanged: editable
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setFxBalance(value)
+                            .read(equalizerProvider.notifier)
+                            .setFxBalance(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3581,8 +3425,8 @@ class _CreativeFxSection extends ConsumerWidget {
                   max: EqualizerNotifier.fxTempoMax,
                   onChanged: editable
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setFxTempo(value)
+                            .read(equalizerProvider.notifier)
+                            .setFxTempo(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3594,8 +3438,8 @@ class _CreativeFxSection extends ConsumerWidget {
                   max: EqualizerNotifier.fxDampMax,
                   onChanged: editable
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setFxDamp(value)
+                            .read(equalizerProvider.notifier)
+                            .setFxDamp(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3607,8 +3451,8 @@ class _CreativeFxSection extends ConsumerWidget {
                   max: 1.0,
                   onChanged: editable
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setFxFilterHz(_tToHz(value))
+                            .read(equalizerProvider.notifier)
+                            .setFxFilterHz(_tToHz(value))
                       : null,
                 ),
                 _LabeledKnob(
@@ -3620,8 +3464,8 @@ class _CreativeFxSection extends ConsumerWidget {
                   max: EqualizerNotifier.fxDelayMaxMs,
                   onChanged: editable
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setFxDelayMs(value)
+                            .read(equalizerProvider.notifier)
+                            .setFxDelayMs(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3633,8 +3477,8 @@ class _CreativeFxSection extends ConsumerWidget {
                   max: EqualizerNotifier.fxSizeMax,
                   onChanged: editable
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setFxSize(value)
+                            .read(equalizerProvider.notifier)
+                            .setFxSize(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3645,9 +3489,8 @@ class _CreativeFxSection extends ConsumerWidget {
                   min: EqualizerNotifier.fxMixMin,
                   max: EqualizerNotifier.fxMixMax,
                   onChanged: editable
-                      ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setFxMix(value)
+                      ? (value) =>
+                            ref.read(equalizerProvider.notifier).setFxMix(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3659,8 +3502,8 @@ class _CreativeFxSection extends ConsumerWidget {
                   max: EqualizerNotifier.fxFeedbackMax,
                   onChanged: editable
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setFxFeedback(value)
+                            .read(equalizerProvider.notifier)
+                            .setFxFeedback(value)
                       : null,
                 ),
                 _LabeledKnob(
@@ -3672,8 +3515,8 @@ class _CreativeFxSection extends ConsumerWidget {
                   max: EqualizerNotifier.fxWidthMax,
                   onChanged: editable
                       ? (value) => ref
-                          .read(equalizerProvider.notifier)
-                          .setFxWidth(value)
+                            .read(equalizerProvider.notifier)
+                            .setFxWidth(value)
                       : null,
                 ),
               ],
@@ -3713,15 +3556,13 @@ class _ConvolverSection extends ConsumerWidget {
           .setConvolverIr(storedPath, displayName);
       await loadConvolverIr(storedPath);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.loadedIr(displayName))),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.loadedIr(displayName))));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.couldNotLoadIr(e))),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.couldNotLoadIr(e))));
       }
     }
   }
@@ -3745,8 +3586,7 @@ class _ConvolverSection extends ConsumerWidget {
     return _DynamicsCard(
       icon: LucideIcons.audioWaveform,
       title: l10n.convolverImpulseResponse,
-      subtitle:
-          l10n.loadAnImpulseResponseForRoom,
+      subtitle: l10n.loadAnImpulseResponseForRoom,
       active: editable,
       toggleValue: convolver.enabled,
       onToggleChanged: (value) =>
@@ -3760,9 +3600,8 @@ class _ConvolverSection extends ConsumerWidget {
                 children: [
                   Text(
                     l10n.impulseResponse,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: context.adaptiveTextTertiary,
-                    ),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: context.lokal.muted2),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -3770,9 +3609,7 @@ class _ConvolverSection extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: hasIr
-                          ? context.adaptiveTextPrimary
-                          : context.adaptiveTextTertiary,
+                      color: hasIr ? context.lokal.text : context.lokal.muted2,
                     ),
                   ),
                 ],
@@ -3780,14 +3617,10 @@ class _ConvolverSection extends ConsumerWidget {
             ),
             const SizedBox(width: AppConstants.spacingSm),
             TextButton.icon(
-              onPressed: enabled
-                  ? () => _pickIr(context, ref)
-                  : null,
+              onPressed: enabled ? () => _pickIr(context, ref) : null,
               icon: const Icon(LucideIcons.folderOpen, size: 18),
               label: Text(l10n.loadIr),
-              style: TextButton.styleFrom(
-                foregroundColor: context.adaptiveTextPrimary,
-              ),
+              style: TextButton.styleFrom(foregroundColor: context.lokal.text),
             ),
             if (hasIr)
               TextButton.icon(
@@ -3795,7 +3628,7 @@ class _ConvolverSection extends ConsumerWidget {
                 icon: const Icon(LucideIcons.trash2, size: 18),
                 label: Text(l10n.clear),
                 style: TextButton.styleFrom(
-                  foregroundColor: context.adaptiveTextPrimary,
+                  foregroundColor: context.lokal.text,
                 ),
               ),
           ],
@@ -3810,8 +3643,9 @@ class _ConvolverSection extends ConsumerWidget {
             min: EqualizerNotifier.convolverMixMin,
             max: EqualizerNotifier.convolverMixMax,
             onChanged: editable
-                ? (value) =>
-                    ref.read(equalizerProvider.notifier).setConvolverMix(value)
+                ? (value) => ref
+                      .read(equalizerProvider.notifier)
+                      .setConvolverMix(value)
                 : null,
           ),
         ),
@@ -3858,16 +3692,15 @@ class _DynamicsCard extends StatelessWidget {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: context.adaptiveTextPrimary,
+                          color: context.lokal.text,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.adaptiveTextTertiary,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: context.lokal.muted2),
                       ),
                     ],
                   ),
@@ -3893,25 +3726,20 @@ class _ProcessingSupportNote extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong.withValues(alpha: 0.32),
+        color: context.lokal.surface3,
         borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(color: context.lokal.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            LucideIcons.info,
-            size: 18,
-            color: context.adaptiveTextSecondary,
-          ),
+          Icon(LucideIcons.info, size: 18, color: context.lokal.muted),
           const SizedBox(width: AppConstants.spacingSm),
           Expanded(
             child: Text(
               l10n.onAndroidTheStandardJustAudio,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.adaptiveTextSecondary,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: context.lokal.muted),
             ),
           ),
         ],
@@ -3949,19 +3777,19 @@ class _StatPill extends StatelessWidget {
         vertical: 8,
       ),
       decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong.withValues(alpha: 0.4),
+        color: context.lokal.surface3,
         borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(color: context.lokal.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: context.adaptiveTextSecondary),
+          Icon(icon, size: 14, color: context.lokal.muted),
           const SizedBox(width: 6),
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: context.adaptiveTextSecondary,
+              color: context.lokal.muted,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -3998,16 +3826,15 @@ class _CardHeader extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: context.adaptiveTextPrimary,
+                  color: context.lokal.text,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.adaptiveTextTertiary,
-                ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: context.lokal.muted2),
               ),
             ],
           ),
@@ -4034,16 +3861,14 @@ class _ValueBadge extends StatelessWidget {
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: AppColors.glassBackground,
+        color: context.lokal.surface2,
         borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(color: context.lokal.border),
       ),
       child: Text(
         value,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: context.adaptiveTextPrimary,
-          fontWeight: FontWeight.w600,
-        ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: context.lokal.text, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -4070,24 +3895,22 @@ class _BandTypeDropdown extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: AppColors.glassBackground,
+        color: context.lokal.surface2,
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(color: context.lokal.border),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<ParametricBandType>(
           value: value,
           isDense: true,
           isExpanded: compact,
-          dropdownColor: AppColors.surface,
+          dropdownColor: context.lokal.surface,
           borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-          iconEnabledColor: context.adaptiveTextSecondary,
-          iconDisabledColor: context.adaptiveTextTertiary,
+          iconEnabledColor: context.lokal.muted,
+          iconDisabledColor: context.lokal.muted2,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: enabled
-                ? context.adaptiveTextPrimary
-                : context.adaptiveTextTertiary,
-            fontFamily: 'GoogleSansFlex',
+            color: enabled ? context.lokal.text : context.lokal.muted2,
+            fontFamily: LokalTheme.sans,
             fontWeight: FontWeight.w600,
             fontSize: compact ? 10 : null,
           ),
@@ -4098,9 +3921,7 @@ class _BandTypeDropdown extends StatelessWidget {
                 child: Text(
                   type.displayName,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: compact ? 10 : null,
-                  ),
+                  style: TextStyle(fontSize: compact ? 10 : null),
                 ),
               ),
           ],
@@ -4127,9 +3948,9 @@ class _ModeToggle extends StatelessWidget {
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        color: AppColors.glassBackgroundStrong,
+        color: context.lokal.surface3,
         borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(color: context.lokal.border),
       ),
       child: Stack(
         children: [
@@ -4145,11 +3966,11 @@ class _ModeToggle extends StatelessWidget {
                 padding: const EdgeInsets.all(4),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppColors.glassBackground,
+                    color: context.lokal.surface2,
                     borderRadius: BorderRadius.circular(
                       AppConstants.radiusRound,
                     ),
-                    border: Border.all(color: AppColors.glassBorderStrong),
+                    border: Border.all(color: context.lokal.border2),
                   ),
                 ),
               ),
@@ -4201,13 +4022,10 @@ class _ModeToggleButton extends StatelessWidget {
           child: AnimatedDefaultTextStyle(
             duration: AppConstants.animationFast,
             style: TextStyle(
-              fontFamily: 'GoogleSansFlex',
-              fontFamilyFallback: AppTheme.fontFamilyFallback,
+              fontFamily: LokalTheme.sans,
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: selected
-                  ? context.adaptiveTextPrimary
-                  : context.adaptiveTextTertiary,
+              color: selected ? context.lokal.text : context.lokal.muted2,
             ),
             child: Text(label),
           ),
@@ -4234,11 +4052,9 @@ class _PillSwitch extends StatelessWidget {
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: value
-              ? AppColors.textPrimary.withValues(alpha: 0.9)
-              : AppColors.glassBackgroundStrong,
+          color: value ? context.lokal.accent : context.lokal.surface3,
           border: Border.all(
-            color: value ? Colors.transparent : AppColors.glassBorderStrong,
+            color: value ? Colors.transparent : context.lokal.border2,
             width: 1,
           ),
         ),
@@ -4250,7 +4066,7 @@ class _PillSwitch extends StatelessWidget {
             height: 22,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: value ? AppColors.background : AppColors.textTertiary,
+              color: value ? context.lokal.onAccent : context.lokal.muted2,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
@@ -4290,9 +4106,9 @@ class _ActionButton extends StatelessWidget {
             vertical: AppConstants.spacingSm,
           ),
           decoration: BoxDecoration(
-            color: AppColors.glassBackground,
+            color: context.lokal.surface2,
             borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-            border: Border.all(color: AppColors.glassBorder),
+            border: Border.all(color: context.lokal.border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -4300,16 +4116,16 @@ class _ActionButton extends StatelessWidget {
               Icon(
                 icon,
                 size: context.responsiveIcon(AppConstants.iconSizeSm),
-                color: context.adaptiveTextPrimary,
+                color: context.lokal.text,
               ),
               const SizedBox(width: AppConstants.spacingSm),
               Text(
                 label,
                 style: TextStyle(
-                  fontFamily: 'GoogleSansFlex',
+                  fontFamily: LokalTheme.sans,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: context.lokal.text,
                 ),
               ),
             ],
@@ -4332,16 +4148,12 @@ class _IconTile extends StatelessWidget {
       width: context.scaleSize(AppConstants.containerSizeSm),
       height: context.scaleSize(AppConstants.containerSizeSm),
       decoration: BoxDecoration(
-        color: enabled
-            ? AppColors.glassBackgroundStrong
-            : AppColors.glassBackground,
+        color: enabled ? context.lokal.surface3 : context.lokal.surface2,
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
       ),
       child: Icon(
         icon,
-        color: enabled
-            ? context.adaptiveTextSecondary
-            : context.adaptiveTextTertiary,
+        color: enabled ? context.lokal.muted : context.lokal.muted2,
         size: context.responsiveIcon(AppConstants.iconSizeMd),
       ),
     );
@@ -4355,43 +4167,26 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(
-        left: AppConstants.spacingXs,
-        bottom: AppConstants.spacingSm,
-      ),
-      child: Text(
-        title.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: context.adaptiveTextTertiary,
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w600,
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+      child: Semantics(
+        header: true,
+        child: Text(
+          title.toUpperCase(),
+          style: LokalTheme.label(context.lokal),
         ),
       ),
     );
   }
 }
 
+/// A section card: the theme's solid surface and border, never a blur.
 class _GlassCard extends StatelessWidget {
   final Widget child;
   const _GlassCard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      // ponytail: opaque fill instead of BackdropFilter. The ambient bg is
-      // already pre-blurred, so a second blur was redundant GPU cost AND it
-      // re-sampled different album-art regions per scroll position, making
-      // the card (and the knobs on it) shift lighter/darker. surfaceLight
-      // (0x1E) stays lighter than the knob body (0x14) so contrast holds.
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceLight.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-          border: Border.all(color: AppColors.glassBorder, width: 1),
-        ),
-        child: child,
-      ),
-    );
+    return RepaintBoundary(child: LokalSettingsCard(child: child));
   }
 }
 
@@ -4402,7 +4197,7 @@ class _Divider extends StatelessWidget {
       child: Container(
         height: 1,
         margin: EdgeInsets.only(left: 56 + AppConstants.spacingMd),
-        color: AppColors.glassBorder,
+        color: context.lokal.border,
       ),
     );
   }

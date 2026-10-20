@@ -9,17 +9,19 @@ import 'package:flick/features/discovery/discovery_sources.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
 import 'package:flick/features/discovery/recommendation_match.dart';
 import 'package:flick/features/discovery/youtube_audio.dart';
+import 'package:flick/features/discovery/youtube_music_account.dart';
+import 'package:flick/features/discovery/youtube_music_store.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Home's Discovery tab: Last.fm's shelves for your account, played from your
-/// library when you have the song, otherwise from YouTube Music or your
-/// add-ons.
+/// Home's Discovery tab, with opt-in provider-native YouTube Music shelves.
 
-/// The Last.fm account Discovery is for; null when Last.fm isn't connected.
+enum KonnektedDiscoverySource { lastfm, youtube, spotify }
+
 final konnektedLastfmAccountProvider = FutureProvider.autoDispose<String?>((
   ref,
 ) async {
@@ -28,10 +30,59 @@ final konnektedLastfmAccountProvider = FutureProvider.autoDispose<String?>((
   return name.isEmpty ? null : name;
 });
 
-/// How Discovery asks Last.fm; overridden in tests.
 final konnektedLastfmCallProvider = Provider<LastfmCall>((ref) {
   final client = ref.watch(lastFmApiClientProvider);
   return (method, params) => client.get({'method': method, ...params});
+});
+
+final konnektedYoutubeMusicStoreProvider = Provider<YoutubeMusicSessionStore>(
+  (ref) => YoutubeMusicSessionStore(),
+);
+
+final konnektedYoutubeMusicSessionProvider =
+    AsyncNotifierProvider<KonnektedYoutubeMusicNotifier, YoutubeMusicSession?>(
+      KonnektedYoutubeMusicNotifier.new,
+    );
+
+class KonnektedYoutubeMusicNotifier extends AsyncNotifier<YoutubeMusicSession?> {
+  @override
+  Future<YoutubeMusicSession?> build() =>
+      ref.read(konnektedYoutubeMusicStoreProvider).read();
+
+  Future<void> save(YoutubeMusicSession session) async {
+    await ref.read(konnektedYoutubeMusicStoreProvider).write(session);
+    forgetYoutubeMusicAccount();
+    state = AsyncData(session);
+  }
+
+  Future<void> rotated(YoutubeMusicSession session) async {
+    // Keep the account provider stable while its own client is in flight.
+    // The account object has already accepted these rotated cookies; persist
+    // them without publishing a new AsyncData value that would dispose it.
+    if (state.value == null) return;
+    await ref.read(konnektedYoutubeMusicStoreProvider).write(session);
+  }
+
+  Future<void> signOut() async {
+    await ref.read(konnektedYoutubeMusicStoreProvider).clear();
+    forgetYoutubeMusicAccount();
+    state = const AsyncData(null);
+    ref.read(konnektedDiscoveryProvider.notifier).clearYoutubeMusicAccount();
+  }
+}
+
+final konnektedYoutubeMusicAccountProvider = Provider<YoutubeMusicAccount?>((ref) {
+  final session = ref.watch(konnektedYoutubeMusicSessionProvider).value;
+  if (session == null || !session.signedIn) return null;
+  final client = http.Client();
+  ref.onDispose(client.close);
+  return YoutubeMusicAccount(
+    client,
+    session,
+    onSessionChanged: (updated) {
+      unawaited(ref.read(konnektedYoutubeMusicSessionProvider.notifier).rotated(updated));
+    },
+  );
 });
 
 class KonnektedDiscoveryState {
@@ -40,35 +91,166 @@ class KonnektedDiscoveryState {
     this.loading = false,
     this.error,
     this.connected = true,
+    this.source = KonnektedDiscoverySource.lastfm,
   });
 
-  /// The shelves, kept while a refresh loads and when one fails.
+  /// Shelves remain visible when a refresh fails.
   final LokalDiscovery? data;
   final bool loading;
   final String? error;
-
-  /// False when there is no Last.fm account to ask about.
   final bool connected;
+  final KonnektedDiscoverySource source;
 }
 
 class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
   var _page = 0;
   var _generation = 0;
+  var _sourceLoaded = false;
+  Future<void>? _sourceRestore;
   String? _account;
+
+  static const _sourceKey = 'lokal_discovery_source';
 
   @override
   KonnektedDiscoveryState build() => const KonnektedDiscoveryState();
 
-  /// Loads the shelves the first time; [refresh] asks for new picks, as
-  /// desktop's Refresh does.
+  Future<void> setSource(KonnektedDiscoverySource source) async {
+    if (state.source == source && _sourceLoaded) return;
+    ++_generation;
+    _page = 0;
+    _account = null;
+    _sourceLoaded = true;
+    state = KonnektedDiscoveryState(source: source, connected: true);
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString(_sourceKey, source.name);
+    } catch (_) {
+      // The in-memory selection remains usable if persistence fails.
+    }
+    await load();
+  }
+
+  Future<void> _restoreSource() {
+    if (_sourceLoaded) return Future<void>.value();
+    return _sourceRestore ??= _restoreSavedSource();
+  }
+
+  Future<void> _restoreSavedSource() async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final value = preferences.getString(_sourceKey);
+      final saved = KonnektedDiscoverySource.values
+          .where((source) => source.name == value)
+          .firstOrNull;
+      // A manual source change may have happened while preferences loaded.
+      if (!_sourceLoaded && saved != null) {
+        state = KonnektedDiscoveryState(source: saved);
+      }
+    } catch (_) {
+      // Last.fm remains the default.
+    } finally {
+      _sourceLoaded = true;
+    }
+  }
+
+  /// Clears displayed account data immediately when the user signs out.
+  void clearYoutubeMusicAccount() {
+    if (state.source != KonnektedDiscoverySource.youtube) return;
+    ++_generation;
+    _page = 0;
+    _account = null;
+    state = const KonnektedDiscoveryState(
+      connected: false,
+      source: KonnektedDiscoverySource.youtube,
+    );
+  }
+
+  /// Loads the selected provider. A refresh rotates between provider picks.
   Future<void> load({bool refresh = false}) async {
+    if (!refresh && (state.data != null || state.loading)) return;
+    await _restoreSource();
+    final source = state.source;
     if (!refresh && (state.data != null || state.loading)) return;
     final generation = ++_generation;
     state = KonnektedDiscoveryState(
       data: state.data,
       loading: true,
       connected: state.connected,
+      source: source,
     );
+
+    if (source == KonnektedDiscoverySource.spotify) {
+      state = const KonnektedDiscoveryState(
+        connected: false,
+        error: 'Spotify Discovery is coming soon.',
+        source: KonnektedDiscoverySource.spotify,
+      );
+      return;
+    }
+
+    if (source == KonnektedDiscoverySource.youtube) {
+      YoutubeMusicSession? session;
+      try {
+        session = await ref.read(konnektedYoutubeMusicSessionProvider.future);
+      } catch (_) {
+        session = null;
+      }
+      if (generation != _generation) return;
+      if (session == null || !session.signedIn) {
+        _account = null;
+        _page = 0;
+        state = const KonnektedDiscoveryState(
+          connected: false,
+          source: KonnektedDiscoverySource.youtube,
+        );
+        return;
+      }
+      final account = ref.read(konnektedYoutubeMusicAccountProvider);
+      if (account == null) {
+        state = const KonnektedDiscoveryState(
+          connected: false,
+          source: KonnektedDiscoverySource.youtube,
+        );
+        return;
+      }
+      final accountKey = 'youtube:' + session.accountKey;
+      final previous = accountKey == _account ? state.data : null;
+      if (accountKey != _account) _page = 0;
+      _account = accountKey;
+      if (refresh && previous != null) _page++;
+      try {
+        final result = await loadYoutubeMusicDiscovery(
+          account,
+          page: _page,
+          force: refresh,
+        );
+        if (generation != _generation) return;
+        state = KonnektedDiscoveryState(
+          data: result.keeping(previous),
+          source: source,
+        );
+      } on YoutubeMusicSignedOut catch (error) {
+        if (generation != _generation) return;
+        await ref.read(konnektedYoutubeMusicSessionProvider.notifier).signOut();
+        state = KonnektedDiscoveryState(
+          data: previous,
+          error: error.message,
+          connected: false,
+          source: source,
+        );
+      } catch (error) {
+        if (generation != _generation) return;
+        state = KonnektedDiscoveryState(
+          data: previous,
+          error: error is LokalDiscoveryFailure
+              ? error.message
+              : 'YouTube Music couldn’t be reached. Check your connection and try again.',
+          source: source,
+        );
+      }
+      return;
+    }
+
     String? account;
     try {
       account = await ref.read(konnektedLastfmAccountProvider.future);
@@ -79,13 +261,16 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
     if (account == null) {
       _account = null;
       _page = 0;
-      state = const KonnektedDiscoveryState(connected: false);
+      state = const KonnektedDiscoveryState(
+        connected: false,
+        source: KonnektedDiscoverySource.lastfm,
+      );
       return;
     }
-    // Another account's shelves never mix with these.
-    final previous = account == _account ? state.data : null;
-    if (account != _account) _page = 0;
-    _account = account;
+    final accountKey = 'lastfm:' + account;
+    final previous = accountKey == _account ? state.data : null;
+    if (accountKey != _account) _page = 0;
+    _account = accountKey;
     if (refresh && previous != null) _page++;
     try {
       final result = await loadLastfmDiscovery(
@@ -94,12 +279,18 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
         page: _page,
       );
       if (generation != _generation) return;
-      state = KonnektedDiscoveryState(data: result.keeping(previous));
+      state = KonnektedDiscoveryState(
+        data: result.keeping(previous),
+        source: KonnektedDiscoverySource.lastfm,
+      );
     } catch (error) {
       if (generation != _generation) return;
       state = KonnektedDiscoveryState(
         data: previous,
-        error: error is LokalDiscoveryFailure ? error.message : 'Last.fm couldn’t be reached. Check your connection and try again.',
+        error: error is LokalDiscoveryFailure
+            ? error.message
+            : 'Last.fm couldn’t be reached. Check your connection and try again.',
+        source: KonnektedDiscoverySource.lastfm,
       );
     }
   }
@@ -115,6 +306,7 @@ RecommendationCandidate discoveryCandidate(LokalDiscoveryTrack track) =>
       title: track.title,
       artist: track.artist,
       album: track.album,
+      duration: track.duration,
     );
 
 RecommendationCandidate _songCandidate(Song song) => RecommendationCandidate(
@@ -229,6 +421,7 @@ Future<Song?> findDiscoverySong(
   void Function(String status)? onStatus,
   DiscoverySettingsStore? store,
   http.Client? client,
+  Set<String> Function()? additionalProtectedPaths,
 }) async {
   var settings = const DiscoverySettings();
   try {
@@ -242,6 +435,32 @@ Future<Song?> findDiscoverySong(
     final web = DiscoveryHttp(transport);
     final registry = DiscoverySourceRegistry(web, settings);
     final youtube = YoutubeAudio(web);
+    if (track.videoId case final videoId?) {
+      onStatus?.call('Getting ${track.title} directly from YouTube Music…');
+      final audio = await youtube.resolve(videoId);
+      final direct = DiscoveryTrack(
+        id: videoId,
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        duration: track.duration,
+        source: DiscoverySource.youtubeMusic,
+        sourceUrl: Uri.tryParse(track.url),
+      );
+      return await DiscoveryPlaybackCache(
+        http: web,
+        protectedPaths: () {
+          final player = PlayerService();
+          return {
+            if (player.currentSongNotifier.value?.filePath case final String path)
+              path,
+            ...player.queue.map((s) => s.filePath).whereType<String>(),
+            ...player.upNext.map((s) => s.filePath).whereType<String>(),
+            ...(additionalProtectedPaths?.call() ?? const <String>{}),
+          };
+        },
+      ).prepare(direct, audio);
+    }
     final sources = [
       _PlaybackSource(
         'YouTube Music',
@@ -286,6 +505,7 @@ Future<Song?> findDiscoverySong(
                   path,
                 ...player.queue.map((s) => s.filePath).whereType<String>(),
                 ...player.upNext.map((s) => s.filePath).whereType<String>(),
+                ...(additionalProtectedPaths?.call() ?? const <String>{}),
               };
             },
           ).prepare(found, audio);

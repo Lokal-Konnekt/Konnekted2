@@ -14,15 +14,40 @@ Add `const DiscoveryScreen()` to the shell's destinations. It owns its Scaffold,
 app bar, source configuration route and search state. The host must initialize
 the existing app normally (`RustLib.init()`, database and player infrastructure)
 and retain its normal player controls/mini-player. No PlayerService patch is
-needed for this cached-playback implementation. No dependencies were added.
-The implementation uses existing `http` (lockfile 1.6.0, including
-`AbortableRequest`), secure storage, path_provider, crypto, path, and url_launcher.
+needed for this cached-playback implementation. The account Discovery path also
+uses `flutter_inappwebview` for interactive Google sign-in. The guest catalog
+and addon search paths continue to use the existing `http`, secure storage,
+path_provider, crypto, path and url_launcher dependencies.
 
 `DiscoveryScreen` accepts optional `http.Client` and `DiscoverySettingsStore`
 injections; injected clients remain caller-owned. `SourceSettingsScreen` accepts
 optional initial settings/store/client and returns saved `DiscoverySettings` through
 `Navigator.pop`. Reopening discovery loads persisted settings. An already mounted
 discovery screen applies changes made through its own settings route immediately.
+
+## Account Discovery (Konnekted Home)
+
+YouTube Music account Discovery is a separate, opt-in path from the guest catalog
+search described below. The user explicitly signs in from Integrations or from
+the YouTube Music source chip on Home's Discovery tab. Its cookies and Innertube
+page context are stored with FlutterSecureStorage; they are not written to
+SharedPreferences or source code. The source selector is saved as
+`lokal_discovery_source`, but account credentials remain in secure storage.
+
+The account client requests the signed-in Likes (`VLLM`), Home
+(`FEmusic_home`) and History (`FEmusic_history`) pages, follows bounded
+continuations and presents provider-native mixes, Likes, history, artists and
+Fresh Finds. Saved account tracks keep their video ID and known duration so
+playback can resolve the exact recording without a title search. Mix playback
+stages a bounded first batch of tracks; inaccessible recordings are skipped.
+Spotify remains a placeholder and does not make network requests.
+
+This is an unofficial, changeable Innertube interface. Google may refuse
+embedded-browser sign-in or later invalidate cookies / alter response formats.
+The account sign-in and authenticated calls need real-device validation; a
+unit test of request signing does not prove Google will accept the session.
+Signing out clears the stored app session and WebView cookies. The account
+cookies are credentials: do not copy them into logs, reports or issues.
 
 ## What works
 

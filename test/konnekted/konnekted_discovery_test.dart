@@ -160,7 +160,7 @@ void main() {
           child: KonnektedDiscoveryView(
             onNavigate: (_) {},
             onPlay: (song, queue) => played.add((song, queue)),
-            findSong: (track, {onStatus}) async {
+            findSong: (track, {onStatus, additionalProtectedPaths}) async {
               asked.add(track.title);
               return null;
             },

@@ -554,7 +554,7 @@ Future<List<OnlineSource>> _playbackSources(
       name: 'YouTube Music',
       results: (query) async => [
         for (final track in await YoutubeMusicCatalog(web).search(query))
-          OnlineResult(track),
+          OnlineResult(track, artwork: track.artwork),
       ],
       play: (found) async => cache().prepare(
         found,
@@ -568,7 +568,8 @@ Future<List<OnlineSource>> _playbackSources(
         name: addon.displayName,
         addon: true,
         results: (query) async => [
-          for (final track in await addon.search(query)) OnlineResult(track),
+          for (final track in await addon.search(query))
+            OnlineResult(track, artwork: track.artwork),
         ],
         play: (found) async => cache().prepare(
           found,
@@ -601,6 +602,74 @@ Future<List<OnlineSource>> onlineSources(
     () => _playbackCache(web, null),
     onStatus,
     spotiflac ?? SpotiflacService.instance,
+  );
+}
+
+/// Gets [track], found earlier on the source [sourceId] (an [OnlineSource.id]),
+/// ready to play, with its own connection so it outlives the Search page:
+/// for a song queued from Search or saved to the library. [onStatus] hears
+/// an add-on's progress; once [cancel] completes an add-on's download stops.
+Future<Song> playOnlineTrack(
+  String sourceId,
+  DiscoveryTrack track, {
+  void Function(String status)? onStatus,
+  Future<void>? cancel,
+  Set<String> Function()? additionalProtectedPaths,
+  DiscoverySettingsStore? store,
+  SpotiflacService? spotiflac,
+  http.Client? client,
+}) async {
+  var settings = const DiscoverySettings();
+  try {
+    settings = await (store ?? DiscoverySettingsStore()).load();
+  } catch (_) {
+    // Unreadable add-on settings still leave YouTube Music.
+  }
+  final owned = client == null;
+  final transport = client ?? http.Client();
+  try {
+    final web = DiscoveryHttp(transport);
+    final sources = await _playbackSources(
+      web,
+      settings,
+      () => _playbackCache(web, additionalProtectedPaths),
+      onStatus,
+      spotiflac ?? SpotiflacService.instance,
+      cancel: cancel,
+    );
+    final source = sources.where((s) => s.id == sourceId).firstOrNull;
+    if (source == null) {
+      throw DiscoveryException(
+        '${track.sourceName ?? 'That source'} isn’t available any more.',
+      );
+    }
+    return await source.play(track);
+  } finally {
+    if (owned) transport.close();
+  }
+}
+
+/// A queue placeholder for [track], a Search result from [sourceId]: got
+/// ready ahead of its turn by the [QueuePreResolver], like Discovery's picks.
+Song onlinePendingSong(
+  String sourceId,
+  DiscoveryTrack track, {
+  QueuePreResolver? resolver,
+}) {
+  final queue = resolver ?? QueuePreResolver.shared;
+  return queue.pending(
+    key: 'online:$sourceId:${track.key}',
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    duration: track.duration,
+    resolve: ({onStatus, cancel}) => playOnlineTrack(
+      sourceId,
+      track,
+      onStatus: onStatus,
+      cancel: cancel,
+      additionalProtectedPaths: () => queue.resolvedPaths,
+    ),
   );
 }
 

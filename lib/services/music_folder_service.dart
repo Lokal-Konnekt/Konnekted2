@@ -316,6 +316,36 @@ class MusicFolderService {
     return folder;
   }
 
+  /// Adds a folder the app itself writes to (Lokal's Downloads folder), by
+  /// its filesystem [path], to the library. Nothing to grant: the app
+  /// created it. No-op when it is already a library folder.
+  Future<MusicFolder> addLocalFolder(String path, String displayName) async {
+    for (final folder in await getSavedFolders()) {
+      if (folder.uri == path) return folder;
+    }
+    final storageInfo = await resolveStorageInfo(path);
+    final folder = MusicFolder(
+      uri: path,
+      displayName: displayName,
+      dateAdded: DateTime.now(),
+      isRemovable: storageInfo.isRemovable,
+      mediaStoreVolume: storageInfo.mediaStoreVolume,
+      volumeState: storageInfo.state,
+    );
+    await _saveFolderToPrefs(folder);
+    await _saveFolderToDatabase(folder);
+    return folder;
+  }
+
+  /// Asks Android's media index to pick up [paths] the app just wrote, so
+  /// scans that read the index find them. Best effort.
+  Future<void> indexMediaFiles(List<String> paths) async {
+    if (paths.isEmpty) return;
+    try {
+      await _channel.invokeMethod<void>('scanMediaFiles', {'paths': paths});
+    } catch (_) {}
+  }
+
   /// Remove a music folder, its songs, and release its permission.
   Future<void> removeFolder(String uri) async {
     // Release permission

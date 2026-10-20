@@ -611,6 +611,11 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "folderTreeUri, filePath, and tempFilePath are required", null)
                     }
                 }
+                "scanMediaFiles" -> {
+                    val paths = call.argument<List<String>>("paths") ?: emptyList()
+                    healMediaStoreIndex(paths)
+                    result.success(null)
+                }
                 "queryMediaStoreAudio" -> {
                     val folderPaths = call.argument<List<String>>("folderPaths")
                     val volumeName = call.argument<String?>("volumeName")

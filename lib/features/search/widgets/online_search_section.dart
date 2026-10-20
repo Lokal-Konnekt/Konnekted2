@@ -6,18 +6,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/features/discovery/discovery_artwork.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
+import 'package:flick/features/search/library_download.dart';
+import 'package:flick/features/search/widgets/online_result_actions.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
 import 'package:flick/features/spotiflac/spotiflac_service.dart';
+import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 
 /// Songs you don't have, under your library's results: desktop's Search
 /// "online" block. One source at a time (YouTube Music or an add-on you
-/// installed), switched with chips; a tap finds the song and plays it.
+/// installed), switched with chips; a tap finds the song and plays it, a
+/// long press (or ⋯) offers Play next, Add to queue and Download to library.
 class OnlineSearchSection extends ConsumerStatefulWidget {
-  const OnlineSearchSection({super.key, required this.query, this.sources});
+  const OnlineSearchSection({
+    super.key,
+    required this.query,
+    this.sources,
+    this.pendingSong,
+    this.prepare,
+    this.downloader,
+  });
 
   final String query;
 
@@ -27,6 +39,21 @@ class OnlineSearchSection extends ConsumerStatefulWidget {
     void Function(String status) onStatus,
   )?
   sources;
+
+  /// A queue placeholder for a result, got ready ahead of its turn
+  /// ([onlinePendingSong]); replaced in tests.
+  final Song Function(OnlineSource source, DiscoveryTrack track)? pendingSong;
+
+  /// Downloads a result to save it ([playOnlineTrack]); replaced in tests.
+  final Future<Song> Function(
+    OnlineSource source,
+    DiscoveryTrack track,
+    void Function(String status) onStatus,
+  )?
+  prepare;
+
+  /// Saves a downloaded result to the library; replaced in tests.
+  final LibraryDownloader? downloader;
 
   @override
   ConsumerState<OnlineSearchSection> createState() =>
@@ -42,6 +69,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   Future<List<OnlineResult>>? _results;
   String? _searched;
   String? _busy;
+  final _saving = <String>{};
   int _inactiveAddons = 0;
 
   @override
@@ -122,6 +150,112 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
       _say(discoveryError(error));
     } finally {
       if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  /// Play next / Add to queue: a placeholder that's found and downloaded
+  /// ahead of its turn. With nothing playing, it just plays.
+  Future<void> _enqueue(
+    OnlineSource source,
+    OnlineResult result, {
+    required bool next,
+  }) async {
+    final track = result.track;
+    if (ref.read(playerProvider).currentSong == null) {
+      return _play(source, result);
+    }
+    final pending =
+        (widget.pendingSong ??
+        (source, track) => onlinePendingSong(source.id, track))(source, track);
+    final player = ref.read(playerProvider.notifier);
+    try {
+      final index = await player.addToQueue(pending);
+      if (next) await player.moveQueueItemToNext(index);
+      _say(
+        next
+            ? '${track.title} plays next'
+            : 'Added ${track.title} to the queue',
+      );
+    } catch (error) {
+      _say('Couldn’t queue ${track.title}. ${discoveryError(error)}');
+    }
+  }
+
+  /// The cover to save with a song: the source's, else Discovery's lookup.
+  Future<String?> _cover(OnlineResult result) async {
+    final url = discoveryImageUrl(result.artwork);
+    if (url.isNotEmpty) return url;
+    try {
+      final found = await ref
+          .read(discoveryArtworkResolverProvider)
+          .resolve(
+            DiscoveryArtworkRequest(
+              kind: DiscoveryArtworkKind.track,
+              title: result.track.title,
+              artist: result.track.artist,
+            ),
+          )
+          .timeout(const Duration(seconds: 8));
+      return found.isEmpty ? null : found;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Desktop's "Save to library": downloads the song through the same
+  /// source, then copies it into your music folder and library.
+  Future<void> _download(OnlineSource source, OnlineResult result) async {
+    final track = result.track;
+    final key = '${source.id}:${track.id}';
+    if (!_saving.add(key)) return;
+    setState(() {});
+    _say('Downloading ${track.title} from ${source.name}…');
+    try {
+      final prepare =
+          widget.prepare ??
+          (source, track, onStatus) =>
+              playOnlineTrack(source.id, track, onStatus: onStatus);
+      final song = await prepare(source, track, _status);
+      _say('Saving ${track.title} to your library…');
+      final cover = await _cover(result);
+      final saved = await (widget.downloader ?? LibraryDownloader()).save(
+        song,
+        artwork: cover,
+      );
+      _say(
+        saved.fallback
+            ? 'Saved ${track.title}. Your music folders can’t be written '
+                  'to, so it’s in Music/${LibraryDownloader.folderName}, '
+                  'now part of your library.'
+            : 'Saved ${track.title} to your library '
+                  '(${saved.folderName}/${LibraryDownloader.folderName}).',
+      );
+    } catch (error) {
+      _say('Couldn’t save ${track.title}. ${discoveryError(error)}');
+    } finally {
+      _saving.remove(key);
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _actions(OnlineSource source, OnlineResult result) async {
+    HapticFeedback.mediumImpact();
+    final action = await showOnlineResultActions(
+      context,
+      result: result,
+      sourceName: source.name,
+      saving: _saving.contains('${source.id}:${result.track.id}'),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case OnlineResultAction.play:
+        await _play(source, result);
+      case OnlineResultAction.playNext:
+        await _enqueue(source, result, next: true);
+      case OnlineResultAction.addToQueue:
+        await _enqueue(source, result, next: false);
+      case OnlineResultAction.download:
+        await _download(source, result);
     }
   }
 
@@ -235,8 +369,13 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
                       for (final result in results.take(15))
                         _OnlineTile(
                           result: result,
-                          busy: _busy == '${source.id}:${result.track.id}',
+                          busy:
+                              _busy == '${source.id}:${result.track.id}' ||
+                              _saving.contains(
+                                '${source.id}:${result.track.id}',
+                              ),
                           onTap: () => _play(source, result),
+                          onMore: () => _actions(source, result),
                         ),
                     ],
                   );
@@ -312,43 +451,28 @@ class _OnlineTile extends StatelessWidget {
     required this.result,
     required this.busy,
     required this.onTap,
+    required this.onMore,
   });
 
   final OnlineResult result;
   final bool busy;
   final VoidCallback onTap;
+  final VoidCallback onMore;
 
   @override
   Widget build(BuildContext context) {
     final t = context.lokal;
     final track = result.track;
-    final placeholder = ColoredBox(
-      color: t.surface2,
-      child: Icon(Icons.music_note_rounded, color: t.muted, size: 20),
-    );
-    final artwork = result.artwork;
     final duration = track.duration;
     return InkWell(
       onTap: busy ? null : onTap,
+      onLongPress: onMore,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox.square(
-                dimension: 48,
-                child:
-                    artwork == null || Uri.tryParse(artwork)?.scheme != 'https'
-                    ? placeholder
-                    : Image.network(
-                        artwork,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => placeholder,
-                      ),
-              ),
-            ),
+            OnlineResultCover(result: result, size: 48),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -378,11 +502,14 @@ class _OnlineTile extends StatelessWidget {
               ),
             ),
             if (busy)
-              SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: t.accent,
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: t.accent,
+                  ),
                 ),
               )
             else if (duration != null)
@@ -391,6 +518,12 @@ class _OnlineTile extends StatelessWidget {
                 '${(duration.inSeconds % 60).toString().padLeft(2, '0')}',
                 style: TextStyle(color: t.muted2, fontSize: 12),
               ),
+            IconButton(
+              tooltip: 'More',
+              visualDensity: VisualDensity.compact,
+              onPressed: onMore,
+              icon: Icon(Icons.more_horiz_rounded, color: t.muted, size: 20),
+            ),
           ],
         ),
       ),

@@ -15,10 +15,14 @@ void main() {
   setUp(() {
     controller = ScanSessionController.instance;
     controller.end();
+    controller.dismiss();
     controller.completed.value = false;
   });
 
-  tearDown(() => controller.end());
+  tearDown(() {
+    controller.end();
+    controller.dismiss();
+  });
 
   group('ScanSessionController', () {
     test('begin activates a non-minimized session with no progress', () {
@@ -264,6 +268,115 @@ void main() {
         kind: ScanSessionKind.scan,
         onCancel: () {},
       );
+      expect(controller.completed.value, isFalse);
+    });
+  });
+
+  group('ScanSessionController status', () {
+    const outcome = ScanSessionResult(
+      kind: ScanSessionKind.scan,
+      title: 'Music',
+      newSongs: 12,
+      totalSongs: 340,
+    );
+
+    int start() => controller.begin(
+      title: 'Music',
+      kind: ScanSessionKind.scan,
+      onCancel: () {},
+    );
+
+    test('starts idle and begin moves to running', () {
+      expect(controller.status.value, ScanSessionStatus.idle);
+      start();
+      expect(controller.status.value, ScanSessionStatus.running);
+      expect(controller.result.value, isNull);
+    });
+
+    test('finish records the result, latches completion and ends', () {
+      final generation = start();
+      controller.overlayDismissed(generation);
+
+      controller.finish(generation, outcome);
+
+      expect(controller.status.value, ScanSessionStatus.complete);
+      expect(controller.result.value?.newSongs, 12);
+      expect(controller.completed.value, isTrue);
+      // The session is over: no pill, nothing left "running".
+      expect(controller.isActive, isFalse);
+      expect(controller.isVisible, isFalse);
+      expect(controller.progress.value, isNull);
+    });
+
+    test('dismiss after finish returns to idle and clears the result', () {
+      final generation = start();
+      controller.finish(generation, outcome);
+
+      controller.dismiss();
+
+      expect(controller.status.value, ScanSessionStatus.idle);
+      expect(controller.result.value, isNull);
+    });
+
+    test('dismiss does not touch a running session', () {
+      final generation = start();
+      controller.dismiss();
+      expect(controller.status.value, ScanSessionStatus.running);
+      expect(controller.isCurrent(generation), isTrue);
+    });
+
+    test('a stale finish cannot complete a newer session', () {
+      final stale = start();
+      final current = start();
+
+      controller.finish(stale, outcome);
+
+      expect(controller.status.value, ScanSessionStatus.running);
+      expect(controller.result.value, isNull);
+      expect(controller.isCurrent(current), isTrue);
+    });
+
+    test('stop leaves the session cancelled', () {
+      var cancelled = false;
+      controller.begin(
+        title: 'Music',
+        kind: ScanSessionKind.scan,
+        onCancel: () => cancelled = true,
+      );
+
+      controller.stop();
+
+      expect(cancelled, isTrue);
+      expect(controller.status.value, ScanSessionStatus.cancelled);
+      expect(controller.isActive, isFalse);
+    });
+
+    test('stop with no session keeps the status', () {
+      controller.stop();
+      expect(controller.status.value, ScanSessionStatus.idle);
+    });
+
+    test('fail and markUnavailable end the session in their state', () {
+      controller.fail(start());
+      expect(controller.status.value, ScanSessionStatus.failed);
+      expect(controller.isActive, isFalse);
+
+      controller.markUnavailable(start());
+      expect(controller.status.value, ScanSessionStatus.unavailable);
+      expect(controller.isActive, isFalse);
+    });
+
+    test('end without an outcome goes back to idle', () {
+      final generation = start();
+      controller.end(generation);
+      expect(controller.status.value, ScanSessionStatus.idle);
+    });
+
+    test('begin after an outcome starts over', () {
+      controller.finish(start(), outcome);
+      start();
+      expect(controller.status.value, ScanSessionStatus.running);
+      expect(controller.result.value, isNull);
       expect(controller.completed.value, isFalse);
     });
   });

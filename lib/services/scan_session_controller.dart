@@ -6,6 +6,51 @@ import 'library_scanner_service.dart' show ScanProgress;
 /// What kind of work a live session represents.
 enum ScanSessionKind { scan, preload, replayGain }
 
+/// Where the single user-visible session is in its life.
+///
+/// `idle → running → (complete | unavailable | failed | cancelled) → idle`.
+/// The end states outlive the session itself so the scan sheet can keep
+/// showing the outcome (and its Done button) after the work has stopped;
+/// [ScanSessionController.dismiss] returns to [idle].
+enum ScanSessionStatus {
+  idle,
+  running,
+  complete,
+  unavailable,
+  failed,
+  cancelled,
+}
+
+/// What a finished session did, for the completion sheet.
+@immutable
+class ScanSessionResult {
+  const ScanSessionResult({
+    required this.kind,
+    required this.title,
+    this.newSongs = 0,
+    this.modifiedSongs = 0,
+    this.deletedSongs = 0,
+    this.totalSongs = 0,
+    this.processed = 0,
+    this.elapsed = Duration.zero,
+  });
+
+  final ScanSessionKind kind;
+  final String title;
+
+  /// Songs added to the library by this scan.
+  final int newSongs;
+  final int modifiedSongs;
+  final int deletedSongs;
+
+  /// Songs in the library once the scan finished.
+  final int totalSongs;
+
+  /// Files read (scan) or songs analysed (preload, ReplayGain).
+  final int processed;
+  final Duration elapsed;
+}
+
 /// Immutable snapshot of a user-visible scan/preload/ReplayGain session.
 class ScanSession {
   final String title;
@@ -53,6 +98,15 @@ class ScanSessionController {
   /// outro even though the session is already gone. [begin] resets it.
   final ValueNotifier<bool> completed = ValueNotifier(false);
 
+  /// The session's place in its life; see [ScanSessionStatus].
+  final ValueNotifier<ScanSessionStatus> status = ValueNotifier(
+    ScanSessionStatus.idle,
+  );
+
+  /// The outcome of the last finished session, while [status] is
+  /// [ScanSessionStatus.complete].
+  final ValueNotifier<ScanSessionResult?> result = ValueNotifier(null);
+
   void markCompleted() {
     if (session.value == null) return;
     completed.value = true;
@@ -95,6 +149,8 @@ class ScanSessionController {
     minimized.value = false;
     postProcessing.value = false;
     completed.value = false;
+    result.value = null;
+    status.value = ScanSessionStatus.running;
     // A visible session means the user started work again; lift the sticky
     // auto-preload suppression a previous Stop installed.
     AudioPreloadService.instance.clearAutoSuppression();
@@ -123,17 +179,56 @@ class ScanSessionController {
   /// use this so the UI disappears without waiting for the owning flow to
   /// observe the cancel; the flow's later [end] is a no-op.
   void stop() {
+    final wasActive = isActive;
     cancel();
     end();
+    if (wasActive) status.value = ScanSessionStatus.cancelled;
+  }
+
+  /// The [generation] flow finished all of its work: record [outcome], play
+  /// the pill's completion outro and close the session. Background follow-up
+  /// work (covers, audio preload, metadata) is not part of the session.
+  void finish(int generation, ScanSessionResult outcome) {
+    if (!isCurrent(generation)) return;
+    result.value = outcome;
+    markCompleted();
+    status.value = ScanSessionStatus.complete;
+    end(generation);
+  }
+
+  /// The [generation] scan found its storage unplugged.
+  void markUnavailable(int generation) {
+    if (!isCurrent(generation)) return;
+    status.value = ScanSessionStatus.unavailable;
+    end(generation);
+  }
+
+  /// The [generation] flow threw.
+  void fail(int generation) {
+    if (!isCurrent(generation)) return;
+    status.value = ScanSessionStatus.failed;
+    end(generation);
+  }
+
+  /// The user saw the outcome (Done): back to [ScanSessionStatus.idle]. A
+  /// running session is not affected.
+  void dismiss() {
+    if (status.value == ScanSessionStatus.running) return;
+    status.value = ScanSessionStatus.idle;
+    result.value = null;
   }
 
   /// Clears session state. When [generation] is given, a stale flow's end is
-  /// ignored and cannot clear a newer session.
+  /// ignored and cannot clear a newer session. A session that ends without
+  /// [finish]/[fail]/[markUnavailable] goes back to idle.
   void end([int? generation]) {
     if (generation != null && generation != _generation) return;
     session.value = null;
     progress.value = null;
     minimized.value = false;
     postProcessing.value = false;
+    if (status.value == ScanSessionStatus.running) {
+      status.value = ScanSessionStatus.idle;
+    }
   }
 }

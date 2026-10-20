@@ -75,6 +75,27 @@ void main() {
     });
   }
 
+  testWidgets('Library puts Add folder first', (tester) async {
+    tester.view
+      ..physicalSize = const Size(412, 915)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _app(const LokalSettingsGroupPage(group: LokalSettingsGroup.library)),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final add = find.byKey(const ValueKey('library-add-folder'));
+    expect(add, findsOneWidget);
+    expect(find.text('Add folder'), findsOneWidget);
+    expect(
+      tester.getTopLeft(add).dy,
+      lessThan(tester.getTopLeft(find.text('Manage folders')).dy),
+    );
+    // The duplicated filters live only here now, not on the Folders page.
+    expect(find.text('Skip non-music files'), findsOneWidget);
+  });
+
   testWidgets('Playback rows drive the player and rebuild with it', (
     tester,
   ) async {

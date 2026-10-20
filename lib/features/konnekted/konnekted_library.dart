@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/classipod/classipod_screen.dart';
+import 'package:flick/features/settings/library_scan/library_scan_flow.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -10,7 +13,8 @@ import 'konnekted_data.dart';
 import 'konnekted_destination.dart';
 import 'konnekted_style.dart';
 
-/// Settings › Library › Folders, where music folders are added.
+/// Settings › Library › Folders: "Add folder" is its first row, so the
+/// header's + reaches the folder picker in two taps.
 const _folders = KonnektedDestination.settingsAt(
   LokalSettingsGroup.library,
   section: 'Folders',
@@ -23,9 +27,17 @@ const _accounts = KonnektedDestination.settingsAt(
 );
 
 class KonnektedLibrary extends ConsumerWidget {
-  const KonnektedLibrary({super.key, required this.onNavigate});
+  const KonnektedLibrary({
+    super.key,
+    required this.onNavigate,
+    this.onAddFolder,
+  });
 
   final ValueChanged<KonnektedDestination> onNavigate;
+
+  /// The empty state's action; defaults to the system folder picker followed
+  /// by a scan ([LibraryScanFlow.addFolder]).
+  final ValueChanged<BuildContext>? onAddFolder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => SafeArea(
@@ -67,9 +79,12 @@ class KonnektedLibrary extends ConsumerWidget {
                 actionLabel: songs.isEmpty
                     ? 'Add a music folder'
                     : 'Browse all songs',
-                onAction: () => onNavigate(
-                  songs.isEmpty ? _folders : KonnektedDestination.songs,
-                ),
+                // Empty: straight to the system folder picker, then a scan.
+                onAction: songs.isEmpty
+                    ? () => onAddFolder != null
+                          ? onAddFolder!(context)
+                          : unawaited(LibraryScanFlow.addFolder(context))
+                    : () => onNavigate(KonnektedDestination.songs),
               ),
             ),
         const KonnektedSectionHeading(title: 'Made personal'),

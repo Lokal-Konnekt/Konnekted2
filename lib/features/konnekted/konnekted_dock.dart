@@ -554,10 +554,19 @@ class KonnektedMiniPlayer extends ConsumerWidget {
     super.key,
     required this.onOpen,
     required this.onQueue,
+    this.onPullUpStart,
+    this.onPullUpUpdate,
+    this.onPullUpEnd,
   });
 
   final VoidCallback onOpen;
   final VoidCallback onQueue;
+
+  /// A finger pulls the mini player up into Now Playing: see
+  /// [KonnektedMiniPlayerContent.onPullUpStart].
+  final VoidCallback? onPullUpStart;
+  final ValueChanged<double>? onPullUpUpdate;
+  final ValueChanged<double>? onPullUpEnd;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -568,6 +577,9 @@ class KonnektedMiniPlayer extends ConsumerWidget {
       isPlaying: ref.watch(isPlayingProvider),
       onOpen: onOpen,
       onQueue: onQueue,
+      onPullUpStart: onPullUpStart,
+      onPullUpUpdate: onPullUpUpdate,
+      onPullUpEnd: onPullUpEnd,
       onPlayPause: () => _transport(
         context,
         () => ref.read(playerProvider.notifier).togglePlayPause(),
@@ -617,6 +629,9 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
     required this.onNext,
     required this.onQueue,
     required this.progress,
+    this.onPullUpStart,
+    this.onPullUpUpdate,
+    this.onPullUpEnd,
   });
 
   final Song song;
@@ -627,11 +642,30 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
   final VoidCallback onQueue;
   final Widget progress;
 
+  /// A drag that starts upward on the mini player opens Now Playing under
+  /// the finger: this starts it, [onPullUpUpdate] follows each movement
+  /// (logical px, positive down, as the sheet moves) and [onPullUpEnd] gets
+  /// the release velocity (logical px/s, positive down).
+  final VoidCallback? onPullUpStart;
+  final ValueChanged<double>? onPullUpUpdate;
+  final ValueChanged<double>? onPullUpEnd;
+
   /// Shared with the full player's artwork, so it grows into Now Playing.
   static const heroTag = 'konnekted-player-art';
 
   @override
   Widget build(BuildContext context) {
+    final body = _body(context);
+    if (onPullUpStart == null) return body;
+    return _PullUp(
+      onStart: onPullUpStart!,
+      onUpdate: onPullUpUpdate,
+      onEnd: onPullUpEnd,
+      child: body,
+    );
+  }
+
+  Widget _body(BuildContext context) {
     final tucked = KonnektedMiniPlayerScope.collapsedOf(context);
     return Stack(
       children: [
@@ -758,5 +792,51 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
       placeholder: ColoredBox(color: flightContext.lokal.surface3),
       errorWidget: ColoredBox(color: flightContext.lokal.surface3),
     ),
+  );
+}
+
+/// Hands a drag that starts upward over to Now Playing; one that starts
+/// downward is left alone.
+class _PullUp extends StatefulWidget {
+  const _PullUp({
+    required this.onStart,
+    required this.onUpdate,
+    required this.onEnd,
+    required this.child,
+  });
+
+  final VoidCallback onStart;
+  final ValueChanged<double>? onUpdate;
+  final ValueChanged<double>? onEnd;
+  final Widget child;
+
+  @override
+  State<_PullUp> createState() => _PullUpState();
+}
+
+class _PullUpState extends State<_PullUp> {
+  /// Whether this drag opened Now Playing (null: no direction yet).
+  bool? _pulling;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.translucent,
+    onVerticalDragStart: (_) => _pulling = null,
+    onVerticalDragUpdate: (d) {
+      if (_pulling == null) {
+        _pulling = d.delta.dy < 0;
+        if (_pulling!) widget.onStart();
+      }
+      if (_pulling!) widget.onUpdate?.call(d.delta.dy);
+    },
+    onVerticalDragEnd: (d) {
+      if (_pulling ?? false) widget.onEnd?.call(d.primaryVelocity ?? 0);
+      _pulling = null;
+    },
+    onVerticalDragCancel: () {
+      if (_pulling ?? false) widget.onEnd?.call(0);
+      _pulling = null;
+    },
+    child: widget.child,
   );
 }

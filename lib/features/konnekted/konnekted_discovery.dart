@@ -401,6 +401,7 @@ Future<Song?> findDiscoverySong(
   void Function(String status)? onStatus,
   DiscoverySettingsStore? store,
   http.Client? client,
+  Set<String> Function()? additionalProtectedPaths,
 }) async {
   var settings = const DiscoverySettings();
   try {
@@ -435,6 +436,7 @@ Future<Song?> findDiscoverySong(
               path,
             ...player.queue.map((s) => s.filePath).whereType<String>(),
             ...player.upNext.map((s) => s.filePath).whereType<String>(),
+            ...(additionalProtectedPaths?.call() ?? const <String>{}),
           };
         },
       ).prepare(direct, audio);
@@ -483,6 +485,7 @@ Future<Song?> findDiscoverySong(
                   path,
                 ...player.queue.map((s) => s.filePath).whereType<String>(),
                 ...player.upNext.map((s) => s.filePath).whereType<String>(),
+                ...(additionalProtectedPaths?.call() ?? const <String>{}),
               };
             },
           ).prepare(found, audio);

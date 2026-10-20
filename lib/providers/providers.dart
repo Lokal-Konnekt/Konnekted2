@@ -24,6 +24,7 @@ export 'album_color_provider.dart';
 export 'nav_bar_config_provider.dart';
 export 'player_screen_mode_provider.dart';
 export 'connectivity_provider.dart';
+export 'lokal_remote_provider.dart';
 export 'update_check_provider.dart';
 export 'milestone_provider.dart';
 export 'tutorial_provider.dart';

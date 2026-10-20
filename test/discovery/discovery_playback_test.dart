@@ -84,8 +84,51 @@ void main() {
     },
   );
 
+  test(
+    'an add-on\'s finished file moves into the cache and is probed',
+    () async {
+      final source = File(p.join(directory.path, 'work', 'audio.flac'));
+      await source.create(recursive: true);
+      await source.writeAsBytes(flacHeader);
+      final cacheDir = Directory(p.join(directory.path, 'cache'));
+      final cache = DiscoveryPlaybackCache(
+        http: DiscoveryHttp(MockClient((_) async => fail('no network'))),
+        directory: () async => cacheDir,
+        probe: (path) async => const AudioProbeFormat(
+          sampleRate: 96000,
+          channels: 2,
+          bitsPerSample: 24,
+        ),
+      );
+      final song = await cache.adopt(fixtureTrack, source);
+      expect(song.fileType, 'FLAC');
+      expect(song.bitDepth, 24);
+      expect(song.filePath, startsWith(cacheDir.path));
+      expect(await source.exists(), isFalse);
+    },
+  );
+
+  test('an add-on file the engine refuses is not left in the cache', () async {
+    final source = File(p.join(directory.path, 'audio.flac'))
+      ..writeAsBytesSync(flacHeader);
+    final cacheDir = Directory(p.join(directory.path, 'cache'));
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(MockClient((_) async => fail('no network'))),
+      directory: () async => cacheDir,
+      probe: (_) async => throw StateError('unsupported'),
+    );
+    await expectLater(
+      cache.adopt(fixtureTrack, source),
+      throwsA(isA<DiscoveryException>()),
+    );
+    expect(cacheDir.listSync(), isEmpty);
+  });
+
   test('a recording with a known size downloads in ranged parts', () async {
-    final file = [...ascii.encode('\x00\x00\x00\x18ftypM4A '), ...List.filled(40, 7)];
+    final file = [
+      ...ascii.encode('\x00\x00\x00\x18ftypM4A '),
+      ...List.filled(40, 7),
+    ];
     final asked = <String>[];
     final client = MockClient((request) async {
       expect(request.headers['User-Agent'], 'Fixture agent');
@@ -167,60 +210,53 @@ void main() {
     },
   );
 
-  test(
-    'native probe failure removes the staged file and is not treated as playable',
-    () async {
-      final client = MockClient(
-        (_) async => http.Response.bytes(flacHeader, 200),
+  test('native probe failure removes the staged file and is not treated as playable', () async {
+    final client = MockClient(
+      (_) async => http.Response.bytes(flacHeader, 200),
+    );
+    addTearDown(client.close);
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(client),
+      directory: () async => directory,
+      probe: (_) async => throw StateError('decoder failure with private path'),
+    );
+    await expectLater(
+      cache.prepare(fixtureTrack, fixtureAudio),
+      throwsA(
+        isA<DiscoveryException>().having(
+          (e) => e.message,
+          'sanitized',
+          isNot(contains('private path')),
+        ),
+      ),
+    );
+    expect(await directory.list().toList(), isEmpty);
+  });
+
+  test('oversized declared or chunked download is bounded and partial file removed', () async {
+    for (final declared in [true, false]) {
+      final client = MockClient.streaming(
+        (_, _) async => http.StreamedResponse(
+          Stream.fromIterable([flacHeader, List.filled(100, 0)]),
+          200,
+          contentLength: declared ? 152 : null,
+        ),
       );
       addTearDown(client.close);
       final cache = DiscoveryPlaybackCache(
         http: DiscoveryHttp(client),
         directory: () async => directory,
-        probe: (_) async =>
-            throw StateError('decoder failure with private path'),
+        maxFileBytes: 80,
+        maxCacheBytes: 160,
+        probe: (_) async => fail('Oversized file must not be probed'),
       );
       await expectLater(
         cache.prepare(fixtureTrack, fixtureAudio),
-        throwsA(
-          isA<DiscoveryException>().having(
-            (e) => e.message,
-            'sanitized',
-            isNot(contains('private path')),
-          ),
-        ),
+        throwsA(isA<DiscoveryException>()),
       );
       expect(await directory.list().toList(), isEmpty);
-    },
-  );
-
-  test(
-    'oversized declared or chunked download is bounded and partial file removed',
-    () async {
-      for (final declared in [true, false]) {
-        final client = MockClient.streaming(
-          (_, _) async => http.StreamedResponse(
-            Stream.fromIterable([flacHeader, List.filled(100, 0)]),
-            200,
-            contentLength: declared ? 152 : null,
-          ),
-        );
-        addTearDown(client.close);
-        final cache = DiscoveryPlaybackCache(
-          http: DiscoveryHttp(client),
-          directory: () async => directory,
-          maxFileBytes: 80,
-          maxCacheBytes: 160,
-          probe: (_) async => fail('Oversized file must not be probed'),
-        );
-        await expectLater(
-          cache.prepare(fixtureTrack, fixtureAudio),
-          throwsA(isA<DiscoveryException>()),
-        );
-        expect(await directory.list().toList(), isEmpty);
-      }
-    },
-  );
+    }
+  });
 
   test('download timeout cancels stream and removes partial file', () async {
     final stream = StreamController<List<int>>();

@@ -3404,6 +3404,12 @@ class PlayerService {
     return _updateNotificationState();
   }
 
+  /// Sets up the app's audio session (music content, focus and interruption
+  /// handling, ducking preference) before another player in the app, such as
+  /// internet radio, requests audio focus through it.
+  Future<void> prepareAudioSessionForExternalPlayer() =>
+      _configureAndroidAudioSession();
+
   // ponytail: remote volume ticks can be rapid (slider drags); keep them on the
   // lightweight cast-only notification path instead of a full metadata refresh.
   void _onRemoteVolumeChanged() {

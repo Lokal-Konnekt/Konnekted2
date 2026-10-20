@@ -173,8 +173,7 @@ pub fn write_tags_to_temp(
     // lofty's save_to_path opens the destination read+write WITHOUT create, so
     // the file must already exist. Stage a byte-for-byte copy of the original
     // and rewrite its tags in place.
-    std::fs::copy(&path, &temp_path)
-        .map_err(|e| format!("Failed to stage temp copy: {e}"))?;
+    std::fs::copy(&path, &temp_path).map_err(|e| format!("Failed to stage temp copy: {e}"))?;
 
     tagged_file
         .save_to_path(&temp_path, WriteOptions::default())
@@ -185,6 +184,127 @@ pub fn write_tags_to_temp(
         error: None,
         temp_path: Some(temp_path.to_string_lossy().to_string()),
     })
+}
+
+/// Replaces the front cover embedded in the file at [path] with [image]
+/// (JPEG or PNG bytes), the way the desktop app writes a picked cover into
+/// the audio itself rather than only into its artwork cache.
+pub fn write_cover_art(path: String, image: Vec<u8>) -> Result<TagWriteResult, String> {
+    let mut tagged_file = match open_for_write(&path) {
+        Ok(f) => f,
+        Err(e) => return Ok(failed_write(e)),
+    };
+    if let Err(e) = apply_cover_art(&mut tagged_file, image) {
+        return Ok(failed_write(e));
+    }
+    match tagged_file.save_to_path(&path, WriteOptions::default()) {
+        Ok(()) => Ok(TagWriteResult {
+            success: true,
+            error: None,
+            temp_path: None,
+        }),
+        Err(e) => Ok(failed_write(format!("Failed to save cover: {e}"))),
+    }
+}
+
+/// Like [write_cover_art] but writes a copy of the file into [temp_dir], so
+/// callers can copy it back through a storage grant (Android SAF).
+pub fn write_cover_art_to_temp(
+    path: String,
+    image: Vec<u8>,
+    temp_dir: String,
+) -> Result<TagWriteResult, String> {
+    let mut tagged_file = match open_for_write(&path) {
+        Ok(f) => f,
+        Err(e) => return Ok(failed_write(e)),
+    };
+    if let Err(e) = apply_cover_art(&mut tagged_file, image) {
+        return Ok(failed_write(e));
+    }
+    let temp_path = match stage_temp_copy(&path, &temp_dir) {
+        Ok(p) => p,
+        Err(e) => return Ok(failed_write(e)),
+    };
+    match tagged_file.save_to_path(&temp_path, WriteOptions::default()) {
+        Ok(()) => Ok(TagWriteResult {
+            success: true,
+            error: None,
+            temp_path: Some(temp_path.to_string_lossy().to_string()),
+        }),
+        Err(e) => {
+            let _ = std::fs::remove_file(&temp_path);
+            Ok(failed_write(format!(
+                "Failed to save cover to temp file: {e}"
+            )))
+        }
+    }
+}
+
+fn failed_write(error: String) -> TagWriteResult {
+    TagWriteResult {
+        success: false,
+        error: Some(error),
+        temp_path: None,
+    }
+}
+
+fn open_for_write(path: &str) -> Result<lofty::file::TaggedFile, String> {
+    Probe::open(path)
+        .map_err(|e| format!("Failed to open file: {e}"))?
+        .options(ParseOptions::new().read_cover_art(true))
+        .guess_file_type()
+        .map_err(|e| format!("Failed to guess file type: {e}"))?
+        .read()
+        .map_err(|e| format!("Failed to read file: {e}"))
+}
+
+fn stage_temp_copy(path: &str, temp_dir: &str) -> Result<std::path::PathBuf, String> {
+    let original_path = Path::new(path);
+    let extension = original_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("flac");
+    let file_name = original_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("temp_audio");
+    let temp_path = Path::new(temp_dir).join(format!("{}.tmp.{}", file_name, extension));
+    if let Some(parent) = temp_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create temp directory: {e}"))?;
+    }
+    std::fs::copy(path, &temp_path).map_err(|e| format!("Failed to stage temp copy: {e}"))?;
+    Ok(temp_path)
+}
+
+fn apply_cover_art(
+    tagged_file: &mut lofty::file::TaggedFile,
+    image: Vec<u8>,
+) -> Result<(), String> {
+    let parsed = lofty::picture::Picture::from_reader(&mut image.as_slice())
+        .map_err(|e| format!("Unsupported cover image: {e}"))?;
+    let mime = parsed
+        .mime_type()
+        .cloned()
+        .ok_or_else(|| "Unsupported cover image".to_string())?;
+    let picture = lofty::picture::Picture::unchecked(image)
+        .pic_type(lofty::picture::PictureType::CoverFront)
+        .mime_type(mime)
+        .build();
+
+    if tagged_file.primary_tag().is_none() && tagged_file.first_tag().is_none() {
+        let tag_type = tagged_file.primary_tag_type();
+        tagged_file.insert_tag(lofty::tag::Tag::new(tag_type));
+    }
+    let tag = match tagged_file.primary_tag_mut() {
+        Some(t) => t,
+        None => tagged_file
+            .first_tag_mut()
+            .ok_or_else(|| "No tag found in file".to_string())?,
+    };
+    tag.remove_picture_type(lofty::picture::PictureType::CoverFront);
+    tag.push_picture(picture);
+    Ok(())
 }
 
 /// Returns the ID3v2 tag for DSD containers, which lofty cannot open.

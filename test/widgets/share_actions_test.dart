@@ -114,7 +114,7 @@ void main() {
     final args = shares.single.arguments as Map;
     final path = (args['paths'] as List).single as String;
     expect(p.basename(path), matches(r'^flick_logs_.*\.txt$'));
-    expect(args['subject'], l10n.flickLogs);
+    expect(args['subject'], 'Lokal logs');
     expect(args['mimeTypes'], ['text/plain']);
     expect(args['text'], isNull);
     expect(
@@ -162,7 +162,7 @@ void main() {
 
       final args = shares.single.arguments as Map;
       final sharedPath = (args['paths'] as List).single as String;
-      expect(args['subject'], l10n.flickLogs);
+      expect(args['subject'], 'Lokal logs');
       expect(args['mimeTypes'], ['text/plain']);
       if (contentUri) {
         expect(p.basename(sharedPath), picker.fileName);
@@ -209,7 +209,7 @@ void main() {
       requests.add(request);
       return http.Response('$url\n', 201);
     }));
-    expect(shares.single.arguments, {'text': url, 'subject': l10n.flickLogs});
+    expect(shares.single.arguments, {'text': url, 'subject': 'Lokal logs'});
   });
 
   testWidgets('song share closes sheet and keeps the original audio path', (

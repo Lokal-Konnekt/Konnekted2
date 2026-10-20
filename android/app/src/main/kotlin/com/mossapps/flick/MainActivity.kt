@@ -293,7 +293,7 @@ class MainActivity: FlutterActivity() {
                 "saveImageToGallery" -> {
                     val bytes = call.argument<ByteArray>("bytes")
                     val fileName = call.argument<String>("fileName") ?: "flick_recap.png"
-                    val albumName = call.argument<String>("albumName") ?: "Flick"
+                    val albumName = call.argument<String>("albumName") ?: "Lokal"
                     if (bytes == null || bytes.isEmpty()) {
                         result.error("INVALID_ARGUMENT", "bytes are required", null)
                     } else {
@@ -1443,7 +1443,7 @@ class MainActivity: FlutterActivity() {
         } else {
             "$fileName.png"
         }
-        val safeAlbumName = albumName.ifBlank { "Flick" }
+        val safeAlbumName = albumName.ifBlank { "Lokal" }
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         } else {

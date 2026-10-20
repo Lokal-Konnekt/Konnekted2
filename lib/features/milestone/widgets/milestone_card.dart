@@ -21,7 +21,7 @@ class MilestoneCard extends StatefulWidget {
     this.achievedAt,
     this.nextMilestone,
     this.nextRemaining,
-    this.supportLabel = 'Support Flick',
+    this.supportLabel = 'Close',
     this.dismissLabel = 'Dismiss',
     this.onSupportTap,
   });

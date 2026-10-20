@@ -2,9 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flick/features/discovery/discovery_http.dart';
+import 'package:flick/models/song.dart';
+import 'package:flick/services/notification_service.dart';
+import 'package:flick/services/player_service.dart';
 import 'package:flick/providers/opt_in_source_provider.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart' as ja;
@@ -128,9 +132,24 @@ class RadioPlayback {
 /// endless stream can't do, so stations play on their own just_audio player.
 /// Starting a station pauses the library player; playing a song stops the
 /// station.
+///
+/// While a station is on it borrows the app's media notification (and so
+/// the lock-screen controls and the foreground service that keeps playback
+/// going in the background), and hands it back to the library when it stops.
 class RadioPlayerNotifier extends Notifier<RadioPlayback> {
   ja.AudioPlayer? _player;
   StreamSubscription<ja.PlayerState>? _states;
+  String? _notified;
+  final Map<String, String> _iconFiles = {};
+
+  late final MediaNotificationOwner _notificationOwner = MediaNotificationOwner(
+    onTogglePlayPause: () => unawaited(toggle()),
+    onPlay: () {
+      if (!state.playing) unawaited(toggle());
+    },
+    onPause: () => unawaited(_player?.pause()),
+    onStop: () => unawaited(stop()),
+  );
 
   @override
   RadioPlayback build() {
@@ -138,6 +157,7 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
       if (playing && state.station != null) unawaited(stop());
     });
     ref.onDispose(() {
+      NotificationService().release(_notificationOwner);
       unawaited(_states?.cancel());
       unawaited(_player?.dispose());
     });
@@ -159,8 +179,65 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
         loading: loading,
         error: state.error,
       );
+      _syncNotification();
     });
     return _player = player;
+  }
+
+  /// Mirrors the station into the media notification when what it shows
+  /// (station, playing, icon) changed.
+  void _syncNotification() {
+    final station = state.station;
+    if (station == null) return;
+    final icon = _iconFiles[station.icon ?? ''];
+    final key = '${station.id}|${state.playing}|$icon';
+    if (key == _notified) return;
+    _notified = key;
+    final song = Song(
+      id: 'radio:${station.id}',
+      title: station.title,
+      artist: station.genre ?? station.description ?? 'Internet radio',
+      albumArt: icon,
+      duration: Duration.zero,
+      fileType: 'Stream',
+    );
+    unawaited(
+      NotificationService().showFor(
+        _notificationOwner,
+        song: song,
+        isPlaying: state.playing,
+      ),
+    );
+    if (icon == null) unawaited(_fetchIcon(station));
+  }
+
+  /// The notification reads its picture from a file: cache the station's
+  /// icon and show it once it is there.
+  Future<void> _fetchIcon(RadioStation station) async {
+    final url = station.icon;
+    if (url == null || _iconFiles.containsKey(url)) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https') return;
+    try {
+      final file = await DefaultCacheManager().getSingleFile(url);
+      _iconFiles[url] = file.path;
+      if (ref.mounted && state.station?.id == station.id) _syncNotification();
+    } catch (_) {
+      // No icon: the notification shows the station without a picture.
+    }
+  }
+
+  Future<void> _releaseNotification() async {
+    _notified = null;
+    final notifications = NotificationService();
+    if (!notifications.isClaimed) return;
+    notifications.release(_notificationOwner);
+    final player = PlayerService();
+    if (player.currentSongNotifier.value != null) {
+      await player.refreshNotificationState();
+    } else {
+      await notifications.hideNotification();
+    }
   }
 
   Future<void> play(RadioStation station) async {
@@ -168,8 +245,12 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
     if (ref.read(isPlayingProvider)) {
       await ref.read(playerProvider.notifier).pause();
     }
+    // Radio requests audio focus through the app's own session, so set it
+    // up (music, interruptions, ducking) as the library player would.
+    await PlayerService().prepareAudioSessionForExternalPlayer();
     final player = _ensurePlayer();
     state = RadioPlayback(station: station, loading: true);
+    _syncNotification();
     try {
       await player.setUrl(station.url);
       unawaited(player.play());
@@ -197,8 +278,10 @@ class RadioPlayerNotifier extends Notifier<RadioPlayback> {
   }
 
   Future<void> stop() async {
+    final wasOn = state.station != null;
     state = const RadioPlayback();
     await _player?.stop();
+    if (wasOn) await _releaseNotification();
   }
 }
 

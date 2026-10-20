@@ -48,7 +48,11 @@ class _YoutubeMusicSettingsTileState
           ),
         );
         if (!mounted || signOut != true) return;
-        await CookieManager.instance().deleteAllCookies();
+        try {
+          await CookieManager.instance().deleteAllCookies();
+        } catch (_) {
+          // The secure app session must still be cleared if WebView cleanup fails.
+        }
         await ref.read(konnektedYoutubeMusicSessionProvider.notifier).signOut();
       }
     } catch (_) {

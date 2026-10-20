@@ -89,7 +89,8 @@ List<LokalSettingsSection> librarySettings(
         ),
         LokalSettingRow.toggle(
           label: 'Prepare audio after scanning',
-          description: 'Decode new songs after a scan so waveforms and loudness are ready.',
+          description:
+              'Analyze new songs after a scan so waveform, loudness and cover-art data are ready. Unsupported formats are skipped.',
           value: scan.preloadAudioData,
           onChanged: notifier.setPreloadAudioData,
         ),
@@ -118,7 +119,7 @@ List<LokalSettingsSection> librarySettings(
         LokalSettingLink(
           label: 'Find duplicates',
           description:
-              'Find songs you have more than once and remove the copies.',
+              'Find matching library entries by title and artist. Removing one only removes its Lokal entry; your files stay untouched.',
           onTap: () => _push(context, const DuplicateCleanerScreen()),
         ),
         LokalSettingLink(

@@ -2441,6 +2441,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get feedback => '反馈';
 
   @override
+  String get fetchLyricsAutomatically => '自动获取歌词';
+
+  @override
+  String get fetchLyricsAutomaticallyDescription =>
+      '关闭后，歌曲只显示自带的歌词（标签内或旁边的 .lrc 文件）。在歌词界面中仍可手动在线搜索。';
+
+  @override
   String get file => '文件';
 
   @override

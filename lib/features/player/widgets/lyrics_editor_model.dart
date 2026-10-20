@@ -18,11 +18,15 @@ class EditableLyricLine {
   /// 1..coreLen-1, sorted). Null when no token is split.
   final List<List<int>>? segmentBreaks;
 
+  /// The line's translation, carried through editing so saving keeps it.
+  final String? translation;
+
   const EditableLyricLine({
     required this.text,
     required this.timestamp,
     this.wordStarts,
     this.segmentBreaks,
+    this.translation,
   });
 
   List<String> get tokens => tokenizeLineText(text);
@@ -103,6 +107,7 @@ class EditableLyricLine {
       segmentBreaks: clearSegmentBreaks
           ? null
           : (segmentBreaks ?? this.segmentBreaks),
+      translation: translation,
     );
   }
 
@@ -142,6 +147,7 @@ class LyricsEditorModel {
             timestamp: lyrics.isSynchronized ? line.timestamp : null,
             wordStarts: seeded?.$1,
             segmentBreaks: seeded?.$2,
+            translation: line.translation,
           );
         }(),
     ]);
@@ -186,6 +192,7 @@ class LyricsEditorModel {
           timestamp: old.timestamp,
           wordStarts: starts,
           segmentBreaks: breaks,
+          translation: old.translation,
         ),
       );
     }
@@ -583,9 +590,11 @@ class LyricsEditorModel {
   List<LyricsLine> normalizeForSave() {
     final sourceLines =
         <(String, Duration?, List<Duration?>?, List<List<int>>?)>[];
+    final translations = <String?>[];
     for (final line in lines) {
       final trimmed = line.text.trim();
       if (trimmed.isEmpty) continue;
+      translations.add(line.translation);
       sourceLines.add((
         trimmed,
         line.hasCompleteWords ? line.wordStarts!.first! : line.timestamp,
@@ -700,6 +709,7 @@ class LyricsEditorModel {
           timestamp: Duration(milliseconds: nextMs),
           text: text,
           words: words,
+          translation: translations[index],
         ),
       );
     }

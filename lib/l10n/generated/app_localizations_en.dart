@@ -2576,6 +2576,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedback => 'Feedback';
 
   @override
+  String get fetchLyricsAutomatically => 'Fetch Lyrics Automatically';
+
+  @override
+  String get fetchLyricsAutomaticallyDescription =>
+      'Off: songs only show the lyrics they carry themselves (in their tags or a .lrc next to them). Searching online from the lyrics view still works.';
+
+  @override
   String get file => 'File';
 
   @override

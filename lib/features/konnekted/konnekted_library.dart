@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/classipod/classipod_screen.dart';
+import 'package:flick/features/internet_radio/internet_radio_page.dart';
 import 'package:flick/features/settings/library_scan/library_scan_flow.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/providers/songs_provider.dart';
@@ -312,6 +313,11 @@ class _MoreRows extends StatelessWidget {
         icon: Icons.link_rounded,
         label: 'Linked playlists',
         onTap: () => onNavigate(KonnektedDestination.linkedPlaylists),
+      ),
+      LokalNavRow(
+        icon: Icons.radio_rounded,
+        label: 'Radio',
+        onTap: () => pushLokal(context, const InternetRadioPage()),
       ),
       LokalNavRow(
         icon: Icons.circle,

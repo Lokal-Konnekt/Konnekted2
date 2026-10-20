@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flick/features/internet_radio/radio_providers.dart';
 import 'package:flick/features/settings/screens/network_sources_screen.dart';
 import 'package:flick/features/settings/widgets/lastfm_settings_tile.dart';
 import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart';
 import 'package:flick/features/settings/widgets/youtube_music_settings_tile.dart';
 import 'package:flick/features/spotiflac/spotiflac_addons_screen.dart';
 import 'package:flick/features/spotify/spotify_library_screen.dart';
+import 'package:flick/providers/opt_in_source_provider.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 import '../lokal_settings_group.dart';
@@ -49,6 +51,36 @@ List<LokalSettingsSection> onlineSourcesSettings(
     children: [SpotiflacRepositoriesPanel()],
   ),
   LokalSettingsSection(
+    title: LokalOnlineSections.radioVideos,
+    children: [
+      LokalSettingRow.toggle(
+        label: 'Internet radio',
+        description:
+            'Live stations from a station list online (Library › Radio).',
+        value: ref.watch(internetRadioEnabledProvider),
+        onChanged: (on) {
+          unawaited(ref.read(internetRadioEnabledProvider.notifier).set(on));
+          if (!on) unawaited(ref.read(radioPlayerProvider.notifier).stop());
+        },
+      ),
+      if (ref.watch(internetRadioEnabledProvider))
+        LokalSettingLink(
+          label: 'Station list',
+          description: ref.watch(radioCatalogUrlProvider),
+          onTap: () => unawaited(_editCatalogUrl(context, ref)),
+        ),
+      LokalSettingRow.toggle(
+        label: 'Music videos',
+        description:
+            'Find official videos for your songs on YouTube Music and watch '
+            'them in YouTube’s embedded player (Library › Videos).',
+        value: ref.watch(musicVideosEnabledProvider),
+        onChanged: (on) =>
+            unawaited(ref.read(musicVideosEnabledProvider.notifier).set(on)),
+      ),
+    ],
+  ),
+  LokalSettingsSection(
     title: LokalOnlineSections.accounts,
     children: [
       LokalSettingLink(
@@ -69,3 +101,47 @@ List<LokalSettingsSection> onlineSourcesSettings(
     ],
   ),
 ];
+
+/// Desktop's "station list link": any https JSON in its radios.json format.
+/// Empty goes back to Lokal's own list.
+Future<void> _editCatalogUrl(BuildContext context, WidgetRef ref) async {
+  final controller = TextEditingController(
+    text: ref.read(radioCatalogUrlProvider),
+  );
+  final url = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Station list'),
+      content: TextField(
+        controller: controller,
+        keyboardType: TextInputType.url,
+        autocorrect: false,
+        decoration: const InputDecoration(
+          hintText: 'https://…/radios.json',
+          helperText: 'Leave empty for Lokal’s own list.',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, controller.text),
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  if (url == null) return;
+  final uri = Uri.tryParse(url.trim());
+  if (url.trim().isNotEmpty && (uri == null || uri.scheme != 'https')) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Use an https link to a JSON file.')),
+    );
+    return;
+  }
+  await ref.read(radioCatalogUrlProvider.notifier).set(url);
+}

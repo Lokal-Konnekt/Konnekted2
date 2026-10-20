@@ -178,7 +178,7 @@ class MainActivity: FlutterActivity() {
     private var castEventSink: EventChannel.EventSink? = null
     private var dlnaRouteProvider: DlnaRouteProvider? = null
     private var pendingSpotifyAuthResult: MethodChannel.Result? = null
-    private var pendingSpotifyRedirect: String? = null
+    private val spotifyWebSession by lazy { SpotifyWebSession(this) }
 
     // Load the Rust shared library before calling into native startup hooks.
     init {
@@ -208,7 +208,6 @@ class MainActivity: FlutterActivity() {
         dispatchWidgetIntent(intent)
         handleExternalPlaybackIntent(intent)
         handleUsbAttachIntent(intent)
-        handleSpotifyAuthIntent(intent)
         maybeRequestPermissionForConnectedUsbAudioDevices(reason = "new intent")
     }
 
@@ -1259,40 +1258,39 @@ class MainActivity: FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "authenticate" -> {
-                        val url = call.argument<String>("url")
-                        val redirectUri = call.argument<String>("redirectUri")
-                        if (url.isNullOrBlank() || redirectUri != "konnekted://oauth/spotify") {
-                            result.error("INVALID_ARGUMENT", "Spotify authorization request is invalid", null)
-                            return@setMethodCallHandler
-                        }
-                        val authorization = runCatching { Uri.parse(url) }.getOrNull()
-                        if (authorization == null ||
-                            authorization.scheme != "https" ||
-                            authorization.host != "accounts.spotify.com" ||
-                            authorization.path != "/authorize" ||
-                            authorization.userInfo?.isNotEmpty() == true) {
-                            result.error("INVALID_ARGUMENT", "Spotify authorization URL is invalid", null)
-                            return@setMethodCallHandler
-                        }
                         if (pendingSpotifyAuthResult != null) {
                             result.error("OPERATION_IN_PROGRESS", "Spotify sign-in is already in progress", null)
                             return@setMethodCallHandler
                         }
                         pendingSpotifyAuthResult = result
-                        pendingSpotifyRedirect = redirectUri
-                        try {
-                            startActivity(Intent(Intent.ACTION_VIEW, authorization))
-                        } catch (_: Exception) {
-                            pendingSpotifyAuthResult = null
-                            pendingSpotifyRedirect = null
-                            result.error("BROWSER_UNAVAILABLE", "Could not open a browser for Spotify sign-in", null)
+                        spotifyWebSession.authenticate { sessionCookie ->
+                            val pending = pendingSpotifyAuthResult
+                            if (pending != null) {
+                                pendingSpotifyAuthResult = null
+                                pending.success(sessionCookie)
+                            }
                         }
                     }
                     "cancel" -> {
+                        spotifyWebSession.cancelLogin()
                         pendingSpotifyAuthResult?.success(null)
                         pendingSpotifyAuthResult = null
-                        pendingSpotifyRedirect = null
                         result.success(null)
+                    }
+                    "clearSession" -> {
+                        spotifyWebSession.clearSpotifyCookies()
+                        result.success(null)
+                    }
+                    "mintTokens" -> {
+                        val sessionCookie = call.argument<String>("sessionCookie")
+                        if (sessionCookie.isNullOrBlank()) {
+                            result.error("INVALID_ARGUMENT", "Spotify session is missing", null)
+                            return@setMethodCallHandler
+                        }
+                        mainScope.launch {
+                            val minted = spotifyWebSession.mintTokens(sessionCookie)
+                            result.success(minted?.asMap())
+                        }
                     }
                     else -> result.notImplemented()
                 }
@@ -1304,16 +1302,6 @@ class MainActivity: FlutterActivity() {
 
         widgetChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL)
         dispatchWidgetIntent(intent)
-    }
-
-    private fun handleSpotifyAuthIntent(intent: Intent?) {
-        val data = intent?.data ?: return
-        val expected = pendingSpotifyRedirect ?: return
-        val base = data.buildUpon().clearQuery().fragment(null).build().toString()
-        if (base != expected || data.userInfo?.isNotEmpty() == true) return
-        pendingSpotifyAuthResult?.success(data.toString())
-        pendingSpotifyAuthResult = null
-        pendingSpotifyRedirect = null
     }
 
     // private fun handleConversionResult(conversionResult: ConversionResult?, result: MethodChannel.Result) {
@@ -5476,6 +5464,9 @@ class MainActivity: FlutterActivity() {
     }
 
     override fun onDestroy() {
+        spotifyWebSession.cancelLogin()
+        pendingSpotifyAuthResult?.success(null)
+        pendingSpotifyAuthResult = null
         super.onDestroy()
         audioDeviceCallback?.let {
             try {

@@ -3,6 +3,7 @@ import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/discovery/discovery_artwork.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
+import 'package:flick/features/discovery/spotify_discovery.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_sign_in.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
@@ -249,6 +250,13 @@ class _KonnektedDiscoveryViewState
     final library = KonnektedLibraryIndex.of(
       ref.watch(konnektedLibraryProvider).value ?? const [],
     );
+    if (source == KonnektedDiscoverySource.spotify) {
+      return _buildSpotify(
+        context,
+        ref.watch(konnektedSpotifyDiscoveryProvider),
+        library,
+      );
+    }
     final fresh = data?.freshFinds ?? const <LokalDiscoveryTrack>[];
     final liked = data?.liked ?? const <LokalDiscoveryTrack>[];
     final quick = data?.quickPicks ?? const <LokalDiscoveryTrack>[];
@@ -501,6 +509,196 @@ class _KonnektedDiscoveryViewState
       ],
     );
   }
+
+  Widget _buildSpotify(
+    BuildContext context,
+    AsyncValue<SpotifyDiscoverySnapshot> snapshot,
+    KonnektedLibraryIndex library,
+  ) {
+    final t = context.lokal;
+    final value = snapshot.value;
+    final data = value?.data;
+    final fresh = data?.freshFinds ?? const <LokalDiscoveryTrack>[];
+    final quick = data?.quickPicks ?? const <LokalDiscoveryTrack>[];
+    final liked = data?.likedSongs ?? const <LokalDiscoveryTrack>[];
+    final history = data?.recentlyPlayed ?? const <LokalDiscoveryTrack>[];
+
+    Widget tracks(_Shelf shelf, List<LokalDiscoveryTrack> items) => Column(
+      children: [
+        for (final track in _open == shelf ? items : items.take(6))
+          KonnektedDiscoveryRow(
+            track: track,
+            inLibrary: library.match(track) != null,
+            busy: _busy == track.key,
+            onTap: () => _play(track, items),
+          ),
+      ],
+    );
+
+    KonnektedSectionHeading heading(
+      _Shelf shelf,
+      String title,
+      IconData icon,
+      int count, {
+      String? subtitle,
+    }) => KonnektedSectionHeading(
+      title: title,
+      icon: icon,
+      subtitle: subtitle,
+      onSeeAll: count > 6 ? () => _toggle(shelf) : null,
+      seeAllLabel: _open == shelf ? 'Show less' : 'See all',
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Header(
+          loading: snapshot.isLoading,
+          source: KonnektedDiscoverySource.spotify,
+          onSourceChanged: (next) {
+            HapticFeedback.selectionClick();
+            ref.read(konnektedDiscoveryProvider.notifier).setSource(next);
+          },
+          onRefresh: () {
+            HapticFeedback.selectionClick();
+            ref.invalidate(konnektedSpotifyDiscoveryProvider);
+          },
+        ),
+        if (snapshot.hasError)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Text(
+              spotifyDiscoveryError(snapshot.error!),
+              style: TextStyle(
+                color: t.isLight
+                    ? const Color(0xFFB91C1C)
+                    : const Color(0xFFFECACA),
+              ),
+            ),
+          )
+        else if (snapshot.isLoading && value == null)
+          const KonnektedLoading(label: 'Building your Spotify shelves…')
+        else if (value?.error case final error?)
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              error,
+              style: TextStyle(
+                color: t.isLight
+                    ? const Color(0xFFB91C1C)
+                    : const Color(0xFFFECACA),
+              ),
+            ),
+          )
+        else if (value == null || !value.enabled)
+          const KonnektedMessage(
+            title: 'Spotify Discovery is off',
+            message:
+                'Enable Spotify Discovery in the Spotify library settings to add personal shelves to Home.',
+            icon: Icons.auto_awesome_rounded,
+          )
+        else if (!value.connected)
+          KonnektedMessage(
+            title: 'Connect Spotify for Discovery',
+            message:
+                'Sign in to Spotify in the Spotify library page, then return here to load your shelves.',
+            icon: Icons.auto_awesome_rounded,
+            actionLabel: 'Open Spotify',
+            onAction: () => widget.onNavigate(KonnektedDestination.spotify),
+          )
+        else if (data == null || data.isEmpty)
+          const KonnektedMessage(
+            title: 'Nothing to recommend yet',
+            message:
+                'Spotify did not return any personal shelves yet. Refresh and try again.',
+            icon: Icons.auto_awesome_rounded,
+          ),
+        if (fresh.isNotEmpty) ...[
+          heading(
+            _Shelf.fresh,
+            'Fresh Finds',
+            Icons.music_note_rounded,
+            fresh.length,
+            subtitle: 'New tracks around your Spotify taste.',
+          ),
+          tracks(_Shelf.fresh, fresh),
+        ],
+        if (quick.isNotEmpty) ...[
+          heading(
+            _Shelf.quick,
+            'Quick Picks',
+            Icons.auto_awesome_rounded,
+            quick.length,
+            subtitle: 'Your short-term top tracks.',
+          ),
+          tracks(_Shelf.quick, quick),
+        ],
+        if (liked.isNotEmpty) ...[
+          heading(
+            _Shelf.liked,
+            'Liked Songs',
+            Icons.favorite_rounded,
+            liked.length,
+            subtitle: 'Your latest Spotify likes.',
+          ),
+          tracks(_Shelf.liked, liked),
+        ],
+        if (history.isNotEmpty) ...[
+          heading(
+            _Shelf.history,
+            'Recently Played',
+            Icons.history_rounded,
+            history.length,
+            subtitle: 'Your latest Spotify listening.',
+          ),
+          _History(
+            entries: _open == _Shelf.history
+                ? history
+                : history.take(6).toList(),
+            row: (track) => KonnektedDiscoveryRow(
+              track: track,
+              inLibrary: library.match(track) != null,
+              busy: _busy == track.key,
+              trailing: track.scrobbledAt == null
+                  ? null
+                  : DateFormat.Hm().format(
+                      DateTime.fromMillisecondsSinceEpoch(
+                        track.scrobbledAt! * 1000,
+                      ),
+                    ),
+              onTap: () => _play(track, history),
+            ),
+          ),
+        ],
+        if (data?.albums case final albums? when albums.isNotEmpty) ...[
+          const KonnektedSectionHeading(
+            title: 'Albums For You',
+            icon: Icons.album_rounded,
+          ),
+          _AlbumShelf(
+            albums: albums,
+            onTap: (album) => _playSongs(
+              library.album(album.title, album.artist),
+              '${album.title} isn’t in your library yet.',
+            ),
+          ),
+        ],
+        if (data?.artists case final artists? when artists.isNotEmpty) ...[
+          const KonnektedSectionHeading(
+            title: 'Artists For You',
+            icon: Icons.person_rounded,
+          ),
+          _ArtistShelf(
+            artists: artists,
+            onTap: (artist) => _playSongs(
+              library.artist(artist.name),
+              'No songs by ${artist.name} in your library yet.',
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 /// Discovery's title row and provider switch.
@@ -612,7 +810,12 @@ class _Header extends StatelessWidget {
                         onTap: () =>
                             onSourceChanged(KonnektedDiscoverySource.youtube),
                       ),
-                      _ProviderChip(label: 'Spotify', comingSoon: true),
+                      _ProviderChip(
+                        label: 'Spotify',
+                        selected: source == KonnektedDiscoverySource.spotify,
+                        onTap: () =>
+                            onSourceChanged(KonnektedDiscoverySource.spotify),
+                      ),
                     ],
                   ),
                 ),

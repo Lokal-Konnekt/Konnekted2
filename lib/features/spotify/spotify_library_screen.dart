@@ -40,7 +40,6 @@ class _SpotifyLibraryScreenState extends State<SpotifyLibraryScreen> {
   late final SpotifyLibraryApi _api;
   late final SpotifyMetadataStore _metadata;
   late final SpotifySyncService _sync;
-  final _clientIdController = TextEditingController();
   SpotifyCancellation? _cancel;
   List<SpotifyPlaylist> _playlists = const [];
   String? _error;
@@ -48,6 +47,7 @@ class _SpotifyLibraryScreenState extends State<SpotifyLibraryScreen> {
   String? _busyPlaylist;
   bool _loading = true;
   bool _connected = false;
+  bool _discoveryEnabled = false;
   bool _signingIn = false;
   SpotifyLikedSongsSyncReport? _likedReport;
   SpotifyPlaylistImportReport? _importReport;
@@ -58,7 +58,6 @@ class _SpotifyLibraryScreenState extends State<SpotifyLibraryScreen> {
     _settings = widget.settings ?? SpotifySettingsStore();
     final tokenStore = _settings.tokenStore;
     _oauth = widget.oauth ?? SpotifyOAuthService(
-      settings: _settings,
       tokenStore: tokenStore,
     );
     _api = widget.api ?? SpotifyApi(tokenStore: tokenStore, oauth: _oauth);
@@ -67,20 +66,14 @@ class _SpotifyLibraryScreenState extends State<SpotifyLibraryScreen> {
     unawaited(_loadSettings());
   }
 
-  @override
-  void dispose() {
-    _clientIdController.dispose();
-    super.dispose();
-  }
-
   Future<void> _loadSettings() async {
     try {
-      final clientId = await _settings.loadClientId();
       final connected = await _oauth.isConnected;
+      final discoveryEnabled = await _settings.loadDiscoveryEnabled();
       if (!mounted) return;
-      _clientIdController.text = clientId;
       setState(() {
         _connected = connected;
+        _discoveryEnabled = discoveryEnabled;
         _loading = false;
       });
     } catch (error) {
@@ -88,10 +81,17 @@ class _SpotifyLibraryScreenState extends State<SpotifyLibraryScreen> {
     }
   }
 
-  Future<void> _saveClientId() async {
+  Future<void> _setDiscoveryEnabled(bool enabled) async {
     try {
-      await _settings.saveClientId(_clientIdController.text);
-      if (mounted) setState(() => _status = 'Client ID saved on this device.');
+      await _settings.saveDiscoveryEnabled(enabled);
+      if (mounted) {
+        setState(() {
+          _discoveryEnabled = enabled;
+          _status = enabled
+              ? 'Spotify Discovery enabled on Home.'
+              : 'Spotify Discovery disabled.';
+        });
+      }
     } catch (error) {
       if (mounted) setState(() => _error = _message(error));
     }
@@ -203,31 +203,25 @@ class _SpotifyLibraryScreenState extends State<SpotifyLibraryScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Connect with Spotify Web API', style: Theme.of(context).textTheme.titleLarge),
+            Text('Connect with Spotify', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 6),
-            const Text('Your client ID is editable and stored locally. Tokens are stored in secure storage. Spotify recordings are metadata only; local matches are required for playback.'),
+            const Text('Sign in through Spotify’s real page in this app. The web session is stored securely, and Spotify recordings remain metadata until matched to local audio.'),
             const SizedBox(height: 16),
-            TextField(
-              controller: _clientIdController,
-              enabled: !_signingIn,
-              decoration: const InputDecoration(
-                labelText: 'Spotify developer client ID',
-                hintText: 'Paste your client ID',
-                border: OutlineInputBorder(),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Spotify Discovery'),
+              subtitle: const Text(
+                'Opt in to Quick Picks, Recently Played, Liked Songs and Fresh Finds on Home.',
               ),
-              autocorrect: false,
-              enableSuggestions: false,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _saveClientId(),
+              value: _discoveryEnabled,
+              onChanged: _loading ? null : _setDiscoveryEnabled,
             ),
             const SizedBox(height: 8),
             Row(children: [
-              OutlinedButton(onPressed: _signingIn ? null : _saveClientId, child: const Text('Save client ID')),
-              const SizedBox(width: 8),
               if (!_connected)
                 FilledButton.icon(
                   onPressed: _signingIn ? null : _signIn,
-                  icon: const Icon(Icons.open_in_browser),
+                  icon: const Icon(Icons.login),
                   label: Text(_signingIn ? 'Signing in…' : 'Connect'),
                 )
               else

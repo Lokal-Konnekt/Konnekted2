@@ -10,12 +10,16 @@ import 'package:flick/features/discovery/discovery_settings.dart';
 import 'package:flick/features/discovery/discovery_sources.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
 import 'package:flick/features/discovery/recommendation_match.dart';
+import 'package:flick/features/discovery/spotify_discovery.dart';
 import 'package:flick/features/discovery/youtube_audio.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_store.dart';
 import 'package:flick/features/spotiflac/spotiflac_packages.dart';
 import 'package:flick/features/spotiflac/spotiflac_runtime.dart';
 import 'package:flick/features/spotiflac/spotiflac_service.dart';
+import 'package:flick/features/spotify/spotify_api.dart';
+import 'package:flick/features/spotify/spotify_oauth.dart';
+import 'package:flick/features/spotify/spotify_storage.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
@@ -40,6 +44,19 @@ final konnektedLastfmCallProvider = Provider<LastfmCall>((ref) {
   final client = ref.watch(lastFmApiClientProvider);
   return (method, params) => client.get({'method': method, ...params});
 });
+
+/// Spotify is loaded only after the listener selects the opt-in provider.
+final konnektedSpotifyDiscoveryProvider =
+    FutureProvider.autoDispose<SpotifyDiscoverySnapshot>((ref) async {
+      final settings = SpotifySettingsStore();
+      final oauth = SpotifyOAuthService(tokenStore: settings.tokenStore);
+      final api = SpotifyApi(tokenStore: settings.tokenStore, oauth: oauth);
+      return loadSpotifyDiscoverySnapshot(
+        settings: settings,
+        oauth: oauth,
+        api: api,
+      );
+    });
 
 final konnektedYoutubeMusicStoreProvider = Provider<YoutubeMusicSessionStore>(
   (ref) => YoutubeMusicSessionStore(),

@@ -10,11 +10,15 @@ class SpotifyTokens {
     required this.accessToken,
     required this.refreshToken,
     required this.expiresAt,
+    this.sessionCookie,
+    this.clientToken,
   });
 
   final String accessToken;
   final String? refreshToken;
   final DateTime expiresAt;
+  final String? sessionCookie;
+  final String? clientToken;
 
   bool get isExpired => DateTime.now()
       .toUtc()
@@ -25,11 +29,15 @@ class SpotifyTokens {
     String? accessToken,
     String? refreshToken,
     DateTime? expiresAt,
+    String? sessionCookie,
+    String? clientToken,
   }) {
     return SpotifyTokens(
       accessToken: accessToken ?? this.accessToken,
       refreshToken: refreshToken ?? this.refreshToken,
       expiresAt: expiresAt ?? this.expiresAt,
+      sessionCookie: sessionCookie ?? this.sessionCookie,
+      clientToken: clientToken ?? this.clientToken,
     );
   }
 }
@@ -67,6 +75,8 @@ class SecureSpotifyTokenStore implements SpotifyTokenStore {
         accessToken: accessToken,
         refreshToken: json['refreshToken'] as String?,
         expiresAt: DateTime.parse(expiresAt).toUtc(),
+        sessionCookie: json['sessionCookie'] as String?,
+        clientToken: json['clientToken'] as String?,
       );
     } catch (_) {
       return null;
@@ -81,6 +91,8 @@ class SecureSpotifyTokenStore implements SpotifyTokenStore {
       'accessToken': tokens.accessToken,
       'refreshToken': tokens.refreshToken,
       'expiresAt': tokens.expiresAt.toUtc().toIso8601String(),
+      'sessionCookie': tokens.sessionCookie,
+      'clientToken': tokens.clientToken,
     }),
   );
 
@@ -126,6 +138,7 @@ class SpotifySettingsStore {
 
   static const clientIdKey = 'konnekted.spotify.client_id.v1';
   static const metadataKey = 'konnekted.spotify.metadata.v1';
+  static const discoveryEnabledKey = 'konnekted.spotify.discovery_enabled.v1';
 
   final SpotifyPreferenceStore preferences;
   final SpotifyTokenStore tokenStore;
@@ -139,6 +152,17 @@ class SpotifySettingsStore {
       await preferences.remove(clientIdKey);
     } else {
       await preferences.write(clientIdKey, value);
+    }
+  }
+
+  Future<bool> loadDiscoveryEnabled() async =>
+      (await preferences.read(discoveryEnabledKey)) == 'true';
+
+  Future<void> saveDiscoveryEnabled(bool enabled) async {
+    if (enabled) {
+      await preferences.write(discoveryEnabledKey, 'true');
+    } else {
+      await preferences.remove(discoveryEnabledKey);
     }
   }
 }

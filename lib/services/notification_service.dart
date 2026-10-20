@@ -55,6 +55,8 @@ class NotificationService {
         'isShuffle': false,
         'isFavorite': false,
         'isCasting': false,
+        // A live station: the notification shows play/pause only.
+        'isLive': true,
       });
       _isNotificationVisible = true;
     } catch (e) {
@@ -165,6 +167,7 @@ class NotificationService {
         'isShuffle': isShuffle,
         'isFavorite': isFavorite,
         'isCasting': isCasting,
+        'isLive': false,
       };
       if (castDeviceName != null) args['castDeviceName'] = castDeviceName;
       if (castVolumePercent != null) {
@@ -218,6 +221,7 @@ class NotificationService {
         'isPlaying': isPlaying,
         'duration': duration?.inMilliseconds ?? 0,
         'position': position?.inMilliseconds ?? 0,
+        'isLive': false,
       };
 
       if (isShuffle != null) args['isShuffle'] = isShuffle;

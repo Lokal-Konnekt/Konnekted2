@@ -59,6 +59,8 @@ class MusicNotificationService : Service() {
     private var isFavorite: Boolean = false
     private var currentColor: Int? = null
     private var isCasting: Boolean = false
+    /** A live stream (internet radio): no next/previous, seek, shuffle or favorite. */
+    private var isLive: Boolean = false
     private var castDeviceName: String? = null
     private var castVolumePercent: Int = 70
     private var castVolumeProvider: VolumeProviderCompat? = null
@@ -196,6 +198,7 @@ class MusicNotificationService : Service() {
             if (it.hasExtra("isFavorite")) isFavorite = it.getBooleanExtra("isFavorite", false)
             if (it.hasExtra("color")) currentColor = it.getIntExtra("color", 0)
             if (it.hasExtra("isCasting")) isCasting = it.getBooleanExtra("isCasting", false)
+            if (it.hasExtra("isLive")) isLive = it.getBooleanExtra("isLive", false)
             if (it.hasExtra("castDeviceName")) castDeviceName = it.getStringExtra("castDeviceName")
             if (it.hasExtra("castVolume")) {
                 castVolumePercent = it.getIntExtra("castVolume", 70).coerceIn(0, 100)
@@ -442,20 +445,22 @@ class MusicNotificationService : Service() {
             else PlaybackStateCompat.SHUFFLE_MODE_NONE
         )
 
+        val baseActions = PlaybackStateCompat.ACTION_PLAY or
+            PlaybackStateCompat.ACTION_PAUSE or
+            PlaybackStateCompat.ACTION_PLAY_PAUSE or
+            PlaybackStateCompat.ACTION_STOP
         val stateBuilder = PlaybackStateCompat.Builder()
             .setActions(
-                PlaybackStateCompat.ACTION_PLAY or
-                PlaybackStateCompat.ACTION_PAUSE or
-                PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                PlaybackStateCompat.ACTION_STOP or
-                PlaybackStateCompat.ACTION_SEEK_TO or
-                PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE
+                if (isLive) baseActions
+                else baseActions or
+                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                    PlaybackStateCompat.ACTION_SEEK_TO or
+                    PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE
             )
             .setState(state, currentPosition, playbackSpeed, android.os.SystemClock.elapsedRealtime())
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (!isLive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val shuffleIcon = if (isShuffleMode) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle
             val shuffleTitle = if (isShuffleMode) "Shuffle On" else "Shuffle Off"
             
@@ -592,7 +597,21 @@ class MusicNotificationService : Service() {
             builder.setColorized(true)
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (isLive) {
+            // A live station: play/pause only, no next/previous.
+            val playPauseIntent = pendingBroadcast(100, ACTION_PLAY_PAUSE)
+            val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+            val playPauseText = if (isPlaying) "Pause" else "Play"
+            builder
+                .setSubText(null)
+                .addAction(playPauseIcon, playPauseText, playPauseIntent)
+                .setStyle(
+                    MediaNotificationCompat.MediaStyle()
+                        .setMediaSession(mediaSession.sessionToken)
+                        .setShowActionsInCompactView(0)
+                        .setShowCancelButton(true)
+                )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val playPauseIntent = pendingBroadcast(100, ACTION_PLAY_PAUSE)
             val prevIntent = pendingBroadcast(101, ACTION_PREVIOUS)
             val nextIntent = pendingBroadcast(102, ACTION_NEXT)

@@ -707,6 +707,7 @@ class MainActivity: FlutterActivity() {
                         }
                     }
                     val isCasting = call.argument<Boolean>("isCasting") ?: false
+                    val isLive = call.argument<Boolean>("isLive") ?: false
                     val castDeviceName = call.argument<String>("castDeviceName")
                     val castVolume = call.argument<Int>("castVolume")
 
@@ -720,6 +721,7 @@ class MainActivity: FlutterActivity() {
                         putExtra("isShuffle", isShuffle)
                         putExtra("isFavorite", isFavorite)
                         putExtra("isCasting", isCasting)
+                        putExtra("isLive", isLive)
                         castDeviceName?.let { putExtra("castDeviceName", it) }
                         castVolume?.let { putExtra("castVolume", it) }
                         color?.let { putExtra("color", it) }
@@ -762,6 +764,7 @@ class MainActivity: FlutterActivity() {
                         }
                     }
                     val isCasting = call.argument<Boolean>("isCasting")
+                    val isLive = call.argument<Boolean>("isLive")
                     val castDeviceName = call.argument<String>("castDeviceName")
                     val castVolume = call.argument<Int>("castVolume")
 
@@ -775,6 +778,7 @@ class MainActivity: FlutterActivity() {
                         isShuffle?.let { putExtra("isShuffle", it) }
                         isFavorite?.let { putExtra("isFavorite", it) }
                         isCasting?.let { putExtra("isCasting", it) }
+                        isLive?.let { putExtra("isLive", it) }
                         castDeviceName?.let { putExtra("castDeviceName", it) }
                         castVolume?.let { putExtra("castVolume", it) }
                         color?.let { putExtra("color", it) }

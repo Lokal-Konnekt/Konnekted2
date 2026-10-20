@@ -73,9 +73,13 @@ class _KonnektedDiscoveryViewState
     if (!mounted || session == null) return;
     try {
       await ref.read(konnektedYoutubeMusicSessionProvider.notifier).save(session);
-      await ref.read(konnektedDiscoveryProvider.notifier).setSource(
-        KonnektedDiscoverySource.youtube,
-      );
+      final discovery = ref.read(konnektedDiscoveryProvider.notifier);
+      if (ref.read(konnektedDiscoveryProvider).source ==
+          KonnektedDiscoverySource.youtube) {
+        await discovery.load(refresh: true);
+      } else {
+        await discovery.setSource(KonnektedDiscoverySource.youtube);
+      }
     } catch (_) {
       if (mounted) _say('Could not save the YouTube Music session securely.');
     }

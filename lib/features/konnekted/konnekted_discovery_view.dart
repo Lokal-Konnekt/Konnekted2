@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/discovery/discovery_artwork.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
 import 'package:flick/features/discovery/spotify_discovery.dart';
+import 'package:flick/features/spotify/spotify_oauth.dart';
+import 'package:flick/features/spotify/spotify_storage.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_sign_in.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
@@ -83,6 +87,82 @@ class _KonnektedDiscoveryViewState
 
   /// A message that replaces the progress line and goes after a while.
   void _say(String message) => _progress.fail(message);
+
+  Future<void> _selectDiscoverySource(KonnektedDiscoverySource source) async {
+    if (source == KonnektedDiscoverySource.spotify) {
+      final settings = SpotifySettingsStore();
+      final oauth = SpotifyOAuthService(tokenStore: settings.tokenStore);
+      var connected = false;
+      try {
+        connected = await oauth.isConnected;
+      } catch (_) {
+        connected = false;
+      }
+
+      if (!connected) {
+        final controller = TextEditingController();
+        final cookie = await showDialog<String>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Connect Spotify'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Paste the sp_dc session cookie from your signed-in Spotify web session. '
+                  'It is stored encrypted on this device.',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Spotify sp_dc cookie',
+                    hintText: 'Paste cookie value',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+                child: const Text('Connect'),
+              ),
+            ],
+          ),
+        );
+        controller.dispose();
+        if (!mounted || cookie == null) return;
+        try {
+          await oauth.signInWithCookie(cookie);
+        } catch (_) {
+          if (mounted) {
+            _say('Spotify could not verify that cookie. Check the sp_dc value and try again.');
+          }
+          return;
+        }
+      }
+
+      try {
+        await settings.saveDiscoveryEnabled(true);
+      } catch (_) {
+        if (mounted) _say('Spotify connected, but Discovery settings could not be saved.');
+      }
+      ref.invalidate(konnektedSpotifyDiscoveryProvider);
+    }
+
+    if (!mounted) return;
+    HapticFeedback.selectionClick();
+    await ref.read(konnektedDiscoveryProvider.notifier).setSource(source);
+  }
 
   /// Progress, while something is being got ready (late reports from a
   /// download that already ended say nothing).
@@ -303,8 +383,7 @@ class _KonnektedDiscoveryViewState
           loading: discovery.loading,
           source: source,
           onSourceChanged: (next) {
-            HapticFeedback.selectionClick();
-            ref.read(konnektedDiscoveryProvider.notifier).setSource(next);
+            unawaited(_selectDiscoverySource(next));
           },
           onRefresh: () {
             HapticFeedback.selectionClick();
@@ -547,8 +626,7 @@ class _KonnektedDiscoveryViewState
           loading: snapshot.isLoading,
           source: KonnektedDiscoverySource.spotify,
           onSourceChanged: (next) {
-            HapticFeedback.selectionClick();
-            ref.read(konnektedDiscoveryProvider.notifier).setSource(next);
+            unawaited(_selectDiscoverySource(next));
           },
           onRefresh: () {
             HapticFeedback.selectionClick();
@@ -582,24 +660,25 @@ class _KonnektedDiscoveryViewState
             ),
           )
         else if (value == null || !value.enabled)
-          const KonnektedMessage(
+          KonnektedMessage(
             title: 'Spotify Discovery is off',
             message:
-                'Enable Spotify Discovery in the Spotify library settings to add personal shelves to Home.',
+                'Connect your Spotify session to enable personal shelves.',
             icon: Icons.auto_awesome_rounded,
+            actionLabel: 'Connect Spotify',
+            onAction: () => unawaited(
+              _selectDiscoverySource(KonnektedDiscoverySource.spotify),
+            ),
           )
         else if (!value.connected)
           KonnektedMessage(
             title: 'Connect Spotify for Discovery',
             message:
-                'Sign in to Spotify in the Spotify library page, then return here to load your shelves.',
+                'Paste your Spotify session cookie to load your personal shelves.',
             icon: Icons.auto_awesome_rounded,
-            actionLabel: 'Open Spotify',
-            onAction: () => widget.onNavigate(
-              const KonnektedDestination.settingsAt(
-                LokalSettingsGroup.integrations,
-                section: LokalOnlineSections.accounts,
-              ),
+            actionLabel: 'Enter cookie',
+            onAction: () => unawaited(
+              _selectDiscoverySource(KonnektedDiscoverySource.spotify),
             ),
           )
         else if (data == null || data.isEmpty)

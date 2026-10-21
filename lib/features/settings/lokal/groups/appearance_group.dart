@@ -4,29 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/features/appearance/lokal_appearance_screen.dart';
-import 'package:flick/features/settings/screens/player_layout_settings_screen.dart';
 import 'package:flick/features/settings/screens/visualizer_settings_screen.dart';
 import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/l10n/l10n.dart';
-import 'package:flick/models/album_color_mode.dart';
-import 'package:flick/models/progress_bar_style.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 void _push(BuildContext context, Widget page) => unawaited(
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page)),
 );
-
-const _albumColours = [
-  LokalSegment(AlbumColorMode.off, 'Off'),
-  LokalSegment(AlbumColorMode.subtle, 'Subtle'),
-  LokalSegment(AlbumColorMode.moderate, 'Moderate'),
-  LokalSegment(AlbumColorMode.vibrant, 'Vibrant'),
-];
 
 /// The language codes the segmented control offers; `null` follows the
 /// phone.
@@ -92,40 +81,15 @@ List<LokalSettingsSection> appearanceSettings(
     LokalSettingsSection(
       title: 'Now Playing',
       children: [
-        LokalSettingLink(
-          label: 'Classic player layout',
-          description: 'Artwork size, file info and quick actions in the classic player (⋮ › Player layout).',
-          onTap: () => _push(context, const PlayerLayoutSettingsScreen()),
-        ),
-        LokalSettingChoice<AlbumColorMode>(
-          label: 'Colour from the cover',
-          description: 'How much the classic player’s controls take colour from the album cover.',
-          options: _albumColours,
-          value: ref.watch(albumColorModeProvider),
-          onChanged: ref.read(albumColorModeProvider.notifier).setMode,
-        ),
         LokalSettingRow.toggle(
           label: 'Moving covers',
           description: 'Play an album’s animated cover in the classic player, when there is one.',
           value: prefs.animatedAlbumArt,
           onChanged: notifier.setAnimatedAlbumArt,
         ),
-        LokalSettingRow(
-          label: 'Progress bar',
-          description: 'A waveform or a plain line in the classic player.',
-          trailing: LokalSegmented<ProgressBarStyle>(
-            segments: const [
-              LokalSegment(ProgressBarStyle.waveform, 'Waveform'),
-              LokalSegment(ProgressBarStyle.line, 'Line'),
-            ],
-            value: ref.watch(progressBarStyleProvider),
-            onChanged: ref.read(progressBarStyleProvider.notifier).setStyle,
-          ),
-        ),
         LokalSettingLink(
-          label: 'Visualizer',
-          description:
-              'Style and frequency focus of the audio-reactive graphic.',
+          label: 'MilkDrop presets',
+          description: 'Choose which MilkDrop presets rotate in the visualizer.',
           onTap: () => _push(context, const VisualizerSettingsScreen()),
         ),
       ],
@@ -165,33 +129,6 @@ List<LokalSettingsSection> appearanceSettings(
             AppHaptics.setEnabled(value);
           },
         ),
-        LokalSettingRow.toggle(
-          label: 'Swipe actions',
-          description: 'Swipe a song left to queue it or right to like it.',
-          value: prefs.swipeActionsEnabled,
-          onChanged: notifier.setSwipeActionsEnabled,
-        ),
-        LokalSettingRow(
-          label: 'Remove a liked song',
-          description: 'How you unlike a song in Liked.',
-          trailing: LokalSegmented<String>(
-            segments: const [
-              LokalSegment('swipe', 'Swipe'),
-              LokalSegment('longpress', 'Hold'),
-            ],
-            value: prefs.favoriteRemovalMode,
-            onChanged: notifier.setFavoriteRemovalMode,
-          ),
-        ),
-        LokalSettingRow.toggle(
-          label: 'Reduce motion',
-          description: 'Fewer animated transitions and effects.',
-          value: !prefs.animationsEnabled,
-          onChanged: (reduce) {
-            notifier.setAnimationsEnabled(!reduce);
-            AppConstants.setAnimationsEnabled(!reduce);
-          },
-        ),
         LokalSettingRow(
           label: 'Refresh rate',
           description: 'Adaptive lets the phone decide. 120 Hz is smoothest and uses more battery.',
@@ -206,24 +143,6 @@ List<LokalSettingsSection> appearanceSettings(
             value: prefs.refreshRateMode,
             onChanged: notifier.setRefreshRateMode,
           ),
-        ),
-        LokalSettingRow.toggle(
-          label: 'Fast scroll index',
-          description: 'An A–Z rail beside long song lists.',
-          value: prefs.fastIndexEnabled,
-          onChanged: notifier.setFastIndexEnabled,
-        ),
-        LokalSettingRow.toggle(
-          label: 'Open the keyboard in Search',
-          description: 'Start typing as soon as Search opens.',
-          value: prefs.autoFocusSearch,
-          onChanged: notifier.setAutoFocusSearch,
-        ),
-        LokalSettingRow.toggle(
-          label: 'Connection notices',
-          description: 'Say so when you go offline or come back.',
-          value: prefs.connectionNoticesEnabled,
-          onChanged: notifier.setConnectionNoticesEnabled,
         ),
       ],
     ),

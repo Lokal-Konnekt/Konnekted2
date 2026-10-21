@@ -173,7 +173,7 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
                 ?.totalListeningTime
                 .inMinutes,
             streak: streak,
-            onSettings: () => navigate(KonnektedDestination.settings),
+            onSettings: () => navigate(const KonnektedDestination.aboutDataSettings()),
           ),
           const _Label('Recap'),
           Padding(

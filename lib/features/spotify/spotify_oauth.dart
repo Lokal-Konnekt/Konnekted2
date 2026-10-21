@@ -121,6 +121,39 @@ class SpotifyOAuthService {
     return minted;
   }
 
+  /// Imports a manually copied Spotify session cookie from Discovery.
+  /// Only the sp_dc value is saved; the token store encrypts it at rest.
+  Future<SpotifyTokens> signInWithCookie(String input) async {
+    final sessionCookie = _extractSpDc(input);
+    if (sessionCookie.isEmpty) {
+      throw const SpotifyOAuthException('Enter a Spotify sp_dc cookie.');
+    }
+    final epoch = _epoch;
+    final minted = await _browser.mintTokens(sessionCookie);
+    if (minted == null) {
+      throw const SpotifyOAuthException(
+        'Spotify could not verify that session cookie. Check it and try again.',
+      );
+    }
+    if (epoch != _epoch) {
+      throw const SpotifyOAuthException('Spotify sign-in was cancelled.');
+    }
+    final saved = minted.copyWith(sessionCookie: sessionCookie);
+    await _persist(epoch, saved);
+    return saved;
+  }
+
+  static String _extractSpDc(String input) {
+    final value = input.trim();
+    if (value.isEmpty) return '';
+    final named = RegExp(r'(?:^|[;\s])sp_dc=([^;\s]+)').firstMatch(value);
+    if (named != null) return named.group(1)?.trim() ?? '';
+    if (value.toLowerCase().startsWith('sp_dc=')) {
+      return value.substring('sp_dc='.length).split(';').first.trim();
+    }
+    return value;
+  }
+
   Future<SpotifyTokens?> refresh() async {
     final active = _refreshing;
     if (active != null) return active;

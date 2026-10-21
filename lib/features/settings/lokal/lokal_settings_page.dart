@@ -43,7 +43,12 @@ List<LokalSettingsSection> lokalSettingsSections(
 
 /// The page for [group] (the Settings page itself when `null`), scrolled to
 /// [section].
-Widget lokalSettingsPage({LokalSettingsGroup? group, String? section}) {
+Widget lokalSettingsPage({
+  LokalSettingsGroup? group,
+  String? section,
+  bool aboutDataOnly = false,
+}) {
+  if (aboutDataOnly) return const LokalSettingsAboutDataPage();
   if (group == null) return const LokalSettingsPage();
   // Add-ons are part of Online sources: open it at them.
   if (group == LokalSettingsGroup.addons) {
@@ -60,6 +65,7 @@ Route<void> lokalSettingsRoute(
   BuildContext context, {
   LokalSettingsGroup? group,
   String? section,
+  bool aboutDataOnly = false,
 }) {
   final duration = MediaQuery.disableAnimationsOf(context)
       ? Duration.zero
@@ -68,8 +74,11 @@ Route<void> lokalSettingsRoute(
     settings: const RouteSettings(name: '/konnekted/settings'),
     transitionDuration: duration,
     reverseTransitionDuration: duration,
-    pageBuilder: (context, _, _) =>
-        lokalSettingsPage(group: group, section: section),
+    pageBuilder: (context, _, _) => lokalSettingsPage(
+      group: group,
+      section: section,
+      aboutDataOnly: aboutDataOnly,
+    ),
     transitionsBuilder: (_, animation, _, child) =>
         FadeTransition(opacity: animation, child: child),
   );
@@ -86,6 +95,21 @@ Future<void> openLokalSettings(
 
 /// Settings: a large title, a search field that filters every row of every
 /// group by label and description, and the groups.
+/// About and Data are combined here so the You-page wheel opens every
+/// section on one fully expanded page rather than an intermediate group list.
+class LokalSettingsAboutDataPage extends ConsumerWidget {
+  const LokalSettingsAboutDataPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => LokalSettingsScaffold(
+    title: 'About & Data',
+    children: [
+      ...aboutSettings(context, ref),
+      ...dataSettings(context, ref),
+    ],
+  );
+}
+
 class LokalSettingsPage extends ConsumerStatefulWidget {
   const LokalSettingsPage({super.key, this.sectionsBuilder});
 

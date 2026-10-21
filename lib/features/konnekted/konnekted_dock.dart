@@ -586,6 +586,10 @@ class KonnektedMiniPlayer extends ConsumerWidget {
       ),
       onNext: () =>
           _transport(context, () => ref.read(playerProvider.notifier).next()),
+      onPrevious: () => _transport(
+        context,
+        () => ref.read(playerProvider.notifier).previous(),
+      ),
       progress: Consumer(
         builder: (context, ref, _) {
           final value = ref.watch(progressProvider);
@@ -627,6 +631,7 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
     required this.onOpen,
     required this.onPlayPause,
     required this.onNext,
+    required this.onPrevious,
     required this.onQueue,
     required this.progress,
     this.onPullUpStart,
@@ -639,6 +644,7 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
+  final VoidCallback onPrevious;
   final VoidCallback onQueue;
   final Widget progress;
 
@@ -661,6 +667,8 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
       onStart: onPullUpStart!,
       onUpdate: onPullUpUpdate,
       onEnd: onPullUpEnd,
+      onPrevious: onPrevious,
+      onNext: onNext,
       child: body,
     );
   }
@@ -802,12 +810,16 @@ class _PullUp extends StatefulWidget {
     required this.onStart,
     required this.onUpdate,
     required this.onEnd,
+    required this.onPrevious,
+    required this.onNext,
     required this.child,
   });
 
   final VoidCallback onStart;
   final ValueChanged<double>? onUpdate;
   final ValueChanged<double>? onEnd;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
   final Widget child;
 
   @override
@@ -817,6 +829,7 @@ class _PullUp extends StatefulWidget {
 class _PullUpState extends State<_PullUp> {
   /// Whether this drag opened Now Playing (null: no direction yet).
   bool? _pulling;
+  double _horizontalDelta = 0;
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -837,6 +850,21 @@ class _PullUpState extends State<_PullUp> {
       if (_pulling ?? false) widget.onEnd?.call(0);
       _pulling = null;
     },
+    onHorizontalDragStart: (_) => _horizontalDelta = 0,
+    onHorizontalDragUpdate: (d) => _horizontalDelta += d.delta.dx,
+    onHorizontalDragEnd: (d) {
+      final velocity = d.primaryVelocity ?? 0;
+      final direction = velocity.abs() >= 500 ? velocity : _horizontalDelta;
+      _horizontalDelta = 0;
+      if (direction <= -48) {
+        HapticFeedback.selectionClick();
+        widget.onNext();
+      } else if (direction >= 48) {
+        HapticFeedback.selectionClick();
+        widget.onPrevious();
+      }
+    },
+    onHorizontalDragCancel: () => _horizontalDelta = 0,
     child: widget.child,
   );
 }

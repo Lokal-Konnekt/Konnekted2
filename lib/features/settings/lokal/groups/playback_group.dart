@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,10 +74,12 @@ List<LokalSettingsSection> playbackSettings(
           label: 'ReplayGain',
           description: 'Use ReplayGain tags to bring songs closer in loudness. Songs without tags are unchanged.',
           trailing: LokalSegmented<String>(
+            expand: true,
             segments: const [
-              LokalSegment('off', 'Off'),
-              LokalSegment('track', 'Track'),
-              LokalSegment('album', 'Album'),
+              LokalSegment(ReplayGainMode.off, 'Off'),
+              LokalSegment(ReplayGainMode.track, 'Track'),
+              LokalSegment(ReplayGainMode.album, 'Album'),
+              LokalSegment(ReplayGainMode.smart, 'Smart'),
             ],
             value: prefs.replayGainMode,
             onChanged: (mode) async {
@@ -161,50 +162,11 @@ List<LokalSettingsSection> playbackSettings(
       title: 'Queue',
       children: [
         LokalSettingRow.toggle(
-          label: 'Wrap around',
-          description: 'At the end of the queue, go back to the songs before the one you tapped.',
-          value: player.wrapAroundQueueNotifier.value,
-          onChanged: player.setWrapAroundQueue,
-        ),
-        LokalSettingRow.toggle(
           label: 'Autoplay',
           description:
               'When the queue ends, keep playing songs from your library.',
           value: player.autoplayOnQueueEndNotifier.value,
           onChanged: player.setAutoplayOnQueueEnd,
-        ),
-        LokalSettingRow.toggle(
-          label: 'Keep playing on quit',
-          description: 'Music goes on when you swipe Lokal away.',
-          value: prefs.keepPlayingOnQuit,
-          onChanged: notifier.setKeepPlayingOnQuit,
-        ),
-        if (Platform.isAndroid)
-          LokalSettingRow.toggle(
-            label: 'Duck on notifications',
-            description: 'Lower the volume while a notification sounds. Off: pause instead.',
-            value: player.duckOnInterruptionNotifier.value,
-            onChanged: player.setDuckOnInterruption,
-          ),
-      ],
-    ),
-    LokalSettingsSection(
-      title: 'Play from',
-      children: [
-        LokalSettingRow(
-          label: 'After a search result',
-          description: 'What plays next when you play a song from Search: the other results, your library, or your queue.',
-          stacked: true,
-          trailing: LokalSegmented<String>(
-            expand: true,
-            segments: const [
-              LokalSegment('results', 'Results'),
-              LokalSegment('library', 'Library'),
-              LokalSegment('queue', 'Queue'),
-            ],
-            value: prefs.searchPlaybackMode,
-            onChanged: notifier.setSearchPlaybackMode,
-          ),
         ),
       ],
     ),

@@ -8,7 +8,42 @@ class ReplayGainMode {
   static const String off = 'off';
   static const String track = 'track';
   static const String album = 'album';
+  static const String smart = 'smart';
 }
+
+/// Resolves Smart to album gain only when the active album context or
+/// the entire relevant queue is one album by one album artist.
+String effectiveReplayGainModeForSong({
+  required String mode,
+  required Song song,
+  required bool albumContext,
+  required Iterable<Song> queue,
+}) {
+  if (mode != ReplayGainMode.smart) return mode;
+  final album = _normalizeReplayGainTag(song.album);
+  if (album.isEmpty) return ReplayGainMode.track;
+  if (albumContext) return ReplayGainMode.album;
+
+  final albumArtist = _normalizeReplayGainTag(
+    (song.albumArtist?.trim().isNotEmpty ?? false)
+        ? song.albumArtist
+        : song.artist,
+  );
+  if (albumArtist.isEmpty) return ReplayGainMode.track;
+  final queued = queue.toList();
+  if (queued.isEmpty) return ReplayGainMode.track;
+  final sameAlbum = queued.every((item) =>
+      _normalizeReplayGainTag(item.album) == album &&
+      _normalizeReplayGainTag(
+        (item.albumArtist?.trim().isNotEmpty ?? false)
+            ? item.albumArtist
+            : item.artist,
+      ) == albumArtist);
+  return sameAlbum ? ReplayGainMode.album : ReplayGainMode.track;
+}
+
+String _normalizeReplayGainTag(String? value) =>
+    value?.trim().toLowerCase() ?? '';
 
 /// Pre-amp range shared by the settings UI and the volume normalization math.
 const double replayGainPreampMinDb = -18.0;

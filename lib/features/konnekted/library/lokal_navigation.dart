@@ -90,7 +90,23 @@ Future<void> openLokalAlbumForSong(BuildContext context, Song song) async {
   if (!context.mounted) return;
   final album = lokalAlbumForSong(library, song);
   if (album == null || album.songs.isEmpty) {
-    _say(context, l10n.couldNotLoadAlbumSongs);
+    final title = song.album?.trim() ?? '';
+    if (title.isEmpty) {
+      _say(context, l10n.couldNotLoadAlbumSongs);
+      return;
+    }
+    await pushLokalPage(
+      context,
+      LokalAlbumPage(
+        album: AlbumGroup(
+          key: 'online:${_key(song.albumArtist ?? song.artist)}:${_key(title)}',
+          albumName: title,
+          albumArtist: song.albumArtist ?? song.artist,
+          songs: const [],
+        ),
+        initialOnline: true,
+      ),
+    );
     return;
   }
   await pushLokalPage(context, LokalAlbumPage(album: album));
@@ -114,7 +130,10 @@ Future<void> openLokalArtist(
     artist = lokalArtistNamed(library, song!.albumArtist!);
   }
   if (artist == null) {
-    _say(context, l10n.couldNotLoadArtistSongs);
+    await pushLokalPage(
+      context,
+      LokalArtistPage(name: requested, songs: const [], initialOnline: true),
+    );
     return;
   }
   await pushLokalPage(

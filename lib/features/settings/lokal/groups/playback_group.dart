@@ -74,6 +74,7 @@ List<LokalSettingsSection> playbackSettings(
           label: 'ReplayGain',
           description: 'Use ReplayGain tags to bring songs closer in loudness. Songs without tags are unchanged.',
           trailing: LokalSegmented<String>(
+            expand: true,
             segments: const [
               LokalSegment(ReplayGainMode.off, 'Off'),
               LokalSegment(ReplayGainMode.track, 'Track'),

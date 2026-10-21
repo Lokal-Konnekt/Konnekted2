@@ -6185,7 +6185,7 @@ class PlayerService {
       albumContext: _playbackContext.source == PlaybackSource.album &&
           (_playbackContext.sourceName?.trim().toLowerCase() ?? '') ==
               (song.album?.trim().toLowerCase() ?? ''),
-      queue: queue,
+      queue: playlist,
     );
     return computeReplayGainDbForSong(
       song,
@@ -6221,7 +6221,7 @@ class PlayerService {
             albumContext: _playbackContext.source == PlaybackSource.album &&
                 (_playbackContext.sourceName?.trim().toLowerCase() ?? '') ==
                     (song.album?.trim().toLowerCase() ?? ''),
-            queue: queue,
+            queue: playlist,
           ),
           preampDb: preampDb,
           preventClipping: preventClipping,

@@ -5,7 +5,6 @@ enum PlayerActionButton {
   none,
   lyrics,
   favorites,
-  visualizer,
   ratings,
   queue,
   sleepTimer,
@@ -25,8 +24,6 @@ extension PlayerActionButtonX on PlayerActionButton {
         return 'lyrics';
       case PlayerActionButton.favorites:
         return 'favorites';
-      case PlayerActionButton.visualizer:
-        return 'visualizer';
       case PlayerActionButton.ratings:
         return 'ratings';
       case PlayerActionButton.queue:
@@ -54,8 +51,6 @@ extension PlayerActionButtonX on PlayerActionButton {
         return LucideIcons.fileText;
       case PlayerActionButton.favorites:
         return Icons.favorite_border;
-      case PlayerActionButton.visualizer:
-        return Icons.graphic_eq_rounded;
       case PlayerActionButton.ratings:
         return LucideIcons.star;
       case PlayerActionButton.queue:
@@ -82,7 +77,7 @@ extension PlayerActionButtonX on PlayerActionButton {
       case 'favorites':
         return PlayerActionButton.favorites;
       case 'visualizer':
-        return PlayerActionButton.visualizer;
+        return PlayerActionButton.none;
       case 'ratings':
         return PlayerActionButton.ratings;
       case 'queue':

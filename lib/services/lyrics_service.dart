@@ -1,6 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:xml/xml.dart';
+
+import 'lyrics_sources.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -100,29 +104,73 @@ class LyricsService {
     Song song, {
     bool forceRefresh = false,
     bool fetchOnline = false,
+    String source = 'auto',
+    bool Function()? stillCurrent,
   }) async {
+    if (source != 'auto' && source != 'local')
+      return fetchOnlineLyrics(
+        song,
+        source: source,
+        stillCurrent: stillCurrent,
+      );
     final own = await _loadOwnLyrics(song, forceRefresh: forceRefresh);
-    if (own != null || !fetchOnline) return own;
-    return fetchOnlineLyrics(song);
+    if (own != null || !fetchOnline || source == 'local') return own;
+    return fetchOnlineLyrics(song, stillCurrent: stillCurrent);
   }
 
-  /// LRCLIB's lyrics for [song], timed ones preferred; null on a miss.
-  Future<LyricsData?> fetchOnlineLyrics(Song song) async {
+  /// Ordered online fallback, or an explicit source selected during playback.
+  Future<LyricsData?> fetchOnlineLyrics(
+    Song song, {
+    String source = 'auto',
+    bool Function()? stillCurrent,
+  }) async {
     if (song.title.trim().isEmpty || song.artist.trim().isEmpty) return null;
-    try {
-      final result = await (online ?? OnlineLyricsService()).fetchExact(
-        artist: song.artist,
-        title: song.title,
-        album: song.album,
-        duration: song.duration,
-      );
-      if (result == null || result.instrumental) return null;
-      final text = result.bestLyrics;
-      if (text.trim().isEmpty) return null;
-      return _parseLyrics(text, source: 'LRCLIB');
-    } catch (_) {
-      return null;
+    final settings = await LyricsSourcesState.load();
+    final sources = source == 'auto'
+        ? (online != null
+              ? ['lrclib']
+              : settings.order.where((id) => !settings.disabled.contains(id)))
+        : [source];
+    LyricsData? fallback;
+    for (final id in sources) {
+      if (stillCurrent != null && !stillCurrent()) return null;
+      try {
+        String? text;
+        if (id == 'lrclib') {
+          final result = await (online ?? OnlineLyricsService()).fetchExact(
+            artist: song.artist,
+            title: song.title,
+            album: song.album,
+            duration: song.duration,
+          );
+          if (result != null && !result.instrumental) text = result.bestLyrics;
+        } else {
+          text = await AdditionalLyricsSources.fetch(
+            id,
+            song,
+            stillCurrent: stillCurrent,
+          );
+        }
+        if (stillCurrent != null && !stillCurrent()) return null;
+        if (text == null || text.trim().isEmpty) continue;
+        if (text.trimLeft().startsWith('<') &&
+            !text.contains('<tt') &&
+            !text.contains('<line'))
+          continue;
+        final parsed = _parseLyrics(text, source: lyricsSources[id] ?? id);
+        if (parsed.lines.isEmpty) continue;
+        if (source != 'auto' ||
+            !settings.preferWords ||
+            parsed.lines.any((line) => line.words?.isNotEmpty == true))
+          return parsed;
+        if (fallback == null ||
+            (!fallback.isSynchronized && parsed.isSynchronized))
+          fallback = parsed;
+      } catch (_) {
+        /* A provider miss must not prevent other sources. */
+      }
     }
+    return fallback;
   }
 
   Future<LyricsData?> _loadOwnLyrics(
@@ -144,7 +192,10 @@ class LyricsService {
     if (manualPath != null && manualPath.isNotEmpty) {
       final manualLoaded = await _loadLyricsFromAbsolutePath(manualPath);
       if (manualLoaded != null && manualLoaded.content.trim().isNotEmpty) {
-        final parsed = _parseLyrics(manualLoaded.content, source: manualLoaded.source);
+        final parsed = _parseLyrics(
+          manualLoaded.content,
+          source: manualLoaded.source,
+        );
         _cache[filePath] = parsed;
         return parsed;
       }
@@ -208,7 +259,8 @@ class LyricsService {
       content: content,
     );
     await _setManualLyricsPath(song, savedPath);
-    final data = (await loadLyricsForSong(song, forceRefresh: true)) ??
+    final data =
+        (await loadLyricsForSong(song, forceRefresh: true)) ??
         _parseLyrics(content, source: savedPath);
     return LyricsSaveResult(
       data: data,
@@ -250,7 +302,8 @@ class LyricsService {
       await _setManualLyricsPath(song, savedPath);
     }
 
-    final data = (await loadLyricsForSong(song, forceRefresh: true)) ??
+    final data =
+        (await loadLyricsForSong(song, forceRefresh: true)) ??
         _parseLyrics(content, source: savedPath);
     return LyricsSaveResult(
       data: data,
@@ -271,13 +324,10 @@ class LyricsService {
       await file.writeAsString(content);
     }
     await _setManualLyricsPath(song, path);
-    final data = (await loadLyricsForSong(song, forceRefresh: true)) ??
+    final data =
+        (await loadLyricsForSong(song, forceRefresh: true)) ??
         _parseLyrics(content, source: path);
-    return LyricsSaveResult(
-      data: data,
-      path: path,
-      savedBesideSong: false,
-    );
+    return LyricsSaveResult(data: data, path: path, savedBesideSong: false);
   }
 
   Future<LyricsSaveResult> saveLyricsToManaged({
@@ -290,13 +340,10 @@ class LyricsService {
       content: content,
     );
     await _setManualLyricsPath(song, path);
-    final data = (await loadLyricsForSong(song, forceRefresh: true)) ??
+    final data =
+        (await loadLyricsForSong(song, forceRefresh: true)) ??
         _parseLyrics(content, source: path);
-    return LyricsSaveResult(
-      data: data,
-      path: path,
-      savedBesideSong: false,
-    );
+    return LyricsSaveResult(data: data, path: path, savedBesideSong: false);
   }
 
   int findCurrentLineIndex(LyricsData lyrics, Duration position) {
@@ -358,9 +405,11 @@ class LyricsService {
       final endRatio = consumed / weightSum;
       segments.add(
         LyricsWord(
-          start: word.start +
+          start:
+              word.start +
               Duration(milliseconds: (startRatio * windowMs).round()),
-          end: word.start +
+          end:
+              word.start +
               Duration(milliseconds: (endRatio * windowMs).round()),
           text: text,
         ),
@@ -444,9 +493,7 @@ class LyricsService {
       final parsed = _parseTimestamp(match.group(1) ?? '');
       if (parsed == null) continue;
       final adjustedMs = parsed.inMilliseconds + offsetMs;
-      times.add(
-        Duration(milliseconds: adjustedMs < 0 ? 0 : adjustedMs),
-      );
+      times.add(Duration(milliseconds: adjustedMs < 0 ? 0 : adjustedMs));
       starts.add(match.start);
       ends.add(match.end);
     }
@@ -460,13 +507,7 @@ class LyricsService {
           .substring(segStart, segEnd)
           .replaceAll(_wordTimestampPattern, '');
       if (segment.isEmpty && i > 0) continue;
-      words.add(
-        LyricsWord(
-          start: times[i],
-          end: times[i],
-          text: segment,
-        ),
-      );
+      words.add(LyricsWord(start: times[i], end: times[i], text: segment));
     }
     return words.isEmpty ? null : words;
   }
@@ -566,7 +607,9 @@ class LyricsService {
     return null;
   }
 
-  Future<_LoadedLyrics?> _loadLyricsFromAbsolutePath(String absolutePath) async {
+  Future<_LoadedLyrics?> _loadLyricsFromAbsolutePath(
+    String absolutePath,
+  ) async {
     final file = File(absolutePath);
     if (!await file.exists()) return null;
     final content = await _readTextFile(file);
@@ -679,7 +722,9 @@ class LyricsService {
         .replaceFirst(RegExp(r'^\uFEFF'), '');
     final rows = normalized.split('\n');
 
-    final timestampPattern = RegExp(r'\[(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?)\]');
+    final timestampPattern = RegExp(
+      r'\[(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d{1,3})?)\]',
+    );
     final offsetPattern = RegExp(
       r'^\s*\[offset:([+-]?\d+)\]\s*$',
       caseSensitive: false,
@@ -713,9 +758,7 @@ class LyricsService {
         hasTimestamps = true;
         final body = line.replaceAll(timestampPattern, '');
         final words = _extractWords(body, offsetMs);
-        final lyricText = body
-            .replaceAll(_wordTimestampPattern, '')
-            .trim();
+        final lyricText = body.replaceAll(_wordTimestampPattern, '').trim();
         previous = [];
         for (final match in matches) {
           final parsedTime = _parseTimestamp(match.group(1) ?? '');
@@ -775,6 +818,80 @@ class LyricsService {
 
   LyricsData? _parseXmlLyrics(String xml, {String? source}) {
     try {
+      final document = XmlDocument.parse(xml);
+      Duration? time(String? value) {
+        if (value == null) return null;
+        if (value.endsWith('ms'))
+          return Duration(
+            microseconds:
+                ((double.tryParse(value.substring(0, value.length - 2)) ?? 0) *
+                        1000)
+                    .round(),
+          );
+        if (value.endsWith('s'))
+          return Duration(
+            microseconds:
+                ((double.tryParse(value.substring(0, value.length - 1)) ?? 0) *
+                        1000000)
+                    .round(),
+          );
+        final parts = value.split(':');
+        if (parts.length < 2) return null;
+        var seconds = 0.0;
+        for (final part in parts) {
+          final number = double.tryParse(part);
+          if (number == null) return null;
+          seconds = seconds * 60 + number;
+        }
+        return Duration(microseconds: (seconds * 1000000).round());
+      }
+
+      final paragraphs = document.descendants.whereType<XmlElement>().where(
+        (e) => e.name.local == 'p',
+      );
+      final lines = <LyricsLine>[];
+      for (final paragraph in paragraphs) {
+        final start = time(paragraph.getAttribute('begin'));
+        final text = paragraph.innerText.replaceAll(RegExp(r'\s+'), ' ').trim();
+        if (start == null || text.isEmpty) continue;
+        final words = <LyricsWord>[];
+        for (final span in paragraph.descendants.whereType<XmlElement>().where(
+          (e) => e.name.local == 'span',
+        )) {
+          final begin = time(span.getAttribute('begin')),
+              end = time(span.getAttribute('end'));
+          if (begin == null ||
+              end == null ||
+              end < begin ||
+              span.innerText.trim().isEmpty)
+            continue;
+          if (span.descendants.whereType<XmlElement>().any(
+            (child) => child.getAttribute('begin') != null,
+          ))
+            continue;
+          words.add(LyricsWord(start: begin, end: end, text: span.innerText));
+        }
+        lines.add(
+          LyricsLine(
+            timestamp: start,
+            text: text,
+            words: words.isEmpty ? null : words,
+          ),
+        );
+      }
+      if (lines.isNotEmpty) {
+        lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        return LyricsData(
+          lines: lines,
+          isSynchronized: true,
+          source: source,
+          rawContent: xml,
+        );
+      }
+    } catch (_) {
+      /* Try the legacy XML formats below. */
+    }
+    try {
       final linePattern = RegExp(
         r'<line\s+start="(\d+)"\s*>([^<]*)</line>',
         caseSensitive: false,
@@ -792,7 +909,12 @@ class LyricsService {
         final ms = int.tryParse(match.group(1) ?? '') ?? 0;
         final text = match.group(2)?.trim() ?? '';
         if (text.isNotEmpty) {
-          lines.add(LyricsLine(timestamp: Duration(milliseconds: ms), text: text));
+          lines.add(
+            LyricsLine(
+              timestamp: Duration(milliseconds: ms),
+              text: text,
+            ),
+          );
         }
       }
 
@@ -805,7 +927,12 @@ class LyricsService {
           final ms = (minutes * 60 + seconds) * 1000 + centis * 10;
           final text = match.group(4)?.trim() ?? '';
           if (text.isNotEmpty) {
-            lines.add(LyricsLine(timestamp: Duration(milliseconds: ms), text: text));
+            lines.add(
+              LyricsLine(
+                timestamp: Duration(milliseconds: ms),
+                text: text,
+              ),
+            );
           }
         }
       }
@@ -828,9 +955,8 @@ class LyricsService {
   Duration? _parseTimestamp(String timestamp) {
     final trimmed = timestamp.trim();
 
-    var match = RegExp(
-      r'^(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$',
-    ).firstMatch(trimmed);
+    var match = RegExp(r'^(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$')
+        .firstMatch(trimmed);
     if (match != null) {
       final hours = int.tryParse(match.group(1) ?? '') ?? 0;
       final minutes = int.tryParse(match.group(2) ?? '') ?? 0;
@@ -843,9 +969,7 @@ class LyricsService {
       );
     }
 
-    match = RegExp(
-      r'^(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?$',
-    ).firstMatch(trimmed);
+    match = RegExp(r'^(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?$').firstMatch(trimmed);
     if (match == null) return null;
 
     final minutes = int.tryParse(match.group(1) ?? '');

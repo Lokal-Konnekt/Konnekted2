@@ -1,3 +1,5 @@
+import 'package:flick/services/link/library_song_identity.dart';
+
 import 'dart:async';
 
 import 'package:flick/data/repositories/recently_played_repository.dart';
@@ -90,7 +92,10 @@ final konnektedFavoritesProvider = Provider<AsyncValue<List<Song>>>(
 );
 
 final konnektedLibraryProvider = Provider<AsyncValue<List<Song>>>(
-  (ref) => _homeData(ref.watch(songsProvider), (state) => state.songs),
+  (ref) => _homeData(
+    ref.watch(songsProvider),
+    (state) => preferLocalLibrarySongs(state.songs),
+  ),
 );
 
 final konnektedRecentlyAddedProvider = Provider<AsyncValue<List<Song>>>(

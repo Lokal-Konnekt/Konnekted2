@@ -26,8 +26,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Visualizer API requires RECORD_AUDIO to read the output mix -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- System-level floating mini-player overlay -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Bluetooth: connected-device / codec awareness (runtime-granted on Android 12+) -->
@@ -283,6 +281,42 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/compact_widget_info" />
         </receiver>
+        <activity-alias android:name=".LauncherIconChartreuse"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_lokal_chartreuse" android:roundIcon="@mipmap/ic_lokal_chartreuse"
+            android:enabled="false" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".LauncherIconMidnight"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_lokal_midnight" android:roundIcon="@mipmap/ic_lokal_midnight"
+            android:enabled="false" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".LauncherIconRosegold"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_lokal_rosegold" android:roundIcon="@mipmap/ic_lokal_rosegold"
+            android:enabled="false" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".LauncherIconNeon"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_lokal_neon" android:roundIcon="@mipmap/ic_lokal_neon"
+            android:enabled="false" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

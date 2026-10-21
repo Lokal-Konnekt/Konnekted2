@@ -92,16 +92,10 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     final hasAlbumTint = albumColor != null && accentBlend > 0;
 
     final inactiveBg = hasAlbumTint
-        ? albumSurface(
-            albumColor,
-            surfaceBlend,
-          ).withValues(alpha: 0.15)
+        ? albumSurface(albumColor, surfaceBlend).withValues(alpha: 0.15)
         : Colors.white.withValues(alpha: 0.15);
     final inactiveBorder = hasAlbumTint
-        ? albumSurface(
-            albumColor,
-            surfaceBlend,
-          ).withValues(alpha: 0.08)
+        ? albumSurface(albumColor, surfaceBlend).withValues(alpha: 0.08)
         : Colors.white.withValues(alpha: 0.08);
 
     return Row(
@@ -218,6 +212,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       ),
     );
   }
+
   Widget _buildSideButtons({
     required PlayerActionButton topAction,
     required PlayerActionButton bottomAction,
@@ -311,18 +306,6 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
           actionRadius: actionRadius,
           actionIconSize: actionIconSize,
           inactiveBg: inactiveBg,
-          albumColor: albumColor,
-          accentBlend: accentBlend,
-          hasAlbumTint: hasAlbumTint,
-        );
-      case PlayerActionButton.visualizer:
-        return _buildVisualizerButton(
-          context: context,
-          actionPadding: actionPadding,
-          actionRadius: actionRadius,
-          actionIconSize: actionIconSize,
-          inactiveBg: inactiveBg,
-          inactiveBorder: inactiveBorder,
           albumColor: albumColor,
           accentBlend: accentBlend,
           hasAlbumTint: hasAlbumTint,
@@ -425,16 +408,10 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required bool lyricsMode,
   }) {
     final lyricsActiveBg = hasAlbumTint
-        ? albumAccent(
-            albumColor!,
-            accentBlend,
-          ).withValues(alpha: 0.28)
+        ? albumAccent(albumColor!, accentBlend).withValues(alpha: 0.28)
         : AppColors.accent.withValues(alpha: 0.28);
     final lyricsActiveBorder = hasAlbumTint
-        ? albumAccent(
-            albumColor!,
-            accentBlend,
-          ).withValues(alpha: 0.45)
+        ? albumAccent(albumColor!, accentBlend).withValues(alpha: 0.45)
         : AppColors.accent.withValues(alpha: 0.45);
 
     return Tooltip(
@@ -478,14 +455,18 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
         final isFavorite = snapshot.data ?? false;
         return GestureDetector(
           onTap: () async {
-            final newState = await widget.favoritesService.toggleFavorite(song.id);
+            final newState = await widget.favoritesService.toggleFavorite(
+              song.id,
+            );
             setState(() {});
             widget.playerService.refreshNotificationState();
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    newState ? l10n.addedToFavorites : l10n.removedFromFavorites3,
+                    newState
+                        ? l10n.addedToFavorites
+                        : l10n.removedFromFavorites3,
                   ),
                   duration: const Duration(seconds: 1),
                 ),
@@ -509,10 +490,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
               isFavorite ? Icons.favorite : Icons.favorite_border,
               color: isFavorite
                   ? (hasAlbumTint
-                        ? albumAccent(
-                            albumColor!,
-                            accentBlend,
-                          )
+                        ? albumAccent(albumColor!, accentBlend)
                         : Colors.red)
                   : Colors.white.withValues(alpha: 0.9),
               size: actionIconSize,
@@ -520,54 +498,6 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildVisualizerButton({
-    required BuildContext context,
-    required EdgeInsets actionPadding,
-    required double actionRadius,
-    required double actionIconSize,
-    required Color inactiveBg,
-    required Color inactiveBorder,
-    required Color? albumColor,
-    required double accentBlend,
-    required bool hasAlbumTint,
-  }) {
-    final isVisMode = widget.isVisualizationMode;
-    final visActiveBg = hasAlbumTint
-        ? albumAccent(
-            albumColor!,
-            accentBlend,
-          ).withValues(alpha: 0.28)
-        : AppColors.accent.withValues(alpha: 0.28);
-    final visActiveBorder = hasAlbumTint
-        ? albumAccent(
-            albumColor!,
-            accentBlend,
-          ).withValues(alpha: 0.45)
-        : AppColors.accent.withValues(alpha: 0.45);
-
-    return Tooltip(
-      message: isVisMode ? l10n.hideVisualizer : l10n.showVisualizer,
-      child: GestureDetector(
-        onTap: () => widget.onToggleVisualization(!isVisMode),
-        child: Container(
-          padding: actionPadding,
-          decoration: BoxDecoration(
-            color: isVisMode ? visActiveBg : inactiveBg,
-            borderRadius: BorderRadius.circular(actionRadius),
-            border: Border.all(
-              color: isVisMode ? visActiveBorder : inactiveBorder,
-            ),
-          ),
-          child: Icon(
-            Icons.graphic_eq_rounded,
-            color: Colors.white.withValues(alpha: 0.96),
-            size: actionIconSize,
-          ),
-        ),
-      ),
     );
   }
 
@@ -678,7 +608,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       child: GestureDetector(
         onTap: () {
           showModalBottomSheet(
-      useRootNavigator: true,
+            useRootNavigator: true,
             context: context,
             backgroundColor: Colors.transparent,
             isScrollControlled: true,
@@ -844,9 +774,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
       message: isCasting ? l10n.castingTapToManage : l10n.cast,
       child: GestureDetector(
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const CastingSettingsScreen(),
-          ),
+          MaterialPageRoute(builder: (_) => const CastingSettingsScreen()),
         ),
         child: Container(
           padding: actionPadding,

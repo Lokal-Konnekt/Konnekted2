@@ -40,6 +40,31 @@ const kLokalReleaseNotes = ChangelogEntry(
   date: '2026-10-21',
   sections: [
     ChangelogSection(
+      title: 'Library and discovery',
+      bullets: [
+        'Run music-video discovery, album-release refresh and artist-info refresh from their library sections, with progress and stop controls.',
+        'New library artists load their portraits automatically. Matching desktop placeholders no longer duplicate phone recordings.',
+        'Search remembers recent songs in a vertically scrolling cover grid.',
+      ],
+    ),
+    ChangelogSection(
+      title: 'Player and lyrics',
+      bullets: [
+        'Choose and reorder more lyrics sources in Playback settings, or switch sources directly in player lyrics.',
+        'Quality badges sit beside the artist name, including Low when the track has a known low bitrate.',
+        'Cover art sits closer to the song title. Visualizers and their settings have been removed.',
+        'Stalled online lookups time out with a retry message instead of waiting indefinitely.',
+      ],
+    ),
+    ChangelogSection(
+      title: 'Settings and performance',
+      bullets: [
+        'Performance mode is the default for fresh preferences; your saved choice is preserved.',
+        'Accounts have clearer headings, source ranks have proper spacing and choice controls fit their contents.',
+        'Rose Gold and Midnight Blue have matching launcher icons. Icon changes wait until the app is in the background and playback is idle.',
+      ],
+    ),
+    ChangelogSection(
       title: 'Accounts in one place',
       bullets: [
         'Find YouTube Music sign-in, Spotify cookies, Discord Rich Presence, Desktop link, Last.fm and ListenBrainz in Settings → Data → Accounts.',

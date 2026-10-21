@@ -11,7 +11,6 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/app_preferences_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/uac2_service.dart';
-import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/audio_signal_report.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
@@ -864,7 +863,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
   // ---- PageView area ----
 
   Widget _buildPageLabelBadge(BuildContext context) {
-    final label = _showPageView ? _pageLabel(_currentPage) : l10n.visualizer;
+    final label = _pageLabel(_currentPage);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -884,7 +883,7 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
   }
 
   Widget _buildPageDots(BuildContext context) {
-    const pageCount = 4;
+    const pageCount = 3;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(pageCount, (i) {
@@ -911,28 +910,9 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
     required AppPreferences prefs,
     required bool expanded,
   }) {
-    if (!_showPageView) {
-      return AudioVisualizer(
-        playerService: widget.playerService,
-        animationStyle: prefs.visualizerAnimationStyle,
-        frequencyMode: prefs.visualizerFrequencyMode,
-        movementMode: prefs.visualizerMovementMode,
-        albumColor: albumColor,
-        enabled: prefs.visualizerEnabled,
-      );
-    }
-
     return PageView(
       controller: _pageController,
       children: [
-        AudioVisualizer(
-          playerService: widget.playerService,
-          animationStyle: prefs.visualizerAnimationStyle,
-          frequencyMode: prefs.visualizerFrequencyMode,
-          movementMode: prefs.visualizerMovementMode,
-          albumColor: albumColor,
-          enabled: prefs.visualizerEnabled,
-        ),
         for (final page in AudioSignalReportPage.values)
           AudioSignalReport(
             song: widget.song,
@@ -947,12 +927,10 @@ class _AudioInfoBottomSheetState extends ConsumerState<_AudioInfoBottomSheet> {
   String _pageLabel(int page) {
     switch (page) {
       case 0:
-        return l10n.visualizer;
-      case 1:
         return l10n.source;
-      case 2:
+      case 1:
         return l10n.urbTransfer;
-      case 3:
+      case 2:
         return l10n.recorded;
       default:
         return '';

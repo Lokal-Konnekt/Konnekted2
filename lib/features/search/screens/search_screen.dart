@@ -1,3 +1,6 @@
+import '../providers/recent_search_tracks.dart';
+import '../widgets/recent_search_grid.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -240,6 +243,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    if (ref.watch(recentSearchTracksProvider).isNotEmpty) {
+      return RecentSearchGrid(
+        onSelected: (track) {
+          final song = (ref.read(songsProvider).value?.songs ?? const <Song>[])
+              .where((song) => song.id == track.songId)
+              .firstOrNull;
+          if (song != null) {
+            unawaited(_playSong(song, [song]));
+          } else {
+            _controller.text = track.title;
+            _onSearchChanged(track.title);
+          }
+        },
+      );
+    }
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -570,6 +588,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _playSong(Song song, List<Song> playlist) async {
+    unawaited(
+      ref
+          .read(recentSearchTracksProvider.notifier)
+          .add(
+            RecentSearchTrack(
+              title: song.title,
+              artist: song.artist,
+              songId: song.id,
+              artwork: song.albumArt,
+            ),
+          ),
+    );
     final notifier = ref.read(playerProvider.notifier);
     final mode = ref.read(appPreferencesProvider).searchPlaybackMode;
     if (mode == 'queue' && ref.read(playerProvider).currentSong != null) {

@@ -402,6 +402,12 @@ class LokalDesktopSource extends NetworkSourceService {
     entity.album = track['album']?.toString();
     entity.durationMs = ((track['duration'] as num? ?? 0) * 1000).round();
     entity.fileType = track['fileType']?.toString() ?? entity.fileType ?? 'bin';
+    int? number(String camel, String snake) =>
+        (track[camel] as num? ?? track[snake] as num?)?.toInt();
+    entity.sampleRate =
+        number('sampleRate', 'sample_rate') ?? entity.sampleRate;
+    entity.bitDepth = number('bitDepth', 'bit_depth') ?? entity.bitDepth;
+    entity.bitrate = (track['bitrate'] as num?)?.toInt() ?? entity.bitrate;
     entity.sourceType = 'lokal';
     entity.remoteId = remoteId;
     entity.remoteServerId = server.id;

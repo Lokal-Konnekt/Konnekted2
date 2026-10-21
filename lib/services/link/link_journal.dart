@@ -79,7 +79,8 @@ class LinkJournal {
     final alias = songs.where(
       (song) => _trackKeys[song.id] == track['track_key'],
     );
-    if (alias.isNotEmpty) return alias.first;
+    final localAlias = alias.where((song) => !song.isNetworkSource);
+    if (localAlias.isNotEmpty) return localAlias.first;
     final parts = (track['track_key']?.toString() ?? '').split('|');
     final duration = parts.isNotEmpty
         ? double.tryParse(parts.removeLast()) ?? 0
@@ -88,13 +89,21 @@ class LinkJournal {
     final artist = parts.join('|');
     String normalize(String value) =>
         value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
-    for (final song in songs) {
-      if (normalize(song.title) == title &&
+    final remoteAlbum = track['album']?.toString().trim() ?? '';
+    for (final song in [
+      ...songs.where((s) => !s.isNetworkSource),
+      ...songs.where((s) => s.isNetworkSource),
+    ]) {
+      final album = song.album?.trim() ?? '';
+      if ((album.isEmpty ||
+              remoteAlbum.isEmpty ||
+              normalize(album) == normalize(remoteAlbum)) &&
+          normalize(song.title) == title &&
           normalize(song.artist) == artist &&
           (song.duration.inMilliseconds / 1000 - duration).abs() <= 2)
         return song;
     }
-    return null;
+    return alias.firstOrNull;
   }
 
   Future<void> recordPlay({

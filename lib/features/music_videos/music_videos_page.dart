@@ -1,3 +1,6 @@
+import 'package:flick/features/library_jobs/library_jobs.dart';
+import 'package:flick/features/library_jobs/library_job_control.dart';
+
 import 'dart:async';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -42,7 +45,6 @@ class MusicVideosPage extends ConsumerWidget {
     }
     final songs = ref.watch(konnektedLibraryProvider).value ?? const <Song>[];
     final index = ref.watch(musicVideoIndexProvider);
-    final notifier = ref.read(musicVideoIndexProvider.notifier);
     final withVideo = [
       for (final song in songs)
         if (index.videoFor(song.id) != null) song,
@@ -50,52 +52,11 @@ class MusicVideosPage extends ConsumerWidget {
     final unchecked = songs
         .where((s) => !index.matches.containsKey(s.id))
         .length;
-    final t = context.lokal;
     return LokalLibraryPage(
       title: 'Videos',
       subtitle: withVideo.isEmpty ? null : lokalSongCount(withVideo.length),
       slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: index.scanning
-                ? Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Looking for videos… ${index.done} of '
-                              '${index.total}',
-                              style: TextStyle(color: t.muted),
-                            ),
-                            const SizedBox(height: 6),
-                            LinearProgressIndicator(
-                              value: index.total == 0
-                                  ? null
-                                  : index.done / index.total,
-                              color: t.accent,
-                              backgroundColor: t.surface2,
-                            ),
-                          ],
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: notifier.cancel,
-                        child: const Text('Stop'),
-                      ),
-                    ],
-                  )
-                : unchecked > 0
-                ? LokalPill(
-                    icon: Icons.search_rounded,
-                    label: 'Find videos for ${lokalSongCount(unchecked)}',
-                    onTap: () => unawaited(notifier.scan(songs)),
-                  )
-                : const SizedBox.shrink(),
-          ),
-        ),
+        const SliverToBoxAdapter(child: LibraryJobControl(LibraryJob.videos)),
         if (withVideo.isEmpty && !index.scanning)
           SliverToBoxAdapter(
             child: LokalEmptyState(

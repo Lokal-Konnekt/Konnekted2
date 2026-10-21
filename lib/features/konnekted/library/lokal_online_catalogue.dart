@@ -134,6 +134,9 @@ class LokalCataloguePage {
 /// or an explicit navigation from an already-online recommendation.
 class LokalOnlineCatalogue {
   static final instance = LokalOnlineCatalogue();
+  void invalidateArtist(String name) =>
+      _cache.remove('artist:${recommendationKey(name)}');
+
   final _apple = AppleMusicMetadataService.instance;
   final _cache = LinkedHashMap<String, (DateTime, LokalCataloguePage)>();
   final _pending = <String, Future<LokalCataloguePage>>{};

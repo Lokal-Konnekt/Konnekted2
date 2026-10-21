@@ -97,24 +97,31 @@ class _SpotifyAccountSettingsTileState
   }
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 10,
-    runSpacing: 8,
-    children: [
-      LokalSettingButton(
-        label: lokalText(_busy ? 'Connecting…' : 'Enter cookie'),
-        onPressed: _busy ? null : () => unawaited(_connect()),
-      ),
-      LokalSettingButton(
-        label: lokalText('Manage Spotify library'),
-        onPressed: () => unawaited(
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const SpotifyLibraryScreen(),
+  Widget build(BuildContext context) => LokalSettingRow(
+    label: lokalText('Spotify'),
+    description: lokalText(
+      'Connect your account to load personal shelves and manage your library.',
+    ),
+    stacked: true,
+    trailing: Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      children: [
+        LokalSettingButton(
+          label: lokalText(_busy ? 'Connecting…' : 'Enter cookie'),
+          onPressed: _busy ? null : () => unawaited(_connect()),
+        ),
+        LokalSettingButton(
+          label: lokalText('Manage Spotify library'),
+          onPressed: () => unawaited(
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const SpotifyLibraryScreen(),
+              ),
             ),
           ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
 }

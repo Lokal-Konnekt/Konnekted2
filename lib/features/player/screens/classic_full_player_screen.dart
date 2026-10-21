@@ -11,7 +11,6 @@ import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/duration_format.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/data/repositories/song_repository.dart';
-import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/player_action_button_row.dart';
 import 'package:flick/features/player/widgets/player_controls.dart';
 import 'package:flick/features/player/widgets/player_layout_sheet.dart';
@@ -406,45 +405,6 @@ class _ClassicFullPlayerScreenState
     final bgBlend = albumColorMode.backgroundBlend;
     final hasAlbumTint = albumColor != null && bgBlend > 0;
 
-    if (visualizationMode &&
-        _playerScreenMode != PlayerScreenMode.artworkCard) {
-      final overlayColor = hasAlbumTint
-          ? albumSurface(albumColor, bgBlend * 0.5)
-          : const Color(0xFF0A0A0A);
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: AudioVisualizer(
-              playerService: _playerService,
-              animationStyle: visStyle,
-              frequencyMode: visFreq,
-              movementMode: visMove,
-              albumColor: albumColor,
-            ),
-          ),
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    overlayColor.withValues(alpha: 0.7),
-                    overlayColor.withValues(alpha: 0.35),
-                    Colors.transparent,
-                    Colors.transparent,
-                    overlayColor.withValues(alpha: 0.3),
-                    overlayColor.withValues(alpha: 0.75),
-                  ],
-                  stops: const [0.0, 0.12, 0.28, 0.62, 0.82, 1.0],
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
     if (_playerScreenMode == PlayerScreenMode.artworkCard) {
       final placeholder = Container(
         color: AppColors.background,
@@ -616,13 +576,6 @@ class _ClassicFullPlayerScreenState
                       icon: Icons.lyrics_outlined,
                       label: 'Lyrics',
                       onTap: () => _setLyricsMode(true),
-                    ),
-                    LokalSongMenuAction(
-                      icon: Icons.graphic_eq_rounded,
-                      label: _isVisualizationMode
-                          ? 'Hide visualizer'
-                          : 'Show visualizer',
-                      onTap: () => _setVisualizationMode(!_isVisualizationMode),
                     ),
                     LokalSongMenuAction(
                       icon: Icons.dashboard_customize_outlined,

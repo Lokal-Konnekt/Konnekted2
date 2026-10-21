@@ -49,7 +49,6 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaMetadataRetriever
 import android.media.MediaScannerConnection
-import android.media.audiofx.Visualizer
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
@@ -103,8 +102,6 @@ class MainActivity: FlutterActivity() {
     private val UAC2_CHANNEL = "com.mossapps.flick/uac2"
     private val AUDIO_DEVICE_CHANNEL = "com.mossapps.flick/audio_device"
     private val EQUALIZER_CHANNEL = "com.mossapps.flick/equalizer"
-    private val VISUALIZER_METHOD_CHANNEL = "com.mossapps.flick/visualizer"
-    private val VISUALIZER_EVENT_CHANNEL = "com.mossapps.flick/visualizer_events"
     private val WIDGET_CHANNEL = "com.mossapps.flick/widget"
     private val OVERLAY_CHANNEL = "com.mossapps.flick/overlay"
     private val BLUETOOTH_CHANNEL = "com.mossapps.flick/bluetooth"
@@ -169,8 +166,6 @@ class MainActivity: FlutterActivity() {
     // private var audioConverter: AudioConverter? = null
     // Coroutine scope for background tasks
     private val mainScope = CoroutineScope(Dispatchers.Main)
-    private var visualizer: Visualizer? = null
-    private var visualizerEventSink: EventChannel.EventSink? = null
     private var widgetChannel: MethodChannel? = null
     private val HOME_WIDGET_LAUNCH_ACTION = "com.mossapps.flick.WIDGET_LAUNCH"
     private var a2dpProxy: BluetoothA2dp? = null
@@ -1236,31 +1231,6 @@ class MainActivity: FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, EQUALIZER_CHANNEL).setMethodCallHandler { call, result ->
             if (!justAudioProcessingController.handle(call, result)) {
                 result.notImplemented()
-            }
-        }
-
-        // Audio visualizer: attach to just_audio session for real FFT data
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, VISUALIZER_EVENT_CHANNEL).setStreamHandler(
-            object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    visualizerEventSink = events
-                }
-                override fun onCancel(arguments: Any?) {
-                    visualizerEventSink = null
-                }
-            }
-        )
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, VISUALIZER_METHOD_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "attachVisualizer" -> {
-                    val sessionId = call.argument<Int>("sessionId") ?: 0
-                    result.success(attachVisualizer(sessionId))
-                }
-                "detachVisualizer" -> {
-                    detachVisualizer()
-                    result.success(null)
-                }
-                else -> result.notImplemented()
             }
         }
 
@@ -5107,54 +5077,6 @@ class MainActivity: FlutterActivity() {
         }
     }
     
-    private fun attachVisualizer(sessionId: Int): Boolean {
-        return try {
-            detachVisualizer()
-            if (sessionId <= 0) {
-                Log.w("Visualizer", "Invalid audio session ID: $sessionId")
-                return false
-            }
-            val viz = Visualizer(sessionId).apply {
-                val captureSizeRange = Visualizer.getCaptureSizeRange()
-                val targetSize = captureSizeRange[1].coerceAtMost(512)
-                captureSize = targetSize
-                setDataCaptureListener(
-                    object : Visualizer.OnDataCaptureListener {
-                        override fun onWaveFormDataCapture(
-                            v: Visualizer?,
-                            waveform: ByteArray?,
-                            samplingRate: Int
-                        ) {}
-                        override fun onFftDataCapture(
-                            v: Visualizer?,
-                            fft: ByteArray?,
-                            samplingRate: Int
-                        ) {
-                            fft?.let { visualizerEventSink?.success(it) }
-                        }
-                    },
-                    30, // ~33 fps
-                    false,
-                    true
-                )
-                enabled = true
-            }
-            visualizer = viz
-            Log.i("Visualizer", "Attached to session $sessionId with capture size ${viz.captureSize}")
-            true
-        } catch (e: Exception) {
-            Log.e("Visualizer", "Failed to attach visualizer: ${e.message}", e)
-            false
-        }
-    }
-
-    private fun detachVisualizer() {
-        visualizer?.enabled = false
-        visualizer?.release()
-        visualizer = null
-        visualizerEventSink = null
-    }
-
     private val btBatteryServiceUuid = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
     private val btBatteryCharUuid = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")
 
@@ -5547,7 +5469,6 @@ class MainActivity: FlutterActivity() {
         aclReceiver = null
         unregisterVolumeContentObserver()
         justAudioProcessingController.release()
-        detachVisualizer()
         usbHotplugReceiver = null
         usbPermissionReceiver = null
         try {

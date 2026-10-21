@@ -40,7 +40,6 @@ const _reskinned = [
   'lib/features/settings/screens/bluetooth_settings_screen.dart',
   'lib/features/settings/screens/casting_settings_screen.dart',
   'lib/features/settings/screens/player_layout_settings_screen.dart',
-  'lib/features/settings/screens/visualizer_settings_screen.dart',
   'lib/features/settings/screens/widget_settings_screen.dart',
   'lib/features/settings/screens/privacy_policy_screen.dart',
   'lib/features/settings/screens/logs_screen.dart',

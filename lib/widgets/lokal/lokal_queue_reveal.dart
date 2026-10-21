@@ -266,7 +266,7 @@ class _RevealLayout extends MultiChildLayoutDelegate {
       badgeBlock = _badgeGap + badgeSize.height;
     }
 
-    // The full player: the cover centred in whatever the text leaves.
+    // Keep the cover and song information together, with a fixed art-to-title gap.
     final coverRoom = math.max(
       0.0,
       h - artGap - infoSize.height - badgeBlock - _bottomPad,
@@ -278,7 +278,7 @@ class _RevealLayout extends MultiChildLayoutDelegate {
     positionChild(_Slot.art, Offset(0, artTop));
 
     final infoTop = lerpDouble(
-      coverRoom + artGap,
+      (coverRoom - fullSide) / 2 + fullSide + artGap,
       (thumbSize - infoSize.height) / 2,
       p,
     )!;

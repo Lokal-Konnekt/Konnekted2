@@ -1,3 +1,5 @@
+import '../providers/recent_search_tracks.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -145,6 +147,17 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   }
 
   Future<void> _play(OnlineSource source, OnlineResult result) async {
+    unawaited(
+      ref
+          .read(recentSearchTracksProvider.notifier)
+          .add(
+            RecentSearchTrack(
+              title: result.track.title,
+              artist: result.track.artist,
+              artwork: result.artwork,
+            ),
+          ),
+    );
     final pending =
         (widget.pendingSong ??
         (source, track) =>

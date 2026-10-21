@@ -114,9 +114,8 @@ class MiniPlayerCustomization extends ConsumerWidget {
                 padding: const EdgeInsets.all(AppConstants.spacingLg),
                 child: Text(
                   l10n.separateTheMiniPlayerToCustomize,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.adaptiveTextSecondary,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: context.adaptiveTextSecondary),
                 ),
               ),
               const SettingsDivider(),
@@ -253,16 +252,6 @@ class MiniPlayerCustomization extends ConsumerWidget {
             ),
             const SettingsDivider(),
             SelectionSetting(
-              icon: LucideIcons.audioLines,
-              title: l10n.visualizer,
-              subtitle: l10n.swipeToShowOrHideThe,
-              selected: prefs.miniPlayerSwipeAction == 'visualizer',
-              onTap: () => ref
-                  .read(appPreferencesProvider.notifier)
-                  .setMiniPlayerSwipeAction('visualizer'),
-            ),
-            const SettingsDivider(),
-            SelectionSetting(
               icon: LucideIcons.skipForward,
               title: l10n.switchSongs,
               subtitle: l10n.swipeLeftRightToSkipTracks,
@@ -285,7 +274,7 @@ class MiniPlayerCustomization extends ConsumerWidget {
                   .setSeparateMiniPlayerFromNavBar(false),
               ref
                   .read(appPreferencesProvider.notifier)
-                  .setMiniPlayerSwipeAction('visualizer'),
+                  .setMiniPlayerSwipeAction('switchSongs'),
             ]);
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -365,8 +354,7 @@ class _MiniPlayerPreviewState extends ConsumerState<MiniPlayerPreview> {
                       separated: separated,
                       collapsed: _collapsed,
                       songId: song?.id ?? 'preview',
-                      title:
-                          song?.title ?? l10n.aSongWithALongTitle,
+                      title: song?.title ?? l10n.aSongWithALongTitle,
                       artist: song?.artist ?? l10n.sampleArtist,
                       albumArt: song?.albumArt,
                       audioSourcePath: song?.filePath,
@@ -387,9 +375,8 @@ class _MiniPlayerPreviewState extends ConsumerState<MiniPlayerPreview> {
           song == null
               ? l10n.sampleSongPreviewOnly
               : l10n.currentSongPreviewOnly,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: context.adaptiveTextSecondary),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: context.adaptiveTextSecondary),
         ),
       ],
     );
@@ -419,17 +406,15 @@ class _Choices<T> extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(color: context.adaptiveTextPrimary),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(color: context.adaptiveTextPrimary),
         ),
         if (subtitle != null) ...[
           const SizedBox(height: 2),
           Text(
             subtitle!,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: context.adaptiveTextSecondary,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: context.adaptiveTextSecondary),
           ),
         ],
         const SizedBox(height: AppConstants.spacingSm),

@@ -27,7 +27,6 @@ class MiniPlayerBar extends StatelessWidget {
   final bool collapsed;
   final bool enableHero;
   final int songChangeDirection;
-  final Widget? visualizer;
   final VoidCallback? onOpen;
   final VoidCallback? onPlayPause;
   final VoidCallback? onPrevious;
@@ -49,7 +48,6 @@ class MiniPlayerBar extends StatelessWidget {
     this.collapsed = false,
     this.enableHero = true,
     this.songChangeDirection = 0,
-    this.visualizer,
     this.onOpen,
     this.onPlayPause,
     this.onPrevious,
@@ -162,15 +160,12 @@ class MiniPlayerBar extends StatelessWidget {
                             child: HeroMode(
                               enabled:
                                   enableHero &&
-                                  child.key == ValueKey('song_$songId') &&
-                                  visualizer == null,
+                                  child.key == ValueKey('song_$songId'),
                               child: child,
                             ),
                           ),
                         ),
-                        child:
-                            visualizer ??
-                            _songRow(context, artworkVisible, height),
+                        child: _songRow(context, artworkVisible, height),
                       ),
                       if (config.showProgress)
                         progressOverlay ??
@@ -257,7 +252,12 @@ class MiniPlayerBar extends StatelessWidget {
           ),
         ),
         if (config.showPrevious)
-          _control(context, LucideIcons.skipBack, l10n.previousSong, onPrevious),
+          _control(
+            context,
+            LucideIcons.skipBack,
+            l10n.previousSong,
+            onPrevious,
+          ),
         _control(
           context,
           isPlaying ? LucideIcons.pause : LucideIcons.play,

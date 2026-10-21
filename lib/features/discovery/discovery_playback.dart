@@ -103,6 +103,7 @@ class DiscoveryPlaybackCache {
           maxBytes: maxFileBytes,
           deadline: downloadTimeout,
           cancel: cancel,
+          followMediaRedirects: audio.url.host.endsWith('.googlevideo.com'),
           onChunk: write,
         );
       } else {
@@ -128,7 +129,7 @@ class DiscoveryPlaybackCache {
                     : 1024 * 1024,
               )
             : rangeBytes;
-        for (var start = 0; start < length; start += chunkBytes) {
+        for (var start = 0; start < length;) {
           final end = math.min(start + chunkBytes, length) - 1;
           final left = downloadTimeout - DateTime.now().difference(started);
           if (left <= Duration.zero) {
@@ -136,7 +137,7 @@ class DiscoveryPlaybackCache {
           }
           // Googlevideo links are signed/client-bound: keep the exact URL
           // and use the Range header the media endpoint expects.
-          await http.transfer(
+          final partBytes = await http.transfer(
             googleVideo
                 ? audio.url
                 : audio.url.replace(
@@ -153,8 +154,11 @@ class DiscoveryPlaybackCache {
             deadline: left,
             cancel: cancel,
             allowPartial: googleVideo,
+            followMediaRedirects: googleVideo,
+            rangeStart: googleVideo ? start : null,
             onChunk: write,
           );
+          start += partBytes;
         }
         if (received != length) {
           throw const DiscoveryException(
@@ -376,6 +380,15 @@ String sniffAudioContainer(List<int> bytes) {
   if (at(0, 'fLaC')) return 'flac';
   if (at(0, 'RIFF') && at(8, 'WAVE')) return 'wav';
   if (at(0, 'OggS')) return 'ogg';
+  // InnerTubeX AUTO commonly selects Opus in WebM. Symphonia supports the
+  // Matroska container; the native probe below still validates its audio.
+  if (bytes.length >= 4 &&
+      bytes[0] == 0x1a &&
+      bytes[1] == 0x45 &&
+      bytes[2] == 0xdf &&
+      bytes[3] == 0xa3) {
+    return 'webm';
+  }
   if (at(4, 'ftyp')) return 'm4a';
   if (at(0, 'ID3') ||
       (bytes.length >= 4 &&

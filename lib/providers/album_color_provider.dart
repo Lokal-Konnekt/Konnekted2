@@ -60,7 +60,9 @@ final _colorExtractionServiceProvider = Provider<ColorExtractionService>((ref) {
 /// Avoids `currentSongProvider` because its `select()` uses `Song.==` (by id),
 /// which masks in-place album art updates from `syncAlbumArtPaths`.
 final _currentAlbumArtPathProvider = Provider<String?>((ref) {
-  return ref.watch(playerProvider).currentSong?.albumArt;
+  return ref.watch(
+    playerProvider.select((state) => state.currentSong?.albumArt),
+  );
 });
 
 /// Extracted dominant color from the current song's album art.

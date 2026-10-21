@@ -58,6 +58,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     );
     _run('Widget intent attachment', _widgetIntents.attach);
     _player.playbackDesyncedNotifier.addListener(_onPlaybackDesync);
+    _player.onlinePlaybackError.addListener(_onOnlinePlaybackError);
 
     ref.listenManual(appPreferencesProvider, (_, _) => _maybeShowWhatsNew());
 
@@ -122,6 +123,14 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
       await notifier.markCurrentVersionSeen();
       if (mounted) await WhatsNewBottomSheet.show(context, entry: entry);
     });
+  }
+
+  void _onOnlinePlaybackError() {
+    final message = _player.onlinePlaybackError.value;
+    if (!mounted || message == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.removeCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _onPlaybackDesync() {
@@ -207,6 +216,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _player.playbackDesyncedNotifier.removeListener(_onPlaybackDesync);
+    _player.onlinePlaybackError.removeListener(_onOnlinePlaybackError);
     _widgetSync.close();
     _run('Widget intent detach', _widgetIntents.detach);
     super.dispose();

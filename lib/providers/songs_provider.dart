@@ -7,6 +7,7 @@ import '../core/utils/string_sort_utils.dart';
 import '../core/utils/uri_display_utils.dart';
 import '../models/song.dart';
 import '../data/repositories/song_repository.dart';
+
 import 'package:flick/l10n/l10n.dart';
 
 /// Provider for the SongRepository.
@@ -612,25 +613,18 @@ class SongsState {
 class SongsNotifier extends AsyncNotifier<SongsState> {
   static const _sortOptionKey = 'songs_sort_option';
   static const _fileTypeFilterKey = 'songs_file_type_filter';
-  StreamSubscription<void>? _watchSubscription;
   SongSortOption _sortOption = SongSortOption.albumArtist;
   SongFileTypeFilter _fileTypeFilter = SongFileTypeFilter.all;
 
   @override
   Future<SongsState> build() async {
     final repository = ref.watch(songRepositoryProvider);
+    // Share the throttled revision: artwork/metadata batches must not trigger
+    // one full-library query, sort and regroup for each individual DB write.
+    ref.watch(libraryChangeRevisionProvider);
 
     _sortOption = await _loadSortOption();
     _fileTypeFilter = await _loadFileTypeFilter();
-
-    _watchSubscription?.cancel();
-    _watchSubscription = repository.watchSongs().listen((_) {
-      ref.invalidateSelf();
-    });
-
-    ref.onDispose(() {
-      _watchSubscription?.cancel();
-    });
 
     final songs = await repository.getAllSongs();
     return SongsState(

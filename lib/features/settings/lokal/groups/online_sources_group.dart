@@ -1,7 +1,5 @@
 import 'package:flick/l10n/l10n.dart';
 
-import '../../../link/lokal_desktop_link_screen.dart';
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -53,13 +51,6 @@ List<LokalSettingsSection> onlineSourcesSettings(
           'Subsonic, Jellyfin, WebDAV and other servers you run.',
         ),
         onTap: () => _push(context, const NetworkSourcesScreen()),
-      ),
-      LokalSettingLink(
-        label: lokalText('Desktop link'),
-        description: lokalText(
-          'Pair, control playback and merge libraries over Wi-Fi.',
-        ),
-        onTap: () => _push(context, const LokalDesktopLinkScreen()),
       ),
     ],
   ),

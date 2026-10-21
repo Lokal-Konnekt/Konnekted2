@@ -8,8 +8,8 @@ import 'package:flick/core/theme/lokal_tokens.dart';
 /// Dock and taskbar icon.
 ///
 /// Android only offers the twelve accent presets as icons, so a theme's own
-/// accent maps to the nearest preset. The swap itself happens natively once
-/// the app is in the background (LauncherIcon.kt).
+/// accent maps to the nearest preset. Native code applies the alias immediately
+/// and retries on stop; it does not wait for an OEM launcher to stop the task.
 abstract final class LokalLauncherIcon {
   static const _channel = MethodChannel('lokal/launcher_icon');
   static String? _last;

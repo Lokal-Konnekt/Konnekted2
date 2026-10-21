@@ -2,6 +2,8 @@ import 'package:flick/l10n/l10n.dart';
 
 import 'dart:async';
 
+import '../../../link/lokal_desktop_link_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -77,6 +79,24 @@ Future<void> _clear(
 /// Data: caches, and clearing the library.
 List<LokalSettingsSection> dataSettings(BuildContext context, WidgetRef ref) =>
     [
+      LokalSettingsSection(
+        title: lokalText('Desktop link'),
+        children: [
+          LokalSettingLink(
+            label: lokalText('Desktop link'),
+            description: lokalText(
+              'Pair, merge libraries and copy music files over Wi-Fi.',
+            ),
+            onTap: () => unawaited(
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const LokalDesktopLinkScreen(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       LokalSettingsSection(
         title: lokalText('Cache'),
         children: [

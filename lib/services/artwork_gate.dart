@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/scheduler.dart';
 
 // ponytail: refcounted pause so independent drivers (fling gate, audio
 // preload service) can hold the pause without one's release clobbering
@@ -16,17 +17,36 @@ void pauseArtworkExtraction(bool paused) {
     return;
   }
   if (_artworkExtractionPauses > 0) _artworkExtractionPauses--;
-  if (_artworkExtractionPauses == 0) {
-    final resolvers = List<VoidCallback>.of(_pendingArtworkResolvers);
-    _pendingArtworkResolvers.clear();
-    for (final r in resolvers) {
-      r();
-    }
+  if (_artworkExtractionPauses == 0) _drainArtworkResolvers();
+}
+
+bool _drainScheduled = false;
+void _drainArtworkResolvers() {
+  if (_drainScheduled ||
+      artworkExtractionPaused ||
+      _pendingArtworkResolvers.isEmpty) {
+    return;
   }
+  _drainScheduled = true;
+  // Avoid an extraction storm when a fling ends: admit a few visible requests
+  // after each frame instead of launching the whole backlog synchronously.
+  SchedulerBinding.instance.addPostFrameCallback((_) {
+    _drainScheduled = false;
+    if (artworkExtractionPaused) return;
+    final count = _pendingArtworkResolvers.length.clamp(0, 4);
+    final batch = _pendingArtworkResolvers.sublist(0, count);
+    _pendingArtworkResolvers.removeRange(0, count);
+    for (final resolve in batch) {
+      resolve();
+    }
+    _drainArtworkResolvers();
+  });
+  SchedulerBinding.instance.ensureVisualUpdate();
 }
 
 void enqueueArtworkResolver(VoidCallback cb) {
   _pendingArtworkResolvers.add(cb);
+  if (!artworkExtractionPaused) _drainArtworkResolvers();
 }
 
 /// Mix this onto a screen's [State] and route its [ScrollNotification]s to

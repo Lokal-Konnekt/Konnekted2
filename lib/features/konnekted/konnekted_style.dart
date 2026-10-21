@@ -1,10 +1,11 @@
+import 'package:flick/widgets/lokal/lokal_page_geometry.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 
 /// Shared tab header geometry keeps the settings button stationary on navigation.
-const konnektedTopBarPadding = EdgeInsets.fromLTRB(20, 12, 16, 0);
+const konnektedTopBarPadding = LokalPageGeometry.barPadding;
 
 class KonnektedHeading extends StatelessWidget {
   const KonnektedHeading({

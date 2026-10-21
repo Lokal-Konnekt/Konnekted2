@@ -1,3 +1,5 @@
+import 'package:flick/features/discovery/discovery_models.dart';
+
 import 'link/link_journal.dart';
 
 import 'dart:async';
@@ -636,6 +638,7 @@ class PlayerService {
   // play request is allowed to clear the loading flag. Upgrade path: a per-
   // song Set<int> if multiple concurrent network loads ever need tracking.
   int _networkLoadingGen = 0;
+  final onlinePlaybackError = ValueNotifier<String?>(null);
 
   // ponytail: guards the engine's position write during interactive seek
   // (vinyl spin). Local drag writes to positionNotifier stick; engine ticks
@@ -805,6 +808,7 @@ class PlayerService {
   Future<void> _playPendingSong(Song pending) async {
     final generation = ++_pendingPlaybackGeneration;
     _pendingPlaybackId = pending.id;
+    onlinePlaybackError.value = null;
     isNetworkLoadingNotifier.value = true;
     currentSongNotifier.value = pending;
     _playbackManager.updateTrack(pending);
@@ -819,9 +823,11 @@ class PlayerService {
       return;
     unawaited(() async {
       Song? resolved;
+      Object? failure;
       try {
         resolved = resolver == null ? null : await resolver(pending);
       } catch (e) {
+        failure = e;
         _debugLog('[Playback] lookup failed for ${pending.title}: $e');
       }
       // Something else was asked for meanwhile: it owns playback now.
@@ -840,6 +846,9 @@ class PlayerService {
         });
         return;
       }
+      onlinePlaybackError.value = failure is DiscoveryException
+          ? failure.message
+          : 'Couldn’t prepare this song for playback. Try another source or try again.';
       _debugLog('[Playback] ${pending.title} not found; skipping');
       if (++_pendingFailures >= _playlist.length) {
         _pendingFailures = 0;
@@ -6887,6 +6896,7 @@ class PlayerService {
 
     currentSongNotifier.dispose();
     isPlayingNotifier.dispose();
+    onlinePlaybackError.dispose();
     positionNotifier.dispose();
     durationNotifier.dispose();
     bufferedPositionNotifier.dispose();

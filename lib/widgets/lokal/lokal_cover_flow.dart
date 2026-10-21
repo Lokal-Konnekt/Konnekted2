@@ -62,6 +62,15 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     duration: const Duration(milliseconds: 450),
   );
   late int _index = widget.initialIndex;
+  late final Listenable _animation = Listenable.merge([_position, _flip]);
+  final _faces = <String, Widget>{};
+  double? _faceSize;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _faces.clear(); // Theme, locale and text-size changes rebuild the faces.
+  }
 
   // Width the finger travels to move one album; set per layout.
   double _albumWidth = 120;
@@ -78,6 +87,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   @override
   void didUpdateWidget(LokalCoverFlow old) {
     super.didUpdateWidget(old);
+    _faces.clear();
     if (widget.albums.length != old.albums.length && _index > _last) {
       _position.value = _last.toDouble();
     }
@@ -155,10 +165,12 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   /// The cover nearest [x] across the stage, inverting `_cover`'s layout.
   int _indexAt(double x, double size) {
     final offset = x - _stageWidth / 2;
-    final near = size * .72;
+    if (_reduceMotion)
+      return (_position.value + offset / (size * 1.06)).round().clamp(0, _last);
+    final near = size * .82;
     final d = offset.abs() <= near
-        ? offset / near
-        : offset.sign * (1 + (offset.abs() - near) / (size * .30));
+        ? math.asin((offset / near).clamp(-1.0, 1.0)) / (math.pi / 2)
+        : offset.sign * (1 + (offset.abs() - near) / (size * .75));
     return (_position.value + d).round().clamp(0, _last);
   }
 
@@ -217,7 +229,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
                   height: size * 1.42,
                   width: constraints.maxWidth,
                   child: AnimatedBuilder(
-                    animation: Listenable.merge([_position, _flip]),
+                    animation: _animation,
                     builder: (context, _) => _stage(size),
                   ),
                 ),
@@ -259,6 +271,10 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   }
 
   Widget _stage(double size) {
+    if (_faceSize != size) {
+      _faces.clear();
+      _faceSize = size;
+    }
     final position = _position.value;
     final first = math.max(0, position.floor() - 5);
     final lastShown = math.min(_last, position.ceil() + 5);
@@ -267,6 +283,10 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
       final d = i - position;
       items.add((d.abs(), _cover(i, d, size)));
     }
+    final visibleKeys = {
+      for (var i = first; i <= lastShown; i++) widget.albums[i].key,
+    };
+    _faces.removeWhere((key, _) => !visibleKeys.contains(key));
     // Paint the farthest first so the facing album lands on top.
     items.sort((a, b) => b.$1.compareTo(a.$1));
     return Stack(
@@ -282,26 +302,55 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final side = d.sign;
     final near = ad.clamp(0.0, 1.0);
     // Facing album to first neighbour: slide out, turn, and sink back.
-    // The original iPod Cover Flow leaves a clear front-facing cover and
+    // A sine path separates covers early while both are still face-on.
+    // Normalize perspective by cover size so phone density cannot make them
+    // intersect again. The original iPod Cover Flow leaves a clear front-facing cover and
     // fans its neighbours behind it. Give each side cover its own spacing
     // and depth instead of flattening the whole stack onto one plane.
-    final dx = ad <= 1
-        ? d * size * .72
-        : side * (size * .72 + (ad - 1) * size * .30);
+    final dx = reduce
+        ? d * size * 1.06
+        : ad <= 1
+        ? side * size * .82 * math.sin(near * math.pi / 2)
+        : side * (size * .82 + (ad - 1) * size * .75);
     final angle = reduce ? 0.0 : -side * near * 70 * math.pi / 180;
-    final depth = reduce ? 0.0 : (26 - math.min(ad, 4) * 42).toDouble();
+    final depth = reduce
+        ? 0.0
+        : -size * (.22 * near + .08 * math.max(0, ad - 1));
     final facing = i == _index;
     final flip = facing ? _flip.value : 0.0;
 
-    final matrix = Matrix4.identity()
-      ..setEntry(3, 2, .0012)
-      ..translateByDouble(dx, 0, depth, 1)
-      ..rotateY(angle + flip * math.pi);
+    // Translate the projected cover, not its camera: putting dx inside the
+    // perspective division stretches distant panels across their neighbors.
+    final matrix = Matrix4.translationValues(dx, 0, 0)
+      ..multiply(
+        Matrix4.identity()
+          ..setEntry(3, 2, .20 / size)
+          ..translateByDouble(0, 0, depth, 1)
+          ..rotateY(angle + flip * math.pi),
+      );
 
     final album = widget.albums[i];
-    final front = _Front(cover: widget.cover(album), size: size);
+    // Keep image/reflector subtrees identical during every animation frame.
+    // Reordering keyed covers must never remount or re-resolve their images.
+    final face = _faces.putIfAbsent(album.key, () {
+      final cover = widget.cover(album);
+      return RepaintBoundary(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _Front(cover: cover, size: size),
+            SizedBox(height: size * .02),
+            _Reflection(
+              size: size,
+              child: SizedBox.square(dimension: size, child: cover),
+            ),
+          ],
+        ),
+      );
+    });
     final showBack = flip > .5;
     return Positioned(
+      key: ValueKey(album.key),
       top: size * .06,
       child: Transform(
         // Rotate around the centre of the square album artwork, not the
@@ -324,14 +373,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
                       onPlay: widget.onPlay,
                     ),
                   )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      front,
-                      SizedBox(height: size * .02),
-                      _Reflection(size: size, child: front),
-                    ],
-                  ),
+                : face,
           ),
         ),
       ),

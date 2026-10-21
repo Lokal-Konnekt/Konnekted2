@@ -1,3 +1,4 @@
+import 'package:flick/services/artwork_gate.dart';
 import 'package:flick/l10n/l10n.dart';
 
 import 'dart:async';
@@ -41,7 +42,8 @@ class KonnektedShell extends ConsumerStatefulWidget {
   ConsumerState<KonnektedShell> createState() => _KonnektedShellState();
 }
 
-class _KonnektedShellState extends ConsumerState<KonnektedShell> {
+class _KonnektedShellState extends ConsumerState<KonnektedShell>
+    with ArtworkExtractionScrollGate {
   final _tab = ValueNotifier(KonnektedTab.listen);
   final _dockCollapsed = ValueNotifier(false);
   final _storage = PageStorageBucket();
@@ -77,6 +79,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
   /// the top. Ballistic updates cannot undo a deliberate direction reversal.
   /// Horizontal shelves and the dock's own player gestures are outside this.
   bool _onScroll(ScrollNotification n) {
+    onScrollNotification(n);
     if (n.metrics.axis != Axis.vertical) return false;
     double? delta;
     if (n is ScrollUpdateNotification && n.dragDetails != null) {
@@ -277,6 +280,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
   @override
   void dispose() {
     _pull?.cancel();
+    disposeArtworkGate();
     _tab.dispose();
     _dockCollapsed.dispose();
     super.dispose();
@@ -332,32 +336,35 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                         ),
                         child: NotificationListener<ScrollNotification>(
                           onNotification: _onScroll,
-                          child: Navigator(
-                            key: nestedNavigatorKey,
-                            onGenerateRoute: (_) => MaterialPageRoute<void>(
-                              settings: const RouteSettings(name: '/'),
-                              builder: (_) => PageStorage(
-                                bucket: _storage,
-                                child: ValueListenableBuilder<KonnektedTab>(
-                                  valueListenable: _tab,
-                                  builder: (_, tab, _) => KeyedSubtree(
-                                    key: ValueKey(tab),
-                                    // No IndexedStack/PageView: inactive native-heavy
-                                    // screens are never eagerly created or retained.
-                                    child: switch (tab) {
-                                      KonnektedTab.listen => KonnektedHome(
-                                        onNavigate: _navigate,
-                                        onPlay: _play,
-                                      ),
-                                      KonnektedTab.explore =>
-                                        const SearchScreen(),
-                                      KonnektedTab.library => KonnektedLibrary(
-                                        onNavigate: _navigate,
-                                      ),
-                                      KonnektedTab.settings => KonnektedYou(
-                                        onNavigate: _navigate,
-                                      ),
-                                    },
+                          child: RepaintBoundary(
+                            child: Navigator(
+                              key: nestedNavigatorKey,
+                              onGenerateRoute: (_) => MaterialPageRoute<void>(
+                                settings: const RouteSettings(name: '/'),
+                                builder: (_) => PageStorage(
+                                  bucket: _storage,
+                                  child: ValueListenableBuilder<KonnektedTab>(
+                                    valueListenable: _tab,
+                                    builder: (_, tab, _) => KeyedSubtree(
+                                      key: ValueKey(tab),
+                                      // No IndexedStack/PageView: inactive native-heavy
+                                      // screens are never eagerly created or retained.
+                                      child: switch (tab) {
+                                        KonnektedTab.listen => KonnektedHome(
+                                          onNavigate: _navigate,
+                                          onPlay: _play,
+                                        ),
+                                        KonnektedTab.explore =>
+                                          const SearchScreen(),
+                                        KonnektedTab.library =>
+                                          KonnektedLibrary(
+                                            onNavigate: _navigate,
+                                          ),
+                                        KonnektedTab.settings => KonnektedYou(
+                                          onNavigate: _navigate,
+                                        ),
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),

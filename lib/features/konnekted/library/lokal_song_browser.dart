@@ -54,6 +54,11 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
   final _search = TextEditingController();
   late LokalSongSort _sort = widget.initialSort;
   String _query = '';
+  List<Song>? _visibleCache;
+  List<Song>? _inputSongs;
+  Map<String, int>? _inputCounts;
+  String? _inputQuery;
+  LokalSongSort? _inputSort;
 
   @override
   void dispose() {
@@ -63,6 +68,13 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
 
   List<Song> _visible(Map<String, int> counts) {
     final query = _query.trim().toLowerCase();
+    if (identical(_inputSongs, widget.songs) &&
+        identical(_inputCounts, counts) &&
+        _inputQuery == query &&
+        _inputSort == _sort &&
+        _visibleCache != null) {
+      return _visibleCache!;
+    }
     final songs = query.isEmpty
         ? List<Song>.of(widget.songs)
         : [
@@ -99,7 +111,11 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
       case LokalSongSort.longest:
         songs.sort((a, b) => b.duration.compareTo(a.duration));
     }
-    return songs;
+    _inputSongs = widget.songs;
+    _inputCounts = counts;
+    _inputQuery = query;
+    _inputSort = _sort;
+    return _visibleCache = songs;
   }
 
   @override

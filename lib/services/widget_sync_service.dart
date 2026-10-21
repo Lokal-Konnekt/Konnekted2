@@ -86,19 +86,59 @@ class WidgetSyncService {
     await HomeWidget.updateWidget(qualifiedAndroidName: compactProvider);
   }
 
-  void schedulePush(PlayerState state) {
-    final songChanged = state.currentSong?.id != _lastPushedSongId;
-    final playingChanged = state.isPlaying != _lastPushedIsPlaying;
-    final shuffleChanged = state.isShuffle != _lastPushedIsShuffle;
-    final loopChanged = state.loopMode.index != _lastPushedLoopMode;
+  PlayerState? _pendingState;
+  bool _pushing = false;
+  final _savedData = <String, Object?>{};
 
-    if (songChanged || playingChanged || shuffleChanged || loopChanged) {
+  Future<void> _save<T>(String key, T value) async {
+    if (_savedData.containsKey(key) && _savedData[key] == value) return;
+    await HomeWidget.saveWidgetData<T>(key, value);
+    _savedData[key] = value;
+  }
+
+  void schedulePush(PlayerState state) {
+    _pendingState = state;
+    final structuralChange =
+        state.currentSong?.id != _lastPushedSongId ||
+        state.isPlaying != _lastPushedIsPlaying ||
+        state.isShuffle != _lastPushedIsShuffle ||
+        state.loopMode.index != _lastPushedLoopMode;
+    if (structuralChange) {
       _debounce?.cancel();
-      unawaited(_push(state));
+      unawaited(_drainPushes());
     } else if (_debounce?.isActive != true) {
-      _debounce = Timer(const Duration(seconds: 2), () {
-        unawaited(_push(state));
-      });
+      _debounce = Timer(
+        const Duration(seconds: 2),
+        () => unawaited(_drainPushes()),
+      );
+    }
+  }
+
+  Future<void> _drainPushes() async {
+    if (_pushing) return;
+    _pushing = true;
+    try {
+      while (_pendingState != null) {
+        final latest = _pendingState!;
+        _pendingState = null;
+        await _push(latest);
+        // Only a structural change needs another immediate broadcast.
+        final next = _pendingState;
+        if (next != null &&
+            next.currentSong?.id == _lastPushedSongId &&
+            next.isPlaying == _lastPushedIsPlaying &&
+            next.isShuffle == _lastPushedIsShuffle &&
+            next.loopMode.index == _lastPushedLoopMode) {
+          _debounce?.cancel();
+          _debounce = Timer(
+            const Duration(seconds: 2),
+            () => unawaited(_drainPushes()),
+          );
+          break;
+        }
+      }
+    } finally {
+      _pushing = false;
     }
   }
 
@@ -106,31 +146,37 @@ class WidgetSyncService {
     try {
       await _ensureInit();
       final Song? song = state.currentSong;
-      await HomeWidget.saveWidgetData<bool>(keyHasSong, song != null);
-      await HomeWidget.saveWidgetData<bool>(keyIsPlaying, state.isPlaying);
-      await HomeWidget.saveWidgetData<String>(keySongId, song?.id ?? '');
-      await HomeWidget.saveWidgetData<String>(keyTitle, song?.title ?? '');
-      await HomeWidget.saveWidgetData<String>(keyArtist, song?.artist ?? '');
-      await HomeWidget.saveWidgetData<String>(
-        keyAlbumArt,
-        _resolveLocalArt(song?.albumArt),
-      );
-      await HomeWidget.saveWidgetData<int>(
-        keyPositionMs,
-        state.position.inMilliseconds,
-      );
-      await HomeWidget.saveWidgetData<int>(
-        keyDurationMs,
-        state.duration.inMilliseconds,
-      );
-      await HomeWidget.saveWidgetData<bool>(keyIsShuffle, state.isShuffle);
-      await HomeWidget.saveWidgetData<int>(
-        keyLoopMode,
-        _loopModeToInt(state.loopMode),
-      );
-      await HomeWidget.saveWidgetData<int>(keyQueueCount, state.upNext.length);
+      final structuralChange =
+          _savedData[keySongId] != (song?.id ?? '') ||
+          _savedData[keyIsPlaying] != state.isPlaying ||
+          _savedData[keyTitle] != (song?.title ?? '') ||
+          _savedData[keyArtist] != (song?.artist ?? '') ||
+          _savedData[keyAlbumArt] != _resolveLocalArt(song?.albumArt) ||
+          _savedData[keyIsShuffle] != state.isShuffle ||
+          _savedData[keyLoopMode] != _loopModeToInt(state.loopMode) ||
+          _savedData[keyQueueCount] != state.upNext.length;
+      final positionChanged =
+          _savedData[keyPositionMs] != state.position.inMilliseconds ||
+          _savedData[keyDurationMs] != state.duration.inMilliseconds;
+      await _save<bool>(keyHasSong, song != null);
+      await _save<bool>(keyIsPlaying, state.isPlaying);
+      await _save<String>(keySongId, song?.id ?? '');
+      await _save<String>(keyTitle, song?.title ?? '');
+      await _save<String>(keyArtist, song?.artist ?? '');
+      await _save<String>(keyAlbumArt, _resolveLocalArt(song?.albumArt));
+      await _save<int>(keyPositionMs, state.position.inMilliseconds);
+      await _save<int>(keyDurationMs, state.duration.inMilliseconds);
+      await _save<bool>(keyIsShuffle, state.isShuffle);
+      await _save<int>(keyLoopMode, _loopModeToInt(state.loopMode));
+      await _save<int>(keyQueueCount, state.upNext.length);
 
-      await _updateAll();
+      if (structuralChange) {
+        await _updateAll();
+      } else if (positionChanged) {
+        // Only the mini widget has a progress bar. Avoid rebuilding the two
+        // artwork/text bitmap widgets for every position-only update.
+        await HomeWidget.updateWidget(qualifiedAndroidName: miniPlayerProvider);
+      }
 
       _lastPushedSongId = song?.id;
       _lastPushedIsPlaying = state.isPlaying;
@@ -142,6 +188,7 @@ class WidgetSyncService {
   }
 
   Future<void> pushPaused() async {
+    _savedData.remove(keyIsPlaying);
     try {
       await _ensureInit();
       await HomeWidget.saveWidgetData<bool>(keyIsPlaying, false);
@@ -152,6 +199,7 @@ class WidgetSyncService {
   }
 
   Future<void> pushKilled() async {
+    _savedData.remove(keyIsPlaying);
     try {
       await _ensureInit();
       await HomeWidget.saveWidgetData<bool>(keyIsPlaying, false);

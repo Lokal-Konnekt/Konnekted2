@@ -1,6 +1,6 @@
-import '../../link/lokal_ghost_availability.dart';
+import 'package:flick/widgets/lokal/lokal_page_geometry.dart';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../link/lokal_ghost_availability.dart';
 
 import 'dart:async';
 
@@ -131,7 +131,7 @@ class LokalPageBar extends StatelessWidget {
     this.showBack = true,
     this.leading,
     this.actions = const [],
-    this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 0),
+    this.padding = LokalPageGeometry.barPadding,
   });
 
   final EdgeInsetsGeometry padding;
@@ -145,7 +145,7 @@ class LokalPageBar extends StatelessWidget {
     return Padding(
       padding: padding,
       child: SizedBox(
-        height: 44,
+        height: LokalPageGeometry.barHeight,
         child: Row(
           children: [
             if (leading != null)
@@ -215,7 +215,7 @@ class LokalLargeTitle extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
     onLongPress: onLongPress,
     child: Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+      padding: LokalPageGeometry.titlePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

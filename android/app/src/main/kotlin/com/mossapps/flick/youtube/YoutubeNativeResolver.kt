@@ -5,17 +5,22 @@ import android.webkit.CookieManager
 import com.mossapps.flick.youtube.potoken.PoTokenGenerator
 import com.mossapps.flick.youtube.potoken.PoTokenWebView
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * Android entry point for BitChord's InnerTubeX + BotGuard PoToken stream path.
- * The fast public-client walk remains first; this is the cipher/token-aware
- * fallback for media URLs which direct clients cannot actually stream.
+ * Extraction and media preflight share the same client-bound identity.
+ * Android playback does not walk stale hardcoded Dart clients first.
  */
 internal object YoutubeNativeResolver {
     fun onStreamRefused(url: String) {
         InnerTubeXResolver.onRefused(url)
     }
+    private val resolveMutex = Mutex()
+
     @Volatile
     private var initialized = false
 
@@ -48,22 +53,33 @@ internal object YoutubeNativeResolver {
         videoId: String,
         cookie: String?,
         visitorData: String?,
-    ): Map<String, Any?> {
-        check(initialized) { "YouTube resolver is not initialized." }
-        if (Innertube.updateSession(cookie, visitorData)) {
-            InnerTubeXResolver.onSessionChanged()
+    ): Map<String, Any?> = withTimeout(45_000L) {
+        resolveMutex.withLock {
+            check(initialized) { "YouTube resolver is not initialized." }
+            if (Innertube.updateSession(cookie, visitorData)) {
+                InnerTubeXResolver.onSessionChanged()
+            }
+            val stream = try {
+                InnerTubeXResolver.resolvePlayable(videoId, maxAttempts = 3)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A stale browser session must not make public music unplayable.
+                // This changes only the extraction session, not the saved account.
+                if (cookie.isNullOrBlank()) throw e
+                Innertube.updateSession(null, null)
+                InnerTubeXResolver.onSessionChanged()
+                InnerTubeXResolver.resolvePlayable(videoId, maxAttempts = 3)
+            }
+            val length = stream.url.toHttpUrlOrNull()
+                ?.queryParameter("clen")
+                ?.toLongOrNull()
+            mapOf(
+                "url" to stream.url,
+                "length" to length,
+                "mime" to stream.mimeType,
+                "headers" to stream.headers,
+            )
         }
-        val stream = withTimeout(90_000L) {
-            InnerTubeXResolver.resolvePlayable(videoId, maxAttempts = 6)
-        }
-        val length = stream.url.toHttpUrlOrNull()
-            ?.queryParameter("clen")
-            ?.toLongOrNull()
-        return mapOf(
-            "url" to stream.url,
-            "length" to length,
-            "mime" to stream.mimeType,
-            "headers" to stream.headers,
-        )
     }
 }

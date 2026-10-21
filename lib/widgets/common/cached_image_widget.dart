@@ -130,13 +130,25 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
       );
     }
 
-    // For file paths, use FileImage with caching
-    if (!imagePath.startsWith('http')) {
-      return _buildFileImage(imagePath);
-    }
-
-    // For network URLs, use cached network image
-    return _buildNetworkImage(imagePath);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final logicalWidth =
+            widget.width ??
+            (constraints.hasBoundedWidth ? constraints.maxWidth : null);
+        final physicalWidth = logicalWidth == null
+            ? null
+            : ((logicalWidth * MediaQuery.devicePixelRatioOf(context) / 64)
+                          .ceil() *
+                      64)
+                  .clamp(64, 2048);
+        final decodeWidth = widget.useThumbnail && widget.thumbnailWidth != null
+            ? widget.thumbnailWidth
+            : physicalWidth;
+        return imagePath.startsWith('http')
+            ? _buildNetworkImage(imagePath, decodeWidth)
+            : _buildFileImage(imagePath, decodeWidth);
+      },
+    );
   }
 
   Future<void> _resolveEmbeddedArtwork() async {
@@ -217,7 +229,7 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
     return null;
   }
 
-  Widget _buildFileImage(String imagePath) {
+  Widget _buildFileImage(String imagePath, int? decodeWidth) {
     final file = File(imagePath);
 
     return Image.file(
@@ -244,9 +256,7 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
         );
       },
       // Use lower resolution for thumbnails
-      cacheWidth: widget.useThumbnail && widget.thumbnailWidth != null
-          ? widget.thumbnailWidth
-          : null,
+      cacheWidth: decodeWidth,
       cacheHeight: widget.useThumbnail && widget.thumbnailHeight != null
           ? widget.thumbnailHeight
           : null,
@@ -277,7 +287,7 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
     });
   }
 
-  Widget _buildNetworkImage(String imagePath) {
+  Widget _buildNetworkImage(String imagePath, int? decodeWidth) {
     return Image.network(
       imagePath,
       width: widget.width,
@@ -311,9 +321,7 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
         );
       },
       // Use lower resolution for thumbnails
-      cacheWidth: widget.useThumbnail && widget.thumbnailWidth != null
-          ? widget.thumbnailWidth
-          : null,
+      cacheWidth: decodeWidth,
       cacheHeight: widget.useThumbnail && widget.thumbnailHeight != null
           ? widget.thumbnailHeight
           : null,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -68,7 +69,19 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
   ui.Image? _blurredImage;
   String? _currentPath; // resolved path of the image currently shown
   String? _loadingPath; // path we're currently computing for
-  bool _computing = false;
+  int _generation = 0;
+  final _retired = <ui.Image>{};
+
+  void _showImage(ui.Image? cached) {
+    final previous = _blurredImage;
+    _blurredImage = cached?.clone();
+    if (previous != null) {
+      _retired.add(previous);
+      Timer(AppConstants.animationSlow + const Duration(milliseconds: 100), () {
+        if (_retired.remove(previous)) previous.dispose();
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -103,24 +116,31 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
     final resolved = _resolvedPathIndex[key] ?? key;
     final image = _blurCache[resolved];
     if (image != null) {
-      _blurredImage = image;
+      _showImage(image);
       _currentPath = resolved;
     }
   }
 
   @override
   void dispose() {
-    // Don't dispose cached images — they're shared across instances.
+    ++_generation;
+    _blurredImage?.dispose();
+    for (final image in _retired) {
+      image.dispose();
+    }
+    _retired.clear();
     _blurredImage = null;
     super.dispose();
   }
 
   Future<void> _updateBlur(String? path, String? audioSourcePath) async {
+    final generation = ++_generation;
     final resolvedPath = await _resolveArtworkPath(path, audioSourcePath);
+    if (!mounted || generation != _generation) return;
     if (resolvedPath == null) {
       if (mounted) {
         setState(() {
-          _blurredImage = null;
+          _showImage(null);
           _currentPath = null;
           _loadingPath = null;
         });
@@ -129,37 +149,38 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
     }
 
     final input = _inputKey;
-    if (input != null) _resolvedPathIndex[input] = resolvedPath;
+    if (input != null) {
+      if (_resolvedPathIndex.length >= 256) {
+        _resolvedPathIndex.remove(_resolvedPathIndex.keys.first);
+      }
+      _resolvedPathIndex[input] = resolvedPath;
+    }
 
     // If another widget already blurred this path, reuse it instantly.
     if (_blurCache.containsKey(resolvedPath)) {
       if (mounted) {
         setState(() {
-          _blurredImage = _blurCache[resolvedPath];
+          _showImage(_blurCache[resolvedPath]);
           _currentPath = resolvedPath;
         });
       }
       return;
     }
 
-    // Debounce: already computing for this exact path
-    if (_computing && _loadingPath == resolvedPath) return;
-
     _loadingPath = resolvedPath;
-    _computing = true;
 
     try {
       // 1. Read raw bytes from disk (async IO — does not block UI thread)
       final file = File(resolvedPath);
       if (!await file.exists()) {
-        _computing = false;
         return;
       }
       final bytes = await file.readAsBytes();
 
       // Bail if widget disposed or song changed while we were reading
-      if (!mounted || resolvedPath != _loadingPath) {
-        _computing = false;
+      if (!mounted ||
+          generation != _generation ||
+          resolvedPath != _loadingPath) {
         return;
       }
 
@@ -170,11 +191,13 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
         targetHeight: _targetDimension,
       );
       final frame = await codec.getNextFrame();
+      codec.dispose();
       final srcImage = frame.image;
 
-      if (!mounted || resolvedPath != _loadingPath) {
+      if (!mounted ||
+          generation != _generation ||
+          resolvedPath != _loadingPath) {
         srcImage.dispose();
-        _computing = false;
         return;
       }
 
@@ -202,21 +225,26 @@ class _AmbientBackgroundState extends State<AmbientBackground> {
       final blurred = await picture.toImage(imgW, imgH);
       picture.dispose();
 
-      if (!mounted || resolvedPath != _loadingPath) {
+      if (!mounted ||
+          generation != _generation ||
+          resolvedPath != _loadingPath) {
         blurred.dispose();
-        _computing = false;
         return;
       }
 
+      // Widgets own cloned handles, so cache eviction cannot invalidate a
+      // visible image or its outgoing cross-fade.
+      _blurCache.remove(resolvedPath)?.dispose();
+      while (_blurCache.length >= 12) {
+        _blurCache.remove(_blurCache.keys.first)?.dispose();
+      }
       _blurCache[resolvedPath] = blurred;
       setState(() {
-        _blurredImage = blurred;
+        _showImage(blurred);
         _currentPath = resolvedPath;
       });
     } catch (e) {
       devLog('[AmbientBackground] blur failed: $e');
-    } finally {
-      _computing = false;
     }
   }
 

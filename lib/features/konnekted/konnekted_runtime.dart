@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
-import 'package:flick/features/onboarding/widgets/tutorial_overlay.dart';
 import 'package:flick/features/whats_new/widgets/whats_new_bottom_sheet.dart';
 import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/providers/providers.dart';
@@ -86,10 +85,6 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
         ref.invalidate(songsProvider);
         ref.invalidate(musicFoldersProvider);
       });
-      final tutorial = ref.read(tutorialProvider);
-      if (tutorial.autoStartPending && !tutorial.active) {
-        ref.read(tutorialProvider.notifier).start();
-      }
     });
   }
 
@@ -221,7 +216,6 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     children: [
       Positioned.fill(child: widget.child),
       const Positioned.fill(child: FloatingScanProgress()),
-      const Positioned.fill(child: TutorialOverlay()),
       const UsbBitPerfectPrompt(),
     ],
   );

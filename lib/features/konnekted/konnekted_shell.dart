@@ -8,7 +8,6 @@ import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/features/flow/flow_screen.dart';
 import 'package:flick/features/folders/screens/folders_screen.dart';
-import 'package:flick/features/onboarding/tutorial_targets.dart';
 import 'package:flick/features/playlist_links/linked_playlists_screen.dart';
 import 'package:flick/features/recap/screens/listening_recap_screen.dart';
 import 'package:flick/features/search/screens/search_screen.dart';
@@ -339,9 +338,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        child: TutorialTargetAnchor(
-                          target: TutorialTarget.navBar,
-                          child: ListenableBuilder(
+                        child: ListenableBuilder(
                             listenable: Listenable.merge([
                               _tab,
                               _dockCollapsed,
@@ -352,9 +349,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                               hasMiniPlayer: hasSong,
                               collapsed: _dockCollapsed.value,
                               onExpand: () => _dockCollapsed.value = false,
-                              miniPlayer: TutorialTargetAnchor(
-                                target: TutorialTarget.miniPlayer,
-                                child: KonnektedMiniPlayer(
+                              miniPlayer: KonnektedMiniPlayer(
                                   key: _miniPlayerKey,
                                   onOpen: _openPlayer,
                                   onPullUpStart: _pullPlayerStart,
@@ -363,10 +358,8 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                                   onQueue: () =>
                                       _navigate(KonnektedDestination.queue),
                                 ),
-                              ),
                             ),
                           ),
-                        ),
                       ),
                     ],
                   );

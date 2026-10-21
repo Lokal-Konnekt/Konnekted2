@@ -97,6 +97,8 @@ void main() {
   });
 
   Future<void> tapAndShare(WidgetTester tester, Finder finder) async {
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
     await tester.tap(finder);
     await drainUntil(tester, () => shared.isCompleted);
     await tester.pumpAndSettle();

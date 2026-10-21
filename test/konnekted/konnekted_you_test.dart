@@ -192,7 +192,7 @@ void main() {
       section: 'Scrobbling',
     );
     expect(opened, [
-      KonnektedDestination.settings,
+      const KonnektedDestination.aboutDataSettings(),
       scrobbling,
       scrobbling,
       const KonnektedDestination.settingsAt(

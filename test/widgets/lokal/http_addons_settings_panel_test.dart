@@ -66,7 +66,12 @@ void main() {
       'https://music.example/library/manifest.json',
     );
     await tester.tap(find.byKey(const ValueKey('http-addon-add')));
-    await tester.pumpAndSettle();
+    // The progress spinner is an indeterminate animation; wait for persistence
+    // instead of waiting for every animation to settle.
+    for (var frame = 0; frame < 40 && store.saves == 0; frame++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.pump();
 
     expect(requests, 1);
     expect(store.saves, 1);

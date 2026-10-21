@@ -113,15 +113,29 @@ class DiscoveryPlaybackCache {
         }
         // In parts, each a `range` of the file, under one overall deadline.
         final started = DateTime.now();
-        for (var start = 0; start < length; start += rangeBytes) {
-          final end = math.min(start + rangeBytes, length) - 1;
+        final googleVideo = audio.url.host.toLowerCase().endsWith(
+          '.googlevideo.com',
+        );
+        final client = audio.url.queryParameters['c']?.toUpperCase() ?? '';
+        // Match the resolver clients' bounded-range capability (BitChord's
+        // PlayerClient.rangeBytesFor). A 16KB preflight may succeed while the
+        // old 10MB download ranges are refused for anonymous VR/TV clients.
+        final chunkBytes = googleVideo
+            ? math.min(
+                rangeBytes,
+                client == 'ANDROID_VR' || client.startsWith('TVHTML5_SIMPLY')
+                    ? 512 * 1024
+                    : 1024 * 1024,
+              )
+            : rangeBytes;
+        for (var start = 0; start < length; start += chunkBytes) {
+          final end = math.min(start + chunkBytes, length) - 1;
           final left = downloadTimeout - DateTime.now().difference(started);
           if (left <= Duration.zero) {
             throw const DiscoveryException('The source timed out. Try again.');
           }
           // Googlevideo links are signed/client-bound: keep the exact URL
           // and use the Range header the media endpoint expects.
-          final googleVideo = audio.url.host.toLowerCase().endsWith('.googlevideo.com');
           await http.transfer(
             googleVideo
                 ? audio.url

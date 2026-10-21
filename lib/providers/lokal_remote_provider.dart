@@ -225,6 +225,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   Future<void> connect() async {
+    _lastActivity = DateTime.now();
     await _ensureRestored();
     if (_disposed) return;
     if (_credentials == null) {
@@ -250,6 +251,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   Future<void> refresh() async {
+    _lastActivity = DateTime.now();
     if (state.socketConnected) {
       await _syncLink();
       return;
@@ -353,6 +355,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   Future<void> approveMerge() async {
+    _lastActivity = DateTime.now();
     if (state.fileCopyProgress.busy)
       throw StateError('Wait for the current file copy to finish.');
     final sync = _linkSync;
@@ -361,6 +364,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
         'Connect to the paired desktop first.',
       );
     await sync.enableMerge();
+    _lastActivity = DateTime.now();
   }
 
   LinkFileCopy _fileCopier() {
@@ -384,6 +388,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   Future<LinkCopyPlan> prepareFileCopy() async {
+    _lastActivity = DateTime.now();
     if (state.syncProgress.busy || state.fileCopyProgress.busy)
       throw StateError('Wait for the current library operation to finish.');
     try {
@@ -397,7 +402,13 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
     }
   }
 
-  Future<void> copyMissingFiles(LinkCopyPlan plan) => _fileCopier().copy(plan);
+  Future<void> copyMissingFiles(LinkCopyPlan plan) async {
+    try {
+      await _fileCopier().copy(plan);
+    } finally {
+      _lastActivity = DateTime.now();
+    }
+  }
 
   void cancelFileCopyPlan() {
     if (state.fileCopyProgress.phase == LinkCopyPhase.checking) {
@@ -501,7 +512,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       );
       _linkTimer?.cancel();
       _linkTimer = Timer.periodic(
-        const Duration(milliseconds: 500),
+        const Duration(seconds: 2),
         (_) => _tickLink(),
       );
       unawaited(_syncLink());
@@ -612,15 +623,19 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
 
   void _tickLink() {
     if (_disposed || !state.socketConnected) return;
+    if (!state.syncProgress.busy &&
+        !state.fileCopyProgress.busy &&
+        !_downloadOutbox.busy &&
+        DateTime.now().difference(_lastActivity) > const Duration(minutes: 3)) {
+      disconnect();
+      state = state.copyWith(
+        error: 'Desktop link paused after 3 minutes without interaction. Reconnect when you need it.',
+      );
+      return;
+    }
     _refreshSocketSnapshot();
     _publishLocalState();
-    if (++_linkTicks % 20 == 0) unawaited(_syncLink());
-    final playing =
-        PlayerService().isPlayingNotifier.value ||
-        state.snapshot?.isPlaying == true;
-    if (!playing &&
-        DateTime.now().difference(_lastActivity) > const Duration(minutes: 10))
-      disconnect();
+    if (++_linkTicks % 15 == 0) unawaited(_syncLink());
   }
 
   Future<void> _syncLink() async {
@@ -685,6 +700,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   Future<void> _handlePhoneCommand(Map<String, dynamic> body) async {
+    _lastActivity = DateTime.now();
     final player = PlayerService(),
         action = body['action'],
         value = body['value'];

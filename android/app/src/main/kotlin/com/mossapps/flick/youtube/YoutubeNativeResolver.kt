@@ -13,6 +13,9 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
  * fallback for media URLs which direct clients cannot actually stream.
  */
 internal object YoutubeNativeResolver {
+    fun onStreamRefused(url: String) {
+        InnerTubeXResolver.onRefused(url)
+    }
     @Volatile
     private var initialized = false
 

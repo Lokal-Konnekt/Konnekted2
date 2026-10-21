@@ -216,7 +216,7 @@ class _LokalDesktopLinkScreenState
             LinkSyncPhase.history => lokalText('Syncing listening history…'),
             LinkSyncPhase.library => lokalText('Syncing likes and playlists…'),
             LinkSyncPhase.finalizing => lokalText(
-              'Updating your profile and badges…',
+              'Updating your profile…',
             ),
             LinkSyncPhase.complete => lokalText('Libraries are up to date'),
             LinkSyncPhase.paused => lokalText('Library sync paused'),

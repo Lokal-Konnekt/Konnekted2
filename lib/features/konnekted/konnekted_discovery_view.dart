@@ -5,7 +5,6 @@ import 'dart:async';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/discovery/discovery_artwork.dart';
-import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
 import 'package:flick/features/discovery/spotify_discovery.dart';
 import 'package:flick/features/spotify/spotify_oauth.dart';
@@ -180,12 +179,6 @@ class _KonnektedDiscoveryViewState
     await ref.read(konnektedDiscoveryProvider.notifier).setSource(source);
   }
 
-  /// Progress, while something is being got ready (late reports from a
-  /// download that already ended say nothing).
-  void _status(String message) {
-    if (mounted && _busy != null) _progress.update(message);
-  }
-
   Future<void> _connectYoutubeMusic() async {
     try {
       final session = await YoutubeMusicSignInSheet.show(context);
@@ -222,33 +215,10 @@ class _KonnektedDiscoveryViewState
         _say(lokalText('This mix did not return any playable tracks.'));
         return;
       }
-      // Plays as soon as the first track is ready (your copy costs nothing;
-      // otherwise it's found by its video ID). The rest are queued as
-      // placeholders, each looked up shortly before its turn.
       final library = _library();
       final songs = <Song>[];
       final seen = <String>{};
-      var index = 0;
-      for (; index < tracks.length && songs.isEmpty; index++) {
-        final track = tracks[index];
-        final own = library.match(track);
-        if (own != null) {
-          songs.add(own);
-          seen.add(own.id);
-          continue;
-        }
-        try {
-          final song = await widget.findSong(track, onStatus: _status);
-          if (song != null) {
-            songs.add(song);
-            seen.add(song.id);
-          }
-        } catch (_) {
-          // Unavailable: start from the next track instead.
-        }
-        if (!mounted) return;
-      }
-      for (final track in tracks.skip(index)) {
+      for (final track in tracks) {
         final song = library.match(track) ?? widget.pendingSong(track);
         if (seen.add(song.id)) songs.add(song);
       }
@@ -291,28 +261,8 @@ class _KonnektedDiscoveryViewState
       widget.onPlay(own, queue.contains(own) ? queue : [own, ...queue]);
       return;
     }
-    if (_busy != null) return;
-    setState(() => _busy = track.key);
-    _progress.update('Looking for ${track.title}…');
-    try {
-      final song = await widget.findSong(track, onStatus: _status);
-      if (!mounted) return;
-      if (song == null) {
-        _say(
-          lokalText(
-            "Couldn’t find {arg0} on YouTube Music or your add-ons.",
-            args: {'arg0': track.title},
-          ),
-        );
-      } else {
-        _progress.clear();
-        widget.onPlay(song, _shelfQueue(track, song, shelf, library));
-      }
-    } catch (error) {
-      if (mounted) _say(discoveryError(error));
-    } finally {
-      if (mounted) setState(() => _busy = null);
-    }
+    final pending = widget.pendingSong(track);
+    widget.onPlay(pending, _shelfQueue(track, pending, shelf, library));
   }
 
   /// The shelf in order with [found] in [track]'s place: your copies of the

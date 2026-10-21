@@ -9,6 +9,8 @@ import 'discovery_models.dart';
 import 'discovery_sources.dart';
 import 'youtube_music_account.dart';
 import 'youtube_music_store.dart';
+import 'discovery_playback.dart';
+import '../../models/song.dart';
 
 /// A YouTube recording's audio, looked up with one request to YouTube's own
 /// player API, as desktop Lokal does before it falls back to yt-dlp
@@ -30,15 +32,56 @@ class YoutubeAudio {
   final Future<ResolvedDiscoveryAudio?> Function(
     String videoId,
     YoutubeMusicSession? session,
-  )? nativeFallback;
+  )?
+  nativeFallback;
 
-  static const MethodChannel _nativeChannel =
-      MethodChannel('com.mossapps.flick/youtube_stream');
+  static const MethodChannel _nativeChannel = MethodChannel(
+    'com.mossapps.flick/youtube_stream',
+  );
 
   Future<YoutubeMusicSession?>? _sessionFuture;
   Future<String?>? _webRemixVersionFuture;
+  static int _requestSerial = 0;
+  final _refusedClients = <String>{};
 
-  Future<YoutubeMusicSession?> _loadSession() => _sessionFuture ??= _readSession();
+  /// Retry a media refusal through a different client, rather than reusing an
+  /// URL whose tiny probe succeeded but whose actual audio download failed.
+  Future<Song> prepare(
+    DiscoveryTrack track,
+    DiscoveryPlaybackCache cache, {
+    Future<void>? cancel,
+  }) async {
+    for (var attempt = 0; ; attempt++) {
+      final audio = await resolve(track.id, cancel: cancel);
+      try {
+        return await cache.prepare(track, audio, cancel: cancel);
+      } on DiscoveryException catch (error) {
+        if (error.message == 'Request cancelled.' || attempt >= 2) rethrow;
+        final reason = error.message.toLowerCase();
+        if (!reason.contains('refused') &&
+            !reason.contains('incomplete') &&
+            !reason.contains('non-audio') &&
+            !reason.contains('http 403'))
+          rethrow;
+        final client = audio.url.queryParameters['c'];
+        if (client != null) _refusedClients.add(client.toUpperCase());
+        if (io.Platform.isAndroid) {
+          try {
+            await _nativeChannel.invokeMethod<void>('streamRefused', {
+              'url': audio.url.toString(),
+            });
+          } on PlatformException {
+            /* Older native side still has public-client fallback. */
+          } on MissingPluginException {
+            /* Other hosts and tests. */
+          }
+        }
+      }
+    }
+  }
+
+  Future<YoutubeMusicSession?> _loadSession() =>
+      _sessionFuture ??= _readSession();
 
   /// YouTube rotates WEB_REMIX versions; use the version from the live shell
   /// rather than relying on the stale version shipped in this app.
@@ -163,17 +206,32 @@ class YoutubeAudio {
     final signedInHeaders = signedInSession == null
         ? null
         : youtubeMusicHeaders(signedInSession);
+    // Android's maintained cipher/PoToken-aware catalogue handles guest
+    // clients as well. Do not spend six stale direct-client attempts first.
+    if (io.Platform.isAndroid && nativeFallback == null) {
+      try {
+        final audio = await _resolveWithNativeFallback(
+          videoId,
+          signedInSession,
+          cancel: cancel,
+        );
+        if (audio != null) return audio;
+      } on DiscoveryException catch (error) {
+        if (error.message == 'Request cancelled.') rethrow;
+        failure = error;
+      }
+    }
     for (final client in clients) {
+      if (_refusedClients.contains(client.name)) continue;
       try {
         final useSignedInMusicClient =
             client.name == 'WEB_REMIX' && signedInHeaders != null;
         final liveVersion = client.name == 'WEB_REMIX'
             ? await _liveWebRemixVersion()
             : null;
-        final version = liveVersion ??
-            (useSignedInMusicClient
-                ? signedInSession!.clientVersion
-                : null) ??
+        final version =
+            liveVersion ??
+            (useSignedInMusicClient ? signedInSession!.clientVersion : null) ??
             client.version;
         final requestClient = useSignedInMusicClient
             ? YoutubeClient(
@@ -203,7 +261,7 @@ class YoutubeAudio {
             'Origin': 'https://${client.host}',
             'X-YouTube-Client-Name': '${client.id}',
             'X-YouTube-Client-Version': version,
-            if (useSignedInMusicClient) ...signedInHeaders!,
+            if (useSignedInMusicClient) ...signedInHeaders,
           },
           body: {
             'context': {
@@ -265,16 +323,33 @@ class YoutubeAudio {
     final cookies = signedInSession?.cookies;
     final cookie = cookies == null || cookies.isEmpty
         ? null
-        : cookies.entries.map((entry) => '${entry.key}=${entry.value}').join('; ');
-    final request = _nativeChannel.invokeMapMethod<String, Object?>(
-      'resolveStream',
-      {
-        'videoId': videoId,
-        if (cookie != null) 'cookie': cookie,
-        if (signedInSession?.visitorData case final visitorData?)
-          'visitorData': visitorData,
-      },
-    ).timeout(const Duration(seconds: 95));
+        : cookies.entries
+              .map((entry) => '${entry.key}=${entry.value}')
+              .join('; ');
+    final requestId =
+        'youtube_${DateTime.now().microsecondsSinceEpoch}_${++_requestSerial}';
+    var finished = false;
+    Future<void> stopNative() async {
+      if (finished) return;
+      try {
+        await _nativeChannel.invokeMethod<void>('cancelResolve', {
+          'requestId': requestId,
+        });
+      } on Object {
+        /* Cancellation must work with older native builds too. */
+      }
+    }
+
+    if (cancel != null) unawaited(cancel.then((_) => stopNative()));
+    final request = _nativeChannel
+        .invokeMapMethod<String, Object?>('resolveStream', {
+          'videoId': videoId,
+          'requestId': requestId,
+          if (cookie != null) 'cookie': cookie,
+          if (signedInSession?.visitorData case final visitorData?)
+            'visitorData': visitorData,
+        })
+        .timeout(const Duration(seconds: 95));
     final Map<String, Object?>? response;
     try {
       response = cancel == null
@@ -294,9 +369,12 @@ class YoutubeAudio {
     } on MissingPluginException {
       return null;
     } on TimeoutException {
+      await stopNative();
       throw const DiscoveryException(
         'YouTube advanced stream resolution timed out. Try again.',
       );
+    } finally {
+      finished = true;
     }
     if (response == null) return null;
     final urlText = response['url'];
@@ -345,17 +423,14 @@ class YoutubeAudio {
         }),
       );
     }
-    final request = net.AbortableRequest(
-      'GET',
-      audio.url,
-      abortTrigger: abort.future,
-    )
-      ..followRedirects = true
-      ..headers.addAll({
-        'Accept': '*/*',
-        'Range': 'bytes=0-16383',
-        ...audio.headers,
-      });
+    final request =
+        net.AbortableRequest('GET', audio.url, abortTrigger: abort.future)
+          ..followRedirects = true
+          ..headers.addAll({
+            'Accept': '*/*',
+            'Range': 'bytes=0-16383',
+            ...audio.headers,
+          });
     StreamIterator<List<int>>? chunks;
     try {
       if (abort.isCompleted) {
@@ -398,7 +473,9 @@ class YoutubeAudio {
           (_) => throw const DiscoveryException('Request cancelled.'),
         ),
       ]);
-      if (!hasChunk || chunks.current.isEmpty || _looksLikeHtml(chunks.current)) {
+      if (!hasChunk ||
+          chunks.current.isEmpty ||
+          _looksLikeHtml(chunks.current)) {
         throw const DiscoveryException(
           'YouTube returned no playable audio bytes for this recording.',
         );
@@ -420,7 +497,9 @@ class YoutubeAudio {
   }
 
   static bool _looksLikeHtml(List<int> bytes) {
-    final prefix = String.fromCharCodes(bytes.take(96)).trimLeft().toLowerCase();
+    final prefix = String.fromCharCodes(bytes.take(96))
+        .trimLeft()
+        .toLowerCase();
     return prefix.startsWith('<!doctype html') ||
         prefix.startsWith('<html') ||
         prefix.startsWith('<?xml');

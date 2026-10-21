@@ -12,7 +12,6 @@ import '../favorites_service.dart';
 import '../playlist_service.dart';
 import 'link_journal.dart';
 import 'link_profile_service.dart';
-import '../milestone_service.dart';
 import 'lokal_desktop_source.dart';
 import 'lokal_link_service.dart';
 
@@ -154,7 +153,6 @@ class LinkSyncCoordinator {
 
   Future<void> _synchronize({required bool importCatalog}) async {
     final prefs = await SharedPreferences.getInstance();
-    var historyChanged = false;
     final source = LokalDesktopSource.instance,
         server = await LokalDesktopSource.instance.ensureServer(credentials);
     if (importCatalog || prefs.getBool('$_prefix.catalog') != true) {
@@ -200,7 +198,6 @@ class LinkSyncCoordinator {
         if (items is! List || reply.body['cursor'] is! int)
           throw const FormatException('Invalid desktop sync page.');
         if (kind == 'history') {
-          historyChanged = historyChanged || items.isNotEmpty;
           final added = await LinkJournal.instance.mergeHistory(items);
           for (final item in added) {
             var song = await LinkJournal.instance.match(item);
@@ -234,11 +231,6 @@ class LinkSyncCoordinator {
     }
     _requireReady();
     _report(LinkSyncPhase.finalizing);
-    if (historyChanged ||
-        prefs.getBool('$_prefix.milestones_reconciled') != true) {
-      await MilestoneService().reconcileMergedHistory();
-      await prefs.setBool('$_prefix.milestones_reconciled', true);
-    }
     await LinkProfileService.sync(credentials);
   }
 
@@ -361,7 +353,7 @@ class LinkSyncCoordinator {
           if (fields.containsKey(field) && await journal.wins(item, field))
             winning[field] = fields[field];
         await SongRepository().updateSongMetadata(
-          song!.filePath!,
+          song.filePath!,
           title: winning['title'] as String?,
           artist: winning['artist'] as String?,
           album: winning['album'] as String?,

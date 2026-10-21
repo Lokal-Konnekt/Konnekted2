@@ -1,34 +1,28 @@
-import 'dart:math' as math;
-
-import 'package:flick/widgets/common/flick_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:flick/core/constants/app_constants.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
-import 'package:flick/core/theme/app_colors.dart';
+
+import 'package:flick/core/theme/lokal_theme.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/milestone_service.dart';
-import 'package:flick/features/player/widgets/ambient_background.dart';
-import 'package:flick/features/settings/widgets/settings_widgets.dart';
 import 'package:flick/features/milestone/widgets/milestone_card.dart';
 import 'package:flick/features/milestone/widgets/streak_popup.dart';
+import 'package:flick/widgets/common/flick_dialog.dart';
+import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flick/l10n/l10n.dart';
 
-/// Achievement-style collection view of every milestone tier. Unlocked tiles
-/// re-open the celebration card on tap; locked tiles show a small bottom
-/// sheet with the requirement and current progress.
+/// Lokal's listening collection. Earned tiers and calculations come from the
+/// existing milestone service; this screen only presents and refreshes them.
 class MilestonesScreen extends ConsumerStatefulWidget {
   const MilestonesScreen({super.key});
-
   @override
   ConsumerState<MilestonesScreen> createState() => _MilestonesScreenState();
 }
 
 class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   final _service = MilestoneService();
-  bool _loading = true;
-  bool _streaksEnabled = true;
+  bool _loading = true, _streaksEnabled = true;
+  int _request = 0;
   Map<MilestoneType, MilestoneRecord> _records = {};
   Map<MilestoneCategory, int> _current = const {};
 
@@ -39,17 +33,16 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _loading = true);
+    final request = ++_request;
     final records = await _service.getShownMilestones();
     final playCount = await _service.getHistoryCount();
     final listenSeconds = await _service.getAccumulatedListenSeconds();
     final streak = await _service.getCurrentDayStreak();
     final artists = await _service.getUniqueArtistCount();
-    final streaksEnabled = ref.read(appPreferencesProvider).streaksEnabled;
-    if (!mounted) return;
+    if (!mounted || request != _request) return;
     setState(() {
-      _records = {for (final r in records) r.type: r};
-      _streaksEnabled = streaksEnabled;
+      _records = {for (final record in records) record.type: record};
+      _streaksEnabled = ref.read(appPreferencesProvider).streaksEnabled;
       _current = {
         MilestoneCategory.songs: playCount,
         MilestoneCategory.hours: listenSeconds ~/ 3600,
@@ -65,118 +58,258 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
     ref.listen(milestoneRevisionProvider, (_, _) {
       if (mounted) _refresh();
     });
-    final unlocked = _records.length;
-    final currentSong = ref.watch(currentSongProvider);
-
+    final t = context.lokal;
+    final categories = MilestoneCategory.values
+        .where(
+          (category) =>
+              _streaksEnabled || category != MilestoneCategory.dayStreak,
+        )
+        .toList();
+    final available = MilestoneType.values
+        .where((type) => categories.contains(type.category))
+        .toList();
+    final earned = available.where(_records.containsKey).length;
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
-          ),
-          Positioned.fill(child: AmbientBackground(song: currentSong)),
-          SafeArea(
-            bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(context, unlocked),
-                Expanded(
-                  child: _loading
-                      ? const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _refresh,
-                          child: _buildGrid(context),
+      backgroundColor: t.bg,
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          LokalGlassButton(
+                            semanticLabel: l10n.back,
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: Icon(
+                              Icons.arrow_back_rounded,
+                              color: t.text,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            lokalText('YOUR LISTENING'),
+                            style: TextStyle(
+                              fontFamily: LokalTheme.mono,
+                              color: t.muted,
+                              fontSize: 11,
+                              letterSpacing: 1.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
+                      Text(
+                        l10n.milestones,
+                        style: TextStyle(
+                          fontFamily: LokalTheme.sans,
+                          color: t.text,
+                          fontSize: 38,
+                          height: 1.1,
+                          letterSpacing: -1.3,
+                          fontWeight: FontWeight.w800,
                         ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, int unlocked) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingLg,
-        vertical: AppConstants.spacingMd,
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(LucideIcons.chevronLeft),
-            visualDensity: VisualDensity.compact,
-          ),
-          const SizedBox(width: AppConstants.spacingXs),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.milestones,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: context.adaptiveTextPrimary,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        lokalText('Every listen leaves a mark.'),
+                        style: TextStyle(color: t.muted, fontSize: 15),
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(22),
+                        decoration: BoxDecoration(
+                          color: t.surface,
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(color: t.border),
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox.square(
+                              dimension: 82,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Positioned.fill(
+                                    child: CircularProgressIndicator(
+                                      value: available.isEmpty
+                                          ? 0
+                                          : earned / available.length,
+                                      strokeWidth: 5,
+                                      strokeCap: StrokeCap.round,
+                                      backgroundColor: t.surface3,
+                                      color: t.accent,
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.auto_awesome_rounded,
+                                    color: t.accent,
+                                    size: 30,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 22),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$earned',
+                                    style: TextStyle(
+                                      color: t.text,
+                                      fontSize: 40,
+                                      fontFamily: LokalTheme.sans,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 7),
+                                  Text(
+                                    l10n.unlocked(earned, available.length),
+                                    style: TextStyle(
+                                      color: t.muted,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_streaksEnabled) ...[
+                        const SizedBox(height: 12),
+                        Material(
+                          color: t.surface,
+                          borderRadius: BorderRadius.circular(22),
+                          child: InkWell(
+                            onTap: _showStreakDialog,
+                            borderRadius: BorderRadius.circular(22),
+                            child: Padding(
+                              padding: const EdgeInsets.all(18),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.local_fire_department_rounded,
+                                    color: t.accent,
+                                    size: 30,
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(
+                                      l10n.currentStreak,
+                                      style: TextStyle(
+                                        color: t.text,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '${_current[MilestoneCategory.dayStreak] ?? 0} ${l10n.dayUnit(_current[MilestoneCategory.dayStreak] ?? 0)}',
+                                    style: TextStyle(
+                                      color: t.accent,
+                                      fontFamily: LokalTheme.mono,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.unlocked(unlocked, MilestoneType.values.length),
-                  style: Theme.of(context).textTheme.bodyMedium
-                      ?.copyWith(color: context.adaptiveTextTertiary),
+              ),
+              if (_loading)
+                const SliverToBoxAdapter(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else
+                for (final category in categories) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 16, 22, 16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _categoryLabel(category),
+                              style: TextStyle(
+                                color: t.text,
+                                fontFamily: LokalTheme.sans,
+                                fontSize: 23,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -.5,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${_current[category] ?? 0}',
+                            style: TextStyle(
+                              color: t.muted,
+                              fontFamily: LokalTheme.mono,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                    sliver: SliverLayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = constraints.crossAxisExtent >= 600
+                            ? 3
+                            : 2;
+                        final types = available
+                            .where((type) => type.category == category)
+                            .toList();
+                        final scale = MediaQuery.textScalerOf(context)
+                            .scale(1)
+                            .clamp(1.0, 2.0);
+                        return SliverGrid.builder(
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: columns,
+                                mainAxisExtent: 214 * scale,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                              ),
+                          itemCount: types.length,
+                          itemBuilder: (context, index) => _BadgeTile(
+                            type: types[index],
+                            record: _records[types[index]],
+                            current: _current[category] ?? 0,
+                            onTap: () => _handleTileTap(
+                              types[index],
+                              _records[types[index]],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 32 + MediaQuery.paddingOf(context).bottom,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildGrid(BuildContext context) {
-    final cats = _streaksEnabled
-        ? MilestoneCategory.values
-        : MilestoneCategory.values
-              .where((c) => c != MilestoneCategory.dayStreak)
-              .toList();
-    final bannerSlots = _streaksEnabled ? 1 : 0;
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingLg,
-        vertical: AppConstants.spacingMd,
-      ),
-      itemCount: cats.length + bannerSlots,
-      itemBuilder: (context, index) {
-        if (index < bannerSlots) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppConstants.spacingMd),
-            child: _StreakBanner(
-              streak: _current[MilestoneCategory.dayStreak] ?? 0,
-              onTap: _showStreakDialog,
-            ),
-          );
-        }
-        final cat = cats[index - bannerSlots];
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: index - bannerSlots < cats.length - 1
-                ? AppConstants.spacingMd
-                : 0,
-          ),
-          child: _CategorySection(
-            category: cat,
-            records: _records,
-            current: _current,
-            onTileTap: _handleTileTap,
-          ),
-        );
-      },
     );
   }
 
@@ -248,287 +381,112 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   }
 }
 
-class _CategorySection extends StatefulWidget {
-  const _CategorySection({
-    required this.category,
-    required this.records,
-    required this.current,
-    required this.onTileTap,
-  });
-
-  final MilestoneCategory category;
-  final Map<MilestoneType, MilestoneRecord> records;
-  final Map<MilestoneCategory, int> current;
-  final void Function(MilestoneType, MilestoneRecord?) onTileTap;
-
-  @override
-  State<_CategorySection> createState() => _CategorySectionState();
-}
-
-class _CategorySectionState extends State<_CategorySection> {
-  bool _expanded = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final cat = widget.category;
-    final types = MilestoneType.values.where((t) => t.category == cat).toList();
-    final unlocked = types.where((t) => widget.records[t] != null).length;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(color: AppColors.glassBorder, width: 1),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: () => setState(() => _expanded = !_expanded),
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.all(AppConstants.spacingMd),
-              child: Row(
-                children: [
-                  Icon(
-                    types.first.tierIcon,
-                    size: 20,
-                    color: context.adaptiveTextTertiary,
-                  ),
-                  const SizedBox(width: AppConstants.spacingMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _categoryLabel(cat),
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: context.adaptiveTextPrimary,
-                              ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.unlocked(unlocked, types.length),
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.adaptiveTextTertiary),
-                        ),
-                      ],
-                    ),
-                  ),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.25 : 0,
-                    duration: AppConstants.animationNormal,
-                    child: Icon(
-                      LucideIcons.chevronRight,
-                      size: 18,
-                      color: context.adaptiveTextTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          AnimatedSize(
-            duration: AppConstants.animationNormal,
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: AnimatedOpacity(
-              duration: AppConstants.animationNormal,
-              opacity: _expanded ? 1.0 : 0.0,
-              child: _expanded
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppConstants.spacingMd,
-                        0,
-                        AppConstants.spacingMd,
-                        AppConstants.spacingMd,
-                      ),
-                      child: Column(
-                        children: [
-                          for (final type in types) ...[
-                            _MilestoneTile(
-                              type: type,
-                              record: widget.records[type],
-                              current: widget.current[type.category] ?? 0,
-                              onTap: () =>
-                                  widget.onTileTap(type, widget.records[type]),
-                            ),
-                            const SizedBox(height: AppConstants.spacingSm),
-                          ],
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _categoryLabel(MilestoneCategory cat) => switch (cat) {
+String _categoryLabel(MilestoneCategory category) => switch (category) {
   MilestoneCategory.songs => l10n.songs14,
   MilestoneCategory.hours => l10n.listeningHours,
   MilestoneCategory.dayStreak => l10n.dayStreak3,
   MilestoneCategory.uniqueArtists => l10n.uniqueArtists,
 };
 
-class _MilestoneTile extends StatelessWidget {
-  const _MilestoneTile({
+class _BadgeTile extends StatelessWidget {
+  const _BadgeTile({
     required this.type,
     required this.record,
     required this.current,
     required this.onTap,
   });
-
   final MilestoneType type;
   final MilestoneRecord? record;
   final int current;
   final VoidCallback onTap;
 
-  bool get _unlocked => record != null;
-
   @override
   Widget build(BuildContext context) {
-    final tierColor = type.tierColor;
-    final unlocked = _unlocked;
-    // Tinted icon badge — a dark tint of the tier color keeps each tier's
-    // identity while reading as a filled pill on the glass surface.
-    final iconBg = unlocked
-        ? Color.alphaBlend(
-            tierColor.withValues(alpha: 0.8),
-            AppColors.surfaceDark,
-          )
-        : AppColors.glassBackgroundStrong;
-    final iconFg = unlocked ? Colors.white : AppColors.textTertiary;
-
-    final progress = (current / type.threshold).clamp(0.0, 1.0);
-    final unit = type.category.unitLabel(type.threshold);
-
+    final t = context.lokal;
+    final earned = record != null;
     return Material(
-      color: Colors.transparent,
+      color: earned ? t.surface : t.surface2,
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
         child: Container(
-          padding: const EdgeInsets.all(AppConstants.spacingMd),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.surface.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: unlocked
-                  ? tierColor.withValues(alpha: 0.35)
-                  : AppColors.glassBorder,
-              width: 1,
+              color: earned ? t.accent.withValues(alpha: .3) : t.border,
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  ColoredSettingsIcon(
-                    icon: type.tierIcon,
-                    backgroundColor: iconBg,
-                    iconColor: iconFg,
-                  ),
-                  const SizedBox(width: AppConstants.spacingMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          type.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: unlocked
-                                    ? context.adaptiveTextPrimary
-                                    : context.adaptiveTextTertiary,
-                              ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          unlocked
-                              ? l10n.achieved(_formatDate(record!.achievedAt))
-                              : l10n.locked,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.adaptiveTextTertiary),
-                        ),
-                      ],
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: earned
+                          ? t.accent.withValues(alpha: .12)
+                          : t.surface3,
+                    ),
+                    child: Icon(
+                      type.tierIcon,
+                      color: earned ? t.accent : t.muted,
+                      size: 23,
                     ),
                   ),
+                  const Spacer(),
                   Icon(
-                    unlocked
-                        ? LucideIcons.circleCheck
-                        : LucideIcons.chevronRight,
-                    color: unlocked ? tierColor : context.adaptiveTextTertiary,
-                    size: 18,
+                    earned
+                        ? Icons.check_circle_rounded
+                        : Icons.lock_outline_rounded,
+                    size: 16,
+                    color: earned ? t.accent : t.muted.withValues(alpha: .5),
                   ),
                 ],
               ),
-              if (!unlocked) ...[
-                const SizedBox(height: AppConstants.spacingSm),
-                _MiniProgressBar(value: progress, color: tierColor),
-                const SizedBox(height: 4),
-                Text(
-                  '$current / ${type.threshold} $unit',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
+              const Spacer(),
+              Text(
+                type.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: earned ? t.text : t.muted,
+                  fontSize: 18,
+                  fontFamily: LokalTheme.sans,
+                  fontWeight: FontWeight.w700,
                 ),
-              ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                earned
+                    ? MaterialLocalizations.of(context)
+                          .formatShortDate(record!.achievedAt.toLocal())
+                    : '$current / ${type.threshold}',
+                style: TextStyle(
+                  color: t.muted,
+                  fontSize: 11,
+                  fontFamily: LokalTheme.mono,
+                ),
+              ),
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: earned
+                      ? 1
+                      : (current / type.threshold).clamp(0.0, 1.0),
+                  minHeight: 3,
+                  backgroundColor: t.surface3,
+                  color: earned ? t.accent : t.muted.withValues(alpha: .5),
+                ),
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  static String _formatDate(DateTime dt) {
-    final months = [
-      l10n.jan,
-      l10n.feb,
-      l10n.mar,
-      l10n.apr,
-      l10n.may,
-      l10n.jun,
-      l10n.jul,
-      l10n.aug,
-      l10n.sep,
-      l10n.oct,
-      l10n.nov,
-      l10n.dec,
-    ];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
-  }
-}
-
-class _MiniProgressBar extends StatelessWidget {
-  const _MiniProgressBar({required this.value, required this.color});
-
-  final double value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(2),
-      child: LinearProgressIndicator(
-        value: value,
-        minHeight: 3,
-        backgroundColor: AppColors.glassBorder,
-        valueColor: AlwaysStoppedAnimation<Color>(color),
       ),
     );
   }
@@ -541,317 +499,61 @@ class _LockedSheet extends StatelessWidget {
     required this.remaining,
     required this.unit,
   });
-
   final MilestoneType type;
-  final int current;
-  final int remaining;
+  final int current, remaining;
   final String unit;
-
   @override
   Widget build(BuildContext context) {
-    final tierColor = type.tierColor;
-    final progress = (current / type.threshold).clamp(0.0, 1.0);
+    final t = context.lokal;
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConstants.spacingMd),
-        child: Container(
-          padding: const EdgeInsets.all(AppConstants.spacingLg),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-            border: Border.all(color: AppColors.glassBorder, width: 1),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  ColoredSettingsIcon(
-                    icon: type.tierIcon,
-                    backgroundColor: tierColor.withValues(alpha: 0.85),
-                    iconColor: Colors.white,
-                  ),
-                  const SizedBox(width: AppConstants.spacingMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          type.title,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          l10n.locked,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.adaptiveTextTertiary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: t.surface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: t.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(type.tierIcon, size: 36, color: t.accent),
+            const SizedBox(height: 18),
+            Text(
+              type.title,
+              style: TextStyle(
+                color: t.text,
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: AppConstants.spacingLg),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 6,
-                  backgroundColor: AppColors.glassBorder,
-                  valueColor: AlwaysStoppedAnimation<Color>(tierColor),
-                ),
+            ),
+            const SizedBox(height: 8),
+            Text(type.message, style: TextStyle(color: t.muted, height: 1.5)),
+            const SizedBox(height: 22),
+            LinearProgressIndicator(
+              value: (current / type.threshold).clamp(0.0, 1.0),
+              color: t.accent,
+              backgroundColor: t.surface3,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              remaining > 0
+                  ? l10n.moreToUnlock(remaining, unit)
+                  : l10n.youVeHitTheThresholdKeep,
+              style: TextStyle(color: t.text),
+            ),
+            const SizedBox(height: 18),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(l10n.done),
               ),
-              const SizedBox(height: AppConstants.spacingSm),
-              Text(
-                '$current / ${type.threshold} $unit',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.adaptiveTextTertiary,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: AppConstants.spacingXs),
-              Text(
-                remaining > 0
-                    ? l10n.moreToUnlock(remaining, unit)
-                    : l10n.youVeHitTheThresholdKeep,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
-}
-
-class _StreakBanner extends StatefulWidget {
-  const _StreakBanner({required this.streak, this.onTap});
-
-  final int streak;
-  final VoidCallback? onTap;
-
-  @override
-  State<_StreakBanner> createState() => _StreakBannerState();
-}
-
-class _StreakBannerState extends State<_StreakBanner>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _sweep;
-
-  @override
-  void initState() {
-    super.initState();
-    _sweep = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 5),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _sweep.dispose();
-    super.dispose();
-  }
-
-  Color get _tierColor =>
-      MilestoneCategory.dayStreak.tierColorFor(widget.streak) ??
-      AppColors.accent;
-
-  int get _tierCount => MilestoneCategory.dayStreak.tierCountFor(widget.streak);
-
-  @override
-  Widget build(BuildContext context) {
-    final streak = widget.streak;
-    final nextTier =
-        MilestoneType.values
-            .where(
-              (t) =>
-                  t.category == MilestoneCategory.dayStreak &&
-                  t.threshold > streak,
-            )
-            .toList()
-          ..sort((a, b) => a.threshold.compareTo(b.threshold));
-    final next = nextTier.isEmpty ? null : nextTier.first;
-
-    return AnimatedBuilder(
-      animation: _sweep,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: _BorderSweepPainter(
-            progress: _sweep.value,
-            radius: AppConstants.radiusLg,
-            color: _tierColor,
-            peakAlpha: 0.55 + 0.1 * _tierCount,
-          ),
-          child: child,
-        );
-      },
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-          child: Container(
-            padding: const EdgeInsets.all(AppConstants.spacingLg),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.surface.withValues(alpha: 0.8),
-                  AppColors.surfaceDark.withValues(alpha: 0.8),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-              border: Border.all(
-                color: _tierColor.withValues(alpha: 0.15 + 0.05 * _tierCount),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                AnimatedBuilder(
-                  animation: _sweep,
-                  builder: (context, _) {
-                    // Derive a smooth pulse from the sweep controller so
-                    // no second ticker is needed.
-                    final pulse =
-                        (math.sin(_sweep.value * 2 * math.pi) + 1) / 2;
-                    final glow = _tierCount == 0
-                        ? 0.0
-                        : 0.15 + 0.15 * pulse * (_tierCount / 3);
-                    return Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _tierColor.withValues(alpha: 0.1),
-                        border: Border.all(
-                          color: _tierColor.withValues(alpha: 0.25),
-                          width: 1,
-                        ),
-                        boxShadow: glow > 0
-                            ? [
-                                BoxShadow(
-                                  color: _tierColor.withValues(alpha: glow),
-                                  blurRadius: 14 + 6 * pulse,
-                                  spreadRadius: 1,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Icon(
-                        LucideIcons.flame,
-                        size: 26,
-                        color: _tierColor,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(width: AppConstants.spacingLg),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.currentStreak,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: context.adaptiveTextTertiary,
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            '$streak',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: context.adaptiveTextPrimary,
-                                ),
-                          ),
-                          const SizedBox(width: AppConstants.spacingXs),
-                          Text(
-                            l10n.dayUnit(streak),
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(color: context.adaptiveTextTertiary),
-                          ),
-                        ],
-                      ),
-                      if (next != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          l10n.moreTo(next.threshold - streak, next.title),
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.adaptiveTextTertiary),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                Icon(
-                  LucideIcons.chevronRight,
-                  size: 18,
-                  color: context.adaptiveTextTertiary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BorderSweepPainter extends CustomPainter {
-  _BorderSweepPainter({
-    required this.progress,
-    required this.radius,
-    required this.color,
-    required this.peakAlpha,
-  });
-
-  final double progress;
-  final double radius;
-  final Color color;
-  final double peakAlpha;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final rrect = RRect.fromRectAndRadius(
-      rect.deflate(0.75),
-      Radius.circular(radius),
-    );
-
-    final sweep = SweepGradient(
-      startAngle: 0,
-      endAngle: 2 * math.pi,
-      colors: [
-        color.withValues(alpha: 0),
-        color.withValues(alpha: 0),
-        color.withValues(alpha: peakAlpha),
-        color.withValues(alpha: 0),
-        color.withValues(alpha: 0),
-      ],
-      stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
-      transform: GradientRotation(progress * 2 * math.pi),
-    );
-
-    final paint = Paint()
-      ..shader = sweep.createShader(rect)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    canvas.drawRRect(rrect, paint);
-  }
-
-  @override
-  bool shouldRepaint(_BorderSweepPainter old) =>
-      old.progress != progress || old.peakAlpha != peakAlpha;
 }

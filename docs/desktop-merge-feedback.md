@@ -1,7 +1,7 @@
 # Desktop library merge and file copies
 
 The Desktop link screen keeps a merge status card after approval. It reports
-catalogue song counts, history/library activity, profile/badge finalization,
+catalogue song counts, history/library activity, profile finalization,
 completion time, and paused/disconnected state. Sync now retries the merge.
 The last successful timestamp is retained for the paired desktop/user.
 
@@ -28,11 +28,8 @@ byte-range transfer service: a disconnected/incomplete file starts over next
 time. Desktop uploads retain the existing supported-format and 1 GiB limit.
 A desktop update is required for two-way original-file copying.
 
-Merged history is deduplicated by event ID. Milestone totals include the journal,
-including events whose song is no longer available. Imported listening time is
-read separately from the persisted local counter so repeat merges do not add it
-again. All newly reached badge tiers are reconciled after history import; the You
-page and milestone screen refresh from milestone change notifications.
+Badge calculations and earned thresholds are unchanged. The You page and
+milestone screen refresh from milestone change notifications.
 
 Desktop artwork markers are retained even when thumbnail indexing has not
 finished. The artwork service can recover an older markerless desktop row from
@@ -41,3 +38,19 @@ cover cards immediately reuse an already resolved local image.
 
 Validation is source-level only; paired-device transfer, image display and
 interrupted-copy behavior still need device verification.
+
+The link disconnects after three minutes without user interaction when no merge,
+file transfer or download outbox work is active. Routine connection checks run
+less often. Reconnect from Desktop link when more work is needed.
+
+The Milestones screen uses Lokal surfaces, accent colors and achievement cards;
+badge calculations remain unchanged. Online artist pages group releases into
+Albums, EPs, Singles, Features and other available release categories. Playback
+source order is configured globally in Settings instead of on artist pages.
+
+New playback requests cancel foreground resolution and take precedence over
+prefetch work. Guest YouTube resolution prefers the native resolver and retries
+refused streams with smaller client-appropriate download chunks. These changes
+still require Android playback verification. Startup restores the saved accent
+before rendering, and launcher aliases follow the selected theme. The full-player
+device picker is centered inside the safe area with a dimmed backdrop.

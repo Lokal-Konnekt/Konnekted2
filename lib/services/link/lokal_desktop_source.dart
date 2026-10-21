@@ -213,18 +213,52 @@ class LokalDesktopSource extends NetworkSourceService {
     String marker,
   ) async {
     final credentials = await _credentials(server);
-    final response = await http
-        .get(
-          credentials.origin.replace(
-            pathSegments: ['api', 'artwork', marker],
-            queryParameters: {'full': '1'},
-          ),
-          headers: _headers(credentials),
-        )
-        .timeout(const Duration(seconds: 10));
-    if (response.statusCode != 200)
-      throw const HttpException('Desktop artwork is unavailable.');
-    return response.bodyBytes;
+    final client = http.Client();
+    try {
+      final request =
+          http.Request(
+              'GET',
+              credentials.origin.replace(
+                pathSegments: ['api', 'artwork', marker],
+                queryParameters: {'full': '1'},
+              ),
+            )
+            ..headers.addAll(_headers(credentials))
+            ..followRedirects = false;
+      var response = await client
+          .send(request)
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 301 ||
+          response.statusCode == 302 ||
+          response.statusCode == 307 ||
+          response.statusCode == 308) {
+        final target = Uri.tryParse(response.headers['location'] ?? '');
+        await response.stream.drain<void>();
+        if (target == null ||
+            target.scheme != 'https' ||
+            target.host.isEmpty ||
+            target.userInfo.isNotEmpty) {
+          throw const HttpException('Desktop artwork redirect is invalid.');
+        }
+        // Desktop credentials must never accompany an external image request.
+        response = await client
+            .send(http.Request('GET', target))
+            .timeout(const Duration(seconds: 10));
+      }
+      if (response.statusCode != 200)
+        throw const HttpException('Desktop artwork is unavailable.');
+      final bytes = <int>[];
+      await for (final chunk in response.stream.timeout(
+        const Duration(seconds: 10),
+      )) {
+        bytes.addAll(chunk);
+        if (bytes.length > 10 * 1024 * 1024)
+          throw const FormatException('Desktop artwork is too large.');
+      }
+      return bytes;
+    } finally {
+      client.close();
+    }
   }
 
   @override

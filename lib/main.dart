@@ -24,6 +24,9 @@ import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/core/utils/frame_timings_monitor.dart';
 import 'package:flick/src/rust/api/logging.dart';
+import 'package:flick/core/theme/lokal_appearance.dart';
+import 'package:flick/core/theme/app_colors.dart';
+import 'package:flick/services/notification_service.dart';
 
 Future<void> main() async {
   await runZonedGuarded(_bootstrapApp, (error, stack) {
@@ -37,6 +40,11 @@ Future<void> _bootstrapApp() async {
   // Snapshot install freshness before anything can write to the preference
   // store: new installations start on the adaptive refresh-rate default.
   await AppPreferencesService.captureInstallFreshness();
+  final initialAppearance = await LokalAppearanceNotifier.readSaved();
+  AppColors.bind(initialAppearance.tokens);
+  await NotificationService().setLokalAccent(
+    initialAppearance.tokens.accent.toARGB32(),
+  );
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
@@ -77,7 +85,14 @@ Future<void> _bootstrapApp() async {
 
   // Glass renders frosted until the lens is ready, so don't wait for it.
   unawaited(LokalGlassShaders.load());
-  runApp(const ProviderScope(child: FlickPlayerApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        lokalInitialAppearanceProvider.overrideWithValue(initialAppearance),
+      ],
+      child: const FlickPlayerApp(),
+    ),
+  );
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(_bootstrapAppAfterFirstFrame());

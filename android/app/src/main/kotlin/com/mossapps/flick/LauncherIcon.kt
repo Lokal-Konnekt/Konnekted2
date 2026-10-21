@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import android.util.Log
+import android.os.Build
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 
@@ -28,6 +29,15 @@ object LauncherIcon {
         "teal", "white", "yellow", "cyan", "magenta", "gray",
     )
     private const val DEFAULT = "lime"
+    private var backgrounded = false
+    private var aliases: Map<String, String>? = null
+
+    fun onStart() { backgrounded = false }
+
+    fun onStop(context: Context) {
+        backgrounded = true
+        applyPending(context)
+    }
 
     fun register(messenger: BinaryMessenger, context: Context) {
         MethodChannel(messenger, CHANNEL).setMethodCallHandler { call, result ->
@@ -39,6 +49,8 @@ object LauncherIcon {
                     } else {
                         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                             .edit().putString(KEY_WANTED, accent).apply()
+                        // Dart can deliver the final theme update after onStop.
+                        if (backgrounded) applyPending(context)
                         result.success(null)
                     }
                 }
@@ -53,8 +65,19 @@ object LauncherIcon {
             .getString(KEY_WANTED, null) ?: return
         val pm = context.packageManager
         try {
-            val current = accents.firstOrNull { isEnabled(pm, context, it) } ?: DEFAULT
-            if (current == wanted) return
+            val current = accents.filter { isEnabled(pm, context, it) }
+            if (current == listOf(wanted)) return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.setComponentEnabledSettings(accents.map { accent ->
+                    PackageManager.ComponentEnabledSetting(
+                        component(context, accent),
+                        if (accent == wanted) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                        else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP,
+                    )
+                })
+                return
+            }
             // Enable first, so there is never a moment with no launcher entry.
             setEnabled(pm, context, wanted, true)
             for (accent in accents) {
@@ -65,10 +88,16 @@ object LauncherIcon {
         }
     }
 
-    private fun component(context: Context, accent: String) = ComponentName(
-        context.packageName,
-        "com.mossapps.flick.LauncherIcon${accent.replaceFirstChar { it.uppercase() }}",
-    )
+    private fun component(context: Context, accent: String): ComponentName {
+        val suffix = "LauncherIcon${accent.replaceFirstChar { it.uppercase() }}"
+        val names = aliases ?: context.packageManager.getPackageInfo(
+            context.packageName,
+            PackageManager.GET_ACTIVITIES or PackageManager.MATCH_DISABLED_COMPONENTS,
+        ).activities.orEmpty().associate { it.name.substringAfterLast('.') to it.name }
+            .also { aliases = it }
+        val name = names[suffix] ?: error("Missing launcher alias: $suffix")
+        return ComponentName(context.packageName, name)
+    }
 
     private fun isEnabled(pm: PackageManager, context: Context, accent: String): Boolean =
         when (pm.getComponentEnabledSetting(component(context, accent))) {

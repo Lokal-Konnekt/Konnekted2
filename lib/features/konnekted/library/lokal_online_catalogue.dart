@@ -27,10 +27,7 @@ class LokalCatalogueTrack {
   final DiscoveryTrack? exact;
 
   Song pending({String? playbackSource}) {
-    if (playbackSource == null)
-      return exact != null && sourceId != null
-          ? onlinePendingSong(sourceId!, exact!)
-          : discoveryPendingSong(metadata);
+    if (playbackSource == null) return discoveryPendingSong(metadata);
     final resolver = QueuePreResolver.shared;
     return resolver.pending(
       key: 'catalogue:$playbackSource:${metadata.key}',
@@ -49,6 +46,27 @@ class LokalCatalogueTrack {
   }
 }
 
+enum LokalReleaseKind { album, ep, single, compilation, live, feature, unknown }
+
+/// Match complete artist credit tokens, rather than substring names (e.g.
+/// "Ann" must not claim "Joanne" releases as Features).
+bool catalogueArtistCredit(String credit, String artist) {
+  if (recommendationKey(credit) == recommendationKey(artist)) return true;
+  return credit
+      .split(
+        RegExp(
+          r'\s*(?:;|,|\s&\s|\sfeat\.?\s|\sfeaturing\s|\swith\s|\sx\s)\s*',
+          caseSensitive: false,
+        ),
+      )
+      .any((name) => recommendationKey(name) == recommendationKey(artist));
+}
+
+bool cataloguePrimaryArtist(String credit, String artist) =>
+    recommendationKey(credit) == recommendationKey(artist) ||
+    recommendationKey(leadArtist(credit).split(RegExp(r'\s&\s|\sx\s')).first) ==
+        recommendationKey(artist);
+
 class LokalCatalogueAlbum {
   const LokalCatalogueAlbum({
     required this.title,
@@ -58,10 +76,30 @@ class LokalCatalogueAlbum {
     this.date,
     this.trackCount,
     this.url = '',
+    this.releaseKind,
   });
   final String title, artist, artwork, url;
   final String? id, date;
   final int? trackCount;
+  final LokalReleaseKind? releaseKind;
+  LokalReleaseKind get kind {
+    if (releaseKind != null) return releaseKind!;
+    final name = title.toLowerCase();
+    if (RegExp(r'(?:\bep\b|extended play)').hasMatch(name))
+      return LokalReleaseKind.ep;
+    if (RegExp(r'\bsingle\b').hasMatch(name)) return LokalReleaseKind.single;
+    if (RegExp(r'compilation|greatest hits|best of').hasMatch(name))
+      return LokalReleaseKind.compilation;
+    if (RegExp(r'(?:\(|-\s*)live\b|\blive at\b|\blive in\b').hasMatch(name))
+      return LokalReleaseKind.live;
+    if (trackCount == 1) return LokalReleaseKind.single;
+    if (trackCount != null && trackCount! >= 2 && trackCount! <= 6)
+      return LokalReleaseKind.ep;
+    if (title.trim().isEmpty || recommendationKey(title) == 'unknown album')
+      return LokalReleaseKind.unknown;
+    return LokalReleaseKind.album;
+  }
+
   int? get year => date == null ? null : DateTime.tryParse(date!)?.year;
   factory LokalCatalogueAlbum.fromApple(AppleMusicAlbumMatch match) =>
       LokalCatalogueAlbum(
@@ -154,14 +192,35 @@ class LokalOnlineCatalogue {
     if (data != null &&
         recommendationKey(data!.artist.name) != recommendationKey(name))
       data = null;
+    final creditedAlbums = {
+      for (final song in data?.topSongs ?? <AppleMusicTopSong>[])
+        if (catalogueArtistCredit(song.artistName, name) &&
+            song.collectionName != null)
+          recommendationKey(song.collectionName),
+    };
     final albums =
         releases
             .where(
               (album) =>
                   recommendationKey(album.artistName) ==
-                  recommendationKey(name),
+                      recommendationKey(name) ||
+                  catalogueArtistCredit(album.artistName, name) ||
+                  creditedAlbums.contains(recommendationKey(album.name)),
             )
-            .map(LokalCatalogueAlbum.fromApple)
+            .map(
+              (match) => LokalCatalogueAlbum(
+                id: match.collectionId,
+                title: match.name,
+                artist: match.artistName,
+                artwork: match.artworkUrl ?? '',
+                date: match.releaseDate,
+                trackCount: match.trackCount,
+                url: match.url,
+                releaseKind: !cataloguePrimaryArtist(match.artistName, name)
+                    ? LokalReleaseKind.feature
+                    : null,
+              ),
+            )
             .toList()
           ..sort((a, b) => (b.date ?? '').compareTo(a.date ?? ''));
     var tracks = [
@@ -370,7 +429,7 @@ Future<Song?> prepareCatalogueTrack(
   void Function(String)? onStatus,
   Future<void>? cancel,
 }) async {
-  final sourceId = playbackSource ?? track.sourceId;
+  final sourceId = playbackSource;
   if (sourceId == null)
     return findDiscoverySong(
       track.metadata,
@@ -409,7 +468,7 @@ Future<Song?> prepareCatalogueTrack(
       throw const DiscoveryException(
         'This recording was not found on the selected source.',
       );
-    return playOnlineTrack(
+    return await playOnlineTrack(
       sourceId,
       found.withArtwork(track.metadata.artworkUrl),
       onStatus: onStatus,

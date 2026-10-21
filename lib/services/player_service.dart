@@ -744,6 +744,16 @@ class PlayerService {
   /// playback reaches it; null when it can't be found. Set by
   /// QueuePreResolver.
   Future<Song?> Function(Song pending)? pendingSongResolver;
+  VoidCallback? cancelPendingSongResolution;
+  int _pendingPlaybackGeneration = 0;
+
+  void _cancelPendingPlayback() {
+    _pendingPlaybackGeneration++;
+    if (_pendingPlaybackId == null) return;
+    _pendingPlaybackId = null;
+    cancelPendingSongResolution?.call();
+    isNetworkLoadingNotifier.value = false;
+  }
 
   /// The placeholder being looked up to play now, if any.
   String? _pendingPlaybackId;
@@ -793,6 +803,7 @@ class PlayerService {
   /// next song when it can't be found. Runs outside the playback request
   /// queue so another tap isn't kept waiting for the download.
   Future<void> _playPendingSong(Song pending) async {
+    final generation = ++_pendingPlaybackGeneration;
     _pendingPlaybackId = pending.id;
     isNetworkLoadingNotifier.value = true;
     currentSongNotifier.value = pending;
@@ -803,6 +814,9 @@ class PlayerService {
       _debugLog('[Playback] stop before looking up ${pending.title}: $e');
     }
     final resolver = pendingSongResolver;
+    if (generation != _pendingPlaybackGeneration ||
+        _pendingPlaybackId != pending.id)
+      return;
     unawaited(() async {
       Song? resolved;
       try {
@@ -811,7 +825,9 @@ class PlayerService {
         _debugLog('[Playback] lookup failed for ${pending.title}: $e');
       }
       // Something else was asked for meanwhile: it owns playback now.
-      if (_pendingPlaybackId != pending.id) return;
+      if (generation != _pendingPlaybackGeneration ||
+          _pendingPlaybackId != pending.id)
+        return;
       _pendingPlaybackId = null;
       isNetworkLoadingNotifier.value = false;
       if (resolved != null) {
@@ -4969,6 +4985,7 @@ class PlayerService {
     PlaybackContext? context,
   }) {
     _debugLog('[UI] tap(${song.id})');
+    _cancelPendingPlayback();
     if (context != null) setPlaybackContext(context);
     // Immediate UI feedback: surface the loading state synchronously so the
     // mini-player shows a spinner before the (possibly queued) playback
@@ -5011,7 +5028,7 @@ class PlayerService {
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
     final loadingGen = ++_networkLoadingGen;
-    _pendingPlaybackId = null;
+    _cancelPendingPlayback();
     try {
       _debugLog(
         '[Playback] play() called for ${song.title} '
@@ -5363,6 +5380,7 @@ class PlayerService {
   }
 
   Future<void> pause() {
+    _cancelPendingPlayback();
     _debugLog('[PlayerService] pause() called');
     // Manual pause cancels any pending auto-resume from a transient focus
     // loss; otherwise the next notification's end event restarts playback.
@@ -5768,6 +5786,7 @@ class PlayerService {
   }
 
   Future<void> next() {
+    _cancelPendingPlayback();
     _debugLog('[PlayerService] next() called');
     return _enqueuePlaybackRequest(_nextInternal);
   }
@@ -5836,6 +5855,7 @@ class PlayerService {
   }
 
   Future<void> previous({bool allowRestart = true}) {
+    _cancelPendingPlayback();
     _debugLog('[PlayerService] previous() called (allowRestart=$allowRestart)');
     return _enqueuePlaybackRequest(
       () => _previousInternal(allowRestart: allowRestart),
@@ -6413,6 +6433,7 @@ class PlayerService {
   }
 
   Future<void> playFromQueueIndex(int index) {
+    _cancelPendingPlayback();
     return _enqueuePlaybackRequest(() => _playFromQueueIndexInternal(index));
   }
 
@@ -6527,6 +6548,7 @@ class PlayerService {
   }
 
   Future<void> playFromUpNextIndex(int index) {
+    _cancelPendingPlayback();
     return _enqueuePlaybackRequest(() => _playFromUpNextIndexInternal(index));
   }
 

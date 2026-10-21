@@ -248,10 +248,22 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       context: context,
       barrierLabel: 'Audio output',
       barrierColor: Colors.black.withValues(alpha: 0.38),
-      builder: (_) => OutputDevicePopup(
-        song: song,
-        playerService: _player,
-        deviceLabel: l10n.thisDevice,
+      builder: (context) => SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: SingleChildScrollView(
+                child: OutputDevicePopup(
+                  song: song,
+                  playerService: _player,
+                  deviceLabel: l10n.thisDevice,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

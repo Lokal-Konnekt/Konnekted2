@@ -75,6 +75,7 @@ class _Lookup {
     if (cancelled) return;
     cancelled = true;
     cancel.complete();
+    if (!result.isCompleted) result.complete(null);
   }
 }
 
@@ -119,6 +120,7 @@ class QueuePreResolver {
   final _running = <String, _Lookup>{};
   final _timers = <Timer>[];
   Timer? _settle;
+  _Lookup? _statusOwner;
   PreResolveHost? _host;
 
   static bool _fileExists(Song song) {
@@ -141,6 +143,7 @@ class QueuePreResolver {
     host.queueChanges.addListener(_onQueueChanged);
     if (host is PlayerServiceHost) {
       host.player.pendingSongResolver = resolveNow;
+      host.player.cancelPendingSongResolution = cancelOnDemand;
     }
   }
 
@@ -152,6 +155,7 @@ class QueuePreResolver {
     if (host is PlayerServiceHost &&
         host.player.pendingSongResolver == resolveNow) {
       host.player.pendingSongResolver = null;
+      host.player.cancelPendingSongResolution = null;
     }
     _host = null;
   }
@@ -248,6 +252,10 @@ class QueuePreResolver {
   List<String> schedule() {
     final host = _host;
     if (host == null) return const [];
+    // The foreground request gets the add-on runtime and bandwidth first.
+    // Queue notifications during its download must not start competing work.
+    if (_running.values.any((lookup) => lookup.onDemand && !lookup.cancelled))
+      return const [];
     _pruneRecent();
     for (final timer in _timers) {
       timer.cancel();
@@ -291,6 +299,14 @@ class QueuePreResolver {
   /// already under way or done lately. Null when it can't be found.
   Future<Song?> resolveNow(Song pending) {
     final id = pending.id;
+    _settle?.cancel();
+    for (final timer in _timers) {
+      timer.cancel();
+    }
+    _timers.clear();
+    for (final other in _running.keys.toList()) {
+      if (other != id) _running.remove(other)?.stop();
+    }
     if (_recentSong(id) case final ready?) {
       _host?.replacePending(id, ready);
       return Future.value(ready);
@@ -298,10 +314,21 @@ class QueuePreResolver {
     final running = _running[id];
     if (running != null) {
       running.onDemand = true;
+      _statusOwner = running;
       return running.result.future;
     }
     final lookup = _start(id, onDemand: true);
     return lookup?.result.future ?? Future.value(null);
+  }
+
+  /// A new playback request preempts the old foreground download immediately,
+  /// even if that song still happens to be within the prefetch lookahead.
+  void cancelOnDemand() {
+    for (final entry in _running.entries.toList()) {
+      if (entry.value.onDemand) _running.remove(entry.key)?.stop();
+    }
+    _statusOwner = null;
+    status.value = null;
   }
 
   _Lookup? _start(String id, {required bool onDemand}) {
@@ -309,6 +336,7 @@ class QueuePreResolver {
     if (resolve == null) return null;
     final lookup = _Lookup(onDemand: onDemand);
     _running[id] = lookup;
+    if (onDemand) _statusOwner = lookup;
     unawaited(_run(id, resolve, lookup));
     return lookup;
   }
@@ -319,7 +347,10 @@ class QueuePreResolver {
       song = await resolve(
         cancel: lookup.cancel.future,
         onStatus: (message) {
-          if (lookup.onDemand && !lookup.cancelled) status.value = message;
+          if (lookup.onDemand &&
+              !lookup.cancelled &&
+              identical(_statusOwner, lookup))
+            status.value = message;
         },
       );
     } catch (_) {
@@ -331,8 +362,11 @@ class QueuePreResolver {
       _remember(id, song);
       _host?.replacePending(id, song);
     }
-    if (lookup.onDemand) status.value = null;
-    lookup.result.complete(song);
+    if (lookup.onDemand && identical(_statusOwner, lookup)) {
+      _statusOwner = null;
+      status.value = null;
+    }
+    if (!lookup.result.isCompleted) lookup.result.complete(song);
   }
 
   /// Forgets everything (tests; another account).
@@ -347,6 +381,7 @@ class QueuePreResolver {
     }
     _running.clear();
     _recent.clear();
+    _statusOwner = null;
     status.value = null;
   }
 }

@@ -97,6 +97,7 @@ import kotlin.math.min
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.mossapps.flick/storage"
     private val YOUTUBE_CHANNEL = "com.mossapps.flick/youtube_stream"
+    private val youtubeResolveJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
     private val PLAYER_CHANNEL = "com.mossapps.flick/player"
     private val INTEGRATION_CHANNEL = "com.mossapps.flick/integration"
     private val UAC2_CHANNEL = "com.mossapps.flick/uac2"
@@ -242,7 +243,13 @@ class MainActivity: FlutterActivity() {
         YoutubeNativeResolver.initialize(applicationContext)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, YOUTUBE_CHANNEL)
             .setMethodCallHandler { call, result ->
-                if (call.method != "resolveStream") {
+                if (call.method == "cancelResolve") {
+                    call.argument<String>("requestId")?.let { youtubeResolveJobs.remove(it)?.cancel() }
+                    result.success(null)
+                } else if (call.method == "streamRefused") {
+                    call.argument<String>("url")?.let { YoutubeNativeResolver.onStreamRefused(it) }
+                    result.success(null)
+                } else if (call.method != "resolveStream") {
                     result.notImplemented()
                 } else {
                     val videoId = call.argument<String>("videoId")
@@ -251,7 +258,9 @@ class MainActivity: FlutterActivity() {
                     } else {
                         val cookie = call.argument<String>("cookie")
                         val visitorData = call.argument<String>("visitorData")
-                        mainScope.launch {
+                        val requestId = call.argument<String>("requestId") ?: java.util.UUID.randomUUID().toString()
+                        youtubeResolveJobs[requestId]?.cancel()
+                        youtubeResolveJobs[requestId] = mainScope.launch {
                             try {
                                 val stream = withContext(Dispatchers.IO) {
                                     YoutubeNativeResolver.resolveStream(videoId, cookie, visitorData)
@@ -266,6 +275,8 @@ class MainActivity: FlutterActivity() {
                                     "YouTube could not resolve a playable stream.",
                                     null,
                                 )
+                            } finally {
+                                youtubeResolveJobs.remove(requestId)
                             }
                         }
                     }
@@ -5496,11 +5507,16 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        LauncherIcon.onStart()
+    }
+
     override fun onStop() {
         super.onStop()
         // In the background now, so swapping the launcher alias can't close
         // the app under the listener.
-        LauncherIcon.applyPending(applicationContext)
+        LauncherIcon.onStop(applicationContext)
     }
 
     override fun onDestroy() {

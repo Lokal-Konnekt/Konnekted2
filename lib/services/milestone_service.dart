@@ -1,13 +1,9 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:isar_community/isar.dart';
-
-import '../data/database.dart';
 
 import '../core/theme/app_colors.dart';
 import '../data/repositories/recently_played_repository.dart';
@@ -320,49 +316,16 @@ class MilestoneService {
        _dayStreakOverride = dayStreakOverride,
        _uniqueArtistsOverride = uniqueArtistsOverride;
 
-  Future<int> _getPlayCount() async {
+  Future<int> _getPlayCount() {
     final override = _playCountOverride;
     if (override != null) return override();
-    final count = await _repository!.getHistoryCount();
-    if (!Database.isInitialized) return count;
-    final history = await Database.recentlyPlayed.where().findAll();
-    final events = await Database.instance.playEventEntitys
-        .where()
-        .eventIdProperty()
-        .findAll();
-    final ids = {
-      ...events,
-      for (final row in history)
-        if (row.eventId != null) row.eventId!,
-    };
-    return math.max(
-      count,
-      ids.length + history.where((row) => row.eventId == null).length,
-    );
+    return _repository!.getHistoryCount();
   }
 
-  Future<int> _getUniqueArtistCount() async {
+  Future<int> _getUniqueArtistCount() {
     final override = _uniqueArtistsOverride;
     if (override != null) return override();
-    if (!Database.isInitialized) return _repository!.getDistinctArtistCount();
-    final history = await Database.recentlyPlayed.where().findAll();
-    final songs = {
-      for (final song in await Database.songs.where().findAll()) song.id: song,
-    };
-    final artists = <String>{};
-    void add(String? artist) {
-      final name = artist?.trim().toLowerCase() ?? '';
-      if (name.isNotEmpty) artists.add(name);
-    }
-
-    for (final row in history) add(songs[row.songId]?.artist);
-    for (final event
-        in await Database.instance.playEventEntitys.where().findAll()) {
-      try {
-        add((jsonDecode(event.trackJson) as Map)['artist'] as String?);
-      } catch (_) {}
-    }
-    return artists.length;
+    return _repository!.getDistinctArtistCount();
   }
 
   Future<int> _getListenSeconds() {
@@ -384,58 +347,20 @@ class MilestoneService {
 
   Future<int> getAccumulatedListenSeconds() async {
     final prefs = await SharedPreferences.getInstance();
-    final local = prefs.getInt(_accumulatedListenSecondsKey) ?? 0;
-    if (!Database.isInitialized) return local;
-    final device = prefs.getString('lokal.link.device_id');
-    final events = await Database.instance.playEventEntitys.where().findAll();
-    // Never add imported time to the persisted local accumulator: retries and
-    // reflected copies of this phone's own events must not double-count it.
-    final remoteMs = events
-        .where((row) => row.deviceId != device)
-        .fold<int>(0, (sum, row) => sum + row.msPlayed);
-    final journalMs = events.fold<int>(0, (sum, row) => sum + row.msPlayed);
-    return math.max(local + remoteMs ~/ 1000, journalMs ~/ 1000);
+    return prefs.getInt(_accumulatedListenSecondsKey) ?? 0;
   }
 
   Future<void> addListenSeconds(int seconds) async {
     final prefs = await SharedPreferences.getInstance();
     final current = prefs.getInt(_accumulatedListenSecondsKey) ?? 0;
     await prefs.setInt(_accumulatedListenSecondsKey, current + seconds);
-    changes.add(null);
   }
 
   /// Returns today's running day streak (defaults to 0 before any activity).
   /// Streak is advanced by [recordActivityDay]; reading is side-effect free.
   Future<int> getCurrentDayStreak() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getInt(_streakCurrentKey) ?? 0;
-    if (!Database.isInitialized) return saved;
-    final days = <int>{};
-    int day(DateTime value) =>
-        DateTime.utc(
-          value.year,
-          value.month,
-          value.day,
-        ).millisecondsSinceEpoch ~/
-        Duration.millisecondsPerDay;
-    for (final row
-        in await Database.instance.playEventEntitys.where().findAll()) {
-      days.add(day(DateTime.fromMillisecondsSinceEpoch(row.playedAt)));
-    }
-    for (final row in await Database.recentlyPlayed.where().findAll())
-      days.add(day(row.playedAt));
-    final last = int.tryParse(prefs.getString(_streakLastActiveDayKey) ?? '');
-    if (last != null) {
-      final lastDay = day(
-        DateTime(last ~/ 10000, last ~/ 100 % 100, last % 100),
-      );
-      for (var i = 0; i < saved; i++) days.add(lastDay - i);
-    }
-    var cursor = day(DateTime.now());
-    if (!days.contains(cursor)) cursor--;
-    var streak = 0;
-    while (days.contains(cursor--)) streak++;
-    return streak;
+    return prefs.getInt(_streakCurrentKey) ?? 0;
   }
 
   /// Records that the user was active "today". Idempotent within a day: same
@@ -451,18 +376,7 @@ class MilestoneService {
     if (lastKey == null) {
       next = 1;
     } else {
-      final previous = int.parse(lastKey);
-      final lastDay = DateTime.utc(
-        previous ~/ 10000,
-        previous ~/ 100 % 100,
-        previous % 100,
-      );
-      final now = DateTime.now();
-      final diff = DateTime.utc(
-        now.year,
-        now.month,
-        now.day,
-      ).difference(lastDay).inDays;
+      final diff = today - int.parse(lastKey);
       if (diff <= 0) {
         next = current == 0 ? 1 : current;
       } else if (diff == 1) {
@@ -530,32 +444,9 @@ class MilestoneService {
   Future<void> markMilestoneShown(MilestoneType type) async {
     final prefs = await SharedPreferences.getInstance();
     final shown = await getShownMilestones();
-    if (shown.any((record) => record.type == type)) return;
     shown.add(MilestoneRecord(type: type, achievedAt: DateTime.now()));
     final raw = jsonEncode(shown.map((r) => r.toJson()).toList());
     await prefs.setString(_shownMilestonesKey, raw);
-    changes.add(null);
-  }
-
-  /// Reconcile all reached tiers once after a merge, without replaying a
-  /// celebration for every historic tier or re-awarding them on the next sync.
-  Future<void> reconcileMergedHistory() async {
-    final values = await _currentValues();
-    final shown = await getShownMilestones();
-    final known = shown.map((record) => record.type).toSet();
-    final prefs = await SharedPreferences.getInstance();
-    for (final type in MilestoneType.values) {
-      if (type.category == MilestoneCategory.dayStreak &&
-          prefs.getBool('streaks_enabled') == false)
-        continue;
-      if (!known.contains(type) && values[type.category]! >= type.threshold) {
-        shown.add(MilestoneRecord(type: type, achievedAt: DateTime.now()));
-      }
-    }
-    await prefs.setString(
-      _shownMilestonesKey,
-      jsonEncode(shown.map((record) => record.toJson()).toList()),
-    );
     changes.add(null);
   }
 

@@ -624,8 +624,7 @@ class _KonnektedDiscoveryViewState
           loading: snapshot.isLoading,
           source: KonnektedDiscoverySource.spotify,
           onSourceChanged: (next) {
-            HapticFeedback.selectionClick();
-            ref.read(konnektedDiscoveryProvider.notifier).setSource(next);
+            unawaited(_selectDiscoverySource(next));
           },
           onRefresh: () {
             HapticFeedback.selectionClick();

@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// An online source that stays off until the user turns it on in
-/// Settings › Online sources (AGENTS.md: new online services are opt-in).
-/// Persisted in SharedPreferences under [key]; `false` until loaded.
+/// Preference-backed switches for optional online sources. Radio and videos
+/// pass [alwaysEnabled] because their user-facing opt-in controls were removed.
 class OptInSourceNotifier extends Notifier<bool> {
   OptInSourceNotifier(this.key, {this.alwaysEnabled = false});
 
@@ -33,7 +32,7 @@ class OptInSourceNotifier extends Notifier<bool> {
   }
 }
 
-/// Internet radio stations (the station list is fetched only when on).
+/// Internet radio stations; the station list is fetched when used.
 final internetRadioEnabledProvider =
     NotifierProvider<OptInSourceNotifier, bool>(
       () => OptInSourceNotifier(

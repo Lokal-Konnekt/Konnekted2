@@ -31,6 +31,10 @@ class _FakePlayer extends Fake implements PlayerService {
   @override
   Future<void> setWrapAroundQueue(bool value) async =>
       wrapAroundQueueNotifier.value = value;
+
+  @override
+  Future<void> setAutoplayOnQueueEnd(bool value) async =>
+      autoplayOnQueueEndNotifier.value = value;
 }
 
 Widget _app(Widget home, {PlayerService? player}) => ProviderScope(
@@ -110,9 +114,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Wrap around'));
+    await tester.tap(find.text('Autoplay'));
     await tester.pumpAndSettle();
-    expect(player.wrapAroundQueueNotifier.value, isFalse);
+    expect(player.autoplayOnQueueEndNotifier.value, isTrue);
     expect(tester.takeException(), isNull);
   });
 

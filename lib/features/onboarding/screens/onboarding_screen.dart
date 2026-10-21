@@ -14,7 +14,6 @@ import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/providers/onboarding_provider.dart';
-import 'package:flick/providers/tutorial_provider.dart';
 import 'package:flick/services/permission_service.dart';
 import 'package:flick/widgets/lokal/lokal_logo.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
@@ -84,7 +83,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       debugPrint('Notification permission request failed: $e');
     }
     if (!mounted) return;
-    ref.read(tutorialProvider.notifier).flagAutoStart();
     await ref.read(onboardingCompletedProvider.notifier).complete();
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
@@ -92,7 +90,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _skipAll() {
-    ref.read(tutorialProvider.notifier).flagAutoStart();
     unawaited(ref.read(onboardingCompletedProvider.notifier).complete());
     if (Navigator.of(context).canPop()) Navigator.of(context).pop();
   }

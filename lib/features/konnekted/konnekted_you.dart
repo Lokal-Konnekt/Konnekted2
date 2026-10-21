@@ -252,7 +252,7 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
               ),
               LokalSettingLink(
                 label: 'Help',
-                description: 'Every control, explained, and a guided tour.',
+                description: 'Every control, explained.',
                 icon: Icons.help_outline_rounded,
                 onTap: () => navigate(
                   const KonnektedDestination.settingsAt(

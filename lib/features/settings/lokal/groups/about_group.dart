@@ -15,7 +15,6 @@ import 'package:flick/features/settings/screens/logs_screen.dart';
 import 'package:flick/features/settings/screens/privacy_policy_screen.dart';
 import 'package:flick/features/whats_new/widgets/whats_new_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
-import 'package:flick/providers/tutorial_provider.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 void _push(BuildContext context, Widget page) => unawaited(
@@ -94,14 +93,6 @@ List<LokalSettingsSection> aboutSettings(BuildContext context, WidgetRef ref) {
           label: 'Help',
           description: 'Every control, explained.',
           onTap: () => _push(context, const ManualScreen()),
-        ),
-        LokalSettingLink(
-          label: 'Interactive tutorial',
-          description: 'A step-by-step tour of the app.',
-          onTap: () {
-            ref.read(tutorialProvider.notifier).start();
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          },
         ),
       ],
     ),

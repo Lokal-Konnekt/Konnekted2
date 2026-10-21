@@ -1,3 +1,4 @@
+import '../services/link/library_sync_notification.dart';
 import '../data/database.dart';
 import '../services/album_art_service.dart';
 import '../services/link/link_download_outbox.dart';
@@ -76,6 +77,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   String? _notificationArtwork;
   LinkSyncCoordinator? _linkSync;
   final _downloadOutbox = LinkDownloadOutbox();
+  final _syncNotification = LibrarySyncNotification();
   bool _socketWanted = false, _openingSocket = false, _receivingTheme = false;
   DateTime _lastLibrarySyncAt = DateTime.fromMillisecondsSinceEpoch(0);
   Map<String, dynamic>? _desktopState;
@@ -136,6 +138,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       if (!_receivingTheme && link.connected) unawaited(_sendTheme(appearance));
     });
     ref.onDispose(() {
+      _syncNotification.dispose();
       _disposed = true;
       if (identical(FavoritesService.remoteDelegate, this))
         FavoritesService.remoteDelegate = null;
@@ -222,6 +225,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   void disconnect() {
+    _syncNotification.pause();
     _socketWanted = false;
     _syncDebounce?.cancel();
     _notificationArtworkKey = null;
@@ -385,6 +389,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       throw const LokalRemoteNetworkException(
         'Connect to the paired desktop first.',
       );
+    _syncNotification.begin(deviceName: state.desktopName);
     await sync.enableMerge();
     _lastActivity = DateTime.now();
   }
@@ -510,12 +515,21 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
               generation == _generation &&
               identical(_linkSync, coordinator)) {
             state = state.copyWith(syncProgress: progress, mergeApproved: true);
+            _syncNotification.update(progress, deviceName: state.desktopName);
           }
         },
         onChanged: () {
-          if (!_disposed) {
+          if (!_disposed &&
+              generation == _generation &&
+              identical(_linkSync, coordinator)) {
             ref.invalidate(favoritesProvider);
             ref.invalidate(playlistsProvider);
+          }
+        },
+        onProfileChanged: () {
+          if (!_disposed &&
+              generation == _generation &&
+              identical(_linkSync, coordinator)) {
             ref.invalidate(linkedDesktopProfileProvider);
           }
         },
@@ -574,6 +588,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       status: LokalRemoteConnectionStatus.offline,
     );
     _failures++;
+    _syncNotification.pause();
     _linkTimer?.cancel();
     _pollTimer?.cancel();
     _pollTimer = Timer(_nextDelay(), () => unawaited(_connectSocket()));

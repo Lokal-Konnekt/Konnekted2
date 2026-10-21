@@ -89,10 +89,10 @@ final class KonnektedDestination {
       Object.hash(name, settingsGroup, settingsSection, aboutDataOnly);
 
   @override
-  String toString() => aboutDataOnly
-      ? 'KonnektedDestination.aboutDataSettings()'
-      : settingsGroup == null
-      ? 'KonnektedDestination.$name'
-      : 'KonnektedDestination.settingsAt(${settingsGroup!.name}'
-            '${settingsSection == null ? '' : ', $settingsSection'})';
+  String toString() {
+    if (aboutDataOnly) return 'KonnektedDestination.aboutDataSettings()';
+    if (settingsGroup == null) return 'KonnektedDestination.$name';
+    return 'KonnektedDestination.settingsAt(${settingsGroup!.name}'
+        '${settingsSection == null ? '' : ', $settingsSection'})';
+  }
 }

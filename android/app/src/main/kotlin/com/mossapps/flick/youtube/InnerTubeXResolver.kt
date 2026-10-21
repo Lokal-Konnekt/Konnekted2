@@ -308,7 +308,7 @@ object InnerTubeXResolver {
                             val sample = Buffer()
                             val read = response.body!!.source().read(sample, 16_384L)
                             val prefix = sample.clone()
-                                .readUtf8(minOf(sample.size, 96L).toInt())
+                                .readUtf8(minOf(sample.size, 96L))
                                 .trimStart().lowercase()
                             when {
                                 read <= 0L -> "YouTube media request returned no audio bytes."

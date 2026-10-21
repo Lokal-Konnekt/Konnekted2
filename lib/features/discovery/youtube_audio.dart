@@ -244,7 +244,7 @@ class YoutubeAudio {
         }),
       );
     }
-    final request = http.AbortableRequest(
+    final request = net.AbortableRequest(
       'GET',
       audio.url,
       abortTrigger: abort.future,
@@ -269,7 +269,7 @@ class YoutubeAudio {
       });
       final response = await Future.any([
         pending,
-        abort.future.then<http.StreamedResponse>(
+        abort.future.then<net.StreamedResponse>(
           (_) => throw const DiscoveryException('Request cancelled.'),
         ),
       ]);

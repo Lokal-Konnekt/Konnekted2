@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flick/features/konnekted/konnekted_data.dart';
@@ -54,11 +56,11 @@ final lokalRecentlyPlayedProvider = StreamProvider.autoDispose<List<Song>>((
 /// The Library page for a destination name, or null when it isn't one.
 Widget? lokalLibraryPage(String name) => switch (name) {
   'songs' => LokalSongListPage(
-    title: 'Songs',
+    title: lokalText('Songs'),
     source: (ref) => ref.watch(konnektedLibraryProvider),
   ),
   'favorites' => LokalSongListPage(
-    title: 'Liked',
+    title: lokalText('Liked'),
     source: (ref) => ref.watch(konnektedFavoritesProvider),
     initialSort: LokalSongSort.original,
     originalLabel: 'Recently liked',
@@ -67,14 +69,14 @@ Widget? lokalLibraryPage(String name) => switch (name) {
     emptyMessage: 'Tap the heart on any song and it shows up here.',
   ),
   'downloads' => LokalSongListPage(
-    title: 'Downloads',
+    title: lokalText('Downloads'),
     source: (ref) => ref.watch(lokalDownloadsProvider),
     emptyIcon: Icons.download_rounded,
     emptyTitle: 'No downloads yet',
     emptyMessage: 'Songs you download from Search go to the Lokal Downloads folder and show up here.',
   ),
   'recentlyPlayed' => LokalSongListPage(
-    title: 'Recently played',
+    title: lokalText('Recently played'),
     source: (ref) => ref.watch(lokalRecentlyPlayedProvider),
     initialSort: LokalSongSort.original,
     originalLabel: 'Most recent',
@@ -83,7 +85,7 @@ Widget? lokalLibraryPage(String name) => switch (name) {
     emptyMessage: 'Songs you play show up here.',
   ),
   'recentlyAdded' => LokalSongListPage(
-    title: 'Recently added',
+    title: lokalText('Recently added'),
     source: (ref) => ref.watch(konnektedLibraryProvider),
   ),
   'albums' => const LokalAlbumsPage(),

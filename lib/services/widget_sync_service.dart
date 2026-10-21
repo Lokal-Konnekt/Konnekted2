@@ -7,22 +7,43 @@ import 'package:home_widget/home_widget.dart';
 import '../models/song.dart';
 import '../providers/player_provider.dart';
 import '../services/app_preferences_service.dart';
+
 import 'package:flick/core/utils/dev_log.dart';
 
 class WidgetSyncService {
   WidgetSyncService._();
   static final WidgetSyncService instance = WidgetSyncService._();
 
+  int? _lastLokalAccent;
+
+  /// App accent is stored separately so explicit per-widget overrides survive.
+  Future<void> setLokalAccent(int color) async {
+    if (!Platform.isAndroid || _lastLokalAccent == color) return;
+    _lastLokalAccent = color;
+    try {
+      await _ensureInit();
+      await HomeWidget.saveWidgetData<int>('lokal_widget_accent_argb', color);
+      await _updateAll();
+    } catch (_) {
+      _lastLokalAccent = null;
+    }
+  }
+
   static const String _appGroup = 'group.com.mossapps.flick.widgets';
 
-  static const String miniPlayerProvider = 'com.mossapps.flick.widgets.MiniPlayerWidgetProvider';
-  static const String flagshipProvider = 'com.mossapps.flick.widgets.FlagshipWidgetProvider';
-  static const String compactProvider = 'com.mossapps.flick.widgets.CompactWidgetProvider';
+  static const String miniPlayerProvider =
+      'com.mossapps.flick.widgets.MiniPlayerWidgetProvider';
+  static const String flagshipProvider =
+      'com.mossapps.flick.widgets.FlagshipWidgetProvider';
+  static const String compactProvider =
+      'com.mossapps.flick.widgets.CompactWidgetProvider';
 
   static const String keyFlagshipAccent = 'flick_widget_flagship_accent';
-  static const String keyFlagshipShowArtist = 'flick_widget_flagship_show_artist';
+  static const String keyFlagshipShowArtist =
+      'flick_widget_flagship_show_artist';
   static const String keyCompactBgOpacity = 'flick_widget_compact_bg_opacity';
-  static const String keyCompactShowAlbumArt = 'flick_widget_compact_show_album_art';
+  static const String keyCompactShowAlbumArt =
+      'flick_widget_compact_show_album_art';
   static const String keyCompactShowArtist = 'flick_widget_compact_show_artist';
   static const String keyCompactAccent = 'flick_widget_compact_accent';
   static const String keyMiniTextScale = 'flick_widget_text_scale';
@@ -107,10 +128,7 @@ class WidgetSyncService {
         keyLoopMode,
         _loopModeToInt(state.loopMode),
       );
-      await HomeWidget.saveWidgetData<int>(
-        keyQueueCount,
-        state.upNext.length,
-      );
+      await HomeWidget.saveWidgetData<int>(keyQueueCount, state.upNext.length);
 
       await _updateAll();
 

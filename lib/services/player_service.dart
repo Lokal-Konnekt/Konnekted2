@@ -1,6 +1,9 @@
+import 'link/link_journal.dart';
+
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -502,7 +505,24 @@ class PlayerService {
   static const Duration _queueDebounce = Duration(milliseconds: 150);
   final RecentlyPlayedRepository _recentlyPlayedRepository =
       RecentlyPlayedRepository();
-  final ReplayPlayTracker _replayPlayTracker = ReplayPlayTracker();
+  late final ReplayPlayTracker _replayPlayTracker = ReplayPlayTracker(
+    onCompleted: (event) {
+      unawaited(() async {
+        await _recentlyPlayedRepository.recordPlay(
+          event.songId,
+          eventId: event.eventId,
+          playedAt: event.playedAt,
+          listenedMs: event.msPlayed,
+        );
+        await LinkJournal.instance.recordPlay(
+          eventId: event.eventId,
+          songId: event.songId,
+          playedAt: event.playedAt.millisecondsSinceEpoch,
+          msPlayed: event.msPlayed,
+        );
+      }());
+    },
+  );
   static const MethodChannel _storageChannel = MethodChannel(
     'com.mossapps.flick/storage',
   );
@@ -519,6 +539,7 @@ class PlayerService {
   final ValueNotifier<bool> bitPerfectProcessingLockedNotifier = ValueNotifier(
     false,
   );
+
   /// True while motion art must not start ExoPlayer: on direct/exclusive
   /// bit-perfect paths a second audio client can preempt the native stream.
   final ValueNotifier<bool> motionArtSuppressedNotifier = ValueNotifier(false);
@@ -579,8 +600,9 @@ class PlayerService {
   /// on the system tier.
   ReplayGainAppliedState _replayGainState = ReplayGainAppliedState.neutral;
 
-  final ValueNotifier<bool> extendedVolumeEnabledNotifier =
-      ValueNotifier<bool>(false);
+  final ValueNotifier<bool> extendedVolumeEnabledNotifier = ValueNotifier<bool>(
+    false,
+  );
 
   /// Lie-detector: set when a DAC that claimed hardware volume rejects
   /// writes or fails the GET_CUR health check.
@@ -1892,8 +1914,8 @@ class PlayerService {
         enabled: Uac2PreferencesService.is432HzTuningEnabledSync,
       );
 
-      _extendedVolumeEnabled =
-          await _appPreferencesService.getExtendedVolumeEnabled();
+      _extendedVolumeEnabled = await _appPreferencesService
+          .getExtendedVolumeEnabled();
       extendedVolumeEnabledNotifier.value = _extendedVolumeEnabled;
 
       final engineType = _sessionManager.selectedMode;
@@ -2330,7 +2352,9 @@ class PlayerService {
 
   void _updatePriorityAnchor() {
     final shouldAnchor =
-        _isAnchorEligiblePath && _priorityAnchorEnabled && isPlayingNotifier.value;
+        _isAnchorEligiblePath &&
+        _priorityAnchorEnabled &&
+        isPlayingNotifier.value;
     if (shouldAnchor && !_priorityAnchorActive) {
       _uac2Service.startPriorityAnchor();
       _priorityAnchorActive = true;
@@ -2341,7 +2365,8 @@ class PlayerService {
   }
 
   Future<void> _loadPriorityAnchorPreference() async {
-    _priorityAnchorEnabled = await _appPreferencesService.getPriorityAnchorEnabled();
+    _priorityAnchorEnabled = await _appPreferencesService
+        .getPriorityAnchorEnabled();
     _updatePriorityAnchor();
   }
 
@@ -2387,13 +2412,18 @@ class PlayerService {
           currentEngineType == AudioEngineType.dapInternalHighRes);
 
   String? get _currentUsbDsdMode =>
-      _activeUsbDsdSongId == currentSongNotifier.value?.id ? _activeUsbDsdMode : null;
+      _activeUsbDsdSongId == currentSongNotifier.value?.id
+      ? _activeUsbDsdMode
+      : null;
 
-  bool get _usbDsdWireActive => _isDirectUsbPath &&
-      (_currentUsbDsdMode == 'dop' || _currentUsbDsdMode == 'native' ||
+  bool get _usbDsdWireActive =>
+      _isDirectUsbPath &&
+      (_currentUsbDsdMode == 'dop' ||
+          _currentUsbDsdMode == 'native' ||
           (_currentUsbDsdMode == null &&
               currentSongNotifier.value?.isDsd == true &&
-              Uac2PreferencesService.dsdOutputModeSync != DsdOutputMode.forcePcm));
+              Uac2PreferencesService.dsdOutputModeSync !=
+                  DsdOutputMode.forcePcm));
 
   /// Whether the user can change volume right now. False in bit-perfect
   /// passthrough when the DAC has no hardware (UAC2 Feature Unit) volume —
@@ -2586,7 +2616,8 @@ class PlayerService {
     final enginePassthroughAllowed =
         engineState?['passthrough_allowed'] == true ||
         engineState?['passthroughAllowed'] == true;
-    final directUsbActive = usesRustDiagnostics &&
+    final directUsbActive =
+        usesRustDiagnostics &&
         (engineState?['direct_usb_active'] == true ||
             engineState?['directUsbActive'] == true);
     final dsdEffectiveMode = _stringValue(
@@ -2667,8 +2698,10 @@ class PlayerService {
         (pathManagement == AudioPathManagement.directUsbExperimental
             ? directUsbConfiguredSampleRate
             : engineConfiguredSampleRate ?? trackFormat?.sampleRate);
-    final reportedOutputSampleRate = !usesRustDiagnostics ? null
-        : directUsbActive ? directUsbClockReportedSampleRate
+    final reportedOutputSampleRate = !usesRustDiagnostics
+        ? null
+        : directUsbActive
+        ? directUsbClockReportedSampleRate
         : engineActualSampleRate ?? engineConfiguredSampleRate;
     final resamplerActive =
         (usesRustDiagnostics && engineResamplerActive) ||
@@ -2676,15 +2709,15 @@ class PlayerService {
             usesRustDiagnostics &&
             reportedOutputSampleRate != null &&
             requestedOutputSampleRate != reportedOutputSampleRate);
-    final passthroughAllowed =
-        usesRustDiagnostics &&
-        enginePassthroughAllowed;
+    final passthroughAllowed = usesRustDiagnostics && enginePassthroughAllowed;
     // These checks describe the active configuration, clock and framing.
     // They are not an independent byte-for-byte comparison against the source.
-    final effectiveBitPerfect =
-        directUsbActive
-        ? (directUsbBitPerfectVerified && passthroughAllowed &&
-            directUsbClockVerificationPassed && usbStreamStable && !resamplerActive)
+    final effectiveBitPerfect = directUsbActive
+        ? (directUsbBitPerfectVerified &&
+              passthroughAllowed &&
+              directUsbClockVerificationPassed &&
+              usbStreamStable &&
+              !resamplerActive)
         : (usesRustDiagnostics && passthroughAllowed && !resamplerActive);
     final verificationReason =
         (!usesRustDiagnostics ? null : engineVerificationReason) ??
@@ -2751,7 +2784,8 @@ class PlayerService {
             'usb_dsd_native' when effectiveBitPerfect =>
               'USB DSD native (clock/framing checked)',
             'usb_dsd_native' => 'USB DSD native',
-            'usb_direct' when effectiveBitPerfect => 'USB direct (clock/payload checked)',
+            'usb_direct' when effectiveBitPerfect =>
+              'USB direct (clock/payload checked)',
             'usb_direct' => 'USB direct',
             'dsd_native' when passthroughAllowed => 'Verified DSD native',
             'dsd_native' => 'DSD native',
@@ -2781,8 +2815,10 @@ class PlayerService {
     final effectiveRateVerified =
         pathManagement == AudioPathManagement.directUsbExperimental
         ? directUsbClockVerificationPassed
-        : usesRustDiagnostics && engineRequestedSampleRate != null &&
-            engineRequestedSampleRate == engineActualSampleRate && !resamplerActive;
+        : usesRustDiagnostics &&
+              engineRequestedSampleRate != null &&
+              engineRequestedSampleRate == engineActualSampleRate &&
+              !resamplerActive;
 
     final capabilityFlags = AudioCapabilityFlags(
       supportsExclusiveUsbOwnership:
@@ -2905,7 +2941,9 @@ class PlayerService {
 
     _activeUsbDsdMode = directUsbActive ? dsdEffectiveMode : null;
     _activeUsbDsdSongId = directUsbActive ? song?.id : null;
-    final hardwareGeneration = _intValue(directUsbState?['hardware_volume_generation']);
+    final hardwareGeneration = _intValue(
+      directUsbState?['hardware_volume_generation'],
+    );
     if (hardwareGeneration != _hardwareVolumeGeneration) {
       _hardwareVolumeGeneration = hardwareGeneration;
       _hwVolumeFailed = false;
@@ -3114,7 +3152,14 @@ class PlayerService {
       position: position,
     );
     if (counted && _shouldPersistSong(song)) {
-      unawaited(_recentlyPlayedRepository.recordPlay(song.id));
+      unawaited(
+        _recentlyPlayedRepository.recordPlay(
+          song.id,
+          eventId: _replayPlayTracker.eventId,
+          playedAt: _replayPlayTracker.startedAt,
+          listenedMs: _replayPlayTracker.listenedMs,
+        ),
+      );
       unawaited(_trackMilestones(song));
     }
   }
@@ -3849,8 +3894,7 @@ class PlayerService {
         defaultTargetPlatform == TargetPlatform.android &&
         parsed?.scheme == 'content';
 
-    final needsWavWork = isAndroidContentUri ||
-        _shouldConvertToWav(song);
+    final needsWavWork = isAndroidContentUri || _shouldConvertToWav(song);
     if (needsWavWork) {
       final normalizedType = _playbackFileType(song);
       _debugLog(
@@ -4364,7 +4408,8 @@ class PlayerService {
 
     // The engine can remain in passthrough after bit-perfect is disabled.
     // Select DSP before sending software volume so the callback applies it.
-    final convertedUsbDsd = playbackMode == AudioEngineType.usbDacExperimental &&
+    final convertedUsbDsd =
+        playbackMode == AudioEngineType.usbDacExperimental &&
         currentSongNotifier.value?.isDsd == true &&
         Uac2PreferencesService.dsdOutputModeSync == DsdOutputMode.forcePcm;
     if (!isBitPerfectModeEnabled || convertedUsbDsd) {
@@ -4376,8 +4421,9 @@ class PlayerService {
         enabled: false,
         durationSecs: _rustAudioService.crossfadeDurationNotifier.value,
       );
-      if (!convertedUsbDsd && (playbackMode == AudioEngineType.usbDacExperimental ||
-          playbackMode == AudioEngineType.dapInternalHighRes)) {
+      if (!convertedUsbDsd &&
+          (playbackMode == AudioEngineType.usbDacExperimental ||
+              playbackMode == AudioEngineType.dapInternalHighRes)) {
         await _rustAudioService.setPipelineModePassthrough(true);
       }
       await _reconcileVolumeForTier(_determineCurrentTier());
@@ -4879,16 +4925,11 @@ class PlayerService {
       '${currentEngineType.logLabel}',
     );
     unawaited(
-      _enqueuePlaybackRequest(
-        () => _rerouteTrackToRustDecoder(song, position),
-      ),
+      _enqueuePlaybackRequest(() => _rerouteTrackToRustDecoder(song, position)),
     );
   }
 
-  Future<void> _rerouteTrackToRustDecoder(
-    Song song,
-    Duration position,
-  ) async {
+  Future<void> _rerouteTrackToRustDecoder(Song song, Duration position) async {
     try {
       await initAudio();
       final activeEngine = await _ensureEngineReady(
@@ -4917,9 +4958,7 @@ class PlayerService {
         activeSong: song,
       );
     } catch (e) {
-      _debugLog(
-        '[Engine] Rust decoder reroute failed for ${song.title}: $e',
-      );
+      _debugLog('[Engine] Rust decoder reroute failed for ${song.title}: $e');
     }
   }
 
@@ -5141,8 +5180,9 @@ class PlayerService {
     // HTTP-first: try a direct ranged stream, fall back to cache-then-play.
     if (nextSong.isNetworkSource) {
       try {
-        final http = await RemoteSourceService.instance
-            .resolveHttpPlayback(nextSong);
+        final http = await RemoteSourceService.instance.resolveHttpPlayback(
+          nextSong,
+        );
         if (http != null) {
           await _rustAudioService.setReplayGainDefault(
             await _computeReplayGainDbFor(nextSong),
@@ -5849,7 +5889,8 @@ class PlayerService {
     // Random shuffle: next is non-deterministic; approximate with linear next
     // so the user still sees a peek. Visual mismatch is preferable to no peek.
     if (shuffle == ShuffleMode.random) {
-      if (_currentIndex < _playlist.length - 1) return _playlist[_currentIndex + 1];
+      if (_currentIndex < _playlist.length - 1)
+        return _playlist[_currentIndex + 1];
       if (loopModeNotifier.value == LoopMode.all) return _playlist.first;
       return null;
     }
@@ -5857,10 +5898,12 @@ class PlayerService {
     // peek returns linear next; commit will resolve via real _nextInternal.
     if (shuffle == ShuffleMode.categories ||
         shuffle == ShuffleMode.songsAndCategories) {
-      if (_currentIndex < _playlist.length - 1) return _playlist[_currentIndex + 1];
+      if (_currentIndex < _playlist.length - 1)
+        return _playlist[_currentIndex + 1];
       return null;
     }
-    if (_currentIndex < _playlist.length - 1) return _playlist[_currentIndex + 1];
+    if (_currentIndex < _playlist.length - 1)
+      return _playlist[_currentIndex + 1];
     if (loopModeNotifier.value == LoopMode.all) return _playlist.first;
     if (loopModeNotifier.value.isAdvanceMode) return null; // async advance
     return null;
@@ -6075,7 +6118,8 @@ class PlayerService {
   Future<void> setVolume(double volume) async {
     if (!volume.isFinite || _switchingDsdForVolume) return;
     final tier = _determineCurrentTier();
-    final tierSupportsBoost = _extendedVolumeEnabled &&
+    final tierSupportsBoost =
+        _extendedVolumeEnabled &&
         (tier == VolumeTier.software || tier == VolumeTier.system);
     final maxForTier = tierSupportsBoost ? 2.0 : 1.0;
     final clampedVolume = volume.clamp(0.0, maxForTier).toDouble();
@@ -6094,7 +6138,8 @@ class PlayerService {
         _debugLog('[VolFlow] DSD HW path: uac2 setVolume($clampedVolume)');
         final hwOk = await _uac2Service.setVolume(clampedVolume);
         if (hwOk) {
-          _currentVolume = _uac2Service.currentDeviceStatus?.volume ?? _currentVolume;
+          _currentVolume =
+              _uac2Service.currentDeviceStatus?.volume ?? _currentVolume;
         }
         _onHwVolumeResult(hwOk);
       } else if (Uac2PreferencesService.autoSwitchDsdForVolumeSync &&
@@ -6117,7 +6162,8 @@ class PlayerService {
         _debugLog('[VolFlow] HW path: uac2 setVolume($clampedVolume)');
         final hwOk = await _uac2Service.setVolume(clampedVolume);
         if (hwOk) {
-          _currentVolume = _uac2Service.currentDeviceStatus?.volume ?? _currentVolume;
+          _currentVolume =
+              _uac2Service.currentDeviceStatus?.volume ?? _currentVolume;
         }
         _onHwVolumeResult(hwOk);
         if (!hwOk && !_isPassthroughActive && _usingRustBackend) {
@@ -6177,12 +6223,13 @@ class PlayerService {
     final mode = await _appPreferencesService.getReplayGainMode();
     if (mode == ReplayGainMode.off) return 0.0;
     final preampDb = await _appPreferencesService.getReplayGainPreampDb();
-    final preventClipping =
-        await _appPreferencesService.getReplayGainPreventClipping();
+    final preventClipping = await _appPreferencesService
+        .getReplayGainPreventClipping();
     final effectiveMode = effectiveReplayGainModeForSong(
       mode: mode,
       song: song,
-      albumContext: _playbackContext.source == PlaybackSource.album &&
+      albumContext:
+          _playbackContext.source == PlaybackSource.album &&
           (_playbackContext.sourceName?.trim().toLowerCase() ?? '') ==
               (song.album?.trim().toLowerCase() ?? ''),
       queue: playlist,
@@ -6209,8 +6256,8 @@ class PlayerService {
       _replayGainState = ReplayGainAppliedState.neutral;
     } else {
       final preampDb = await _appPreferencesService.getReplayGainPreampDb();
-      final preventClipping =
-          await _appPreferencesService.getReplayGainPreventClipping();
+      final preventClipping = await _appPreferencesService
+          .getReplayGainPreventClipping();
       _replayGainState = ReplayGainAppliedState(
         mode: mode,
         gainDb: computeReplayGainDbForSong(
@@ -6218,7 +6265,8 @@ class PlayerService {
           mode: effectiveReplayGainModeForSong(
             mode: mode,
             song: song,
-            albumContext: _playbackContext.source == PlaybackSource.album &&
+            albumContext:
+                _playbackContext.source == PlaybackSource.album &&
                 (_playbackContext.sourceName?.trim().toLowerCase() ?? '') ==
                     (song.album?.trim().toLowerCase() ?? ''),
             queue: playlist,
@@ -6228,7 +6276,9 @@ class PlayerService {
         ),
       );
     }
-    if (pushSpawnDefault && _usingRustBackend && _rustAudioService.isInitialized) {
+    if (pushSpawnDefault &&
+        _usingRustBackend &&
+        _rustAudioService.isInitialized) {
       try {
         await _rustAudioService.setReplayGainDefault(_replayGainState.gainDb);
       } catch (e) {
@@ -6257,8 +6307,8 @@ class PlayerService {
   /// Re-apply ReplayGain to the current track after the user changes the
   /// settings (mode / pre-amp / clipping prevention).
   Future<void> applyReplayGainFromSettings() async {
-    final song = currentSongNotifier.value ??
-        _playbackManager.latestState?.currentTrack;
+    final song =
+        currentSongNotifier.value ?? _playbackManager.latestState?.currentTrack;
     await _refreshReplayGainForSong(song);
     if (_usingRustBackend && _rustAudioService.isInitialized) {
       try {
@@ -6293,10 +6343,14 @@ class PlayerService {
       await _rustAudioService.setVolume(volume);
       await _rustAudioService.play(path);
       if (!wasPlaying) await _rustAudioService.pause();
-      await _rustAudioService.seek(Duration(milliseconds: (posSecs * 1000).round()));
+      await _rustAudioService.seek(
+        Duration(milliseconds: (posSecs * 1000).round()),
+      );
       await _refreshAudioOutputDiagnostics(reason: 'DSD volume PCM conversion');
       if (_currentUsbDsdMode != 'pcm') {
-        throw StateError('DSD volume conversion did not activate direct USB PCM');
+        throw StateError(
+          'DSD volume conversion did not activate direct USB PCM',
+        );
       }
       _rememberSoftwareVolume(volume);
       _debugLog('[VolFlow] DSD → PCM transport and decoder reconfigured');
@@ -6304,22 +6358,30 @@ class PlayerService {
       // Fail stopped: never resume packed DSD through an uncertain format.
       await _rustAudioService.stop();
       await Uac2PreferencesService().setDsdOutputMode(previousMode);
-      rust_audio.audioSetDsdOutputMode(mode: switch (previousMode) {
-        DsdOutputMode.auto => 3,
-        DsdOutputMode.forcePcm => 0,
-        DsdOutputMode.forceDop => 1,
-        DsdOutputMode.native => 2,
-      });
+      rust_audio.audioSetDsdOutputMode(
+        mode: switch (previousMode) {
+          DsdOutputMode.auto => 3,
+          DsdOutputMode.forcePcm => 0,
+          DsdOutputMode.forceDop => 1,
+          DsdOutputMode.native => 2,
+        },
+      );
       await _rustAudioService.setVolume(1.0);
       _activeUsbDsdMode = null;
       _activeUsbDsdSongId = null;
-      await _syncUac2PlaybackStatus(currentSongNotifier.value, isPlaying: false);
+      await _syncUac2PlaybackStatus(
+        currentSongNotifier.value,
+        isPlaying: false,
+      );
       _debugLog('[VolFlow] DSD → PCM conversion refused: $error');
       rethrow;
     } finally {
       _switchingDsdForVolume = false;
     }
-    await _syncUac2PlaybackStatus(currentSongNotifier.value, isPlaying: wasPlaying);
+    await _syncUac2PlaybackStatus(
+      currentSongNotifier.value,
+      isPlaying: wasPlaying,
+    );
     await _reconcileVolumeForTier(_determineCurrentTier());
     unawaited(_queueNextTrackForGapless());
   }
@@ -6880,8 +6942,7 @@ class PlayerService {
       try {
         final allSongs = await _songRepository.getAllSongs();
         final currentId = currentSongNotifier.value?.id;
-        final candidates =
-            allSongs.where((s) => s.id != currentId).toList();
+        final candidates = allSongs.where((s) => s.id != currentId).toList();
         if (candidates.isNotEmpty) {
           final rng = math.Random();
           await _playInternal(

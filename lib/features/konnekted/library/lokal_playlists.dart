@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -37,13 +39,13 @@ Future<String?> _askName(
         controller: controller,
         autofocus: true,
         textCapitalization: TextCapitalization.sentences,
-        decoration: const InputDecoration(hintText: 'Playlist name'),
+        decoration: InputDecoration(hintText: lokalText('Playlist name')),
         onSubmitted: (value) => Navigator.pop(context, value),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(lokalText('Cancel')),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, controller.text),
@@ -61,7 +63,11 @@ void _say(BuildContext context, String message) {
 
 /// Asks for a name and creates a playlist.
 Future<void> lokalCreatePlaylist(BuildContext context, WidgetRef ref) async {
-  final name = await _askName(context, title: 'New playlist', action: 'Create');
+  final name = await _askName(
+    context,
+    title: lokalText('New playlist'),
+    action: 'Create',
+  );
   if (name == null || name.trim().isEmpty || !context.mounted) return;
   final playlist = await ref
       .read(playlistsProvider.notifier)
@@ -123,11 +129,13 @@ class LokalPlaylistsPage extends ConsumerWidget {
         ref.watch(networkServersProvider).value?.isNotEmpty ?? false;
     final playlists = state.value?.playlists;
     return LokalLibraryPage(
-      title: 'Playlists',
-      subtitle: playlists == null ? null : '${playlists.length} playlists',
+      title: lokalText('Playlists'),
+      subtitle: playlists == null
+          ? null
+          : lokalText("{arg0} playlists", args: {'arg0': playlists.length}),
       actions: [
         PopupMenuButton<String>(
-          tooltip: 'Add',
+          tooltip: lokalText('Add'),
           color: t.surface2,
           icon: Icon(Icons.add_rounded, color: t.text),
           onSelected: (value) => switch (value) {
@@ -137,12 +145,15 @@ class LokalPlaylistsPage extends ConsumerWidget {
             _ => null,
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'new', child: Text('New playlist')),
-            const PopupMenuItem(value: 'import', child: Text('Import M3U')),
+            PopupMenuItem(value: 'new', child: Text(lokalText('New playlist'))),
+            PopupMenuItem(
+              value: 'import',
+              child: Text(lokalText('Import M3U')),
+            ),
             if (hasServers)
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'sync',
-                child: Text('Sync server playlists'),
+                child: Text(lokalText('Sync server playlists')),
               ),
           ],
         ),
@@ -153,8 +164,8 @@ class LokalPlaylistsPage extends ConsumerWidget {
             child: state.hasError
                 ? LokalEmptyState(
                     icon: Icons.error_outline_rounded,
-                    title: 'Couldn’t load your playlists',
-                    message: 'Try again in a moment.',
+                    title: lokalText('Couldn’t load your playlists'),
+                    message: lokalText('Try again in a moment.'),
                     actionLabel: 'Try again',
                     onAction: () => ref.invalidate(playlistsProvider),
                   )
@@ -185,7 +196,7 @@ class LokalPlaylistsPage extends ConsumerWidget {
                     ),
                     const SizedBox(width: 14),
                     Text(
-                      'New playlist…',
+                      lokalText('New playlist…'),
                       style: TextStyle(fontSize: 16, color: t.accent),
                     ),
                   ],
@@ -233,7 +244,14 @@ class LokalPlaylistsPage extends ConsumerWidget {
                             ),
                             Text(
                               playlist.isNetworkSource
-                                  ? '${lokalSongCount(playlist.songIds.length)} · server'
+                                  ? lokalText(
+                                      "{arg0} · server",
+                                      args: {
+                                        'arg0': lokalSongCount(
+                                          playlist.songIds.length,
+                                        ),
+                                      },
+                                    )
                                   : lokalSongCount(playlist.songIds.length),
                               style: TextStyle(fontSize: 13, color: t.muted),
                             ),
@@ -262,7 +280,7 @@ class LokalPlaylistPage extends ConsumerWidget {
   Future<void> _rename(BuildContext context, WidgetRef ref, Playlist p) async {
     final name = await _askName(
       context,
-      title: 'Rename playlist',
+      title: lokalText('Rename playlist'),
       action: 'Rename',
       initial: p.name,
     );
@@ -278,16 +296,19 @@ class LokalPlaylistPage extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: context.lokal.surface2,
-        title: Text('Delete “${p.name}”?'),
-        content: const Text('The songs stay in your library.'),
+        title: Text(lokalText("Delete “{arg0}”?", args: {'arg0': p.name})),
+        content: Text(lokalText('The songs stay in your library.')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(lokalText('Cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete', style: TextStyle(color: context.lokal.red)),
+            child: Text(
+              lokalText('Delete'),
+              style: TextStyle(color: context.lokal.red),
+            ),
           ),
         ],
       ),
@@ -319,8 +340,8 @@ class LokalPlaylistPage extends ConsumerWidget {
     final playlist = ref.watch(playlistProvider(playlistId));
     final library = ref.watch(konnektedLibraryProvider).value ?? const <Song>[];
     if (playlist == null) {
-      return const LokalLibraryPage(
-        title: 'Playlist',
+      return LokalLibraryPage(
+        title: lokalText('Playlist'),
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
@@ -337,7 +358,7 @@ class LokalPlaylistPage extends ConsumerWidget {
       title: playlist.name,
       actions: [
         PopupMenuButton<String>(
-          tooltip: 'More',
+          tooltip: lokalText('More'),
           color: t.surface2,
           icon: Icon(Icons.more_horiz_rounded, color: t.text),
           onSelected: (value) => switch (value) {
@@ -351,18 +372,24 @@ class LokalPlaylistPage extends ConsumerWidget {
             _ => null,
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'queue', child: Text('Add to queue')),
+            PopupMenuItem(
+              value: 'queue',
+              child: Text(lokalText('Add to queue')),
+            ),
             if (!playlist.isNetworkSource && playlist.songIds.length > 1)
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'reorder',
-                child: Text('Reorder songs'),
+                child: Text(lokalText('Reorder songs')),
               ),
             if (!playlist.isNetworkSource)
-              const PopupMenuItem(value: 'rename', child: Text('Rename')),
-            const PopupMenuItem(value: 'export', child: Text('Export as M3U8')),
-            const PopupMenuItem(
+              PopupMenuItem(value: 'rename', child: Text(lokalText('Rename'))),
+            PopupMenuItem(
+              value: 'export',
+              child: Text(lokalText('Export as M3U8')),
+            ),
+            PopupMenuItem(
               value: 'delete',
-              child: Text('Delete playlist'),
+              child: Text(lokalText('Delete playlist')),
             ),
           ],
         ),
@@ -392,7 +419,13 @@ class LokalPlaylistPage extends ConsumerWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              '${lokalSongCount(songs.length)}, ${lokalRunningTime(songs)}',
+              lokalText(
+                "{arg0}, {arg1}",
+                args: {
+                  'arg0': lokalSongCount(songs.length),
+                  'arg1': lokalRunningTime(songs),
+                },
+              ),
               style: TextStyle(color: t.muted),
             ),
           ],
@@ -400,12 +433,13 @@ class LokalPlaylistPage extends ConsumerWidget {
       ),
       slivers: [
         if (songs.isEmpty)
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: LokalEmptyState(
               icon: Icons.queue_music_rounded,
-              title: 'No songs yet',
-              message:
-                  'Add songs from any song’s menu: More › Add to a playlist.',
+              title: lokalText('No songs yet'),
+              message: lokalText(
+                'Add songs from any song’s menu: More › Add to a playlist.',
+              ),
             ),
           )
         else
@@ -450,15 +484,15 @@ class _ReorderPage extends ConsumerWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).maybePop(),
-                  child: const Text('Done'),
+                  child: Text(lokalText('Done')),
                 ),
               ],
             ),
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: LokalLargeTitle(
-                title: 'Reorder',
-                subtitle: 'Drag to move',
+                title: lokalText('Reorder'),
+                subtitle: lokalText('Drag to move'),
               ),
             ),
             Expanded(
@@ -479,7 +513,7 @@ class _ReorderPage extends ConsumerWidget {
                         ? Icon(Icons.music_off_rounded, color: t.muted)
                         : KonnektedArtwork(song: song, size: 44, radius: 6),
                     title: Text(
-                      song?.title ?? 'Missing song',
+                      song?.title ?? lokalText('Missing song'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

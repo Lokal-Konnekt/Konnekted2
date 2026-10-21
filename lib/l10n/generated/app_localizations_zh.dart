@@ -5997,4 +5997,140 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get yourYearlyRecapFillsInAs => '随着你全年持续收听，你的年度回顾会逐渐充实。';
+
+  @override
+  String get linkDesktop => '桌面连接';
+
+  @override
+  String get linkDevices => '设备';
+
+  @override
+  String get linkConnectDesktop => '连接您的 Lokal 桌面端';
+
+  @override
+  String get linkPairingHint => '在桌面端打开手机遥控，选择配对手机。请将两台设备连接到同一 Wi-Fi。';
+
+  @override
+  String get linkScanQr => '扫描配对二维码';
+
+  @override
+  String get linkInvalidQr => '这不是有效的 Lokal 配对二维码。';
+
+  @override
+  String get linkCameraUnavailable => '无法访问相机。请返回并输入桌面地址和配对码。';
+
+  @override
+  String get linkSearchDesktops => '查找 Wi-Fi 中的桌面端';
+
+  @override
+  String get linkSearching => '正在查找桌面端…';
+
+  @override
+  String get linkNoDesktopFound => '未找到桌面端。您可以手动输入地址。';
+
+  @override
+  String get linkDesktopAddress => '桌面地址';
+
+  @override
+  String get linkPairingCode => '六位配对码';
+
+  @override
+  String get linkPair => '配对桌面端';
+
+  @override
+  String get linkConnecting => '正在连接…';
+
+  @override
+  String get linkMatchTheme => '跟随桌面主题和强调色';
+
+  @override
+  String get linkConnected => '已连接';
+
+  @override
+  String get linkOffline => '离线';
+
+  @override
+  String get linkReconnect => '重新连接';
+
+  @override
+  String get linkDisconnect => '断开连接';
+
+  @override
+  String get linkForget => '忘记桌面端';
+
+  @override
+  String get linkForgetDescription => '从此手机移除桌面端的已保存凭据？您的音乐和已合并的音乐库将保留在手机上。';
+
+  @override
+  String get linkActionFailed => '桌面连接无法完成此操作。';
+
+  @override
+  String get linkPlayback => '播放输出';
+
+  @override
+  String get linkControlDesktop => '在正在播放页面控制桌面端';
+
+  @override
+  String get linkPlayOnDesktop => '在桌面端播放';
+
+  @override
+  String get linkPlayOnPhone => '在此手机播放';
+
+  @override
+  String get linkUpdateDesktop => '更新电脑上的 Lokal，以从电脑控制此手机并同步音乐库。';
+
+  @override
+  String get linkMergeLibraries => '合并音乐库';
+
+  @override
+  String get linkMergePreview =>
+      '保留两台设备的音乐、喜爱和歌单。已完成的播放记录将去重合并。不会删除音乐文件。后续编辑将双向同步。';
+
+  @override
+  String get linkMerge => '合并';
+
+  @override
+  String get linkNotNow => '暂不';
+
+  @override
+  String linkHistoryCount(int count) {
+    return '有 $count 条桌面播放记录可合并';
+  }
+
+  @override
+  String get linkSendDownloads => '将手机下载发送到电脑';
+
+  @override
+  String get linkSendDownloadsDescription =>
+      '将手机新下载的歌曲及接力播放时缺少的歌曲复制到配对的电脑。原文件保留在手机上。';
+
+  @override
+  String get linkLegacyRemote => '手动连接旧版桌面端';
+
+  @override
+  String get linkDownloadToPhone => '下载到手机';
+
+  @override
+  String get linkDownloaded => '已保存到此手机';
+
+  @override
+  String linkOutputName(String name) {
+    return '$name 上的 Lokal';
+  }
+
+  @override
+  String get linkOnboardingDescription =>
+      '控制任一设备、在设备间转移播放队列，并同步喜爱、歌单和收听历史。此步骤可跳过，稍后也能设置。';
+
+  @override
+  String get linkFollowAccent => '跟随应用强调色';
+
+  @override
+  String get linkPerformanceTitle => '让动画更流畅？';
+
+  @override
+  String get linkPerformanceBody => '性能模式保留您的主题，并使用纯色表面代替玻璃效果。';
+
+  @override
+  String get linkEnablePerformance => '使用性能模式';
 }

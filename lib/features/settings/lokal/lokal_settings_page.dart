@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -102,11 +104,8 @@ class LokalSettingsAboutDataPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => LokalSettingsScaffold(
-    title: 'About & Data',
-    children: [
-      ...aboutSettings(context, ref),
-      ...dataSettings(context, ref),
-    ],
+    title: lokalText('About & Data'),
+    children: [...aboutSettings(context, ref), ...dataSettings(context, ref)],
   );
 }
 
@@ -152,7 +151,7 @@ class _LokalSettingsPageState extends ConsumerState<LokalSettingsPage> {
     if (groups.isNotEmpty) {
       results.insert(
         0,
-        LokalSettingsSection(title: 'Groups', children: groups),
+        LokalSettingsSection(title: lokalText('Groups'), children: groups),
       );
     }
     return results;
@@ -178,7 +177,7 @@ class _LokalSettingsPageState extends ConsumerState<LokalSettingsPage> {
               bottom: 32 + MediaQuery.paddingOf(context).bottom,
             ),
             children: [
-              const LokalSettingsHeader(title: 'Settings'),
+              LokalSettingsHeader(title: lokalText('Settings')),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: LokalSettingsSearchField(
@@ -188,7 +187,7 @@ class _LokalSettingsPageState extends ConsumerState<LokalSettingsPage> {
               ),
               if (!searching)
                 LokalSettingsSection(
-                  title: 'Settings',
+                  title: lokalText('Settings'),
                   heading: 'Groups',
                   children: [
                     for (final group in LokalSettingsGroup.listed)
@@ -199,7 +198,7 @@ class _LokalSettingsPageState extends ConsumerState<LokalSettingsPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 40, 24, 0),
                   child: Text(
-                    'No settings match your search.',
+                    lokalText('No settings match your search.'),
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: t.muted),
                   ),

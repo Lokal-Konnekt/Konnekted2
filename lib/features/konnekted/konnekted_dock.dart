@@ -1,3 +1,7 @@
+import 'package:flick/l10n/l10n.dart';
+
+import '../link/lokal_devices_card.dart';
+
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
@@ -382,7 +386,10 @@ class _TabCapsuleState extends State<_TabCapsule> {
                     excluding: widget.collapse <= .5,
                     child: Semantics(
                       button: true,
-                      label: 'Show tabs. ${shown.label}',
+                      label: lokalText(
+                        "Show tabs. {arg0}",
+                        args: {'arg0': shown.label},
+                      ),
                       onTap: widget.onExpand,
                       excludeSemantics: true,
                       child: InkWell(
@@ -614,8 +621,10 @@ class KonnektedMiniPlayer extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Playback couldn’t be changed. Please try again.'),
+          SnackBar(
+            content: Text(
+              lokalText('Playback couldn’t be changed. Please try again.'),
+            ),
           ),
         );
       }
@@ -690,8 +699,10 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                   Expanded(
                     child: Semantics(
                       button: true,
-                      label:
-                          'Open player for ${song.title} by ${song.artist}. Lyrics and playback controls.',
+                      label: lokalText(
+                        "Open player for {arg0} by {arg1}. Lyrics and playback controls.",
+                        args: {'arg0': song.title, 'arg1': song.artist},
+                      ),
                       onTap: onOpen,
                       child: InkWell(
                         onTap: onOpen,
@@ -704,10 +715,8 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                                 tag: heroTag,
                                 // The artwork travels directly between the
                                 // two real layouts, like BitChord's docked art.
-                                createRectTween: (begin, end) => RectTween(
-                                  begin: begin,
-                                  end: end,
-                                ),
+                                createRectTween: (begin, end) =>
+                                    RectTween(begin: begin, end: end),
                                 flightShuttleBuilder: _flight,
                                 child: KonnektedArtwork(
                                   song: song,
@@ -732,14 +741,23 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                                     ),
                                     if (!tucked) ...[
                                       const SizedBox(height: 2),
-                                      Text(
-                                        song.artist,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: context.lokal.muted,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              song.artist,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: context.lokal.muted,
+                                              ),
+                                            ),
+                                          ),
+                                          const Flexible(
+                                            child: LokalOutputPill(),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ],
@@ -752,7 +770,7 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: isPlaying ? 'Pause' : 'Play',
+                    tooltip: isPlaying ? lokalText('Pause') : lokalText('Play'),
                     onPressed: onPlayPause,
                     icon: Icon(
                       isPlaying
@@ -763,13 +781,13 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                   ),
                   if (!compact)
                     IconButton(
-                      tooltip: 'Next track',
+                      tooltip: lokalText('Next track'),
                       onPressed: onNext,
                       icon: const Icon(Icons.skip_next_rounded),
                     ),
                   if (!tucked)
                     IconButton(
-                      tooltip: 'Open queue',
+                      tooltip: lokalText('Open queue'),
                       onPressed: onQueue,
                       icon: const Icon(Icons.queue_music_rounded, size: 22),
                     ),

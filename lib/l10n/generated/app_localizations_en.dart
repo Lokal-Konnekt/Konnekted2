@@ -178,8 +178,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      one: 'Added to the queue',
       other: 'Added $count songs to the queue',
+      one: 'Added to the queue',
     );
     return '$_temp0';
   }
@@ -6445,4 +6445,147 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get yourYearlyRecapFillsInAs =>
       'Your yearly recap fills in as you keep listening throughout the year.';
+
+  @override
+  String get linkDesktop => 'Desktop link';
+
+  @override
+  String get linkDevices => 'Devices';
+
+  @override
+  String get linkConnectDesktop => 'Connect your Lokal desktop';
+
+  @override
+  String get linkPairingHint =>
+      'On your desktop, open Phone Remote and choose Pair a phone. Keep both devices on the same Wi-Fi.';
+
+  @override
+  String get linkScanQr => 'Scan pairing QR code';
+
+  @override
+  String get linkInvalidQr => 'This is not a valid Lokal pairing code.';
+
+  @override
+  String get linkCameraUnavailable =>
+      'Camera access is unavailable. Go back and enter the desktop address and pairing code instead.';
+
+  @override
+  String get linkSearchDesktops => 'Find desktops on Wi-Fi';
+
+  @override
+  String get linkSearching => 'Looking for desktops…';
+
+  @override
+  String get linkNoDesktopFound =>
+      'No desktop found. You can enter its address manually.';
+
+  @override
+  String get linkDesktopAddress => 'Desktop address';
+
+  @override
+  String get linkPairingCode => 'Six-digit pairing code';
+
+  @override
+  String get linkPair => 'Pair desktop';
+
+  @override
+  String get linkConnecting => 'Connecting…';
+
+  @override
+  String get linkMatchTheme => 'Match desktop theme and accent';
+
+  @override
+  String get linkConnected => 'Connected';
+
+  @override
+  String get linkOffline => 'Offline';
+
+  @override
+  String get linkReconnect => 'Reconnect';
+
+  @override
+  String get linkDisconnect => 'Disconnect';
+
+  @override
+  String get linkForget => 'Forget desktop';
+
+  @override
+  String get linkForgetDescription =>
+      'Remove this desktop’s saved credentials from this phone? Your music and merged library stay on this phone.';
+
+  @override
+  String get linkActionFailed =>
+      'The desktop link could not complete this action.';
+
+  @override
+  String get linkPlayback => 'Playback output';
+
+  @override
+  String get linkControlDesktop => 'Control desktop from Now Playing';
+
+  @override
+  String get linkPlayOnDesktop => 'Play on desktop';
+
+  @override
+  String get linkPlayOnPhone => 'Play on this phone';
+
+  @override
+  String get linkUpdateDesktop =>
+      'Update Lokal on your PC to control this phone from it and sync your library.';
+
+  @override
+  String get linkMergeLibraries => 'Merge your libraries';
+
+  @override
+  String get linkMergePreview =>
+      'Keep music, likes and playlists from both devices. Completed plays are combined once. No music files are deleted. Later edits sync in both directions.';
+
+  @override
+  String get linkMerge => 'Merge';
+
+  @override
+  String get linkNotNow => 'Not now';
+
+  @override
+  String linkHistoryCount(int count) {
+    return '$count desktop plays ready to merge';
+  }
+
+  @override
+  String get linkSendDownloads => 'Send phone downloads to PC';
+
+  @override
+  String get linkSendDownloadsDescription =>
+      'Copy new phone downloads and missing handoff songs to the paired desktop. Original files stay on this phone.';
+
+  @override
+  String get linkLegacyRemote => 'Connect to an older desktop manually';
+
+  @override
+  String get linkDownloadToPhone => 'Download to phone';
+
+  @override
+  String get linkDownloaded => 'Saved on this phone';
+
+  @override
+  String linkOutputName(String name) {
+    return 'Lokal on $name';
+  }
+
+  @override
+  String get linkOnboardingDescription =>
+      'Control either device, move your queue between them, and keep likes, playlists and listening history together. This is optional and can be set up later.';
+
+  @override
+  String get linkFollowAccent => 'Follow app accent';
+
+  @override
+  String get linkPerformanceTitle => 'Make animations smoother?';
+
+  @override
+  String get linkPerformanceBody =>
+      'Performance mode keeps your theme and uses solid surfaces instead of glass.';
+
+  @override
+  String get linkEnablePerformance => 'Use Performance mode';
 }

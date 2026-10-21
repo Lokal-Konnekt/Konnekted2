@@ -1,12 +1,40 @@
+import 'link/link_protocol.dart' show linkUuid;
+
+class CompletedReplayPlay {
+  const CompletedReplayPlay(
+    this.eventId,
+    this.songId,
+    this.playedAt,
+    this.msPlayed,
+  );
+  final String eventId, songId;
+  final DateTime playedAt;
+  final int msPlayed;
+}
+
 class ReplayPlayTracker {
   ReplayPlayTracker({
     this.minimumPlayDuration = const Duration(seconds: 30),
     this.maxContinuousProgressGap = const Duration(seconds: 3),
     this.maxRealtimeDrift = const Duration(seconds: 2),
     DateTime Function()? now,
+    this.onCompleted,
   }) : _now = now ?? DateTime.now;
 
   final DateTime Function() _now;
+  final void Function(CompletedReplayPlay)? onCompleted;
+  String _eventId = linkUuid();
+  DateTime? _startedAt;
+  String get eventId => _eventId;
+  DateTime get startedAt => _startedAt ?? _now();
+  int get listenedMs => _listenedMs;
+  void _complete() {
+    if (_songId != null && _listenedMs >= minimumPlayDuration.inMilliseconds)
+      onCompleted?.call(
+        CompletedReplayPlay(_eventId, _songId!, startedAt, _listenedMs),
+      );
+  }
+
   final Duration maxRealtimeDrift;
 
   final Duration minimumPlayDuration;
@@ -19,6 +47,9 @@ class ReplayPlayTracker {
   DateTime? _lastProgressAt;
 
   void startTrack(String songId, {Duration initialPosition = Duration.zero}) {
+    _complete();
+    _eventId = linkUuid();
+    _startedAt = _now();
     _songId = songId;
     _lastPositionMs = initialPosition.inMilliseconds;
     _listenedMs = 0;
@@ -27,6 +58,7 @@ class ReplayPlayTracker {
   }
 
   void clear() {
+    _complete();
     _songId = null;
     _lastPositionMs = 0;
     _listenedMs = 0;
@@ -60,7 +92,7 @@ class ReplayPlayTracker {
     _lastPositionMs = positionMs;
     _lastProgressAt = now;
 
-    if (_hasCountedCurrentTrack || deltaMs <= 0) {
+    if (deltaMs <= 0) {
       return false;
     }
 
@@ -72,7 +104,8 @@ class ReplayPlayTracker {
     }
 
     _listenedMs += deltaMs;
-    if (_listenedMs < minimumPlayDuration.inMilliseconds) {
+    if (_hasCountedCurrentTrack ||
+        _listenedMs < minimumPlayDuration.inMilliseconds) {
       return false;
     }
 

@@ -161,7 +161,10 @@ class _SearchablePageState<T> extends State<_SearchablePage<T>> {
       title: widget.title,
       subtitle: all == null
           ? null
-          : '${all.length} ${widget.title.toLowerCase()}',
+          : lokalText(
+              "{arg0} {arg1}",
+              args: {'arg0': all.length, 'arg1': widget.title.toLowerCase()},
+            ),
       slivers: [
         if (all != null && all.isNotEmpty)
           SliverPersistentHeader(
@@ -191,10 +194,15 @@ class _SearchablePageState<T> extends State<_SearchablePage<T>> {
           SliverToBoxAdapter(
             child: LokalEmptyState(
               icon: widget.emptyIcon,
-              title: query.isEmpty ? 'Nothing here yet' : 'No results',
+              title: query.isEmpty
+                  ? lokalText('Nothing here yet')
+                  : lokalText('No results'),
               message: query.isEmpty
                   ? widget.emptyMessage
-                  : 'Nothing matches “$_query”.',
+                  : lokalText(
+                      "Nothing matches “{arg0}”.",
+                      args: {'arg0': _query},
+                    ),
             ),
           )
         else
@@ -212,7 +220,7 @@ class LokalAlbumsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) =>
       _SearchablePage<AlbumGroup>(
-        title: 'Albums',
+        title: lokalText('Albums'),
         items: ref.watch(lokalAlbumsProvider),
         nameOf: (a) => '${a.albumName}\n${a.albumArtist}',
         hint: 'Search albums',
@@ -240,7 +248,7 @@ class LokalArtistsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) =>
       _SearchablePage<LokalArtist>(
-        title: 'Artists',
+        title: lokalText('Artists'),
         items: ref.watch(lokalArtistsProvider),
         nameOf: (a) => a.name,
         hint: 'Search artists',
@@ -334,7 +342,7 @@ class LokalAlbumPage extends ConsumerWidget {
       title: album.albumName,
       actions: [
         PopupMenuButton<String>(
-          tooltip: 'More',
+          tooltip: lokalText('More'),
           color: t.surface2,
           icon: Icon(Icons.more_horiz_rounded, color: t.text),
           onSelected: (value) => switch (value) {
@@ -357,22 +365,27 @@ class LokalAlbumPage extends ConsumerWidget {
             _ => null,
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'queue', child: Text('Add to queue')),
-            const PopupMenuItem(
+            PopupMenuItem(
+              value: 'queue',
+              child: Text(lokalText('Add to queue')),
+            ),
+            PopupMenuItem(
               value: 'playlist',
-              child: Text('Add to a playlist'),
+              child: Text(lokalText('Add to a playlist')),
             ),
             PopupMenuItem(
               value: 'like',
-              child: Text(allLiked ? 'Unlike all' : 'Like all'),
+              child: Text(
+                allLiked ? lokalText('Unlike all') : lokalText('Like all'),
+              ),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'radio',
-              child: Text('Start artist radio'),
+              child: Text(lokalText('Start artist radio')),
             ),
-            const PopupMenuItem(
+            PopupMenuItem(
               value: 'identify',
-              child: Text('Identify album'),
+              child: Text(lokalText('Identify album')),
             ),
           ],
         ),
@@ -435,14 +448,25 @@ class LokalAlbumPage extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
             child: Text(
-              '${lokalSongCount(songs.length)}, ${lokalRunningTime(songs)}',
+              lokalText(
+                "{arg0}, {arg1}",
+                args: {
+                  'arg0': lokalSongCount(songs.length),
+                  'arg1': lokalRunningTime(songs),
+                },
+              ),
               style: TextStyle(color: t.muted, fontSize: 13),
             ),
           ),
         ),
         if (more.isNotEmpty) ...[
           SliverToBoxAdapter(
-            child: LokalSectionTitle(title: 'More by ${album.albumArtist}'),
+            child: LokalSectionTitle(
+              title: lokalText(
+                "More by {arg0}",
+                args: {'arg0': album.albumArtist},
+              ),
+            ),
           ),
           SliverToBoxAdapter(child: _AlbumShelf(albums: more)),
         ],
@@ -496,7 +520,10 @@ class _AlbumShelf extends StatelessWidget {
             child: LokalCoverCard(
               art: _AlbumArt(album.songs),
               title: album.albumName,
-              subtitle: '${album.songs.first.year ?? album.albumArtist}',
+              subtitle: lokalText(
+                "{arg0}",
+                args: {'arg0': album.songs.first.year ?? album.albumArtist},
+              ),
               onTap: () => pushLokal(context, LokalAlbumPage(album: album)),
             ),
           );
@@ -558,9 +585,14 @@ class LokalArtistPage extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${lokalSongCount(songs.length)} · ${albums.length} '
-                      '${albums.length == 1 ? l10n.album : l10n.albums}'
-                  .toUpperCase(),
+              lokalText(
+                "{arg0} · {arg1} {arg2}",
+                args: {
+                  'arg0': lokalSongCount(songs.length),
+                  'arg1': albums.length,
+                  'arg2': albums.length == 1 ? l10n.album : l10n.albums,
+                },
+              ).toUpperCase(),
               style: LokalTheme.label(t),
             ),
           ],
@@ -572,7 +604,7 @@ class LokalArtistPage extends ConsumerWidget {
             songs: top,
             extra: LokalPill(
               icon: Icons.radio_rounded,
-              label: 'Start radio',
+              label: lokalText('Start radio'),
               compact: true,
               onTap: () => startLokalRadio(context, artist: name),
             ),
@@ -580,7 +612,7 @@ class LokalArtistPage extends ConsumerWidget {
         ),
         SliverToBoxAdapter(
           child: LokalSectionTitle(
-            title: 'Top songs',
+            title: lokalText('Top songs'),
             onSeeAll: songs.length > 5
                 ? () => pushLokal(
                     context,
@@ -598,7 +630,9 @@ class LokalArtistPage extends ConsumerWidget {
           ),
         ),
         if (albums.isNotEmpty) ...[
-          const SliverToBoxAdapter(child: LokalSectionTitle(title: 'Albums')),
+          SliverToBoxAdapter(
+            child: LokalSectionTitle(title: lokalText('Albums')),
+          ),
           SliverToBoxAdapter(child: _AlbumShelf(albums: albums)),
         ],
       ],

@@ -1,10 +1,12 @@
+import 'package:flick/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/l10n/l10n.dart';
-import 'package:flick/services/app_preferences_service.dart' show AppPreferences;
+import 'package:flick/services/app_preferences_service.dart'
+    show AppPreferences;
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/widget_sync_service.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
@@ -289,6 +291,7 @@ final _tabs = <_WidgetTab>[
 
 /// The widget accents, as the home screen widgets draw them.
 List<(String, String, Color)> _accents() => [
+  ('theme', l10n.linkFollowAccent, AppColors.accent),
   ('white', l10n.white, Colors.white),
   ('amber', l10n.amber, const Color(0xFFFFB300)),
   ('blue', l10n.blue, const Color(0xFF64B5F6)),
@@ -298,6 +301,7 @@ List<(String, String, Color)> _accents() => [
 
 Color _resolveAccentColor(String name) {
   return switch (name) {
+    'theme' => AppColors.accent,
     'amber' => const Color(0xFFFFB300),
     'blue' => const Color(0xFF64B5F6),
     'green' => const Color(0xFF81C784),

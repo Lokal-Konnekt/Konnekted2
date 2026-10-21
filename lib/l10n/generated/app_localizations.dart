@@ -5,7 +5,15 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
+import 'app_localizations_es.dart';
+import 'app_localizations_fr.dart';
+import 'app_localizations_it.dart';
+import 'app_localizations_nl.dart';
+import 'app_localizations_pl.dart';
+import 'app_localizations_pt.dart';
+import 'app_localizations_sv.dart';
 import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
@@ -94,7 +102,15 @@ abstract class AppLocalizations {
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
+    Locale('de'),
     Locale('en'),
+    Locale('es'),
+    Locale('fr'),
+    Locale('it'),
+    Locale('nl'),
+    Locale('pl'),
+    Locale('pt'),
+    Locale('sv'),
     Locale('zh'),
   ];
 
@@ -374,16 +390,16 @@ abstract class AppLocalizations {
   /// **'Added {arg1} songs to favorites'**
   String addedSongsToFavorites3(Object arg1);
 
-  /// lib/features/songs/widgets/song_actions_bottom_sheet.dart:493
-  ///
-  /// In en, this message translates to:
-  /// **'Added to {arg1}'**
   /// Toast shown after adding songs to the playback queue.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{Added to the queue} other{Added {count} songs to the queue}}'**
   String addedSongsToQueue(int count);
 
+  /// lib/features/songs/widgets/song_actions_bottom_sheet.dart:493
+  ///
+  /// In en, this message translates to:
+  /// **'Added to {arg1}'**
   String addedTo(Object arg1);
 
   /// lib/features/player/widgets/add_to_playlist_sheet.dart:157
@@ -10816,6 +10832,264 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your yearly recap fills in as you keep listening throughout the year.'**
   String get yourYearlyRecapFillsInAs;
+
+  /// No description provided for @linkDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop link'**
+  String get linkDesktop;
+
+  /// No description provided for @linkDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'Devices'**
+  String get linkDevices;
+
+  /// No description provided for @linkConnectDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect your Lokal desktop'**
+  String get linkConnectDesktop;
+
+  /// No description provided for @linkPairingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'On your desktop, open Phone Remote and choose Pair a phone. Keep both devices on the same Wi-Fi.'**
+  String get linkPairingHint;
+
+  /// No description provided for @linkScanQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan pairing QR code'**
+  String get linkScanQr;
+
+  /// No description provided for @linkInvalidQr.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a valid Lokal pairing code.'**
+  String get linkInvalidQr;
+
+  /// No description provided for @linkCameraUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera access is unavailable. Go back and enter the desktop address and pairing code instead.'**
+  String get linkCameraUnavailable;
+
+  /// No description provided for @linkSearchDesktops.
+  ///
+  /// In en, this message translates to:
+  /// **'Find desktops on Wi-Fi'**
+  String get linkSearchDesktops;
+
+  /// No description provided for @linkSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for desktops…'**
+  String get linkSearching;
+
+  /// No description provided for @linkNoDesktopFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No desktop found. You can enter its address manually.'**
+  String get linkNoDesktopFound;
+
+  /// No description provided for @linkDesktopAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop address'**
+  String get linkDesktopAddress;
+
+  /// No description provided for @linkPairingCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Six-digit pairing code'**
+  String get linkPairingCode;
+
+  /// No description provided for @linkPair.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair desktop'**
+  String get linkPair;
+
+  /// No description provided for @linkConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get linkConnecting;
+
+  /// No description provided for @linkMatchTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Match desktop theme and accent'**
+  String get linkMatchTheme;
+
+  /// No description provided for @linkConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get linkConnected;
+
+  /// No description provided for @linkOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get linkOffline;
+
+  /// No description provided for @linkReconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect'**
+  String get linkReconnect;
+
+  /// No description provided for @linkDisconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get linkDisconnect;
+
+  /// No description provided for @linkForget.
+  ///
+  /// In en, this message translates to:
+  /// **'Forget desktop'**
+  String get linkForget;
+
+  /// No description provided for @linkForgetDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this desktop’s saved credentials from this phone? Your music and merged library stay on this phone.'**
+  String get linkForgetDescription;
+
+  /// No description provided for @linkActionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The desktop link could not complete this action.'**
+  String get linkActionFailed;
+
+  /// No description provided for @linkPlayback.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback output'**
+  String get linkPlayback;
+
+  /// No description provided for @linkControlDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Control desktop from Now Playing'**
+  String get linkControlDesktop;
+
+  /// No description provided for @linkPlayOnDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Play on desktop'**
+  String get linkPlayOnDesktop;
+
+  /// No description provided for @linkPlayOnPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Play on this phone'**
+  String get linkPlayOnPhone;
+
+  /// No description provided for @linkUpdateDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Lokal on your PC to control this phone from it and sync your library.'**
+  String get linkUpdateDesktop;
+
+  /// No description provided for @linkMergeLibraries.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge your libraries'**
+  String get linkMergeLibraries;
+
+  /// No description provided for @linkMergePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep music, likes and playlists from both devices. Completed plays are combined once. No music files are deleted. Later edits sync in both directions.'**
+  String get linkMergePreview;
+
+  /// No description provided for @linkMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get linkMerge;
+
+  /// No description provided for @linkNotNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get linkNotNow;
+
+  /// No description provided for @linkHistoryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} desktop plays ready to merge'**
+  String linkHistoryCount(int count);
+
+  /// No description provided for @linkSendDownloads.
+  ///
+  /// In en, this message translates to:
+  /// **'Send phone downloads to PC'**
+  String get linkSendDownloads;
+
+  /// No description provided for @linkSendDownloadsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy new phone downloads and missing handoff songs to the paired desktop. Original files stay on this phone.'**
+  String get linkSendDownloadsDescription;
+
+  /// No description provided for @linkLegacyRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to an older desktop manually'**
+  String get linkLegacyRemote;
+
+  /// No description provided for @linkDownloadToPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Download to phone'**
+  String get linkDownloadToPhone;
+
+  /// No description provided for @linkDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this phone'**
+  String get linkDownloaded;
+
+  /// No description provided for @linkOutputName.
+  ///
+  /// In en, this message translates to:
+  /// **'Lokal on {name}'**
+  String linkOutputName(String name);
+
+  /// No description provided for @linkOnboardingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Control either device, move your queue between them, and keep likes, playlists and listening history together. This is optional and can be set up later.'**
+  String get linkOnboardingDescription;
+
+  /// No description provided for @linkFollowAccent.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow app accent'**
+  String get linkFollowAccent;
+
+  /// No description provided for @linkPerformanceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Make animations smoother?'**
+  String get linkPerformanceTitle;
+
+  /// No description provided for @linkPerformanceBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance mode keeps your theme and uses solid surfaces instead of glass.'**
+  String get linkPerformanceBody;
+
+  /// No description provided for @linkEnablePerformance.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Performance mode'**
+  String get linkEnablePerformance;
 }
 
 class _AppLocalizationsDelegate
@@ -10828,8 +11102,18 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>[
+    'de',
+    'en',
+    'es',
+    'fr',
+    'it',
+    'nl',
+    'pl',
+    'pt',
+    'sv',
+    'zh',
+  ].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -10838,8 +11122,24 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'de':
+      return AppLocalizationsDe();
     case 'en':
       return AppLocalizationsEn();
+    case 'es':
+      return AppLocalizationsEs();
+    case 'fr':
+      return AppLocalizationsFr();
+    case 'it':
+      return AppLocalizationsIt();
+    case 'nl':
+      return AppLocalizationsNl();
+    case 'pl':
+      return AppLocalizationsPl();
+    case 'pt':
+      return AppLocalizationsPt();
+    case 'sv':
+      return AppLocalizationsSv();
     case 'zh':
       return AppLocalizationsZh();
   }

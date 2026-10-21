@@ -1,3 +1,4 @@
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flutter/material.dart';
 
@@ -49,7 +50,9 @@ class LokalOptInCard extends StatelessWidget {
             Text(message, style: TextStyle(color: t.muted, height: 1.45)),
             const SizedBox(height: 4),
             Text(
-              'You can turn it off again in Settings › Online sources.',
+              lokalText(
+                'You can turn it off again in Settings › Online sources.',
+              ),
               style: TextStyle(color: t.muted2, fontSize: 13, height: 1.4),
             ),
             const SizedBox(height: 16),

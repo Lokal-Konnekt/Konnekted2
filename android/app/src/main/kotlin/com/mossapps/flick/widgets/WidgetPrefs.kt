@@ -76,7 +76,7 @@ internal object WidgetPrefs {
         get(context).getBoolean(KEY_SHOW_ARTIST, true)
 
     fun getAccentName(context: Context): String =
-        get(context).getString(KEY_ACCENT_COLOR, "white") ?: "white"
+        get(context).getString(KEY_ACCENT_COLOR, "theme") ?: "theme"
 
     fun getMiniTextScale(context: Context): Float =
         getWidgetDouble(context, KEY_TEXT_SCALE, 1.0f)
@@ -90,6 +90,7 @@ internal object WidgetPrefs {
     }
 
     fun getAccentColor(context: Context): Int {
+        if (getAccentName(context) == "theme") return get(context).getInt("lokal_widget_accent_argb", 0xFFFFFFFF.toInt())
         return when (getAccentName(context)) {
             "amber" -> 0xFFFFB300.toInt()
             "blue" -> 0xFF64B5F6.toInt()
@@ -130,12 +131,13 @@ internal object WidgetPrefs {
         get(context).getBoolean(KEY_FLAGSHIP_SHOW_ARTIST, true)
 
     fun getFlagshipAccentName(context: Context): String =
-        get(context).getString(KEY_FLAGSHIP_ACCENT, "white") ?: "white"
+        get(context).getString(KEY_FLAGSHIP_ACCENT, "theme") ?: "theme"
 
     fun getFlagshipTextScale(context: Context): Float =
         getWidgetDouble(context, KEY_FLAGSHIP_TEXT_SCALE, 1.0f)
 
     fun getFlagshipAccentColor(context: Context): Int {
+        if (getFlagshipAccentName(context) == "theme") return get(context).getInt("lokal_widget_accent_argb", 0xFFFFFFFF.toInt())
         return when (getFlagshipAccentName(context)) {
             "amber" -> 0xFFFFB300.toInt()
             "blue" -> 0xFF64B5F6.toInt()
@@ -176,12 +178,13 @@ internal object WidgetPrefs {
         get(context).getBoolean(KEY_COMPACT_SHOW_ARTIST, true)
 
     fun getCompactAccentName(context: Context): String =
-        get(context).getString(KEY_COMPACT_ACCENT, "white") ?: "white"
+        get(context).getString(KEY_COMPACT_ACCENT, "theme") ?: "theme"
 
     fun getCompactTextScale(context: Context): Float =
         getWidgetDouble(context, KEY_COMPACT_TEXT_SCALE, 1.0f)
 
     fun getCompactAccentColor(context: Context): Int {
+        if (getCompactAccentName(context) == "theme") return get(context).getInt("lokal_widget_accent_argb", 0xFFFFFFFF.toInt())
         return when (getCompactAccentName(context)) {
             "amber" -> 0xFFFFB300.toInt()
             "blue" -> 0xFF64B5F6.toInt()

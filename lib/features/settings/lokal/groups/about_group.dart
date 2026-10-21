@@ -54,7 +54,7 @@ Future<void> _open(BuildContext context, String url) async {
     if (!opened) throw StateError('No app opened the link');
   } catch (_) {
     messenger?.showSnackBar(
-      const SnackBar(content: Text('Couldn’t open the link.')),
+      SnackBar(content: Text(lokalText('Couldn’t open the link.'))),
     );
   }
 }
@@ -64,59 +64,61 @@ List<LokalSettingsSection> aboutSettings(BuildContext context, WidgetRef ref) {
   final t = context.lokal;
   return [
     LokalSettingsSection(
-      title: 'About',
+      title: lokalText('About'),
       children: [
         LokalSettingRow(
-          label: 'Version',
-          description: 'The version you’re running.',
+          label: lokalText('Version'),
+          description: lokalText('The version you’re running.'),
           trailing: Text(
             kAppVersion,
             style: LokalTheme.label(t, size: 12, color: t.text),
           ),
         ),
         LokalSettingLink(
-          label: 'Updates',
-          description: 'New versions are published on GitHub.',
+          label: lokalText('Updates'),
+          description: lokalText('New versions are published on GitHub.'),
           onTap: () => unawaited(_open(context, lokalReleasesUrl)),
         ),
         LokalSettingLink(
-          label: 'What’s new',
-          description: 'What changed in this version.',
+          label: lokalText('What’s new'),
+          description: lokalText('What changed in this version.'),
           onTap: () => unawaited(WhatsNewBottomSheet.show<void>(context)),
         ),
       ],
     ),
     LokalSettingsSection(
-      title: 'Help',
+      title: lokalText('Help'),
       children: [
         LokalSettingLink(
-          label: 'Help',
-          description: 'Every control, explained.',
+          label: lokalText('Help'),
+          description: lokalText('Every control, explained.'),
           onTap: () => _push(context, const ManualScreen()),
         ),
       ],
     ),
     LokalSettingsSection(
-      title: 'Legal',
+      title: lokalText('Legal'),
       children: [
         LokalSettingLink(
-          label: 'Licences',
-          description: 'The open-source software Lokal is built with.',
+          label: lokalText('Licences'),
+          description: lokalText(
+            'The open-source software Lokal is built with.',
+          ),
           onTap: () => openLokalLicences(context),
         ),
         LokalSettingLink(
-          label: 'Privacy',
-          description: 'What Lokal keeps and what it sends.',
+          label: lokalText('Privacy'),
+          description: lokalText('What Lokal keeps and what it sends.'),
           onTap: () => _push(context, const PrivacyPolicyScreen()),
         ),
       ],
     ),
     LokalSettingsSection(
-      title: 'Debug',
+      title: lokalText('Debug'),
       children: [
         LokalSettingLink(
-          label: 'Debug logs',
-          description: 'Lokal’s logs, to attach to a bug report.',
+          label: lokalText('Debug logs'),
+          description: lokalText('Lokal’s logs, to attach to a bug report.'),
           onTap: () => _push(context, const LogsScreen()),
         ),
       ],

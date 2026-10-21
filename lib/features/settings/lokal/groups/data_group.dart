@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -57,8 +59,8 @@ Future<void> _clear(
 }) async {
   final ok = await _confirm(
     context,
-    title: 'Clear $what?',
-    message: 'It fills up again as you listen.',
+    title: lokalText("Clear {arg0}?", args: {'arg0': what}),
+    message: lokalText('It fills up again as you listen.'),
     action: 'Clear',
   );
   if (!ok || !context.mounted) return;
@@ -76,18 +78,20 @@ Future<void> _clear(
 List<LokalSettingsSection> dataSettings(BuildContext context, WidgetRef ref) =>
     [
       LokalSettingsSection(
-        title: 'Cache',
+        title: lokalText('Cache'),
         children: [
           LokalSettingRow(
-            label: 'Artwork cache',
-            description: 'Album covers kept on the phone so they open at once.',
+            label: lokalText('Artwork cache'),
+            description: lokalText(
+              'Album covers kept on the phone so they open at once.',
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _CacheSize(AlbumArtService.instance.getCacheSize),
                 const SizedBox(width: 10),
                 LokalSettingButton(
-                  label: 'Clear',
+                  label: lokalText('Clear'),
                   onPressed: () => _clear(
                     context,
                     what: 'the artwork cache',
@@ -98,15 +102,17 @@ List<LokalSettingsSection> dataSettings(BuildContext context, WidgetRef ref) =>
             ),
           ),
           LokalSettingRow(
-            label: 'Converted songs',
-            description: 'Playable copies of songs the phone can’t play as they are, like Apple Lossless.',
+            label: lokalText('Converted songs'),
+            description: lokalText(
+              'Playable copies of songs the phone can’t play as they are, like Apple Lossless.',
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const _CacheSize(AlacConverterService.getCacheSize),
                 const SizedBox(width: 10),
                 LokalSettingButton(
-                  label: 'Clear',
+                  label: lokalText('Clear'),
                   onPressed: () => _clear(
                     context,
                     what: 'converted songs',
@@ -120,19 +126,23 @@ List<LokalSettingsSection> dataSettings(BuildContext context, WidgetRef ref) =>
         ],
       ),
       LokalSettingsSection(
-        title: 'Danger zone',
+        title: lokalText('Danger zone'),
         children: [
           LokalSettingRow(
-            label: 'Clear library',
-            description: 'Remove every song from Lokal. Your music files aren’t touched; rescan to bring them back.',
+            label: lokalText('Clear library'),
+            description: lokalText(
+              'Remove every song from Lokal. Your music files aren’t touched; rescan to bring them back.',
+            ),
             trailing: LokalSettingButton(
-              label: 'Clear',
+              label: lokalText('Clear'),
               destructive: true,
               onPressed: () async {
                 final ok = await _confirm(
                   context,
-                  title: 'Clear your library?',
-                  message: 'Every song is removed from Lokal. Files on your phone stay where they are.',
+                  title: lokalText('Clear your library?'),
+                  message: lokalText(
+                    'Every song is removed from Lokal. Files on your phone stay where they are.',
+                  ),
                   action: 'Clear library',
                   destructive: true,
                 );

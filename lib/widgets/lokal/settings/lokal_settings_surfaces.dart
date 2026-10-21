@@ -1,3 +1,4 @@
+import 'package:flick/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -109,7 +110,7 @@ class LokalSettingsNotice extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              text,
+              lokalText(text),
               style: TextStyle(
                 fontFamily: LokalTheme.sans,
                 fontSize: 12.5,
@@ -230,7 +231,7 @@ class LokalSettingsActionButton extends StatelessWidget {
                   ],
                   Flexible(
                     child: Text(
-                      label,
+                      lokalText(label),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -280,7 +281,7 @@ Future<T?> showLokalSettingsSheet<T>({
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
               child: Text(
-                title.toUpperCase(),
+                lokalText(title).toUpperCase(),
                 style: LokalTheme.label(context.lokal),
               ),
             ),
@@ -330,7 +331,7 @@ class LokalSheetOption extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      label,
+                      lokalText(label),
                       style: TextStyle(
                         fontFamily: LokalTheme.sans,
                         fontSize: 15,
@@ -344,7 +345,7 @@ class LokalSheetOption extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
-                          description!,
+                          lokalText(description!),
                           style: TextStyle(fontSize: 12.5, color: t.muted),
                         ),
                       ),
@@ -647,7 +648,7 @@ class LokalStatusPill extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: .35)),
       ),
       child: Text(
-        label.toUpperCase(),
+        lokalText(label).toUpperCase(),
         style: LokalTheme.label(t, size: 10, color: color),
       ),
     );

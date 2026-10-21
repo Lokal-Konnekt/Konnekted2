@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -111,10 +112,30 @@ class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
 
   Future<void> _commit(LokalAppearance next) async {
     _touched = true;
-    if (next == state) return;
+    if (jsonEncode(next.toJson()) == jsonEncode(state.toJson())) return;
     state = next;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(prefKey, jsonEncode(next.toJson()));
+  }
+
+  Future<void> adoptDesktopTheme(Map<String, dynamic> value) async {
+    final name = value['theme']?.toString();
+    final themes = LokalThemeId.values.where((item) => item.name == name);
+    var next = themes.isEmpty
+        ? state
+        : state.copyWith(theme: themes.first, clearAccent: true);
+    final accentName = value['accent']?.toString();
+    final accents = LokalAccent.values.where((item) => item.name == accentName);
+    if (accents.isNotEmpty) {
+      next = next.copyWith(accent: accents.first);
+    } else {
+      final raw = value['accentColor']?.toString().replaceFirst('#', '');
+      if (raw != null && RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(raw))
+        next = next.copyWith(
+          accent: LokalAccent.nearest(Color(int.parse('ff$raw', radix: 16))),
+        );
+    }
+    await _commit(next);
   }
 
   Future<void> selectTheme(LokalThemeId theme) =>

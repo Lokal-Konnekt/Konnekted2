@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -34,42 +36,51 @@ List<LokalSettingsSection> librarySettings(
       : 0;
   return [
     LokalSettingsSection(
-      title: 'Folders',
+      title: lokalText('Folders'),
       children: [
         LokalSettingRow(
           key: const ValueKey('library-add-folder'),
           icon: Icons.create_new_folder_rounded,
-          label: 'Add folder',
-          description:
-              'Pick a folder on your phone; Lokal scans it straight away.',
+          label: lokalText('Add folder'),
+          description: lokalText(
+            'Pick a folder on your phone; Lokal scans it straight away.',
+          ),
           onTap: () => unawaited(LibraryScanFlow.addFolder(context)),
         ),
         LokalSettingLink(
-          label: 'Manage folders',
-          description: 'See and remove your folders, rescan (quick, full or deep), full library access, ReplayGain and audio preparation.',
+          label: lokalText('Manage folders'),
+          description: lokalText(
+            'See and remove your folders, rescan (quick, full or deep), full library access, ReplayGain and audio preparation.',
+          ),
           onTap: () => _push(context, const LibrarySettingsScreen()),
         ),
         if (Platform.isAndroid)
           LokalSettingRow.toggle(
-            label: 'Deep scan',
-            description: 'Read folders directly instead of asking Android’s media index, to find everything.',
+            label: lokalText('Deep scan'),
+            description: lokalText(
+              'Read folders directly instead of asking Android’s media index, to find everything.',
+            ),
             value: scan.useDeepScan,
             onChanged: notifier.setUseDeepScan,
           ),
       ],
     ),
     LokalSettingsSection(
-      title: 'Scanning',
+      title: lokalText('Scanning'),
       children: [
         LokalSettingRow.toggle(
-          label: 'Skip non-music files',
-          description: 'Leave out unsupported files and folders marked hidden or .nomedia.',
+          label: lokalText('Skip non-music files'),
+          description: lokalText(
+            'Leave out unsupported files and folders marked hidden or .nomedia.',
+          ),
           value: scan.filterNonMusicFilesAndFolders,
           onChanged: notifier.setFilterNonMusicFilesAndFolders,
         ),
         LokalSettingSlider(
-          label: 'Minimum length',
-          description: 'Leave out tiny files when scanning, like clips, ringtones and voice notes. Off keeps everything.',
+          label: lokalText('Minimum length'),
+          description: lokalText(
+            'Leave out tiny files when scanning, like clips, ringtones and voice notes. Off keeps everything.',
+          ),
           value: minimum.toDouble(),
           min: 0,
           max: 2,
@@ -82,26 +93,31 @@ List<LokalSettingsSection> librarySettings(
           },
         ),
         LokalSettingRow.toggle(
-          label: 'Import M3U',
-          description: 'Make playlists from the M3U and M3U8 files in your folders, and keep them up to date.',
+          label: lokalText('Import M3U'),
+          description: lokalText(
+            'Make playlists from the M3U and M3U8 files in your folders, and keep them up to date.',
+          ),
           value: scan.createPlaylistsFromM3uFiles,
           onChanged: notifier.setCreatePlaylistsFromM3uFiles,
         ),
         LokalSettingRow.toggle(
-          label: 'Prepare audio after scanning',
-          description:
-              'Analyze new songs after a scan so waveform, loudness and cover-art data are ready. Unsupported formats are skipped.',
+          label: lokalText('Prepare audio after scanning'),
+          description: lokalText(
+            'Analyze new songs after a scan so waveform, loudness and cover-art data are ready. Unsupported formats are skipped.',
+          ),
           value: scan.preloadAudioData,
           onChanged: notifier.setPreloadAudioData,
         ),
       ],
     ),
     LokalSettingsSection(
-      title: 'Covers',
+      title: lokalText('Covers'),
       children: [
         LokalSettingRow.toggle(
-          label: 'Stretch non-square covers',
-          description: 'Fill the square with covers that aren’t square. Off crops them instead.',
+          label: lokalText('Stretch non-square covers'),
+          description: lokalText(
+            'Fill the square with covers that aren’t square. Off crops them instead.',
+          ),
           value: ref.watch(appPreferencesProvider).albumsStretchArtwork,
           onChanged: ref
               .read(appPreferencesProvider.notifier)
@@ -114,17 +130,20 @@ List<LokalSettingsSection> librarySettings(
       children: [_LookUpMissingInfo()],
     ),
     LokalSettingsSection(
-      title: 'Maintenance',
+      title: lokalText('Maintenance'),
       children: [
         LokalSettingLink(
-          label: 'Find duplicates',
-          description:
-              'Find matching library entries by title and artist. Removing one only removes its Lokal entry; your files stay untouched.',
+          label: lokalText('Find duplicates'),
+          description: lokalText(
+            'Find matching library entries by title and artist. Removing one only removes its Lokal entry; your files stay untouched.',
+          ),
           onTap: () => _push(context, const DuplicateCleanerScreen()),
         ),
         LokalSettingLink(
-          label: 'Missing metadata',
-          description: 'Albums with an unknown artist or no cover, to fix.',
+          label: lokalText('Missing metadata'),
+          description: lokalText(
+            'Albums with an unknown artist or no cover, to fix.',
+          ),
           onTap: () => _push(context, const MissingMetadataScreen()),
         ),
       ],

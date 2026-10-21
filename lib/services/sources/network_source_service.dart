@@ -2,6 +2,7 @@ import '../../data/database.dart';
 import '../../data/repositories/song_repository.dart';
 import '../library_scanner_service.dart' show ScanProgress;
 import 'jellyfin_service.dart';
+import '../link/lokal_desktop_source.dart';
 import 'smb_service.dart';
 import 'subsonic_service.dart';
 import 'tidal_service.dart';
@@ -31,10 +32,7 @@ abstract class NetworkSourceService {
   /// Resolve the value to persist in [NetworkServerEntity.token] for a typed
   /// [password]. Returns null when the protocol stores no secret (anonymous
   /// UPnP). May perform a network round-trip (Jellyfin authenticateByName).
-  Future<String?> resolveToken(
-    NetworkServerEntity server,
-    String password,
-  );
+  Future<String?> resolveToken(NetworkServerEntity server, String password);
 
   /// Validate connectivity + stored credentials. Returns false (not throws)
   /// on expected auth/network failures so the edit screen can show a banner.
@@ -98,6 +96,7 @@ void _ensureSeeded() {
     UpnpService.instance,
     SmbService.instance,
     TidalService.instance,
+    LokalDesktopSource.instance,
   ]) {
     _registry[s.protocol] = s;
   }

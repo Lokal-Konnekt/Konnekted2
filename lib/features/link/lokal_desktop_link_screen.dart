@@ -1,0 +1,485 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/theme/lokal_tokens.dart';
+import '../../l10n/l10n.dart';
+import '../../models/lokal_remote_state.dart';
+import '../../providers/lokal_remote_provider.dart';
+import '../../services/link/lokal_link_service.dart';
+import '../../services/lokal_remote_service.dart';
+import '../../widgets/lokal/settings/lokal_settings_kit.dart';
+import '../settings/screens/lokal_remote_settings_screen.dart';
+
+class LokalDesktopLinkScreen extends ConsumerStatefulWidget {
+  const LokalDesktopLinkScreen({super.key});
+  @override
+  ConsumerState<LokalDesktopLinkScreen> createState() =>
+      _LokalDesktopLinkScreenState();
+}
+
+class _LokalDesktopLinkScreenState
+    extends ConsumerState<LokalDesktopLinkScreen> {
+  final _address = TextEditingController(), _code = TextEditingController();
+  List<LokalDiscoveredDesktop> _desktops = [];
+  bool _busy = false,
+      _discovering = false,
+      _theme = false,
+      _sendDownloads = false;
+  String? _error;
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadOptions());
+  }
+
+  Future<void> _loadOptions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final id =
+        (await ref.read(lokalRemoteCredentialsStoreProvider).read())?.desktopId;
+    if (mounted)
+      setState(() {
+        _theme = prefs.getBool('lokal.link.$id.theme') ?? false;
+        _sendDownloads =
+            prefs.getBool('lokal.link.$id.send_downloads') ?? false;
+      });
+  }
+
+  @override
+  void dispose() {
+    _address.dispose();
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await action();
+    } catch (error) {
+      if (mounted)
+        setState(
+          () => _error = error is LokalRemoteException
+              ? error.message
+              : l10n.linkActionFailed,
+        );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _discover() async {
+    setState(() => _discovering = true);
+    try {
+      final desktops = await ref
+          .read(lokalRemoteControllerProvider.notifier)
+          .discoverDesktops();
+      if (mounted) setState(() => _desktops = desktops);
+    } catch (_) {
+      if (mounted) setState(() => _error = l10n.linkNoDesktopFound);
+    } finally {
+      if (mounted) setState(() => _discovering = false);
+    }
+  }
+
+  Future<void> _pair({LokalPairingLink? qr}) => _run(() async {
+    final address = _address.text.trim();
+    final origin =
+        qr?.origin.toString() ??
+        (address.contains('://') ? address : 'http://$address');
+    await ref
+        .read(lokalRemoteControllerProvider.notifier)
+        .pairDesktop(
+          origin: origin,
+          code: qr?.code ?? _code.text,
+          expectedDesktopId: qr?.desktopId,
+          syncTheme: _theme,
+        );
+    _code.clear();
+    await _saveOption('send_downloads', _sendDownloads);
+  });
+  Future<void> _scan() async {
+    final value = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const _PairingScanner()));
+    if (value == null || !mounted) return;
+    try {
+      final qr = LokalPairingLink.parse(value);
+      _address.text = qr.origin.toString();
+      await _pair(qr: qr);
+    } on FormatException {
+      if (mounted) setState(() => _error = l10n.linkInvalidQr);
+    }
+  }
+
+  Future<void> _saveOption(String key, bool value) async {
+    final credentials = await ref
+        .read(lokalRemoteCredentialsStoreProvider)
+        .read();
+    if (credentials?.desktopId == null) return;
+    await (await SharedPreferences.getInstance()).setBool(
+      'lokal.link.${credentials!.desktopId}.$key',
+      value,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final link = ref.watch(lokalRemoteControllerProvider),
+        controller = ref.read(lokalRemoteControllerProvider.notifier),
+        t = context.lokal;
+    return LokalSettingsScaffold(
+      title: l10n.linkDesktop,
+      subtitle: l10n.linkPairingHint,
+      children: [
+        if (_error != null)
+          LokalSettingsBlock(
+            child: Text(_error!, style: TextStyle(color: t.accent)),
+          ),
+        if (link.error != null)
+          LokalSettingsBlock(
+            child: Text(link.error!, style: TextStyle(color: t.muted)),
+          ),
+        if (link.configured) ...[
+          LokalSettingsBlock(
+            child: LokalSettingsCard(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.desktop_windows_rounded, color: t.accent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              link.desktopName,
+                              style: TextStyle(
+                                color: t.text,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              link.reachable
+                                  ? l10n.linkConnected
+                                  : l10n.linkOffline,
+                              style: TextStyle(color: t.muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.tonal(
+                        onPressed: _busy
+                            ? null
+                            : () => _run(controller.connect),
+                        child: Text(l10n.linkReconnect),
+                      ),
+                      TextButton(
+                        onPressed: _busy ? null : controller.disconnect,
+                        child: Text(l10n.linkDisconnect),
+                      ),
+                      TextButton(
+                        onPressed: _busy
+                            ? null
+                            : () => _run(() async {
+                                final confirmed = await showLokalConfirmSheet(
+                                  context: context,
+                                  title: l10n.linkForget,
+                                  message: l10n.linkForgetDescription,
+                                  confirmLabel: l10n.linkForget,
+                                  destructive: true,
+                                );
+                                if (confirmed)
+                                  await controller.forgetConfiguration();
+                              }),
+                        child: Text(l10n.linkForget),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (link.reachable)
+            LokalSettingsBlock(
+              child: LokalSettingsCard(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.linkPlayback,
+                      style: TextStyle(
+                        color: t.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(l10n.linkControlDesktop),
+                      value: link.controlsDesktop,
+                      onChanged: _busy
+                          ? null
+                          : (value) =>
+                                _run(() => controller.setDesktopTarget(value)),
+                    ),
+                    if (link.snapshot?.currentTrack case final track?)
+                      Text(
+                        '${track.title} · ${track.artist}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: t.muted),
+                      ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final entry in [
+                          (Icons.skip_previous_rounded, LokalRemoteAction.prev),
+                          (
+                            link.snapshot?.isPlaying == true
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            LokalRemoteAction.togglePlay,
+                          ),
+                          (Icons.skip_next_rounded, LokalRemoteAction.next),
+                        ])
+                          IconButton(
+                            onPressed: _busy
+                                ? null
+                                : () => _run(
+                                    () => controller.sendCommand(entry.$2),
+                                  ),
+                            icon: Icon(entry.$1),
+                          ),
+                      ],
+                    ),
+                    if (link.socketConnected)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.tonal(
+                            onPressed: _busy
+                                ? null
+                                : () => _run(controller.playOnDesktop),
+                            child: Text(l10n.linkPlayOnDesktop),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: _busy
+                                ? null
+                                : () => _run(controller.playOnPhone),
+                            child: Text(l10n.linkPlayOnPhone),
+                          ),
+                        ],
+                      ),
+                    if (!link.socketConnected)
+                      Text(
+                        l10n.linkUpdateDesktop,
+                        style: TextStyle(color: t.muted),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          if (link.socketConnected && !link.mergeApproved)
+            LokalSettingsBlock(
+              child: LokalSettingsCard(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.linkMergeLibraries,
+                      style: TextStyle(
+                        color: t.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.linkMergePreview,
+                      style: TextStyle(color: t.muted),
+                    ),
+                    if (link.syncPreview?['history'] case final int count)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          l10n.linkHistoryCount(count),
+                          style: TextStyle(color: t.muted),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: _busy
+                          ? null
+                          : () => _run(controller.approveMerge),
+                      child: Text(l10n.linkMerge),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (link.socketConnected)
+            LokalSettingsBlock(
+              child: LokalSettingsCard(
+                child: Column(
+                  children: [
+                    SwitchListTile.adaptive(
+                      title: Text(l10n.linkMatchTheme),
+                      value: _theme,
+                      onChanged: (value) {
+                        setState(() => _theme = value);
+                        unawaited(_saveOption('theme', value));
+                      },
+                    ),
+                    SwitchListTile.adaptive(
+                      title: Text(l10n.linkSendDownloads),
+                      subtitle: Text(l10n.linkSendDownloadsDescription),
+                      value: _sendDownloads,
+                      onChanged: (value) {
+                        setState(() => _sendDownloads = value);
+                        unawaited(_saveOption('send_downloads', value));
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ] else ...[
+          LokalSettingsBlock(
+            child: LokalSettingsCard(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _busy ? null : _scan,
+                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                    label: Text(l10n.linkScanQr),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _discovering ? null : _discover,
+                    icon: const Icon(Icons.wifi_find_rounded),
+                    label: Text(
+                      _discovering
+                          ? l10n.linkSearching
+                          : l10n.linkSearchDesktops,
+                    ),
+                  ),
+                  for (final desktop in _desktops)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.desktop_windows_rounded),
+                      title: Text(desktop.name),
+                      subtitle: Text(desktop.origin.toString()),
+                      onTap: () {
+                        _address.text = desktop.origin.toString();
+                      },
+                    ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _address,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    decoration: InputDecoration(
+                      labelText: l10n.linkDesktopAddress,
+                      hintText: '192.168.1.20:3421',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _code,
+                    keyboardType: TextInputType.number,
+                    autofillHints: const [AutofillHints.oneTimeCode],
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: l10n.linkPairingCode,
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.linkMatchTheme),
+                    value: _theme,
+                    onChanged: (value) => setState(() => _theme = value),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _busy ? null : () => _pair(),
+                    child: Text(_busy ? l10n.linkConnecting : l10n.linkPair),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        LokalSettingsBlock(
+          child: TextButton(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => const LokalRemoteSettingsScreen(),
+              ),
+            ),
+            child: Text(l10n.linkLegacyRemote),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PairingScanner extends StatefulWidget {
+  const _PairingScanner();
+  @override
+  State<_PairingScanner> createState() => _PairingScannerState();
+}
+
+class _PairingScannerState extends State<_PairingScanner> {
+  bool _done = false;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(l10n.linkScanQr)),
+    body: MobileScanner(
+      onDetect: (capture) {
+        if (_done) return;
+        for (final barcode in capture.barcodes) {
+          final raw = barcode.rawValue;
+          if (raw != null && raw.startsWith('lokal://pair?')) {
+            _done = true;
+            Navigator.of(context).pop(raw);
+            break;
+          }
+        }
+      },
+      errorBuilder: (_, error) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(l10n.linkCameraUnavailable, textAlign: TextAlign.center),
+        ),
+      ),
+    ),
+  );
+}

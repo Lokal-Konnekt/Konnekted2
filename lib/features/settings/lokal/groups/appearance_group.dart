@@ -19,7 +19,6 @@ void _push(BuildContext context, Widget page) => unawaited(
 
 /// The language codes the segmented control offers; `null` follows the
 /// phone.
-String? _languageOf(Locale? locale) => locale?.languageCode;
 
 List<LokalSettingsSection> appearanceSettings(
   BuildContext context,
@@ -31,11 +30,11 @@ List<LokalSettingsSection> appearanceSettings(
   final notifier = ref.read(appPreferencesProvider.notifier);
   return [
     LokalSettingsSection(
-      title: 'Theme',
+      title: lokalText('Theme'),
       children: [
         LokalSettingRow(
-          label: 'Theme',
-          description: 'Desktop Lokal’s ten themes.',
+          label: lokalText('Theme'),
+          description: lokalText('Desktop Lokal’s ten themes.'),
           stacked: true,
           trailing: LokalThemeGrid(
             padding: EdgeInsets.zero,
@@ -47,8 +46,10 @@ List<LokalSettingsSection> appearanceSettings(
           ),
         ),
         LokalSettingRow(
-          label: 'Accent',
-          description: 'The theme’s own accent, or one of desktop’s. The app icon follows it.',
+          label: lokalText('Accent'),
+          description: lokalText(
+            'The theme’s own accent, or one of desktop’s. The app icon follows it.',
+          ),
           stacked: true,
           trailing: LokalAccentRow(
             padding: EdgeInsets.zero,
@@ -60,8 +61,8 @@ List<LokalSettingsSection> appearanceSettings(
           ),
         ),
         LokalSettingSlider(
-          label: 'Text size',
-          description: 'Bigger or smaller text across Lokal.',
+          label: lokalText('Text size'),
+          description: lokalText('Bigger or smaller text across Lokal.'),
           value: appearance.textScale,
           min: LokalAppearance.minTextScale,
           max: LokalAppearance.maxTextScale,
@@ -71,58 +72,108 @@ List<LokalSettingsSection> appearanceSettings(
           onChanged: look.setTextScale,
         ),
         LokalSettingRow.toggle(
-          label: 'Performance mode',
-          description: 'Solid surfaces instead of glass, for older phones.',
+          label: lokalText('Performance mode'),
+          description: lokalText(
+            'Solid surfaces instead of glass, for older phones.',
+          ),
           value: appearance.performanceMode,
           onChanged: look.setPerformanceMode,
         ),
       ],
     ),
     LokalSettingsSection(
-      title: 'Now Playing',
+      title: lokalText('Now Playing'),
       children: [
         LokalSettingRow.toggle(
-          label: 'Moving covers',
-          description: 'Play an album’s animated cover in the classic player, when there is one.',
+          label: lokalText('Moving covers'),
+          description: lokalText(
+            'Play an album’s animated cover in the classic player, when there is one.',
+          ),
           value: prefs.animatedAlbumArt,
           onChanged: notifier.setAnimatedAlbumArt,
         ),
         LokalSettingLink(
-          label: 'MilkDrop presets',
-          description: 'Choose which MilkDrop presets rotate in the visualizer.',
+          label: lokalText('MilkDrop presets'),
+          description: lokalText(
+            'Choose which MilkDrop presets rotate in the visualizer.',
+          ),
           onTap: () => _push(context, const VisualizerSettingsScreen()),
         ),
       ],
     ),
     LokalSettingsSection(
-      title: 'Interface',
+      title: lokalText('Interface'),
       children: [
         LokalSettingRow(
-          label: 'Language',
-          description: 'The phone’s language, or one Lokal is translated into.',
+          label: lokalText('Language'),
+          description: lokalText(
+            'The phone’s language, or one Lokal is translated into.',
+          ),
           stacked: true,
           trailing: ValueListenableBuilder<Locale?>(
             valueListenable: LocaleController.instance,
-            builder: (context, locale, _) => LokalSegmented<String?>(
-              expand: true,
-              segments: const [
-                LokalSegment(null, 'Phone'),
-                LokalSegment('en', 'English'),
-                LokalSegment('zh', '简体中文'),
+            builder: (context, locale, _) => DropdownButtonFormField<String>(
+              initialValue: locale == null ? 'system' : locale.languageCode,
+              isExpanded: true,
+              items: [
+                DropdownMenuItem(
+                  value: 'system',
+                  child: Text(
+                    lokalText('Phone'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'en',
+                  child: Text(lokalText('English')),
+                ),
+                DropdownMenuItem(
+                  value: 'fr',
+                  child: Text(lokalText('Français')),
+                ),
+                DropdownMenuItem(
+                  value: 'de',
+                  child: Text(lokalText('Deutsch')),
+                ),
+                DropdownMenuItem(
+                  value: 'es',
+                  child: Text(lokalText('Español')),
+                ),
+                DropdownMenuItem(
+                  value: 'it',
+                  child: Text(lokalText('Italiano')),
+                ),
+                DropdownMenuItem(
+                  value: 'pt',
+                  child: Text(lokalText('Português (Brasil)')),
+                ),
+                DropdownMenuItem(
+                  value: 'nl',
+                  child: Text(lokalText('Nederlands')),
+                ),
+                DropdownMenuItem(value: 'pl', child: Text(lokalText('Polski'))),
+                DropdownMenuItem(
+                  value: 'sv',
+                  child: Text(lokalText('Svenska')),
+                ),
+                DropdownMenuItem(value: 'zh', child: Text('简体中文')),
               ],
-              value: _languageOf(locale),
               onChanged: (code) =>
                   LocaleController.instance.select(switch (code) {
-                    'en' => const Locale('en'),
+                    'system' || null => null,
                     'zh' => const Locale('zh', 'CN'),
-                    _ => null,
+                    'pt' => const Locale('pt', 'BR'),
+                    _ => Locale(code!),
                   }),
             ),
           ),
         ),
         LokalSettingRow.toggle(
-          label: 'Haptics',
-          description: 'A light tap under your finger as you use Lokal.',
+          label: lokalText('Haptics'),
+          description: lokalText(
+            'A light tap under your finger as you use Lokal.',
+          ),
           value: prefs.hapticsEnabled,
           onChanged: (value) {
             notifier.setHapticsEnabled(value);
@@ -130,15 +181,17 @@ List<LokalSettingsSection> appearanceSettings(
           },
         ),
         LokalSettingRow(
-          label: 'Refresh rate',
-          description: 'Adaptive lets the phone decide. 120 Hz is smoothest and uses more battery.',
+          label: lokalText('Refresh rate'),
+          description: lokalText(
+            'Adaptive lets the phone decide. 120 Hz is smoothest and uses more battery.',
+          ),
           stacked: true,
           trailing: LokalSegmented<String>(
             expand: true,
-            segments: const [
-              LokalSegment('adaptive', 'Adaptive'),
-              LokalSegment('standard', '60 Hz'),
-              LokalSegment('high', '120 Hz'),
+            segments: [
+              LokalSegment('adaptive', lokalText('Adaptive')),
+              LokalSegment('standard', lokalText('60 Hz')),
+              LokalSegment('high', lokalText('120 Hz')),
             ],
             value: prefs.refreshRateMode,
             onChanged: notifier.setRefreshRateMode,
@@ -147,11 +200,11 @@ List<LokalSettingsSection> appearanceSettings(
       ],
     ),
     LokalSettingsSection(
-      title: 'Home-screen widget',
+      title: lokalText('Home-screen widget'),
       children: [
         LokalSettingLink(
-          label: 'Home-screen widget',
-          description: 'What the widget on your home screen shows.',
+          label: lokalText('Home-screen widget'),
+          description: lokalText('What the widget on your home screen shows.'),
           onTap: () => _push(context, const WidgetSettingsScreen()),
         ),
       ],

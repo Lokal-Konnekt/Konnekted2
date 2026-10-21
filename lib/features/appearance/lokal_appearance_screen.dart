@@ -1,3 +1,4 @@
+import 'package:flick/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,15 +35,15 @@ class LokalAppearanceScreen extends ConsumerWidget {
                 BackButton(color: t.text),
               ],
             ),
-            const KonnektedHeading(
-              title: 'Appearance',
+            KonnektedHeading(
+              title: lokalText('Appearance'),
               eyebrow: 'Make it yours',
               action: Padding(
                 padding: EdgeInsets.only(left: 12),
                 child: LokalLogo(size: 52),
               ),
             ),
-            const _Label('Theme'),
+            _Label(lokalText('Theme')),
             LokalThemeGrid(
               selected: appearance.theme,
               onSelect: (id) {
@@ -50,7 +51,7 @@ class LokalAppearanceScreen extends ConsumerWidget {
                 notifier.selectTheme(id);
               },
             ),
-            const _Label('Accent'),
+            _Label(lokalText('Accent')),
             LokalAccentRow(
               selected: appearance.accent,
               onSelect: (accent) {
@@ -58,15 +59,17 @@ class LokalAppearanceScreen extends ConsumerWidget {
                 notifier.setAccent(accent);
               },
             ),
-            const _Label('Display'),
+            _Label(lokalText('Display')),
             _Group(
               children: [
                 SwitchListTile(
                   value: appearance.performanceMode,
                   onChanged: notifier.setPerformanceMode,
-                  title: const Text('Performance mode'),
-                  subtitle: const Text(
-                    'Solid surfaces instead of glass, for older phones',
+                  title: Text(lokalText('Performance mode')),
+                  subtitle: Text(
+                    lokalText(
+                      'Solid surfaces instead of glass, for older phones',
+                    ),
                   ),
                 ),
                 Divider(height: 1, color: t.border, indent: 16),
@@ -171,7 +174,7 @@ class _ThemeSwatch extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: '${id.label} theme',
+      label: lokalText("{arg0} theme", args: {'arg0': id.label}),
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
@@ -258,7 +261,7 @@ class LokalAccentRow extends StatelessWidget {
       runSpacing: 12,
       children: [
         _AccentDot(
-          label: 'Theme accent',
+          label: lokalText('Theme accent'),
           colors: [context.lokal.accent, context.lokal.accentDim],
           selected: selected == null,
           onTap: () => onSelect(null),
@@ -266,7 +269,7 @@ class LokalAccentRow extends StatelessWidget {
         ),
         for (final accent in LokalAccent.presets)
           _AccentDot(
-            label: '${accent.name} accent',
+            label: lokalText("{arg0} accent", args: {'arg0': accent.name}),
             colors: [accent.value, accent.dim],
             selected: selected == accent,
             onTap: () => onSelect(accent),
@@ -351,9 +354,9 @@ class _TextSize extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Expanded(child: Text('Text size')),
+            Expanded(child: Text(lokalText('Text size'))),
             Text(
-              '${(value * 100).round()}%',
+              lokalText("{arg0}%", args: {'arg0': (value * 100).round()}),
               style: LokalTheme.label(context.lokal, size: 12),
             ),
           ],
@@ -363,7 +366,7 @@ class _TextSize extends StatelessWidget {
           min: LokalAppearance.minTextScale,
           max: LokalAppearance.maxTextScale,
           divisions: 16,
-          label: '${(value * 100).round()}%',
+          label: lokalText("{arg0}%", args: {'arg0': (value * 100).round()}),
           semanticFormatterCallback: (v) => '${(v * 100).round()} percent',
           onChanged: onChanged,
         ),

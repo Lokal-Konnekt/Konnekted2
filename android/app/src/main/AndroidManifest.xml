@@ -3,6 +3,7 @@
     android:installLocation="auto">
     <!-- Internet permission for Last.fm scrobbling and online features -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <!-- USB Host (optional): for UAC 2.0 DAC/AMP detection on Android -->
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <!-- Storage permissions for music library access -->

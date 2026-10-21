@@ -44,7 +44,9 @@ class NetworkCacheService {
     String remoteId, {
     String? extension,
   }) async {
-    final serverDir = Directory(p.join((await _root()).path, '$remoteServerId'));
+    final serverDir = Directory(
+      p.join((await _root()).path, '$remoteServerId'),
+    );
     if (!await serverDir.exists()) return null;
 
     final hash = _hash(remoteServerId, remoteId);
@@ -71,10 +73,15 @@ class NetworkCacheService {
     List<int> bytes, {
     String? extension,
   }) async {
-    final serverDir = Directory(p.join((await _root()).path, '$remoteServerId'));
+    final serverDir = Directory(
+      p.join((await _root()).path, '$remoteServerId'),
+    );
     await serverDir.create(recursive: true);
     final file = File(
-      p.join(serverDir.path, '${_hash(remoteServerId, remoteId)}.${extension ?? 'bin'}'),
+      p.join(
+        serverDir.path,
+        '${_hash(remoteServerId, remoteId)}.${extension ?? 'bin'}',
+      ),
     );
     await file.writeAsBytes(bytes, flush: true);
     await _evictIfOverCap(protect: file);
@@ -89,11 +96,19 @@ class NetworkCacheService {
     String remoteId, {
     String? extension,
   }) async {
-    final serverDir = Directory(p.join((await _root()).path, '$remoteServerId'));
+    final serverDir = Directory(
+      p.join((await _root()).path, '$remoteServerId'),
+    );
     await serverDir.create(recursive: true);
-    return p.join(serverDir.path,
-        '${_hash(remoteServerId, remoteId)}.${extension ?? 'bin'}');
+    return p.join(
+      serverDir.path,
+      '${_hash(remoteServerId, remoteId)}.${extension ?? 'bin'}',
+    );
   }
+
+  /// Apply the shared cache bound after a streamed download completes.
+  Future<void> commitDownload(String path) =>
+      _evictIfOverCap(protect: File(path));
 
   Future<String?> _findByHash(Directory serverDir, String hash) async {
     await for (final entry in serverDir.list()) {

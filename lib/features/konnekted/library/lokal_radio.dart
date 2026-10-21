@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:math';
 
 import 'package:flick/features/konnekted/konnekted_data.dart';
@@ -140,9 +142,11 @@ Future<void> startLokalRadio(
   final messenger = ScaffoldMessenger.of(context);
   if (radio.length < 2) {
     messenger.showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'Not enough similar songs for a radio yet. Radio uses your library’s artists, genres and years.',
+          lokalText(
+            'Not enough similar songs for a radio yet. Radio uses your library’s artists, genres and years.',
+          ),
         ),
       ),
     );
@@ -154,14 +158,20 @@ Future<void> startLokalRadio(
         .play(radio.first, playlist: radio);
   } catch (_) {
     messenger.showSnackBar(
-      const SnackBar(content: Text('Couldn’t start this radio.')),
+      SnackBar(content: Text(lokalText('Couldn’t start this radio.'))),
     );
     return;
   }
   messenger.showSnackBar(
     SnackBar(
       content: Text(
-        '${seed?.title ?? artist} Radio: ${lokalSongCount(radio.length)}',
+        lokalText(
+          "{arg0} Radio: {arg1}",
+          args: {
+            'arg0': seed?.title ?? artist,
+            'arg1': lokalSongCount(radio.length),
+          },
+        ),
       ),
     ),
   );

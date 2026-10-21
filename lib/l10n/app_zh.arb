@@ -1784,5 +1784,62 @@
   "yourSessionHistory": "你的收听记录",
   "yourWeeklyRecapAppearsOnceYou": "本周开始收听，你的每周回顾就会出现。",
   "yourWholeLibraryLivesHereTap": "你的整个音乐库都在这里，点按任意歌曲即可播放。",
-  "yourYearlyRecapFillsInAs": "随着你全年持续收听，你的年度回顾会逐渐充实。"
+  "yourYearlyRecapFillsInAs": "随着你全年持续收听，你的年度回顾会逐渐充实。",
+  "linkDesktop": "桌面连接",
+  "linkDevices": "设备",
+  "linkConnectDesktop": "连接您的 Lokal 桌面端",
+  "linkPairingHint": "在桌面端打开手机遥控，选择配对手机。请将两台设备连接到同一 Wi-Fi。",
+  "linkScanQr": "扫描配对二维码",
+  "linkInvalidQr": "这不是有效的 Lokal 配对二维码。",
+  "linkCameraUnavailable": "无法访问相机。请返回并输入桌面地址和配对码。",
+  "linkSearchDesktops": "查找 Wi-Fi 中的桌面端",
+  "linkSearching": "正在查找桌面端…",
+  "linkNoDesktopFound": "未找到桌面端。您可以手动输入地址。",
+  "linkDesktopAddress": "桌面地址",
+  "linkPairingCode": "六位配对码",
+  "linkPair": "配对桌面端",
+  "linkConnecting": "正在连接…",
+  "linkMatchTheme": "跟随桌面主题和强调色",
+  "linkConnected": "已连接",
+  "linkOffline": "离线",
+  "linkReconnect": "重新连接",
+  "linkDisconnect": "断开连接",
+  "linkForget": "忘记桌面端",
+  "linkForgetDescription": "从此手机移除桌面端的已保存凭据？您的音乐和已合并的音乐库将保留在手机上。",
+  "linkActionFailed": "桌面连接无法完成此操作。",
+  "linkPlayback": "播放输出",
+  "linkControlDesktop": "在正在播放页面控制桌面端",
+  "linkPlayOnDesktop": "在桌面端播放",
+  "linkPlayOnPhone": "在此手机播放",
+  "linkUpdateDesktop": "更新电脑上的 Lokal，以从电脑控制此手机并同步音乐库。",
+  "linkMergeLibraries": "合并音乐库",
+  "linkMergePreview": "保留两台设备的音乐、喜爱和歌单。已完成的播放记录将去重合并。不会删除音乐文件。后续编辑将双向同步。",
+  "linkMerge": "合并",
+  "linkNotNow": "暂不",
+  "linkHistoryCount": "有 {count} 条桌面播放记录可合并",
+  "linkSendDownloads": "将手机下载发送到电脑",
+  "linkSendDownloadsDescription": "将手机新下载的歌曲及接力播放时缺少的歌曲复制到配对的电脑。原文件保留在手机上。",
+  "linkLegacyRemote": "手动连接旧版桌面端",
+  "linkDownloadToPhone": "下载到手机",
+  "linkDownloaded": "已保存到此手机",
+  "linkOutputName": "{name} 上的 Lokal",
+  "linkOnboardingDescription": "控制任一设备、在设备间转移播放队列，并同步喜爱、歌单和收听历史。此步骤可跳过，稍后也能设置。",
+  "linkFollowAccent": "跟随应用强调色",
+  "linkPerformanceTitle": "让动画更流畅？",
+  "linkPerformanceBody": "性能模式保留您的主题，并使用纯色表面代替玻璃效果。",
+  "linkEnablePerformance": "使用性能模式",
+  "@linkHistoryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@linkOutputName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

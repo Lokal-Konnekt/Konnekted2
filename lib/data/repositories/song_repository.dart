@@ -1,9 +1,13 @@
+import '../../services/link/link_journal.dart';
+import '../../services/link/link_protocol.dart';
+
 import 'package:isar_community/isar.dart';
 
 import '../../core/utils/audio_metadata_utils.dart';
 import '../../core/utils/string_sort_utils.dart';
 import '../database.dart';
 import '../../models/song.dart';
+
 import 'package:flick/l10n/l10n.dart';
 
 class AlbumGroup {
@@ -319,8 +323,10 @@ class SongRepository {
   }
 
   Future<Set<String>> getReferencedAlbumArtPaths() async {
-    final paths =
-        await _isar.songEntitys.where().albumArtPathProperty().findAll();
+    final paths = await _isar.songEntitys
+        .where()
+        .albumArtPathProperty()
+        .findAll();
     return paths.whereType<String>().where((p) => p.isNotEmpty).toSet();
   }
 
@@ -334,7 +340,11 @@ class SongRepository {
     int? discNumber,
     int? year,
     String? genre,
+    bool recordLink = true,
   }) async {
+    final before = recordLink
+        ? await _isar.songEntitys.filter().filePathEqualTo(filePath).findFirst()
+        : null;
     await _isar.writeTxn(() async {
       final existing = await _isar.songEntitys
           .filter()
@@ -354,6 +364,30 @@ class SongRepository {
 
       await _isar.songEntitys.put(existing);
     });
+    if (before != null && recordLink) {
+      await LinkJournal.instance.registerTrackAlias(
+        before.id.toString(),
+        linkTrackKey(
+          before.artist,
+          before.title,
+          Duration(milliseconds: before.durationMs ?? 0),
+        ),
+      );
+      await LinkJournal.instance.append(
+        'track',
+        await LinkJournal.instance.trackKeyFor(_entityToSong(before)),
+        'track.edit',
+        {
+          if (title != null) 'title': title,
+          if (artist != null) 'artist': artist,
+          if (album != null) 'album': album,
+          if (albumArtist != null) 'album_artist': albumArtist,
+          if (genre != null) 'genre': genre,
+          if (year != null) 'year': year,
+          if (trackNumber != null) 'track_num': trackNumber,
+        },
+      );
+    }
   }
 
   /// Persist probed audio format for songs whose sync couldn't read tags
@@ -503,6 +537,8 @@ class SongRepository {
   }
 
   /// Convert entity to Song model.
+  Song songFromEntity(SongEntity entity) => _entityToSong(entity);
+
   Song _entityToSong(SongEntity entity) {
     return Song(
       id: entity.id.toString(),
@@ -551,8 +587,7 @@ class SongRepository {
       albumMap.putIfAbsent(albumName, () => []).add(song);
     }
     final sorted = <Song>[];
-    final albumNames = albumMap.keys.toList()
-      ..sort(compareCaseInsensitive);
+    final albumNames = albumMap.keys.toList()..sort(compareCaseInsensitive);
     for (final albumName in albumNames) {
       final albumSongs = albumMap[albumName]!;
       albumSongs.sort(SongRepository._compareAlbumSongs);

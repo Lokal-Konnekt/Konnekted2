@@ -1,3 +1,4 @@
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/models/song.dart';
@@ -135,7 +136,10 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
                     ),
                   ),
                   PopupMenuButton<LokalSongSort>(
-                    tooltip: 'Sort: ${label(_sort)}',
+                    tooltip: lokalText(
+                      "Sort: {arg0}",
+                      args: {'arg0': label(_sort)},
+                    ),
                     icon: Icon(Icons.swap_vert_rounded, color: t.accent),
                     color: t.surface2,
                     initialValue: _sort,
@@ -159,10 +163,17 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
           SliverToBoxAdapter(
             child: LokalEmptyState(
               icon: Icons.search_off_rounded,
-              title: _query.isEmpty ? 'No songs yet' : 'No results',
+              title: _query.isEmpty
+                  ? lokalText('No songs yet')
+                  : lokalText('No results'),
               message: _query.isEmpty
-                  ? 'Songs show up here once they’re in your library.'
-                  : 'Nothing matches “$_query”.',
+                  ? lokalText(
+                      'Songs show up here once they’re in your library.',
+                    )
+                  : lokalText(
+                      "Nothing matches “{arg0}”.",
+                      args: {'arg0': _query},
+                    ),
             ),
           )
         else
@@ -228,8 +239,8 @@ class LokalSongListPage extends ConsumerWidget {
             child: songs.hasError
                 ? LokalEmptyState(
                     icon: Icons.error_outline_rounded,
-                    title: 'Couldn’t load these songs',
-                    message: 'Try again in a moment.',
+                    title: lokalText('Couldn’t load these songs'),
+                    message: lokalText('Try again in a moment.'),
                     actionLabel: 'Try again',
                     onAction: () => ref.invalidate(konnektedLibraryProvider),
                   )

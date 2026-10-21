@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -186,7 +188,10 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
           mainAxisSize: MainAxisSize.min,
           children: [
             Semantics(
-              label: 'Cover Flow. ${album.albumName} by ${album.albumArtist}',
+              label: lokalText(
+                "Cover Flow. {arg0} by {arg1}",
+                args: {'arg0': album.albumName, 'arg1': album.albumArtist},
+              ),
               value: '${_index + 1} of ${widget.albums.length}',
               increasedValue: _index < _last
                   ? widget.albums[_index + 1].albumName
@@ -440,7 +445,7 @@ class _Back extends StatelessWidget {
                     SizedBox(
                       width: 20,
                       child: Text(
-                        '${i + 1}',
+                        lokalText("{arg0}", args: {'arg0': i + 1}),
                         style: LokalTheme.label(t, size: 10),
                       ),
                     ),
@@ -460,7 +465,7 @@ class _Back extends StatelessWidget {
           const SizedBox(height: 6),
           Semantics(
             button: true,
-            label: 'Play ${album.albumName}',
+            label: lokalText("Play {arg0}", args: {'arg0': album.albumName}),
             excludeSemantics: true,
             child: GestureDetector(
               onTap: songs.isEmpty ? null : () => onPlay(songs.first, songs),
@@ -474,7 +479,7 @@ class _Back extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  'PLAY',
+                  lokalText('PLAY'),
                   style: LokalTheme.label(t, size: 10, color: t.onAccent),
                 ),
               ),

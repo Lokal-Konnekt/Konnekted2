@@ -1,3 +1,6 @@
+import 'package:flick/services/notification_service.dart';
+import 'package:flick/services/widget_sync_service.dart';
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -26,11 +29,20 @@ class FlickPlayerApp extends StatelessWidget {
         final appearance = ref.watch(lokalAppearanceProvider);
         // The launcher icon's sticker follows the accent, like desktop's
         // Dock icon.
-        ref.listen(
-          lokalAppearanceProvider,
-          (_, next) => LokalLauncherIcon.sync(next),
-        );
+        ref.listen(lokalAppearanceProvider, (_, next) {
+          LokalLauncherIcon.sync(next);
+          NotificationService().setLokalAccent(next.tokens.accent.toARGB32());
+          WidgetSyncService.instance.setLokalAccent(
+            next.tokens.accent.toARGB32(),
+          );
+        });
         final tokens = appearance.tokens;
+        // Also initialize the current accent after process restart.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          LokalLauncherIcon.sync(appearance);
+          NotificationService().setLokalAccent(tokens.accent.toARGB32());
+          WidgetSyncService.instance.setLokalAccent(tokens.accent.toARGB32());
+        });
         // The older screens read AppColors directly; point it at the new
         // tokens and rebuild everything once so they all follow at once.
         if (AppColors.bind(tokens)) {
@@ -97,7 +109,9 @@ class FlickPlayerApp extends StatelessWidget {
                   (preferences) => preferences.connectionNoticesEnabled,
                 ),
               ),
-              child: child ?? const SizedBox.shrink(),
+              child: LokalPerformanceAdvisor(
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
           ),
         );

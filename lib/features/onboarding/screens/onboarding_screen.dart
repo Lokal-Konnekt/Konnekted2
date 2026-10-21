@@ -1,3 +1,6 @@
+import 'package:flick/features/link/lokal_desktop_link_screen.dart';
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -31,7 +34,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-enum _Step { welcome, look, folder, online, done }
+enum _Step { welcome, look, folder, desktop, online, done }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   _Step _step = _Step.welcome;
@@ -103,21 +106,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         : const Duration(milliseconds: 420);
 
     final (primary, onPrimary) = switch (_step) {
-      _Step.welcome => ('Get Started', _next),
+      _Step.welcome => (lokalText('Get Started'), _next),
       _Step.folder when _folderName == null => (
-        _picking ? 'Opening…' : 'Choose Folder',
+        _picking ? lokalText('Opening…') : lokalText('Choose Folder'),
         _picking ? null : _pickFolder,
       ),
       _Step.done => (
-        _finishing ? 'Starting…' : 'Start Listening',
+        _finishing ? lokalText('Starting…') : lokalText('Start Listening'),
         _finishing ? null : _next,
       ),
-      _ => ('Continue', _next),
+      _ => (lokalText('Continue'), _next),
     };
     final (secondary, onSecondary) = switch (_step) {
-      _Step.welcome => ('Skip Setup', _skipAll),
-      _Step.folder when _folderName == null => ('Skip for now', _next),
-      _Step.online => ('Not now', _next),
+      _Step.welcome => (lokalText('Skip Setup'), _skipAll),
+      _Step.folder when _folderName == null => (
+        lokalText('Skip for now'),
+        _next,
+      ),
+      _Step.desktop => (l10n.linkNotNow, _next),
+      _Step.online => (lokalText('Not now'), _next),
       _ => (null, null),
     };
 
@@ -210,6 +217,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       picking: _picking,
       onPick: _pickFolder,
     ),
+    _Step.desktop => const _DesktopLinkPage(),
     _Step.online => const _OnlinePage(),
     _Step.done => _DonePage(hasFolder: _folderName != null),
   };
@@ -237,7 +245,7 @@ class _TopBar extends StatelessWidget {
               opacity: onBack == null ? 0 : 1,
               duration: const Duration(milliseconds: 200),
               child: IconButton(
-                tooltip: 'Back',
+                tooltip: lokalText('Back'),
                 onPressed: onBack,
                 icon: Icon(Icons.chevron_left_rounded, size: 30, color: t.text),
               ),
@@ -245,7 +253,10 @@ class _TopBar extends StatelessWidget {
           ),
           Expanded(
             child: Semantics(
-              label: 'Step ${step + 1} of $count',
+              label: lokalText(
+                "Step {arg0} of {arg1}",
+                args: {'arg0': step + 1, 'arg1': count},
+              ),
               excludeSemantics: true,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -397,9 +408,9 @@ class _WelcomePage extends StatelessWidget {
             child: const LokalLogo(size: 132),
           ),
           const SizedBox(height: 36),
-          const _Header(
+          _Header(
             eyebrow: 'Lokal',
-            title: 'Welcome to Lokal',
+            title: lokalText('Welcome to Lokal'),
             body:
                 'Your personal local-first music player. Enjoy your entire '
                 'music library without the burden of streaming subscriptions.',
@@ -423,7 +434,7 @@ class _LookPage extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.fromLTRB(24, 12, 24, 0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,7 +442,7 @@ class _LookPage extends ConsumerWidget {
               Expanded(
                 child: _Header(
                   eyebrow: 'Make it yours',
-                  title: 'Pick your look',
+                  title: lokalText('Pick your look'),
                   body:
                       'Choose a theme and an accent. You can change them '
                       'any time in Settings › Appearance.',
@@ -444,7 +455,7 @@ class _LookPage extends ConsumerWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
-          child: Text('THEME', style: LokalTheme.label(t)),
+          child: Text(lokalText('THEME'), style: LokalTheme.label(t)),
         ),
         LokalThemeGrid(
           selected: appearance.theme,
@@ -455,7 +466,7 @@ class _LookPage extends ConsumerWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 26, 24, 12),
-          child: Text('ACCENT', style: LokalTheme.label(t)),
+          child: Text(lokalText('ACCENT'), style: LokalTheme.label(t)),
         ),
         LokalAccentRow(
           selected: appearance.accent,
@@ -487,9 +498,9 @@ class _FolderPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
       children: [
-        const _Header(
+        _Header(
           eyebrow: 'Your music',
-          title: 'Select Your Music Folder',
+          title: lokalText('Select Your Music Folder'),
           body:
               'Choose a folder where your music files are stored. Lokal will '
               'scan and organize your library.',
@@ -497,7 +508,9 @@ class _FolderPage extends StatelessWidget {
         const SizedBox(height: 28),
         Semantics(
           button: true,
-          label: added ? 'Add another folder' : 'Choose a music folder',
+          label: added
+              ? lokalText('Add another folder')
+              : lokalText('Choose a music folder'),
           excludeSemantics: true,
           child: Material(
             color: added ? t.accentSoft : t.surface,
@@ -532,7 +545,7 @@ class _FolderPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            folderName ?? 'Choose a folder',
+                            folderName ?? lokalText('Choose a folder'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -545,8 +558,10 @@ class _FolderPage extends StatelessWidget {
                           const SizedBox(height: 3),
                           Text(
                             added
-                                ? 'Added · scanning in the background'
-                                : 'MP3, FLAC, AAC, WAV and more',
+                                ? lokalText(
+                                    'Added · scanning in the background',
+                                  )
+                                : lokalText('MP3, FLAC, AAC, WAV and more'),
                             style: TextStyle(
                               fontFamily: LokalTheme.sans,
                               fontSize: 13,
@@ -557,7 +572,10 @@ class _FolderPage extends StatelessWidget {
                       ),
                     ),
                     if (added)
-                      Text('ADD', style: LokalTheme.label(t, color: t.accent)),
+                      Text(
+                        lokalText('ADD'),
+                        style: LokalTheme.label(t, color: t.accent),
+                      ),
                   ],
                 ),
               ),
@@ -572,9 +590,9 @@ class _FolderPage extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Lokal is not a streaming service: it plays music you own. '
-                'You can add folders later from Library or '
-                'Settings › Library.',
+                lokalText(
+                  "Lokal is not a streaming service: it plays music you own. You can add folders later from Library or Settings › Library.",
+                ),
                 style: TextStyle(
                   fontFamily: LokalTheme.sans,
                   fontSize: 13,
@@ -609,11 +627,11 @@ class _OnlinePage extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.only(top: 12, bottom: 24),
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 24),
           child: _Header(
             eyebrow: 'Optional',
-            title: 'Connect Your Music Accounts',
+            title: lokalText('Connect Your Music Accounts'),
             body:
                 'Sign in to YouTube Music for your mixes, and connect Last.fm '
                 'for scrobbling and Discovery. Both stay off until you turn '
@@ -622,29 +640,31 @@ class _OnlinePage extends ConsumerWidget {
         ),
         const SizedBox(height: 6),
         LokalSettingsSection(
-          title: 'Online sources',
+          title: lokalText('Online sources'),
           children: [
             LokalSettingRow.toggle(
-              label: 'YouTube Music',
+              label: lokalText('YouTube Music'),
               description: youtube
-                  ? 'Signed in'
-                  : 'Your mixes, likes and history',
+                  ? lokalText('Signed in')
+                  : lokalText('Your mixes, likes and history'),
               icon: Icons.play_circle_outline_rounded,
               value: youtube,
               onChanged: (_) => _open(context, LokalOnlineSections.streaming),
             ),
             LokalSettingRow.toggle(
-              label: 'Last.fm',
+              label: lokalText('Last.fm'),
               description: lastFm
-                  ? 'Connected'
-                  : 'Scrobble what you play and power Discovery',
+                  ? lokalText('Connected')
+                  : lokalText('Scrobble what you play and power Discovery'),
               icon: Icons.graphic_eq_rounded,
               value: lastFm,
               onChanged: (_) => _open(context, LokalOnlineSections.accounts),
             ),
             LokalSettingLink(
-              label: 'All online sources',
-              description: 'Add-ons, servers, Spotify and ListenBrainz',
+              label: lokalText('All online sources'),
+              description: lokalText(
+                'Add-ons, servers, Spotify and ListenBrainz',
+              ),
               onTap: () => unawaited(
                 openLokalSettings(
                   context,
@@ -676,7 +696,7 @@ class _DonePage extends StatelessWidget {
           const SizedBox(height: 32),
           _Header(
             eyebrow: 'Ready',
-            title: 'All Set!',
+            title: lokalText('All Set!'),
             body: hasFolder
                 ? 'Your music library is ready. Enjoy your music with Lokal!'
                 : 'Add your music any time from Library or '
@@ -691,8 +711,9 @@ class _DonePage extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'Lokal may ask to show playback controls in your '
-                  'notifications.',
+                  lokalText(
+                    "Lokal may ask to show playback controls in your notifications.",
+                  ),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: LokalTheme.sans,
@@ -705,6 +726,47 @@ class _DonePage extends StatelessWidget {
             ],
           ),
           const Spacer(),
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopLinkPage extends StatelessWidget {
+  const _DesktopLinkPage();
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    return Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Icon(Icons.devices_rounded, size: 64, color: t.accent),
+          const SizedBox(height: 24),
+          Text(
+            l10n.linkConnectDesktop,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: t.text,
+              fontSize: 26,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            l10n.linkOnboardingDescription,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: t.muted, fontSize: 15),
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(builder: (_) => const LokalDesktopLinkScreen()),
+            ),
+            child: Text(l10n.linkDesktop),
+          ),
         ],
       ),
     );

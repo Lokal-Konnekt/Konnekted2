@@ -1,3 +1,5 @@
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
+
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -213,90 +215,92 @@ class LokalGlass extends ConsumerWidget {
     final solid = ref.watch(
       lokalAppearanceProvider.select((a) => a.performanceMode),
     );
-    return ValueListenableBuilder<ui.FragmentProgram?>(
-      valueListenable: LokalGlassShaders.lens,
-      builder: (context, program, _) {
-        final liquid = !solid && program != null;
-        final light = t.isLight;
-        final double alpha;
-        if (liquid) {
-          alpha = thickness.tint;
-        } else {
-          final frost = light ? thickness.frostLight : thickness.frostDark;
-          // Solid glass gets 20 % more opacity so text keeps its contrast
-          // without the blur behind it.
-          alpha = solid ? (frost + .2).clamp(0.0, .96) : frost;
-        }
-        final base =
-            tint ??
-            (liquid
-                ? (light ? const Color(0xFFFAFAFA) : const Color(0xFF121212))
-                : (light ? Colors.white : t.surface));
+    return _GlassPresence(
+      child: ValueListenableBuilder<ui.FragmentProgram?>(
+        valueListenable: LokalGlassShaders.lens,
+        builder: (context, program, _) {
+          final liquid = !solid && program != null;
+          final light = t.isLight;
+          final double alpha;
+          if (liquid) {
+            alpha = thickness.tint;
+          } else {
+            final frost = light ? thickness.frostLight : thickness.frostDark;
+            // Solid glass gets 20 % more opacity so text keeps its contrast
+            // without the blur behind it.
+            alpha = solid ? (frost + .2).clamp(0.0, .96) : frost;
+          }
+          final base =
+              tint ??
+              (liquid
+                  ? (light ? const Color(0xFFFAFAFA) : const Color(0xFF121212))
+                  : (light ? Colors.white : t.surface));
 
-        Widget surface = DecoratedBox(
-          decoration: BoxDecoration(
-            color: base.withValues(alpha: alpha),
-            borderRadius: borderRadius,
-          ),
-          position: DecorationPosition.background,
-          child: CustomPaint(
-            foregroundPainter: LokalGlassRimPainter(
+          Widget surface = DecoratedBox(
+            decoration: BoxDecoration(
+              color: base.withValues(alpha: alpha),
               borderRadius: borderRadius,
-              light: light,
-              strength: solid ? .6 : 1,
-              program: LokalGlassShaders.rim.value,
             ),
-            child: padding == null
-                ? child
-                : Padding(padding: padding!, child: child),
-          ),
-        );
+            position: DecorationPosition.background,
+            child: CustomPaint(
+              foregroundPainter: LokalGlassRimPainter(
+                borderRadius: borderRadius,
+                light: light,
+                strength: solid ? .6 : 1,
+                program: LokalGlassShaders.rim.value,
+              ),
+              child: padding == null
+                  ? child
+                  : Padding(padding: padding!, child: child),
+            ),
+          );
 
-        if (liquid) {
-          surface = LokalLensBackdrop(
-            program: program,
-            radius: _radius(borderRadius),
-            lens: lens ?? thickness.lens,
-            inner: ui.ImageFilter.compose(
-              outer: ui.ImageFilter.blur(
-                sigmaX: thickness.blurSigma,
-                sigmaY: thickness.blurSigma,
+          if (liquid) {
+            surface = LokalLensBackdrop(
+              program: program,
+              radius: _radius(borderRadius),
+              lens: lens ?? thickness.lens,
+              inner: ui.ImageFilter.compose(
+                outer: ui.ImageFilter.blur(
+                  sigmaX: thickness.blurSigma,
+                  sigmaY: thickness.blurSigma,
+                  tileMode: TileMode.mirror,
+                ),
+                inner: const ColorFilter.matrix(_vibrancyMatrix),
+              ),
+              child: surface,
+            );
+          } else if (!solid) {
+            final filter = ui.ImageFilter.compose(
+              outer: const ColorFilter.matrix(_vibrancyMatrix),
+              inner: ui.ImageFilter.blur(
+                sigmaX: thickness.frostSigma,
+                sigmaY: thickness.frostSigma,
                 tileMode: TileMode.mirror,
               ),
-              inner: const ColorFilter.matrix(_vibrancyMatrix),
+            );
+            surface = grouped
+                ? BackdropFilter.grouped(filter: filter, child: surface)
+                : BackdropFilter(filter: filter, child: surface);
+          }
+
+          surface = ClipRRect(borderRadius: borderRadius, child: surface);
+          if (!shadow) return surface;
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: borderRadius,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: light ? .10 : .30),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
             child: surface,
           );
-        } else if (!solid) {
-          final filter = ui.ImageFilter.compose(
-            outer: const ColorFilter.matrix(_vibrancyMatrix),
-            inner: ui.ImageFilter.blur(
-              sigmaX: thickness.frostSigma,
-              sigmaY: thickness.frostSigma,
-              tileMode: TileMode.mirror,
-            ),
-          );
-          surface = grouped
-              ? BackdropFilter.grouped(filter: filter, child: surface)
-              : BackdropFilter(filter: filter, child: surface);
-        }
-
-        surface = ClipRRect(borderRadius: borderRadius, child: surface);
-        if (!shadow) return surface;
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: borderRadius,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: light ? .10 : .30),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: surface,
-        );
-      },
+        },
+      ),
     );
   }
 
@@ -661,5 +665,21 @@ class _LokalGlassButtonState extends State<LokalGlassButton> {
         ),
       ),
     );
+  }
+}
+
+class _GlassPresence extends SingleChildRenderObjectWidget {
+  const _GlassPresence({required super.child});
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderGlassPresence();
+}
+
+class _RenderGlassPresence extends RenderProxyBox {
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    LokalPerformanceAdvisor.lastGlassPaintMicros =
+        DateTime.now().microsecondsSinceEpoch;
+    super.paint(context, offset);
   }
 }

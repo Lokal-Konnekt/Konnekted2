@@ -82,8 +82,7 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
       _busy = false,
       _followed = false,
       _allSongs = false;
-  String? _portrait, _error, _playbackSource;
-  List<OnlineSource> _sources = const [];
+  String? _portrait, _error;
   Color? _dominant;
   int _request = 0;
   String get _identity =>
@@ -103,7 +102,6 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
     if (!mounted) return;
     setState(() {
       _followed = prefs.getBool(_followKey) ?? false;
-      _playbackSource = prefs.getString('lokal.catalogue.playback_source');
     });
     if (widget.isArtist && Database.isInitialized) {
       try {
@@ -190,9 +188,6 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
           ? page.portrait
           : page.albums.firstOrNull?.artwork;
       if (image?.isNotEmpty == true) unawaited(_tint(image!));
-      final sources = await onlineSources(_client);
-      if (mounted && _online && request == _request)
-        setState(() => _sources = sources);
     } catch (error) {
       if (mounted && request == _request)
         setState(() => _error = discoveryError(error));
@@ -208,7 +203,9 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
         .where(
           (song) =>
               (recommendationKey(song.albumArtist ?? song.artist) == artist ||
-                  recommendationKey(song.artist) == artist) &&
+                  recommendationKey(song.artist) == artist ||
+                  (widget.isArtist &&
+                      catalogueArtistCredit(song.artist, widget.artist))) &&
               (widget.isArtist || recommendationKey(song.album) == title),
         )
         .toList();
@@ -270,7 +267,6 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
     }
     final song = await prepareCatalogueTrack(
       entry.track,
-      playbackSource: _playbackSource,
       cancel: _cancel.future,
       onStatus: (text) {
         if (mounted) _progress.update(text);
@@ -296,18 +292,12 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
     }
     setState(() => _busy = true);
     try {
-      if (ordered[start].owned == null)
-        _progress.update(lokalText('Getting song ready…'));
-      final ready = await _prepare(ordered[start]);
-      if (!mounted) return;
       final queue = [
-        for (var i = 0; i < ordered.length; i++)
-          i == start
-              ? ready
-              : ordered[i].owned ??
-                    ordered[i].track.pending(playbackSource: _playbackSource),
+        for (final entry in ordered) entry.owned ?? entry.track.pending(),
       ];
-      await ref.read(playerProvider.notifier).play(ready, playlist: queue);
+      await ref
+          .read(playerProvider.notifier)
+          .play(queue[start], playlist: queue);
       _progress.clear();
     } catch (error) {
       if (mounted) _progress.fail(discoveryError(error));
@@ -399,8 +389,9 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
         lokalAlbums(widget.isArtist ? local : library)
             .where(
               (album) =>
+                  widget.isArtist ||
                   recommendationKey(album.albumArtist) ==
-                  recommendationKey(widget.artist),
+                      recommendationKey(widget.artist),
             )
             .toList()
           ..sort(
@@ -428,6 +419,11 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
             date: group.songs.first.year == null
                 ? null
                 : '${group.songs.first.year}-01-01',
+            releaseKind:
+                widget.isArtist &&
+                    !cataloguePrimaryArtist(group.albumArtist, widget.artist)
+                ? LokalReleaseKind.feature
+                : null,
           ),
         );
     }
@@ -727,52 +723,6 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
                     ],
                   ),
                   if (_online) ...[
-                    if (_sources.isNotEmpty)
-                      DropdownButtonFormField<String>(
-                        initialValue: _playbackSource ?? 'auto',
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          labelText: lokalText('Playback source'),
-                        ),
-                        items: [
-                          DropdownMenuItem(
-                            value: 'auto',
-                            child: Text(l10n.auto),
-                          ),
-                          if (_playbackSource != null &&
-                              !_sources.any((s) => s.id == _playbackSource))
-                            DropdownMenuItem(
-                              value: _playbackSource,
-                              child: Text(lokalText('Source unavailable')),
-                            ),
-                          for (final source in _sources)
-                            DropdownMenuItem(
-                              value: source.id,
-                              child: Text(source.name),
-                            ),
-                        ],
-                        onChanged: _busy
-                            ? null
-                            : (value) async {
-                                setState(
-                                  () => _playbackSource = value == 'auto'
-                                      ? null
-                                      : value,
-                                );
-                                final prefs =
-                                    await SharedPreferences.getInstance();
-                                if (_playbackSource == null) {
-                                  await prefs.remove(
-                                    'lokal.catalogue.playback_source',
-                                  );
-                                } else {
-                                  await prefs.setString(
-                                    'lokal.catalogue.playback_source',
-                                    _playbackSource!,
-                                  );
-                                }
-                              },
-                      ),
                     if (_loading)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 12),
@@ -848,24 +798,46 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
             itemBuilder: (context, index) =>
                 _trackRow(show[index], rows, index),
           ),
-          if (widget.isArtist && albums.isNotEmpty) ...[
-            SliverToBoxAdapter(child: LokalSectionTitle(title: l10n.albums)),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 238,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: albums.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 14),
-                  itemBuilder: (context, index) => SizedBox(
-                    width: 156,
-                    child: _albumCard(albums[index], groups, library),
+          for (final kind in LokalReleaseKind.values)
+            if (widget.isArtist &&
+                albums.any((album) => album.kind == kind)) ...[
+              SliverToBoxAdapter(
+                child: LokalSectionTitle(
+                  title: switch (kind) {
+                    LokalReleaseKind.album => l10n.albums,
+                    LokalReleaseKind.ep => lokalText('EPs'),
+                    LokalReleaseKind.single => lokalText('Singles'),
+                    LokalReleaseKind.compilation => lokalText('Compilations'),
+                    LokalReleaseKind.live => lokalText('Live'),
+                    LokalReleaseKind.feature => lokalText('Features'),
+                    LokalReleaseKind.unknown => lokalText('Unknown albums'),
+                  },
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 238,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: albums
+                        .where((album) => album.kind == kind)
+                        .length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 14),
+                    itemBuilder: (context, index) => SizedBox(
+                      width: 156,
+                      child: _albumCard(
+                        albums
+                            .where((album) => album.kind == kind)
+                            .elementAt(index),
+                        groups,
+                        library,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
           if (!widget.isArtist && rows.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -978,9 +950,7 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
         case 'queue':
           final player = ref.read(playerProvider.notifier);
           for (final row in rows) {
-            await player.addToQueue(
-              row.owned ?? row.track.pending(playbackSource: _playbackSource),
-            );
+            await player.addToQueue(row.owned ?? row.track.pending());
           }
         case 'identify':
           await IdentifyAlbumSheet.show(
@@ -1299,7 +1269,7 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
                 return;
               }
               final position = await player.addToQueue(
-                row.owned ?? row.track.pending(playbackSource: _playbackSource),
+                row.owned ?? row.track.pending(),
               );
               if (value == 'next') await player.moveQueueItemToNext(position);
             },

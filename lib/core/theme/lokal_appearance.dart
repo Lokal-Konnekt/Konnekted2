@@ -93,6 +93,19 @@ class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
   @override
   LokalAppearance build() {
     Future<void>.microtask(_load);
+    return ref.read(lokalInitialAppearanceProvider);
+  }
+
+  static Future<LokalAppearance> readSaved() async {
+    final raw = (await SharedPreferences.getInstance()).get(prefKey);
+    if (raw is! String) return const LokalAppearance();
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, Object?>)
+        return LokalAppearance.fromJson(decoded);
+    } on Object {
+      /* Invalid preferences use the yellow-accented Dark theme. */
+    }
     return const LokalAppearance();
   }
 
@@ -105,7 +118,7 @@ class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
       if (decoded is Map<String, Object?>) {
         state = LokalAppearance.fromJson(decoded);
       }
-    } on FormatException {
+    } on Object {
       // A damaged value falls back to the defaults rather than failing start-up.
     }
   }
@@ -156,6 +169,10 @@ class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
   Future<void> setPerformanceMode(bool value) =>
       _commit(state.copyWith(performanceMode: value));
 }
+
+final lokalInitialAppearanceProvider = Provider<LokalAppearance>(
+  (ref) => const LokalAppearance(),
+);
 
 final lokalAppearanceProvider =
     NotifierProvider<LokalAppearanceNotifier, LokalAppearance>(

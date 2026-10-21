@@ -72,7 +72,6 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   String? _chosen;
   Future<List<OnlineResult>>? _results;
   String? _searched;
-  String? _busy;
   final _saving = <String>{};
   int _inactiveAddons = 0;
 
@@ -135,7 +134,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   /// Download progress: one line, updated in place, only while a song is
   /// being got ready.
   void _status(String message) {
-    if (!mounted || _busy == null) return;
+    if (!mounted || _saving.isEmpty) return;
     _progress.update(message);
   }
 
@@ -146,22 +145,13 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   }
 
   Future<void> _play(OnlineSource source, OnlineResult result) async {
-    if (_busy != null) return;
-    final track = result.track;
-    setState(() => _busy = '${source.id}:${track.id}');
-    _progress.update('Getting ${track.title} from ${source.name}…');
-    try {
-      final song = await source.play(track);
-      if (!mounted) return;
-      _busy = null; // Late progress from the add-on says nothing now.
-      _progress.clear();
-      await ref.read(playerProvider.notifier).play(song, playlist: [song]);
-    } catch (error) {
-      _busy = null;
-      if (mounted) _progress.fail(discoveryError(error));
-    } finally {
-      if (mounted) setState(() => _busy = null);
-    }
+    final pending =
+        (widget.pendingSong ??
+        (source, track) =>
+            onlinePendingSong(source.id, track))(source, result.track);
+    // Enter the player immediately. Its pending resolver owns cancellation,
+    // so a later tap/skip can never be overtaken by this page's download.
+    await ref.read(playerProvider.notifier).play(pending, playlist: [pending]);
   }
 
   /// Play next / Add to queue: a placeholder that's found and downloaded
@@ -389,11 +379,9 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
                       for (final result in results.take(15))
                         _OnlineTile(
                           result: result,
-                          busy:
-                              _busy == '${source.id}:${result.track.id}' ||
-                              _saving.contains(
-                                '${source.id}:${result.track.id}',
-                              ),
+                          busy: _saving.contains(
+                            '${source.id}:${result.track.id}',
+                          ),
                           onTap: () => _play(source, result),
                           onMore: () => _actions(source, result),
                         ),

@@ -9,11 +9,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/features/internet_radio/radio_providers.dart';
 import 'package:flick/features/settings/screens/network_sources_screen.dart';
-import 'package:flick/features/settings/screens/lokal_remote_settings_screen.dart';
 import 'package:flick/features/settings/widgets/http_addons_settings_panel.dart';
 import 'package:flick/features/settings/widgets/lastfm_settings_tile.dart';
 import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart';
 import 'package:flick/features/settings/widgets/youtube_music_settings_tile.dart';
+import 'package:flick/features/settings/widgets/playback_source_priority_panel.dart';
 import 'package:flick/features/morneye/morneye_addons_screen.dart';
 import 'package:flick/features/spotify/spotify_library_screen.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
@@ -35,6 +35,13 @@ List<LokalSettingsSection> onlineSourcesSettings(
   LokalSettingsSection(
     title: LokalOnlineSections.streaming,
     children: [
+      LokalSettingCustom(
+        label: lokalText('Playback search priority'),
+        description: lokalText(
+          'Try sources from top to bottom when finding a song to play. Installed add-ons appear here too.',
+        ),
+        child: const PlaybackSourcePriorityPanel(),
+      ),
       LokalSettingCustom(
         label: lokalText('YouTube Music'),
         description: lokalText('Sign in to load your mixes, likes and history'),

@@ -11,6 +11,7 @@ import '../../models/playlist.dart';
 import '../favorites_service.dart';
 import '../playlist_service.dart';
 import 'link_journal.dart';
+import 'link_profile_service.dart';
 import 'lokal_desktop_source.dart';
 import 'lokal_link_service.dart';
 
@@ -22,25 +23,94 @@ class LinkSyncCoordinator {
     required this.credentials,
     required this.favorites,
     this.onChanged,
+    this.onProgress,
+    this.initialProgress = const LinkSyncProgress(),
   });
   final LokalLinkService socket;
   final LokalRemoteCredentials credentials;
   final FavoritesService favorites;
   final void Function()? onChanged;
-  bool _syncing = false;
+  final void Function(LinkSyncProgress)? onProgress;
+  final LinkSyncProgress initialProgress;
+  late LinkSyncProgress _progress = initialProgress;
+  Future<void>? _active;
   static String prefixFor(LokalRemoteCredentials value) =>
       'lokal.link.${value.desktopId}.user.${value.desktopUserId ?? 'guest'}';
   String get _prefix => prefixFor(credentials);
   Future<void> enableMerge() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('$_prefix.merge', true);
-    final ids = (prefs.getStringList('favorite_song_ids') ?? []).toSet();
-    await LinkJournal.instance.captureFavorites(ids);
-    await LinkJournal.instance.capturePlaylists(
-      await PlaylistService.instance.getPlaylists(),
+    final active = _active;
+    if (active != null) await active;
+    await _run(() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('$_prefix.merge', true);
+      final ids = (prefs.getStringList('favorite_song_ids') ?? []).toSet();
+      await LinkJournal.instance.captureFavorites(ids);
+      await LinkJournal.instance.capturePlaylists(
+        await PlaylistService.instance.getPlaylists(),
+      );
+      await _backfillHistory();
+      await _synchronize(importCatalog: true);
+    });
+  }
+
+  void _report(
+    LinkSyncPhase phase, {
+    int processed = 0,
+    int? total,
+    int? catalogSongs,
+    DateTime? completedAt,
+  }) {
+    _progress = LinkSyncProgress(
+      phase: phase,
+      processed: processed,
+      total: total,
+      catalogSongs: catalogSongs ?? _progress.catalogSongs,
+      completedAt: completedAt ?? _progress.completedAt,
     );
-    await _backfillHistory();
-    await synchronize(importCatalog: true);
+    onProgress?.call(_progress);
+  }
+
+  void _requireReady() {
+    if (!socket.connected) throw StateError('Desktop link disconnected.');
+    if (!Database.isInitialized)
+      throw StateError('The music library is not ready.');
+  }
+
+  Future<void> _run(Future<void> Function() action) {
+    final active = _active;
+    if (active != null) return active;
+    final task = _execute(action);
+    _active = task;
+    return task.whenComplete(() {
+      if (identical(_active, task)) _active = null;
+    });
+  }
+
+  Future<void> _execute(Future<void> Function() action) async {
+    _report(LinkSyncPhase.preparing);
+    try {
+      _requireReady();
+      await action();
+      _requireReady();
+      final completedAt = DateTime.now();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+        '$_prefix.last_sync',
+        completedAt.millisecondsSinceEpoch,
+      );
+      if (_progress.catalogSongs case final count?) {
+        await prefs.setInt('$_prefix.catalog_songs', count);
+      }
+      onChanged?.call();
+      _report(LinkSyncPhase.complete, completedAt: completedAt);
+    } catch (_) {
+      _report(
+        LinkSyncPhase.paused,
+        processed: _progress.processed,
+        total: _progress.total,
+      );
+      rethrow;
+    }
   }
 
   Future<void> _backfillHistory() async {
@@ -73,72 +143,95 @@ class LinkSyncCoordinator {
   }
 
   Future<void> synchronize({bool importCatalog = false}) async {
-    if (_syncing || !socket.connected || !Database.isInitialized) return;
+    final active = _active;
+    if (active != null) return active;
+    if (!socket.connected || !Database.isInitialized) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('$_prefix.merge') != true) return;
-    _syncing = true;
-    try {
-      final source = LokalDesktopSource.instance,
-          server = await LokalDesktopSource.instance.ensureServer(credentials);
-      if (importCatalog || prefs.getBool('$_prefix.catalog') != true) {
-        await for (final _ in source.syncLibrary(server)) {}
-        await prefs.setBool('$_prefix.catalog', true);
+    await _run(() => _synchronize(importCatalog: importCatalog));
+  }
+
+  Future<void> _synchronize({required bool importCatalog}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final source = LokalDesktopSource.instance,
+        server = await LokalDesktopSource.instance.ensureServer(credentials);
+    if (importCatalog || prefs.getBool('$_prefix.catalog') != true) {
+      _report(LinkSyncPhase.catalog);
+      await for (final progress in source.syncLibrary(server)) {
+        _requireReady();
+        _report(
+          LinkSyncPhase.catalog,
+          processed: progress.filesProcessed,
+          total: progress.totalFiles,
+          catalogSongs: progress.totalFiles,
+        );
       }
-      for (final kind in ['history', 'library']) {
-        final pushKey = '$_prefix.$kind.push';
-        while (socket.connected) {
-          final cursor = prefs.getInt(pushKey) ?? 0;
-          final batch = kind == 'history'
-              ? await LinkJournal.instance.historyAfter(cursor)
-              : await LinkJournal.instance.libraryAfter(cursor);
-          final items = batch['items'] as List;
-          if (items.isEmpty) break;
-          await socket.request('$kind.push', {'items': items});
-          await prefs.setInt(pushKey, batch['cursor'] as int);
-          if (batch['hasMore'] != true) break;
-        }
-        final pullKey = '$_prefix.$kind.pull';
-        while (socket.connected) {
-          final reply = await socket.request('$kind.pull', {
-            'cursor': prefs.getInt(pullKey) ?? 0,
-          });
-          final items = reply.body['items'];
-          if (items is! List || reply.body['cursor'] is! int)
-            throw const FormatException('Invalid desktop sync page.');
-          if (kind == 'history') {
-            final added = await LinkJournal.instance.mergeHistory(items);
-            for (final item in added) {
-              var song = await LinkJournal.instance.match(item);
-              final raw =
-                  item['track'] ??
-                  jsonDecode(item['track_json'] as String? ?? '{}');
-              if (song == null && raw is Map && raw['id'] != null)
-                song = await source.importTrack(
-                  server,
-                  Map<String, dynamic>.from(raw),
-                );
-              if (song != null)
-                await RecentlyPlayedRepository().recordPlay(
-                  song.id,
-                  eventId: item['event_id'] as String,
-                  playedAt: DateTime.fromMillisecondsSinceEpoch(
-                    item['played_at'] as int,
-                  ),
-                  listenedMs: item['ms_played'] as int,
-                );
-            }
-          } else {
-            final added = await LinkJournal.instance.mergeLibrary(items);
-            for (final item in added) await _materialize(item);
-          }
-          await prefs.setInt(pullKey, reply.body['cursor'] as int);
-          if (reply.body['hasMore'] != true) break;
-        }
-      }
-      onChanged?.call();
-    } finally {
-      _syncing = false;
+      await prefs.setBool('$_prefix.catalog', true);
     }
+    for (final kind in ['history', 'library']) {
+      _requireReady();
+      final phase = kind == 'history'
+          ? LinkSyncPhase.history
+          : LinkSyncPhase.library;
+      var processed = 0;
+      _report(phase);
+      final pushKey = '$_prefix.$kind.push';
+      while (socket.connected) {
+        final cursor = prefs.getInt(pushKey) ?? 0;
+        final batch = kind == 'history'
+            ? await LinkJournal.instance.historyAfter(cursor)
+            : await LinkJournal.instance.libraryAfter(cursor);
+        final items = batch['items'] as List;
+        if (items.isEmpty) break;
+        await socket.request('$kind.push', {'items': items});
+        processed += items.length;
+        _report(phase, processed: processed);
+        await prefs.setInt(pushKey, batch['cursor'] as int);
+        if (batch['hasMore'] != true) break;
+      }
+      final pullKey = '$_prefix.$kind.pull';
+      while (socket.connected) {
+        final reply = await socket.request('$kind.pull', {
+          'cursor': prefs.getInt(pullKey) ?? 0,
+        });
+        final items = reply.body['items'];
+        if (items is! List || reply.body['cursor'] is! int)
+          throw const FormatException('Invalid desktop sync page.');
+        if (kind == 'history') {
+          final added = await LinkJournal.instance.mergeHistory(items);
+          for (final item in added) {
+            var song = await LinkJournal.instance.match(item);
+            final raw =
+                item['track'] ??
+                jsonDecode(item['track_json'] as String? ?? '{}');
+            if (song == null && raw is Map && raw['id'] != null)
+              song = await source.importTrack(
+                server,
+                Map<String, dynamic>.from(raw),
+              );
+            if (song != null)
+              await RecentlyPlayedRepository().recordPlay(
+                song.id,
+                eventId: item['event_id'] as String,
+                playedAt: DateTime.fromMillisecondsSinceEpoch(
+                  item['played_at'] as int,
+                ),
+                listenedMs: item['ms_played'] as int,
+              );
+          }
+        } else {
+          final added = await LinkJournal.instance.mergeLibrary(items);
+          for (final item in added) await _materialize(item);
+        }
+        await prefs.setInt(pullKey, reply.body['cursor'] as int);
+        processed += items.length;
+        _report(phase, processed: processed);
+        if (reply.body['hasMore'] != true) break;
+      }
+    }
+    _requireReady();
+    _report(LinkSyncPhase.finalizing);
+    await LinkProfileService.sync(credentials);
   }
 
   Future<void> _materialize(Map<String, dynamic> item) async {
@@ -260,7 +353,7 @@ class LinkSyncCoordinator {
           if (fields.containsKey(field) && await journal.wins(item, field))
             winning[field] = fields[field];
         await SongRepository().updateSongMetadata(
-          song!.filePath!,
+          song.filePath!,
           title: winning['title'] as String?,
           artist: winning['artist'] as String?,
           album: winning['album'] as String?,

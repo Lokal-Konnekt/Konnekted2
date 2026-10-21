@@ -230,6 +230,64 @@ enum LokalRemoteConnectionStatus {
   unauthorized,
 }
 
+enum LinkCopyPhase { idle, checking, copying, complete, paused }
+
+class LinkCopyProgress {
+  const LinkCopyProgress({
+    this.phase = LinkCopyPhase.idle,
+    this.total = 0,
+    this.processed = 0,
+    this.sent = 0,
+    this.received = 0,
+    this.failures = const [],
+    this.currentTitle,
+    this.toDesktop = false,
+  });
+  final LinkCopyPhase phase;
+  final int total, processed, sent, received;
+  final List<String> failures;
+  final String? currentTitle;
+  final bool toDesktop;
+  bool get busy =>
+      phase == LinkCopyPhase.checking || phase == LinkCopyPhase.copying;
+}
+
+enum LinkSyncPhase {
+  idle,
+  preparing,
+  catalog,
+  history,
+  library,
+  finalizing,
+  complete,
+  paused,
+}
+
+class LinkSyncProgress {
+  const LinkSyncProgress({
+    this.phase = LinkSyncPhase.idle,
+    this.processed = 0,
+    this.total,
+    this.catalogSongs,
+    this.completedAt,
+  });
+
+  final LinkSyncPhase phase;
+  final int processed;
+  final int? total, catalogSongs;
+  final DateTime? completedAt;
+  bool get busy => switch (phase) {
+    LinkSyncPhase.preparing ||
+    LinkSyncPhase.catalog ||
+    LinkSyncPhase.history ||
+    LinkSyncPhase.library ||
+    LinkSyncPhase.finalizing => true,
+    _ => false,
+  };
+  double? get fraction =>
+      total != null && total! > 0 ? (processed / total!).clamp(0.0, 1.0) : null;
+}
+
 class LokalRemoteControllerState {
   const LokalRemoteControllerState({
     this.config,
@@ -243,6 +301,8 @@ class LokalRemoteControllerState {
     this.desktopName = 'Lokal desktop',
     this.mergeApproved = false,
     this.syncPreview,
+    this.syncProgress = const LinkSyncProgress(),
+    this.fileCopyProgress = const LinkCopyProgress(),
   });
 
   final LokalRemoteConfig? config;
@@ -256,6 +316,8 @@ class LokalRemoteControllerState {
   final String desktopName;
   final bool mergeApproved;
   final Map<String, dynamic>? syncPreview;
+  final LinkSyncProgress syncProgress;
+  final LinkCopyProgress fileCopyProgress;
 
   bool get configured => config != null;
   bool get reachable => status == LokalRemoteConnectionStatus.connected;
@@ -275,6 +337,8 @@ class LokalRemoteControllerState {
     String? desktopName,
     bool? mergeApproved,
     Map<String, dynamic>? syncPreview,
+    LinkSyncProgress? syncProgress,
+    LinkCopyProgress? fileCopyProgress,
   }) => LokalRemoteControllerState(
     config: clearConfig ? null : config ?? this.config,
     status: status ?? this.status,
@@ -287,5 +351,7 @@ class LokalRemoteControllerState {
     desktopName: desktopName ?? this.desktopName,
     mergeApproved: mergeApproved ?? this.mergeApproved,
     syncPreview: syncPreview ?? this.syncPreview,
+    syncProgress: syncProgress ?? this.syncProgress,
+    fileCopyProgress: fileCopyProgress ?? this.fileCopyProgress,
   );
 }

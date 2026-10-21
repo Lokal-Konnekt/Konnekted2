@@ -13,15 +13,25 @@ import 'package:flick/core/theme/lokal_tokens.dart';
 abstract final class LokalLauncherIcon {
   static const _channel = MethodChannel('lokal/launcher_icon');
   static String? _last;
+  static String? _wanted;
+  static Future<void> _tail = Future<void>.value();
 
   /// The preset whose icon matches [appearance]'s accent.
   static LokalAccent accentFor(LokalAppearance appearance) =>
       appearance.accent ?? LokalAccent.nearest(appearance.tokens.accent);
 
-  static Future<void> sync(LokalAppearance appearance) async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+  static Future<void> sync(LokalAppearance appearance) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android)
+      return Future.value();
     final name = accentFor(appearance).name.toLowerCase();
-    if (name == _last) return;
+    _wanted = name;
+    final next = _tail.then((_) => _apply(name));
+    _tail = next;
+    return next;
+  }
+
+  static Future<void> _apply(String name) async {
+    if (name != _wanted || name == _last) return;
     try {
       await _channel.invokeMethod<void>('setAccent', {'accent': name});
       _last = name;

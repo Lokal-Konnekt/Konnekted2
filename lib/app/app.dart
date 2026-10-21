@@ -39,9 +39,14 @@ class FlickPlayerApp extends StatelessWidget {
         final tokens = appearance.tokens;
         // Also initialize the current accent after process restart.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          LokalLauncherIcon.sync(appearance);
-          NotificationService().setLokalAccent(tokens.accent.toARGB32());
-          WidgetSyncService.instance.setLokalAccent(tokens.accent.toARGB32());
+          final current = ref.read(lokalAppearanceProvider);
+          LokalLauncherIcon.sync(current);
+          NotificationService().setLokalAccent(
+            current.tokens.accent.toARGB32(),
+          );
+          WidgetSyncService.instance.setLokalAccent(
+            current.tokens.accent.toARGB32(),
+          );
         });
         // The older screens read AppColors directly; point it at the new
         // tokens and rebuild everything once so they all follow at once.

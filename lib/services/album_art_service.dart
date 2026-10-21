@@ -36,6 +36,16 @@ class AlbumArtService {
   late final SongRepository _songRepository = SongRepository();
   final MusicFolderService _musicFolderService = MusicFolderService();
   final Map<String, Future<String?>> _inFlightResolutions = {};
+  final Map<String, String> _resolvedPaths = {};
+
+  /// New/reordered cover cards can paint the already resolved desktop art on
+  /// their first frame, instead of flashing a marker-scheme placeholder.
+  String? cachedArtworkPathFor(String? audioSourcePath) {
+    final path = _resolvedPaths[audioSourcePath];
+    if (path != null && File(path).existsSync()) return path;
+    _resolvedPaths.remove(audioSourcePath);
+    return null;
+  }
 
   // ponytail: album tracks share one folder cover; cache the raw bytes so a
   // 20-track album reads cover.jpg once, not 20 times.
@@ -52,6 +62,8 @@ class AlbumArtService {
     if (await _isUsableImagePath(existingPath)) {
       return existingPath;
     }
+    final resolved = cachedArtworkPathFor(audioSourcePath);
+    if (resolved != null) return resolved;
 
     final future = _inFlightResolutions.putIfAbsent(audioSourcePath, () async {
       final raw = await _loadArtworkBytes(
@@ -70,6 +82,7 @@ class AlbumArtService {
       final dir = await _ensureArtworkDir();
       final cachedFile = File('${dir.path}/$cacheKey');
       if (await _isUsableImagePath(cachedFile.path)) {
+        _resolvedPaths[audioSourcePath] = cachedFile.path;
         unawaited(_persistArtworkPath(audioSourcePath, cachedFile.path));
         unawaited(_pruneIfNeeded(dir));
         return cachedFile.path;
@@ -77,6 +90,7 @@ class AlbumArtService {
 
       final bytes = await _normalizeArtworkBytes(raw);
       await cachedFile.writeAsBytes(bytes, flush: true);
+      _resolvedPaths[audioSourcePath] = cachedFile.path;
 
       await _persistArtworkPath(audioSourcePath, cachedFile.path);
       unawaited(_pruneIfNeeded(dir));
@@ -223,6 +237,8 @@ class AlbumArtService {
       final marker =
           existingPath != null && existingPath.startsWith(service.coverScheme)
           ? existingPath.substring(service.coverScheme.length)
+          : uri.scheme == 'lokal' && uri.pathSegments.isNotEmpty
+          ? uri.pathSegments.last
           : null;
       if (marker == null || marker.isEmpty) return null;
 

@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -100,7 +101,9 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
   @override
   void initState() {
     super.initState();
-    _resolvedImagePath = _usablePath(widget.imagePath);
+    _resolvedImagePath =
+        _usablePath(widget.imagePath) ??
+        AlbumArtService.instance.cachedArtworkPathFor(widget.audioSourcePath);
     _resolveEmbeddedArtwork();
   }
 
@@ -109,7 +112,9 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imagePath != widget.imagePath ||
         oldWidget.audioSourcePath != widget.audioSourcePath) {
-      _resolvedImagePath = _usablePath(widget.imagePath);
+      _resolvedImagePath =
+          _usablePath(widget.imagePath) ??
+          AlbumArtService.instance.cachedArtworkPathFor(widget.audioSourcePath);
       _resolveEmbeddedArtwork();
     }
   }
@@ -135,7 +140,9 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
   }
 
   Future<void> _resolveEmbeddedArtwork() async {
-    final directPath = _usablePath(widget.imagePath);
+    final directPath =
+        _usablePath(widget.imagePath) ??
+        AlbumArtService.instance.cachedArtworkPathFor(widget.audioSourcePath);
     if (directPath != null) {
       if (_resolvedImagePath != directPath && mounted) {
         setState(() {

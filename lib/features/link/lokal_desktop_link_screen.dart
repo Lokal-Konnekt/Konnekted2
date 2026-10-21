@@ -69,6 +69,8 @@ class _LokalDesktopLinkScreenState
         setState(
           () => _error = error is LokalRemoteException
               ? error.message
+              : error is StateError
+              ? error.message.toString()
               : l10n.linkActionFailed,
         );
     } finally {
@@ -88,6 +90,220 @@ class _LokalDesktopLinkScreenState
     } finally {
       if (mounted) setState(() => _discovering = false);
     }
+  }
+
+  Future<void> _merge() => _run(() async {
+    await ref.read(lokalRemoteControllerProvider.notifier).approveMerge();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(lokalText('Libraries are up to date.'))),
+      );
+    }
+  });
+
+  Future<void> _copyFiles() => _run(() async {
+    final controller = ref.read(lokalRemoteControllerProvider.notifier);
+    try {
+      final plan = await controller.prepareFileCopy();
+      if (!mounted) return;
+      final confirmed = await showLokalConfirmSheet(
+        context: context,
+        title: lokalText('Copy missing songs both ways?'),
+        message: lokalText(
+          '{send} songs to your PC, {receive} songs to this phone. Songs are matched by artist, title and duration. Existing files are kept. Keep both apps open on Wi-Fi; you can check again to retry unfinished copies.',
+          args: {'send': plan.toDesktop.length, 'receive': plan.toPhone.length},
+        ),
+        confirmLabel: lokalText('Copy files'),
+      );
+      if (!confirmed || !mounted) return;
+      await controller.copyMissingFiles(plan);
+    } finally {
+      controller.cancelFileCopyPlan();
+    }
+  });
+
+  Widget _fileCopyStatus(LokalRemoteControllerState link) {
+    final progress = link.fileCopyProgress;
+    final t = context.lokal;
+    final title = switch (progress.phase) {
+      LinkCopyPhase.idle => lokalText('Keep song files on both devices'),
+      LinkCopyPhase.checking => lokalText('Checking for missing song files…'),
+      LinkCopyPhase.copying => lokalText('Copying missing song files…'),
+      LinkCopyPhase.complete =>
+        progress.failures.isEmpty
+            ? lokalText('Song files are up to date')
+            : lokalText('Some song files could not be copied'),
+      LinkCopyPhase.paused => lokalText('File copying paused'),
+    };
+    return LokalSettingsBlock(
+      child: LokalSettingsCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(color: t.text, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            if (progress.busy) ...[
+              LinearProgressIndicator(
+                value: progress.total > 0
+                    ? progress.processed / progress.total
+                    : null,
+              ),
+              const SizedBox(height: 8),
+              if (progress.currentTitle case final name?)
+                Text(
+                  lokalText(
+                    progress.toDesktop
+                        ? 'Sending to PC: {song}'
+                        : 'Saving on phone: {song}',
+                    args: {'song': name},
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+            if (progress.phase == LinkCopyPhase.copying ||
+                progress.phase == LinkCopyPhase.complete ||
+                progress.phase == LinkCopyPhase.paused)
+              Text(
+                lokalText(
+                  '{send} sent · {receive} saved · {failed} failed',
+                  args: {
+                    'send': progress.sent,
+                    'receive': progress.received,
+                    'failed': progress.failures.length,
+                  },
+                ),
+                style: TextStyle(color: t.muted),
+              ),
+            for (final title in progress.failures.take(5))
+              Text(title, style: TextStyle(color: t.muted)),
+            Text(
+              lokalText(
+                'Copies original song files in both directions. Nothing is deleted or replaced. Check again to retry files that did not finish.',
+              ),
+              style: TextStyle(color: t.muted),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.tonal(
+              onPressed:
+                  _busy ||
+                      progress.busy ||
+                      link.syncProgress.busy ||
+                      !link.socketConnected
+                  ? null
+                  : _copyFiles,
+              child: Text(lokalText('Copy missing song files')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mergeStatus(LokalRemoteControllerState link) {
+    final progress = link.syncProgress;
+    final t = context.lokal;
+    final title = !link.socketConnected
+        ? lokalText('Waiting for your desktop')
+        : switch (progress.phase) {
+            LinkSyncPhase.idle => lokalText('Library merge enabled'),
+            LinkSyncPhase.preparing => lokalText('Preparing your libraries…'),
+            LinkSyncPhase.catalog => lokalText('Adding desktop songs…'),
+            LinkSyncPhase.history => lokalText('Syncing listening history…'),
+            LinkSyncPhase.library => lokalText('Syncing likes and playlists…'),
+            LinkSyncPhase.finalizing => lokalText(
+              'Updating your profile…',
+            ),
+            LinkSyncPhase.complete => lokalText('Libraries are up to date'),
+            LinkSyncPhase.paused => lokalText('Library sync paused'),
+          };
+    final completed = progress.completedAt;
+    return LokalSettingsBlock(
+      child: LokalSettingsCard(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(color: t.text, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            if (progress.busy && link.socketConnected) ...[
+              LinearProgressIndicator(value: progress.fraction),
+              const SizedBox(height: 8),
+              if (progress.total case final total?)
+                Text(
+                  lokalText(
+                    '{done} of {total} songs',
+                    args: {'done': progress.processed, 'total': total},
+                  ),
+                  style: TextStyle(color: t.muted),
+                )
+              else if (progress.processed > 0)
+                Text(
+                  lokalText(
+                    '{count} entries processed',
+                    args: {'count': progress.processed},
+                  ),
+                  style: TextStyle(color: t.muted),
+                ),
+            ],
+            if (progress.catalogSongs case final count?)
+              Text(
+                lokalText(
+                  'Desktop library: {count} songs',
+                  args: {'count': count},
+                ),
+                style: TextStyle(color: t.muted),
+              ),
+            if (completed != null)
+              Text(
+                lokalText(
+                  'Last completed: {time}',
+                  args: {
+                    'time':
+                        '${MaterialLocalizations.of(context).formatShortDate(completed.toLocal())} ${TimeOfDay.fromDateTime(completed.toLocal()).format(context)}',
+                  },
+                ),
+                style: TextStyle(color: t.muted),
+              ),
+            const SizedBox(height: 8),
+            Text(
+              lokalText(
+                'Desktop songs appear in Library and stream from your PC. Audio files are copied only when you choose to download or send them.',
+              ),
+              style: TextStyle(color: t.muted),
+            ),
+            if (progress.phase == LinkSyncPhase.paused ||
+                !link.socketConnected) ...[
+              const SizedBox(height: 8),
+              Text(
+                lokalText(
+                  'Keep both devices connected. Completed work is saved; reconnect or retry to continue.',
+                ),
+                style: TextStyle(color: t.muted),
+              ),
+            ],
+            const SizedBox(height: 12),
+            FilledButton.tonal(
+              onPressed:
+                  _busy ||
+                      progress.busy ||
+                      link.fileCopyProgress.busy ||
+                      !link.socketConnected
+                  ? null
+                  : _merge,
+              child: Text(l10n.syncNow),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _pair({LokalPairingLink? qr}) => _run(() async {
@@ -301,6 +517,10 @@ class _LokalDesktopLinkScreenState
                 ),
               ),
             ),
+          if (link.mergeApproved ||
+              link.syncProgress.phase != LinkSyncPhase.idle)
+            _mergeStatus(link),
+          if (link.mergeApproved) _fileCopyStatus(link),
           if (link.socketConnected && !link.mergeApproved)
             LokalSettingsBlock(
               child: LokalSettingsCard(
@@ -330,9 +550,7 @@ class _LokalDesktopLinkScreenState
                       ),
                     const SizedBox(height: 12),
                     FilledButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _run(controller.approveMerge),
+                      onPressed: _busy ? null : _merge,
                       child: Text(l10n.linkMerge),
                     ),
                   ],

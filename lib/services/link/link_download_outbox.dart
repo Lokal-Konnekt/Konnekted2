@@ -35,6 +35,7 @@ class LinkDownloadOutbox {
   }
 
   bool _flushing = false;
+  bool get busy => _flushing;
   Future<void> flush(
     LokalRemoteCredentials credentials, {
     required bool Function() connected,

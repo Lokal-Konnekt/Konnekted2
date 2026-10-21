@@ -24,6 +24,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
+import 'package:flick/services/playback_source_priority.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -498,10 +499,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
             ),
         ],
         play: (found) async {
-          final progress = MorneyeProgressText(
-            found.title,
-            addon.displayName,
-          );
+          final progress = MorneyeProgressText(found.title, addon.displayName);
           var finished = false;
           final MorneyeDownload download;
           try {
@@ -608,7 +606,7 @@ Future<List<OnlineSource>> _playbackSources(
 }) async {
   final registry = DiscoverySourceRegistry(web, settings);
   final youtube = YoutubeAudio(web);
-  return [
+  return PlaybackSourcePriority.order([
     OnlineSource(
       id: 'yt',
       name: 'YouTube Music',
@@ -616,11 +614,7 @@ Future<List<OnlineSource>> _playbackSources(
         for (final track in await YoutubeMusicCatalog(web).search(query))
           OnlineResult(track, artwork: track.artwork),
       ],
-      play: (found) async => cache().prepare(
-        found,
-        await youtube.resolve(found.id),
-        cancel: cancel,
-      ),
+      play: (found) => youtube.prepare(found, cache(), cancel: cancel),
     ),
     for (final addon in registry.addons)
       OnlineSource(
@@ -638,7 +632,7 @@ Future<List<OnlineSource>> _playbackSources(
         ),
       ),
     ...await _morneyeSources(morneye, cache, onStatus, cancel: cancel),
-  ];
+  ], (source) => source.id);
 }
 
 /// The sources Search offers for songs you don't have. [onStatus] hears
@@ -764,45 +758,6 @@ Future<Song?> findDiscoverySong(
     final web = DiscoveryHttp(transport);
     final youtube = YoutubeAudio(web);
     DiscoveryException? failure;
-    if (track.videoId case final videoId?) {
-      onStatus?.call('Getting ${track.title} directly from YouTube Music…');
-      try {
-        final audio = await youtube.resolve(videoId);
-        check();
-        final direct = DiscoveryTrack(
-          id: videoId,
-          title: track.title,
-          artist: track.artist,
-          album: track.album,
-          duration: track.duration,
-          source: DiscoverySource.youtubeMusic,
-          sourceUrl: Uri.tryParse(track.url),
-          artwork: _artworkOf(track),
-        );
-        return await _playbackCache(
-          web,
-          additionalProtectedPaths,
-        ).prepare(direct, audio, cancel: cancel);
-      } on DiscoveryException catch (error) {
-        check();
-        if (error.message == 'Request cancelled.') rethrow;
-        // Public videos can be refused by one YouTube client as it rotates.
-        // Try the other configured sources rather than treating the first
-        // player response as proof the recording is unavailable in this region.
-        failure = error;
-        onStatus?.call(
-          'YouTube Music could not start ${track.title}. Trying another source…',
-        );
-      } catch (_) {
-        check();
-        failure = const DiscoveryException(
-          'YouTube Music could not resolve this recording. Trying another source.',
-        );
-        onStatus?.call(
-          'YouTube Music could not start ${track.title}. Trying another source…',
-        );
-      }
-    }
     DiscoveryPlaybackCache cache() =>
         _playbackCache(web, additionalProtectedPaths);
     final sources = await _playbackSources(
@@ -816,6 +771,45 @@ Future<Song?> findDiscoverySong(
     final candidate = discoveryCandidate(track);
     final queries = recommendationQueries(candidate).take(3).toList();
     for (final source in sources) {
+      if (source.id == 'yt' && track.videoId != null) {
+        final videoId = track.videoId!;
+        onStatus?.call('Getting ${track.title} directly from YouTube Music…');
+        try {
+          final direct = DiscoveryTrack(
+            id: videoId,
+            title: track.title,
+            artist: track.artist,
+            album: track.album,
+            duration: track.duration,
+            source: DiscoverySource.youtubeMusic,
+            sourceUrl: Uri.tryParse(track.url),
+            artwork: _artworkOf(track),
+          );
+          return await youtube.prepare(
+            direct,
+            _playbackCache(web, additionalProtectedPaths),
+            cancel: cancel,
+          );
+        } on DiscoveryException catch (error) {
+          check();
+          if (error.message == 'Request cancelled.') rethrow;
+          // Public videos can be refused by one YouTube client as it rotates.
+          // Try the other configured sources rather than treating the first
+          // player response as proof the recording is unavailable in this region.
+          failure = error;
+          onStatus?.call(
+            'YouTube Music could not start ${track.title}. Trying another source…',
+          );
+        } catch (_) {
+          check();
+          failure = const DiscoveryException(
+            'YouTube Music could not resolve this recording. Trying another source.',
+          );
+          onStatus?.call(
+            'YouTube Music could not start ${track.title}. Trying another source…',
+          );
+        }
+      }
       for (final query in queries) {
         check();
         List<DiscoveryTrack> results;

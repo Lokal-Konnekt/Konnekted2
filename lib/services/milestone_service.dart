@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -284,6 +285,7 @@ class MilestoneRecord {
 }
 
 class MilestoneService {
+  static final changes = StreamController<void>.broadcast();
   static const _shownMilestonesKey = 'shown_milestones';
   static const _accumulatedListenSecondsKey = 'accumulated_listen_seconds';
   static const _streakCurrentKey = 'streak_current';
@@ -386,6 +388,7 @@ class MilestoneService {
 
     await prefs.setInt(_streakCurrentKey, next);
     await prefs.setString(_streakLastActiveDayKey, today.toString());
+    changes.add(null);
     return next;
   }
 
@@ -444,6 +447,7 @@ class MilestoneService {
     shown.add(MilestoneRecord(type: type, achievedAt: DateTime.now()));
     final raw = jsonEncode(shown.map((r) => r.toJson()).toList());
     await prefs.setString(_shownMilestonesKey, raw);
+    changes.add(null);
   }
 
   Future<bool> isMilestoneShown(MilestoneType type) async {

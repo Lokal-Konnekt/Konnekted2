@@ -1,3 +1,5 @@
+import 'package:flick/core/theme/lokal_tokens.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -1481,9 +1483,11 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
         constraints: const BoxConstraints(maxWidth: 520),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: const Color(0xE91F1713),
+            color: context.lokal.surface,
             borderRadius: BorderRadius.circular(34),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(
+              color: context.lokal.text.withValues(alpha: 0.08),
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(28, 28, 28, 26),
@@ -1515,8 +1519,8 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                             widget.song.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: context.lokal.text,
                               fontSize: 21,
                               fontWeight: FontWeight.w700,
                               fontFamily: 'GoogleSansFlex',
@@ -1528,7 +1532,7 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.62),
+                              color: context.lokal.text.withValues(alpha: 0.62),
                               fontSize: 15,
                               fontFamily: 'GoogleSansFlex',
                             ),
@@ -1544,7 +1548,7 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                                   ),
                                 ),
                                 icon: const Icon(LucideIcons.skipBack),
-                                color: Colors.white,
+                                color: context.lokal.text,
                                 iconSize: 26,
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(
@@ -1564,7 +1568,7 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                                           ? LucideIcons.pause
                                           : LucideIcons.play,
                                     ),
-                                    color: Colors.white,
+                                    color: context.lokal.text,
                                     iconSize: 32,
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(
@@ -1578,7 +1582,7 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                                 onPressed: () =>
                                     unawaited(widget.playerService.next()),
                                 icon: const Icon(LucideIcons.skipForward),
-                                color: Colors.white,
+                                color: context.lokal.text,
                                 iconSize: 26,
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(
@@ -1617,8 +1621,8 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                               backgroundColor: Colors.black.withValues(
                                 alpha: 0.28,
                               ),
-                              valueColor: const AlwaysStoppedAnimation(
-                                Colors.white,
+                              valueColor: AlwaysStoppedAnimation(
+                                context.lokal.text,
                               ),
                             ),
                             const SizedBox(height: 7),
@@ -1628,14 +1632,18 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                                 Text(
                                   _time(position),
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.58),
+                                    color: context.lokal.text.withValues(
+                                      alpha: 0.58,
+                                    ),
                                     fontSize: 13,
                                   ),
                                 ),
                                 Text(
                                   _time(effective),
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.58),
+                                    color: context.lokal.text.withValues(
+                                      alpha: 0.58,
+                                    ),
                                     fontSize: 13,
                                   ),
                                 ),
@@ -1652,7 +1660,7 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                   children: [
                     Icon(
                       Icons.volume_down_rounded,
-                      color: Colors.white.withValues(alpha: 0.72),
+                      color: context.lokal.text.withValues(alpha: 0.72),
                     ),
                     Expanded(
                       child: Slider(
@@ -1661,8 +1669,10 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                           setState(() => _volume = value);
                           unawaited(widget.playerService.setVolume(value));
                         },
-                        activeColor: Colors.white,
-                        inactiveColor: Colors.white.withValues(alpha: 0.16),
+                        activeColor: context.lokal.text,
+                        inactiveColor: context.lokal.text.withValues(
+                          alpha: 0.16,
+                        ),
                       ),
                     ),
                   ],
@@ -1675,7 +1685,7 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.lokal.text,
                       borderRadius: BorderRadius.circular(28),
                     ),
                     child: Row(
@@ -1688,7 +1698,7 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                         const SizedBox(width: 18),
                         Text(
                           widget.deviceLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.black,
                             fontSize: 20,
                             fontWeight: FontWeight.w700,

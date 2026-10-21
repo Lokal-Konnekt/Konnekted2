@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:http/http.dart' as net;
+
 import 'discovery_http.dart';
 import 'discovery_models.dart';
 import 'discovery_sources.dart';

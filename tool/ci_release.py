@@ -155,9 +155,12 @@ def build():
             "-alias", child_env["ANDROID_KEY_ALIAS"],
             "-storepass:env", "ANDROID_KEYSTORE_PASSWORD",
         ], env=child_env, stderr=subprocess.PIPE)).hexdigest()
+        # Flutter 3.47 also skips release plugin registration with --no-pub.
+        # Regenerate it here so dev-only plugins (integration_test) are excluded
+        # from both the Java registrant and the release Gradle dependencies.
         subprocess.run([
             "flutter", "build", "apk", "--release", "--flavor", flavor,
-            "--target-platform", "android-arm64,android-arm", "--no-pub",
+            "--target-platform", "android-arm64,android-arm",
             "--build-name", version, "--build-number", str(code),
         ], env=child_env, check=True)
     # Secrets are no longer needed by verification or packaging.

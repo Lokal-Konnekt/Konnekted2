@@ -82,8 +82,7 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
               greeting: ref.watch(konnektedGreetingProvider).value,
               onSettings: () => onNavigate(
                 const KonnektedDestination.settingsAt(
-                  LokalSettingsGroup.data,
-                  section: LokalDataSections.accounts,
+                  LokalSettingsGroup.playback,
                 ),
               ),
               onAppearance: () => onNavigate(

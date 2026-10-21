@@ -264,16 +264,6 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
             title: lokalText('More'),
             children: [
               LokalSettingLink(
-                label: lokalText('Playback'),
-                description: lokalText('Audio, queue, lyrics and output.'),
-                icon: Icons.play_circle_outline_rounded,
-                onTap: () => navigate(
-                  const KonnektedDestination.settingsAt(
-                    LokalSettingsGroup.playback,
-                  ),
-                ),
-              ),
-              LokalSettingLink(
                 label: lokalText('Online sources'),
                 description: lokalText(
                   'Source priority, add-ons, servers and radio.',

@@ -201,8 +201,8 @@ Implemented; Android device confirmation remains outstanding:
   online requests. Mobile copies normalized words/timestamps/language, retains
   better cached timing and repairs already copied songs on the next merge.
   This requires the companion desktop update; older desktops still copy audio.
-- Home wheel opens Data with Accounts first. You → More has dedicated Playback,
-  Online sources and About rows. Cover Flow fills newly available mixes rather
+- Home wheel opens Playback; You wheel opens Data with Accounts first.
+  You → More has dedicated Online sources and About rows. Cover Flow fills newly available mixes rather
   than freezing the first partial set, keeping valid picks stable.
 - The supplied log ends in two Android Source errors for Tearz. Failed prepares,
   async source errors and seek failures invalidate source/playlist/resume reuse.

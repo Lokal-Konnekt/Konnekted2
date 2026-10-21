@@ -47,7 +47,7 @@ const kLokalReleaseNotes = ChangelogEntry(
         'The lyrics source sheet shows timing type and lets you refresh the search. Translate and Romanize sublines animate in and out.',
         'Translation is unavailable when lyrics already match your system language.',
         'Updated paired desktops can sync saved syllable lyrics to music already copied to your phone.',
-        'Home settings opens Data with Accounts first. Playback, Online sources and About each have a row in You → More.',
+        'Home settings opens Playback. You settings opens Data with Accounts first; Online sources and About have their own rows in You → More.',
         'Cover Flow fills two songs from each of the first six mixes as your library loads.',
         'Failed Android sources reload on retry; stalled seeks time out rather than blocking later commands.',
       ],

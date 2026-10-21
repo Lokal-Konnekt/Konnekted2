@@ -72,3 +72,17 @@ label shows the device name without a product prefix.
 
 These follow-ups have source-level validation only; notification artwork and
 sync latency still require a paired-device check.
+
+Phone uploads now fall back to the scanner's saved Android MediaStore URI when
+scoped storage denies a filesystem read. The planner also includes such songs
+when only the URI remains accessible. Container extensions come from the
+original filename when available, with aliases for WavPack/DSD and common codec
+labels. An unreadable or unsupported song fails explicitly rather than being
+counted as sent. Upload completion requires an acknowledged desktop track ID;
+failures show a reason beside the song title. The upload/response operation has
+one overall timeout and observes both stream and response errors.
+
+Local FLAC and WebM receiver probes using temporary files and an isolated
+in-memory DB confirmed that the desktop endpoint saves those uploads. WebM
+acceptance requires the desktop receiver update. It does not
+validate Android permissions, phone networking or the paired-device transfer.

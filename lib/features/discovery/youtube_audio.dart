@@ -469,7 +469,15 @@ class YoutubeAudio {
     return ResolvedDiscoveryAudio(
       best.url,
       length: best.length,
-      headers: {'User-Agent': client.userAgent},
+      headers: {
+        'User-Agent': client.userAgent,
+        // Web playback URLs are tied to the requesting origin as well as
+        // the client version; mirror BitChord's media headers.
+        if (client.name == 'WEB_REMIX' || client.name == 'WEB_EMBEDDED_PLAYER')
+          'Origin': 'https://${client.host}',
+        if (client.name == 'WEB_REMIX' || client.name == 'WEB_EMBEDDED_PLAYER')
+          'Referer': client.embedUrl ?? 'https://${client.host}/',
+      },
     );
   }
 }

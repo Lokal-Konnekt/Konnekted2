@@ -32,6 +32,10 @@ object LokalLibrarySyncNotification {
                 return@setMethodCallHandler
             }
             val channels = context.getSystemService(NotificationManager::class.java)
+            if (channels == null) {
+                result.success(false)
+                return@setMethodCallHandler
+            }
             channels.createNotificationChannel(NotificationChannel(
                 CHANNEL, "Library sync", NotificationManager.IMPORTANCE_LOW,
             ).apply {

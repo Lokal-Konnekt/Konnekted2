@@ -637,7 +637,16 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           alignment: Alignment.center,
           children: [
             Positioned.fill(
-              child: current ? Hero(tag: widget.heroTag, child: art) : art,
+              child: current
+                ? Hero(
+                    tag: widget.heroTag,
+                    createRectTween: (begin, end) => RectTween(
+                      begin: begin,
+                      end: end,
+                    ),
+                    child: art,
+                  )
+                : art,
             ),
             if (current && _burstVisible)
               LokalLikeBurst(

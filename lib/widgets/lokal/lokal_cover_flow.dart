@@ -180,7 +180,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = math.min(220.0, constraints.maxWidth * .52);
-        _albumWidth = size * .72;
+        _albumWidth = size * .6;
         _stageWidth = constraints.maxWidth;
         return Column(
           mainAxisSize: MainAxisSize.min,

@@ -18,6 +18,8 @@ import '../../models/lokal_remote_state.dart';
 import '../network_cache_service.dart';
 import '../sources/network_source_service.dart';
 import 'link_journal.dart';
+import 'link_protocol.dart';
+import '../album_art_service.dart';
 
 /// Desktop songs use the existing ranged network-player and bounded audio cache.
 /// The server row contains no token; encrypted storage remains the only token owner.
@@ -25,6 +27,145 @@ class LokalDesktopSource extends NetworkSourceService {
   static final instance = LokalDesktopSource();
   final _cache = NetworkCacheService();
   final Map<String, Future<String>> _downloads = {};
+
+  Future<void> requireOriginalFileSupport(
+    LokalRemoteCredentials credentials,
+  ) async {
+    final response = await http
+        .get(
+          credentials.origin.replace(path: '/api/remote/files'),
+          headers: _headers(credentials),
+        )
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode != 200 ||
+        (jsonDecode(response.body) as Map)['originalFiles'] != true) {
+      throw StateError(
+        'Update Lokal on your PC to copy missing song files both ways.',
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> readCatalogue(
+    LokalRemoteCredentials credentials,
+  ) async {
+    final tracks = <Map<String, dynamic>>[];
+    var offset = 0;
+    while (true) {
+      final response = await http
+          .get(
+            credentials.origin.replace(
+              path: '/api/remote/library/tracks',
+              queryParameters: {'offset': '$offset', 'limit': '50'},
+            ),
+            headers: _headers(credentials),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200)
+        throw const HttpException('Desktop library is unavailable.');
+      final body = jsonDecode(response.body) as Map;
+      final items = (body['items'] as List)
+          .map((raw) => Map<String, dynamic>.from(raw as Map))
+          .toList();
+      tracks.addAll(items);
+      if (body['hasMore'] != true) return tracks;
+      if (items.isEmpty || offset >= 100000)
+        throw const FormatException(
+          'Desktop library pagination did not advance.',
+        );
+      offset += items.length;
+    }
+  }
+
+  Future<void> copyOriginalToPhone(
+    NetworkServerEntity server,
+    Map<String, dynamic> track, {
+    Song? existing,
+  }) async {
+    final credentials = await _credentials(server);
+    final id = track['id']?.toString();
+    if (id == null || id.isEmpty)
+      throw const FormatException('Desktop song has no identifier.');
+    final extension = track['fileType']?.toString().toLowerCase() ?? 'bin';
+    if (!RegExp(r'^[a-z0-9]{1,8}$').hasMatch(extension))
+      throw const FormatException('Invalid audio format.');
+    final directory = Directory(
+      '${(await getApplicationDocumentsDirectory()).path}/desktop_music',
+    );
+    await directory.create(recursive: true);
+    final file = File('${directory.path}/${linkUuid()}.$extension');
+    final part = File('${file.path}.part');
+    final client = http.Client();
+    var committed = false;
+    try {
+      final request =
+          http.Request(
+              'GET',
+              credentials.origin.replace(
+                pathSegments: ['api', 'remote', 'files', id],
+              ),
+            )
+            ..headers.addAll(_headers(credentials))
+            ..followRedirects = false;
+      final response = await client
+          .send(request)
+          .timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200)
+        throw const HttpException('Desktop audio file is unavailable.');
+      var received = 0;
+      final sink = part.openWrite();
+      try {
+        await for (final bytes in response.stream.timeout(
+          const Duration(seconds: 30),
+        )) {
+          sink.add(bytes);
+          received += bytes.length;
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
+      if (received == 0 ||
+          (response.contentLength != null &&
+              received != response.contentLength)) {
+        throw const HttpException('Desktop file transfer was incomplete.');
+      }
+      final expected = response.headers['x-content-sha256'];
+      if (expected != null &&
+          (await sha256.bind(part.openRead()).first).toString() !=
+              expected.toLowerCase()) {
+        throw const FormatException('Desktop file checksum did not match.');
+      }
+      final artwork = await AlbumArtService.instance.resolveArtworkPath(
+        existingPath: 'lokal-cover://$id',
+        audioSourcePath: 'lokal://${server.id}/$id',
+      );
+      await part.rename(file.path);
+      var entity = existing == null
+          ? null
+          : await Database.songs.get(int.parse(existing.id));
+      entity ??= SongEntity()..dateAdded = DateTime.now();
+      entity.filePath = file.path;
+      entity.title = track['title'] as String? ?? 'Unknown track';
+      entity.artist = track['artist'] as String? ?? 'Unknown artist';
+      entity.album = track['album'] as String?;
+      entity.durationMs = ((track['duration'] as num? ?? 0) * 1000).round();
+      entity.fileType = extension;
+      entity.sourceType = null;
+      entity.folderUri = directory.path;
+      entity.remoteId = id;
+      entity.remoteServerId = server.id;
+      entity.albumArtPath = artwork;
+      entity.metadataComplete = true;
+      final saved = entity;
+      await Database.instance.writeTxn(() => Database.songs.put(saved));
+      committed = true;
+    } finally {
+      client.close();
+      if (await part.exists()) await part.delete();
+      if (!committed && await file.exists()) await file.delete();
+    }
+  }
+
   @override
   String get protocol => 'lokal';
   @override
@@ -74,7 +215,10 @@ class LokalDesktopSource extends NetworkSourceService {
     final credentials = await _credentials(server);
     final response = await http
         .get(
-          credentials.origin.replace(pathSegments: ['api', 'artwork', marker]),
+          credentials.origin.replace(
+            pathSegments: ['api', 'artwork', marker],
+            queryParameters: {'full': '1'},
+          ),
           headers: _headers(credentials),
         )
         .timeout(const Duration(seconds: 10));
@@ -228,8 +372,9 @@ class LokalDesktopSource extends NetworkSourceService {
     entity.remoteId = remoteId;
     entity.remoteServerId = server.id;
     entity.metadataComplete = true;
-    if (track['hasArtwork'] == true)
-      entity.albumArtPath = 'lokal-cover://$remoteId';
+    // A desktop row can have embedded art even before its thumbnail is indexed.
+    // Always retain a resolvable marker; artwork failure must not erase it.
+    entity.albumArtPath ??= 'lokal-cover://$remoteId';
     final saved = entity;
     await Database.instance.writeTxn(() => Database.songs.put(saved));
     return SongRepository().songFromEntity(saved);
@@ -248,6 +393,7 @@ class LokalDesktopSource extends NetworkSourceService {
       throw StateError('This file format cannot be sent.');
     var temporary = false;
     var path = song.filePath!;
+    if (path.startsWith('file://')) path = Uri.parse(path).toFilePath();
     if (path.startsWith('content://')) {
       path =
           await const MethodChannel('lokal/desktop_link').invokeMethod<String>(

@@ -62,6 +62,9 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(milestoneRevisionProvider, (_, _) {
+      if (mounted) _refresh();
+    });
     final unlocked = _records.length;
     final currentSong = ref.watch(currentSongProvider);
 
@@ -70,13 +73,9 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
       body: Stack(
         children: [
           Container(
-            decoration: BoxDecoration(
-              gradient: AppColors.backgroundGradient,
-            ),
+            decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
           ),
-          Positioned.fill(
-            child: AmbientBackground(song: currentSong),
-          ),
+          Positioned.fill(child: AmbientBackground(song: currentSong)),
           SafeArea(
             bottom: false,
             child: Column(
@@ -129,9 +128,8 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
                 const SizedBox(height: 4),
                 Text(
                   l10n.unlocked(unlocked, MilestoneType.values.length),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: context.adaptiveTextTertiary,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: context.adaptiveTextTertiary),
                 ),
               ],
             ),
@@ -145,8 +143,8 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
     final cats = _streaksEnabled
         ? MilestoneCategory.values
         : MilestoneCategory.values
-            .where((c) => c != MilestoneCategory.dayStreak)
-            .toList();
+              .where((c) => c != MilestoneCategory.dayStreak)
+              .toList();
     final bannerSlots = _streaksEnabled ? 1 : 0;
     return ListView.builder(
       padding: const EdgeInsets.symmetric(
@@ -273,9 +271,7 @@ class _CategorySectionState extends State<_CategorySection> {
   @override
   Widget build(BuildContext context) {
     final cat = widget.category;
-    final types = MilestoneType.values
-        .where((t) => t.category == cat)
-        .toList();
+    final types = MilestoneType.values.where((t) => t.category == cat).toList();
     final unlocked = types.where((t) => widget.records[t] != null).length;
 
     return Container(
@@ -402,7 +398,10 @@ class _MilestoneTile extends StatelessWidget {
     // Tinted icon badge — a dark tint of the tier color keeps each tier's
     // identity while reading as a filled pill on the glass surface.
     final iconBg = unlocked
-        ? Color.alphaBlend(tierColor.withValues(alpha: 0.8), AppColors.surfaceDark)
+        ? Color.alphaBlend(
+            tierColor.withValues(alpha: 0.8),
+            AppColors.surfaceDark,
+          )
         : AppColors.glassBackgroundStrong;
     final iconFg = unlocked ? Colors.white : AppColors.textTertiary;
 
@@ -472,9 +471,7 @@ class _MilestoneTile extends StatelessWidget {
                     unlocked
                         ? LucideIcons.circleCheck
                         : LucideIcons.chevronRight,
-                    color: unlocked
-                        ? tierColor
-                        : context.adaptiveTextTertiary,
+                    color: unlocked ? tierColor : context.adaptiveTextTertiary,
                     size: 18,
                   ),
                 ],
@@ -658,19 +655,23 @@ class _StreakBannerState extends State<_StreakBanner>
   }
 
   Color get _tierColor =>
-      MilestoneCategory.dayStreak.tierColorFor(widget.streak) ?? AppColors.accent;
+      MilestoneCategory.dayStreak.tierColorFor(widget.streak) ??
+      AppColors.accent;
 
-  int get _tierCount =>
-      MilestoneCategory.dayStreak.tierCountFor(widget.streak);
+  int get _tierCount => MilestoneCategory.dayStreak.tierCountFor(widget.streak);
 
   @override
   Widget build(BuildContext context) {
     final streak = widget.streak;
-    final nextTier = MilestoneType.values
-        .where((t) =>
-            t.category == MilestoneCategory.dayStreak && t.threshold > streak)
-        .toList()
-      ..sort((a, b) => a.threshold.compareTo(b.threshold));
+    final nextTier =
+        MilestoneType.values
+            .where(
+              (t) =>
+                  t.category == MilestoneCategory.dayStreak &&
+                  t.threshold > streak,
+            )
+            .toList()
+          ..sort((a, b) => a.threshold.compareTo(b.threshold));
     final next = nextTier.isEmpty ? null : nextTier.first;
 
     return AnimatedBuilder(
@@ -755,8 +756,7 @@ class _StreakBannerState extends State<_StreakBanner>
                     children: [
                       Text(
                         l10n.currentStreak,
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: context.adaptiveTextTertiary,
                           letterSpacing: 1.2,
                           fontWeight: FontWeight.w600,
@@ -769,23 +769,17 @@ class _StreakBannerState extends State<_StreakBanner>
                         children: [
                           Text(
                             '$streak',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium
+                            style: Theme.of(context).textTheme.headlineMedium
                                 ?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: context.adaptiveTextPrimary,
-                            ),
+                                  fontWeight: FontWeight.w700,
+                                  color: context.adaptiveTextPrimary,
+                                ),
                           ),
                           const SizedBox(width: AppConstants.spacingXs),
                           Text(
                             l10n.dayUnit(streak),
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                              color: context.adaptiveTextTertiary,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: context.adaptiveTextTertiary),
                           ),
                         ],
                       ),
@@ -793,10 +787,8 @@ class _StreakBannerState extends State<_StreakBanner>
                         const SizedBox(height: 4),
                         Text(
                           l10n.moreTo(next.threshold - streak, next.title),
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.adaptiveTextTertiary,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.adaptiveTextTertiary),
                         ),
                       ],
                     ],

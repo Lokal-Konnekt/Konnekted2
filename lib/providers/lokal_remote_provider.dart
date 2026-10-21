@@ -13,6 +13,8 @@ import '../services/link/lokal_link_service.dart';
 import '../services/link/link_protocol.dart';
 import '../services/link/link_journal.dart';
 import '../services/link/link_sync_coordinator.dart';
+import '../services/link/link_profile_service.dart';
+import '../services/link/link_file_copy.dart';
 import '../services/link/lokal_desktop_source.dart';
 import 'favorites_provider.dart';
 import 'playlist_provider.dart';
@@ -41,6 +43,16 @@ final lokalLinkServiceProvider = Provider<LokalLinkService>((ref) {
   final service = LokalLinkService();
   ref.onDispose(() => unawaited(service.close()));
   return service;
+});
+
+final linkedDesktopProfileProvider = FutureProvider<LinkedProfile?>((
+  ref,
+) async {
+  final credentials = await ref
+      .watch(lokalRemoteCredentialsStoreProvider)
+      .read();
+  if (credentials?.desktopId == null) return null;
+  return LinkProfileService.load(credentials!);
 });
 
 final lokalRemoteControllerProvider =
@@ -186,6 +198,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
     _shouldPoll = false;
     _pollTimer?.cancel();
     _credentials = null;
+    ref.invalidate(linkedDesktopProfileProvider);
     state = const LokalRemoteControllerState();
   }
 
@@ -332,6 +345,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('lokal.link.${credentials.desktopId}.theme', syncTheme);
     _credentials = credentials;
+    ref.invalidate(linkedDesktopProfileProvider);
     state = LokalRemoteControllerState(
       config: LokalRemoteConfig.fromCredentials(credentials),
     );
@@ -339,14 +353,56 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   Future<void> approveMerge() async {
+    if (state.fileCopyProgress.busy)
+      throw StateError('Wait for the current file copy to finish.');
     final sync = _linkSync;
     if (sync == null)
       throw const LokalRemoteNetworkException(
         'Connect to the paired desktop first.',
       );
     await sync.enableMerge();
-    if (!_disposed)
-      state = state.copyWith(mergeApproved: true, clearError: true);
+  }
+
+  LinkFileCopy _fileCopier() {
+    final credentials = _credentials;
+    if (credentials == null || !state.socketConnected) {
+      throw const LokalRemoteNetworkException(
+        'Connect to the paired desktop first.',
+      );
+    }
+    final generation = _generation;
+    return LinkFileCopy(
+      credentials: credentials,
+      socket: ref.read(lokalLinkServiceProvider),
+      connected: () =>
+          !_disposed && generation == _generation && state.socketConnected,
+      onProgress: (progress) {
+        if (!_disposed && generation == _generation)
+          state = state.copyWith(fileCopyProgress: progress);
+      },
+    );
+  }
+
+  Future<LinkCopyPlan> prepareFileCopy() async {
+    if (state.syncProgress.busy || state.fileCopyProgress.busy)
+      throw StateError('Wait for the current library operation to finish.');
+    try {
+      return await _fileCopier().plan();
+    } catch (_) {
+      if (!_disposed)
+        state = state.copyWith(
+          fileCopyProgress: const LinkCopyProgress(phase: LinkCopyPhase.paused),
+        );
+      rethrow;
+    }
+  }
+
+  Future<void> copyMissingFiles(LinkCopyPlan plan) => _fileCopier().copy(plan);
+
+  void cancelFileCopyPlan() {
+    if (state.fileCopyProgress.phase == LinkCopyPhase.checking) {
+      state = state.copyWith(fileCopyProgress: const LinkCopyProgress());
+    }
   }
 
   Future<void> setDesktopTarget(bool value) async {
@@ -401,20 +457,41 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       _failures = 0;
       _pollTimer?.cancel();
       final prefs = await SharedPreferences.getInstance();
-      _linkSync = LinkSyncCoordinator(
+      final prefix = LinkSyncCoordinator.prefixFor(credentials);
+      final lastSync = prefs.getInt('$prefix.last_sync');
+      final initialProgress = LinkSyncProgress(
+        phase: lastSync == null ? LinkSyncPhase.idle : LinkSyncPhase.complete,
+        completedAt: lastSync == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(lastSync),
+        catalogSongs: prefs.getInt('$prefix.catalog_songs'),
+      );
+      late final LinkSyncCoordinator coordinator;
+      coordinator = LinkSyncCoordinator(
         socket: ref.read(lokalLinkServiceProvider),
         credentials: credentials,
         favorites: ref.read(favoritesServiceProvider),
+        initialProgress: initialProgress,
+        onProgress: (progress) {
+          if (!_disposed &&
+              generation == _generation &&
+              identical(_linkSync, coordinator)) {
+            state = state.copyWith(syncProgress: progress, mergeApproved: true);
+          }
+        },
         onChanged: () {
           if (!_disposed) {
             ref.invalidate(favoritesProvider);
             ref.invalidate(playlistsProvider);
+            ref.invalidate(linkedDesktopProfileProvider);
           }
         },
       );
+      _linkSync = coordinator;
       state = state.copyWith(
         socketConnected: true,
         status: LokalRemoteConnectionStatus.connected,
+        syncProgress: initialProgress,
         mergeApproved:
             prefs.getBool(
               '${LinkSyncCoordinator.prefixFor(credentials)}.merge',
@@ -547,6 +624,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   Future<void> _syncLink() async {
+    if (state.fileCopyProgress.busy) return;
     final generation = _generation;
     try {
       final credentials = _credentials;

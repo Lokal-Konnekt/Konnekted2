@@ -3,6 +3,9 @@ import 'package:flick/l10n/l10n.dart';
 import '../link/lokal_devices_card.dart';
 
 import 'dart:async';
+import 'dart:io';
+
+import 'package:flick/providers/lokal_remote_provider.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -55,6 +58,7 @@ const youRecapPeriods = [
 
 /// Your day streak, or `null` when streaks are turned off.
 final youStreakProvider = FutureProvider.autoDispose<int?>((ref) async {
+  ref.watch(milestoneRevisionProvider);
   if (!ref.watch(appPreferencesProvider.select((p) => p.streaksEnabled))) {
     return null;
   }
@@ -64,6 +68,7 @@ final youStreakProvider = FutureProvider.autoDispose<int?>((ref) async {
 /// The milestones you have unlocked, newest first.
 final youMilestonesProvider = FutureProvider.autoDispose<List<MilestoneRecord>>(
   (ref) async {
+    ref.watch(milestoneRevisionProvider);
     final records = await ref
         .watch(milestoneServiceProvider)
         .getShownMilestones();
@@ -160,6 +165,7 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
   Widget build(BuildContext context) {
     final recaps = ref.watch(youRecapsProvider).value ?? const {};
     final accounts = ref.watch(youAccountsProvider);
+    final profile = ref.watch(linkedDesktopProfileProvider).value;
     final streak = ref.watch(youStreakProvider).value;
     final milestones =
         ref.watch(youMilestonesProvider).value ?? const <MilestoneRecord>[];
@@ -173,7 +179,13 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
         ),
         children: [
           _YouHeader(
-            name: accounts.name,
+            name: profile?.displayName.trim().isNotEmpty == true
+                ? profile!.displayName
+                : profile?.username.trim().isNotEmpty == true
+                ? profile!.username
+                : accounts.name,
+            avatarPath: profile?.avatarPath,
+            username: profile?.username,
             weekMinutes: recaps[ListeningRecapPeriod.weekly]
                 ?.totalListeningTime
                 .inMinutes,
@@ -324,9 +336,13 @@ class _YouHeader extends StatelessWidget {
     required this.weekMinutes,
     required this.streak,
     required this.onSettings,
+    this.avatarPath,
+    this.username,
   });
 
   final String name;
+  final String? avatarPath;
+  final String? username;
   final int? weekMinutes;
   final int? streak;
   final VoidCallback onSettings;
@@ -370,33 +386,57 @@ class _YouHeader extends StatelessWidget {
                       colors: [t.accent, t.accentDim],
                     ),
                   ),
-                  child: Text(
-                    initial,
-                    style: TextStyle(
-                      fontFamily: LokalTheme.sans,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: t.bg,
-                    ),
-                  ),
+                  child: avatarPath != null
+                      ? ClipOval(
+                          child: Image.file(
+                            File(avatarPath!),
+                            width: 64,
+                            height: 64,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => Text(
+                              initial,
+                              style: TextStyle(color: t.bg, fontSize: 28),
+                            ),
+                          ),
+                        )
+                      : Text(
+                          initial,
+                          style: TextStyle(
+                            fontFamily: LokalTheme.sans,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: t.bg,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Semantics(
                   header: true,
-                  child: Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: LokalTheme.sans,
-                      fontSize: 34,
-                      height: 1.1,
-                      letterSpacing: -1.2,
-                      fontWeight: FontWeight.w800,
-                      color: t.text,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: LokalTheme.sans,
+                          fontSize: 34,
+                          height: 1.1,
+                          letterSpacing: -1.2,
+                          fontWeight: FontWeight.w800,
+                          color: t.text,
+                        ),
+                      ),
+                      if (username?.trim().isNotEmpty == true &&
+                          username != name)
+                        Text(
+                          '@$username',
+                          style: TextStyle(color: t.muted, fontSize: 14),
+                        ),
+                    ],
                   ),
                 ),
               ),

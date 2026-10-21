@@ -3,10 +3,10 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
-import 'spotiflac_network.dart';
-import 'spotiflac_storage.dart';
+import 'morneye_network.dart';
+import 'morneye_storage.dart';
 
-/// A signed gateway session, as desktop's electron/spotiflac/session.js. Most
+/// A signed gateway session, as desktop's electron/morneye/session.js. Most
 /// official add-ons (Deezer, Qobuz, Tidal, Amazon) reach their service through
 /// a gateway that first asks you to pass a verification page once; after that
 /// every request is HMAC-signed with the session it granted.
@@ -18,15 +18,15 @@ String _hmac(List<int> key, String value) => base64Url
     .replaceAll('=', '');
 
 String _randomHex(int bytes) =>
-    spotiflacRandomBytes(bytes)
+    morneyeRandomBytes(bytes)
         .map((b) => b.toRadixString(16).padLeft(2, '0'))
         .join();
 
 String _randomToken(int bytes) =>
-    base64Url.encode(spotiflacRandomBytes(bytes)).replaceAll('=', '');
+    base64Url.encode(morneyeRandomBytes(bytes)).replaceAll('=', '');
 
 /// The signature headers for one request.
-Map<String, String> spotiflacSignedHeaders(
+Map<String, String> morneyeSignedHeaders(
   Map<String, Object?> config,
   Map<String, Object?> record,
   String method,
@@ -76,15 +76,15 @@ Map<String, String> spotiflacSignedHeaders(
   };
 }
 
-class SpotiflacPending {
-  SpotiflacPending(this.url, this.state, this.createdAt);
+class MorneyePending {
+  MorneyePending(this.url, this.state, this.createdAt);
   final String url;
   final String state;
   final DateTime createdAt;
 }
 
-class SpotiflacSignedSession {
-  SpotiflacSignedSession(this.config, this.storage, this.network, String owner)
+class MorneyeSignedSession {
+  MorneyeSignedSession(this.config, this.storage, this.network, String owner)
     : namespace = _sha256(
         utf8.encode(
           [
@@ -97,11 +97,11 @@ class SpotiflacSignedSession {
       );
 
   final Map<String, Object?> config;
-  final SpotiflacStorage storage;
-  final SpotiflacNetwork? network;
+  final MorneyeStorage storage;
+  final MorneyeNetwork? network;
   final String namespace;
 
-  SpotiflacPending? pending;
+  MorneyePending? pending;
   String? pendingGrant;
   bool blocked = false;
   int _generation = 0;
@@ -116,7 +116,7 @@ class SpotiflacSignedSession {
   String get _callbackUrl =>
       config['callbackUrl'] as String? ?? 'spotiflac://session-grant';
 
-  SpotiflacNetwork get _network {
+  MorneyeNetwork get _network {
     final value = network;
     if (value == null) throw StateError('Signed session has no network');
     return value;
@@ -249,7 +249,7 @@ class SpotiflacSignedSession {
     if (authUrl == null) {
       throw StateError('Signed-session bootstrap gave no verification page');
     }
-    var challenge = spotiflacValidateUrl(authUrl, _network.permissions);
+    var challenge = morneyeValidateUrl(authUrl, _network.permissions);
     final nested =
         challenge.queryParameters['cb'] ??
         challenge.queryParameters['callback_url'] ??
@@ -263,7 +263,7 @@ class SpotiflacSignedSession {
         queryParameters: {...challenge.queryParameters, 'state': state},
       );
     }
-    pending = SpotiflacPending(challenge.toString(), state, DateTime.now());
+    pending = MorneyePending(challenge.toString(), state, DateTime.now());
     return false;
   }
 
@@ -403,7 +403,7 @@ class SpotiflacSignedSession {
       headers: {
         'Content-Type': 'application/json',
         ...headers,
-        ...spotiflacSignedHeaders(config, record, method, url, body),
+        ...morneyeSignedHeaders(config, record, method, url, body),
       },
     );
   }

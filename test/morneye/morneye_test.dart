@@ -4,28 +4,28 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
-import 'package:flick/features/spotiflac/spotiflac_host.dart';
-import 'package:flick/features/spotiflac/spotiflac_network.dart';
-import 'package:flick/features/spotiflac/spotiflac_packages.dart';
-import 'package:flick/features/spotiflac/spotiflac_runtime.dart';
-import 'package:flick/features/spotiflac/spotiflac_storage.dart';
+import 'package:flick/features/morneye/morneye_host.dart';
+import 'package:flick/features/morneye/morneye_network.dart';
+import 'package:flick/features/morneye/morneye_packages.dart';
+import 'package:flick/features/morneye/morneye_runtime.dart';
+import 'package:flick/features/morneye/morneye_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'spotiflac_fakes.dart';
+import 'morneye_fakes.dart';
 
 void main() {
   late Directory dir;
   late FakeNative native;
   late MemoryVault vault;
-  late SpotiflacStorage storage;
-  final namespace = spotiflacKeyOf('deezer');
+  late MorneyeStorage storage;
+  final namespace = morneyeKeyOf('deezer');
 
   setUp(() async {
-    dir = await Directory.systemTemp.createTemp('spotiflac');
+    dir = await Directory.systemTemp.createTemp('morneye');
     native = FakeNative();
     vault = MemoryVault();
-    storage = SpotiflacStorage(dir, sealer: native, vault: vault);
+    storage = MorneyeStorage(dir, sealer: native, vault: vault);
     await storage.open();
   });
 
@@ -57,7 +57,7 @@ void main() {
         storage.write(namespace, 'credentials', {'token': 'secret'});
 
         vault.key = null;
-        final reopened = SpotiflacStorage(dir, sealer: native, vault: vault);
+        final reopened = MorneyeStorage(dir, sealer: native, vault: vault);
         await reopened.open();
 
         expect(reopened.read(namespace, 'credentials'), isEmpty);
@@ -97,43 +97,43 @@ void main() {
         'fe80::1',
         'fc00::2',
       ]) {
-        expect(spotiflacPrivateAddress(address), isTrue, reason: address);
+        expect(morneyePrivateAddress(address), isTrue, reason: address);
       }
-      expect(spotiflacPrivateAddress('8.8.8.8'), isFalse);
-      expect(spotiflacPrivateAddress('172.32.0.1'), isFalse);
+      expect(morneyePrivateAddress('8.8.8.8'), isFalse);
+      expect(morneyePrivateAddress('172.32.0.1'), isFalse);
     });
 
     test('domain permissions and wildcards', () {
       expect(
-        spotiflacDomainAllowed('api.deezer.com', ['*.deezer.com']),
+        morneyeDomainAllowed('api.deezer.com', ['*.deezer.com']),
         isTrue,
       );
-      expect(spotiflacDomainAllowed('deezer.com', ['deezer.com']), isTrue);
+      expect(morneyeDomainAllowed('deezer.com', ['deezer.com']), isTrue);
       expect(
-        spotiflacDomainAllowed('evildeezer.com', ['*.deezer.com']),
+        morneyeDomainAllowed('evildeezer.com', ['*.deezer.com']),
         isFalse,
       );
-      const permissions = SpotiflacPermissions(network: ['api.example.com']);
+      const permissions = MorneyePermissions(network: ['api.example.com']);
       expect(
-        spotiflacValidateUrl('https://api.example.com/x', permissions).path,
+        morneyeValidateUrl('https://api.example.com/x', permissions).path,
         '/x',
       );
       expect(
-        () => spotiflacValidateUrl('https://other.com/', permissions),
-        throwsA(isA<SpotiflacNetworkException>()),
+        () => morneyeValidateUrl('https://other.com/', permissions),
+        throwsA(isA<MorneyeNetworkException>()),
       );
       expect(
-        () => spotiflacValidateUrl('http://api.example.com/', permissions),
-        throwsA(isA<SpotiflacNetworkException>()),
+        () => morneyeValidateUrl('http://api.example.com/', permissions),
+        throwsA(isA<MorneyeNetworkException>()),
       );
       expect(
-        () => spotiflacValidateUrl('https://u:p@api.example.com/', permissions),
-        throwsA(isA<SpotiflacNetworkException>()),
+        () => morneyeValidateUrl('https://u:p@api.example.com/', permissions),
+        throwsA(isA<MorneyeNetworkException>()),
       );
     });
 
     test('cookie jar scopes cookies by domain, path and expiry', () {
-      final jar = SpotiflacCookieJar();
+      final jar = MorneyeCookieJar();
       final url = Uri.parse('https://www.example.com/app/page');
       final now = DateTime.now();
       jar.store('sid=1; Domain=example.com; Path=/', url, now: now);
@@ -155,7 +155,7 @@ void main() {
       );
       expect(jar.header(Uri.parse('https://other.com/'), now: now), isEmpty);
 
-      final copy = SpotiflacCookieJar.fromJson(jar.toJson());
+      final copy = MorneyeCookieJar.fromJson(jar.toJson());
       expect(copy.header(url, now: now), jar.header(url, now: now));
     });
   });
@@ -206,9 +206,9 @@ void main() {
 
     tearDown(() => server.close(force: true));
 
-    SpotiflacNetwork network([List<String> domains = const ['127.0.0.1']]) =>
-        SpotiflacNetwork(
-          SpotiflacPermissions(network: domains, allowHttp: true),
+    MorneyeNetwork network([List<String> domains = const ['127.0.0.1']]) =>
+        MorneyeNetwork(
+          MorneyePermissions(network: domains, allowHttp: true),
         );
 
     test(
@@ -230,8 +230,8 @@ void main() {
 
     test('a download that goes quiet is dropped and tried again', () async {
       stallRequests = 0;
-      final host = SpotiflacHost(
-        addon: SpotiflacAddonInfo(
+      final host = MorneyeHost(
+        addon: MorneyeAddonInfo(
           key: namespace,
           name: 'deezer',
           manifest: const {
@@ -271,27 +271,27 @@ void main() {
       final net = network();
       await expectLater(
         net.jsonResponse('$base/away'),
-        throwsA(isA<SpotiflacNetworkException>()),
+        throwsA(isA<MorneyeNetworkException>()),
       );
       net.close();
     });
 
     test('refuses private addresses that were not asked for', () async {
-      final net = SpotiflacNetwork(
-        const SpotiflacPermissions(network: ['local.test'], allowHttp: true),
+      final net = MorneyeNetwork(
+        const MorneyePermissions(network: ['local.test'], allowHttp: true),
         lookup: (_) async => [InternetAddress.loopbackIPv4],
       );
       await expectLater(
         net.jsonResponse('http://local.test:${server.port}/echo'),
-        throwsA(isA<SpotiflacNetworkException>()),
+        throwsA(isA<MorneyeNetworkException>()),
       );
       net.close();
     });
   });
 
   group('host', () {
-    SpotiflacHost host({bool storagePermission = true}) => SpotiflacHost(
-      addon: SpotiflacAddonInfo(
+    MorneyeHost host({bool storagePermission = true}) => MorneyeHost(
+      addon: MorneyeAddonInfo(
         key: namespace,
         name: 'deezer',
         manifest: {
@@ -303,8 +303,8 @@ void main() {
         },
       ),
       storage: storage,
-      network: SpotiflacNetwork(
-        const SpotiflacPermissions(network: ['api.example.com']),
+      network: MorneyeNetwork(
+        const MorneyePermissions(network: ['api.example.com']),
       ),
       native: native,
       root: p.join(dir.path, 'files'),
@@ -373,18 +373,18 @@ void main() {
       final h = host();
       final sleeping = h.call('utils.sleep', [60000], noCallback);
       h.abort();
-      await expectLater(sleeping, throwsA(isA<SpotiflacCancelled>()));
+      await expectLater(sleeping, throwsA(isA<MorneyeCancelled>()));
     });
   });
 
   group('runtime', () {
     late FakeEngine engine;
-    late SpotiflacHost host;
+    late MorneyeHost host;
 
     setUp(() {
       engine = FakeEngine();
-      host = SpotiflacHost(
-        addon: SpotiflacAddonInfo(
+      host = MorneyeHost(
+        addon: MorneyeAddonInfo(
           key: namespace,
           name: 'deezer',
           manifest: const {
@@ -392,7 +392,7 @@ void main() {
           },
         ),
         storage: storage,
-        network: SpotiflacNetwork(const SpotiflacPermissions()),
+        network: MorneyeNetwork(const MorneyePermissions()),
         native: native,
         root: p.join(dir.path, 'files'),
       );
@@ -413,7 +413,7 @@ void main() {
         },
         'broken': (args, call) => call('storage.nope', const []),
       };
-      final runtime = await SpotiflacRuntime.start(
+      final runtime = await MorneyeRuntime.start(
         'code',
         const {},
         host,
@@ -433,7 +433,7 @@ void main() {
       engine.scripts['code'] = {
         'hang': (args, call) => Completer<Object?>().future,
       };
-      final runtime = await SpotiflacRuntime.start(
+      final runtime = await MorneyeRuntime.start(
         'code',
         const {},
         host,
@@ -442,7 +442,7 @@ void main() {
       await expectLater(
         runtime.invoke('hang', const [], const Duration(milliseconds: 20)),
         throwsA(
-          isA<SpotiflacRuntimeError>().having(
+          isA<MorneyeRuntimeError>().having(
             (e) => e.message,
             'message',
             contains('timed out'),
@@ -453,44 +453,44 @@ void main() {
       expect(host.aborted, isTrue);
       await expectLater(
         runtime.invoke('hang'),
-        throwsA(isA<SpotiflacRuntimeError>()),
+        throwsA(isA<MorneyeRuntimeError>()),
       );
     });
   });
 
   group('manifests', () {
     test('accepts a download provider', () {
-      expect(spotiflacValidateManifest(manifestFor('qobuz'))['name'], 'qobuz');
+      expect(morneyeValidateManifest(manifestFor('qobuz'))['name'], 'qobuz');
     });
 
     test('rejects what desktop rejects', () {
       Matcher fails(String text) => throwsA(
-        isA<SpotiflacPackageError>().having(
+        isA<MorneyePackageError>().having(
           (e) => e.message,
           'message',
           contains(text),
         ),
       );
       expect(
-        () => spotiflacValidateManifest({...manifestFor('x'), 'name': 'Bad!'}),
+        () => morneyeValidateManifest({...manifestFor('x'), 'name': 'Bad!'}),
         fails('manifest'),
       );
       expect(
-        () => spotiflacValidateManifest({
+        () => morneyeValidateManifest({
           ...manifestFor('x'),
           'type': ['lyrics_provider'],
         }),
         fails('download-capable'),
       );
       expect(
-        () => spotiflacValidateManifest({
+        () => morneyeValidateManifest({
           ...manifestFor('x'),
           'minAppVersion': '99.0.0',
         }),
         fails('compatibility'),
       );
       expect(
-        () => spotiflacValidateManifest({
+        () => morneyeValidateManifest({
           ...manifestFor('x'),
           'requiredRuntimeFeatures': ['teleport@1'],
         }),
@@ -498,23 +498,23 @@ void main() {
       );
       expect(
         () =>
-            spotiflacValidateManifest(manifestFor('x', network: ['bad host/'])),
+            morneyeValidateManifest(manifestFor('x', network: ['bad host/'])),
         fails('network'),
       );
     });
 
     test('version comparison', () {
-      expect(spotiflacCompareVersions('1.10.0', '1.9.9'), greaterThan(0));
-      expect(spotiflacCompareVersions('1.0.0', '1.0.0'), 0);
-      expect(spotiflacCompareVersions(null, '0.0.1'), lessThan(0));
+      expect(morneyeCompareVersions('1.10.0', '1.9.9'), greaterThan(0));
+      expect(morneyeCompareVersions('1.0.0', '1.0.0'), 0);
+      expect(morneyeCompareVersions(null, '0.0.1'), lessThan(0));
     });
 
     test('archives need manifest.json and index.js and safe paths', () {
       expect(
-        () => spotiflacReadArchive(Uint8List.fromList([1, 2, 3])),
-        throwsA(isA<SpotiflacPackageError>()),
+        () => morneyeReadArchive(Uint8List.fromList([1, 2, 3])),
+        throwsA(isA<MorneyePackageError>()),
       );
-      final ok = spotiflacReadArchive(
+      final ok = morneyeReadArchive(
         packageBytes(manifestFor('qobuz'), 'code'),
       );
       expect(ok.code, 'code');
@@ -523,10 +523,13 @@ void main() {
 
   group('package manager', () {
     late FakeEngine engine;
-    late SpotiflacPackages packages;
+    late MorneyePackages packages;
     final served = <String, Uint8List>{};
 
-    Map<String, GuestMethod> downloader({String? payload}) => {
+    Map<String, GuestMethod> downloader({
+      String? payload,
+      bool requiresContainerConversion = false,
+    }) => {
       'initialize': (args, call) async => true,
       'searchTracks': (args, call) async => [
         {
@@ -541,21 +544,25 @@ void main() {
       'download': (args, call) async {
         final path = '${args[2]}';
         await call('file.write', [path, payload ?? 'audio']);
-        return {'success': true, 'file_path': path};
+        return {
+          'success': true,
+          'file_path': path,
+          if (requiresContainerConversion) 'requires_container_conversion': true,
+        };
       },
     };
 
     setUp(() async {
       engine = FakeEngine();
       served.clear();
-      packages = SpotiflacPackages(
+      packages = MorneyePackages(
         dir,
         storage: storage,
         native: native,
         starter: engine.start,
         fetch: (url, max) async {
           final body = served[url];
-          if (body == null) throw const SpotiflacPackageError('HTTP 404');
+          if (body == null) throw const MorneyePackageError('HTTP 404');
           return body;
         },
       );
@@ -565,8 +572,48 @@ void main() {
     tearDown(() => packages.shutdown());
 
     test('starts with the official repository', () {
-      expect(packages.repositories.single.url, spotiflacRegistry);
+      expect(packages.repositories.single.url, morneyeRegistry);
       expect(packages.repositories.single.official, isTrue);
+    });
+
+    test('replaces the old default registry with Morneye', () async {
+      const oldRegistry =
+          'https://raw.githubusercontent.com/spotiflacapp/SpotiFLAC-Extension/main/registry.json';
+      await File(p.join(dir.path, 'index.json')).writeAsString(
+        jsonEncode({
+          'repositories': [
+            {'id': 'old-default', 'url': oldRegistry, 'name': 'Old registry'},
+          ],
+          'packages': [
+            {
+              'key': morneyeKeyOf('qobuz'),
+              'name': 'qobuz',
+              'manifest': manifestFor('qobuz'),
+              'digest': 'test-digest',
+              'installed_at': 1,
+              'methods': ['initialize', 'searchTracks', 'download'],
+              'repository_id': 'old-default',
+              'enabled': true,
+            },
+          ],
+        }),
+      );
+      final migrated = MorneyePackages(
+        dir,
+        storage: storage,
+        native: native,
+        starter: engine.start,
+      );
+      await migrated.load();
+
+      expect(migrated.repositories, hasLength(1));
+      expect(migrated.repositories.single.url, morneyeRegistry);
+      expect(migrated.repositories.single.name, 'Morneye official');
+      expect(
+        migrated.find(morneyeKeyOf('qobuz'))?.repositoryId,
+        migrated.repositories.single.id,
+      );
+      await migrated.shutdown();
     });
 
     test(
@@ -579,7 +626,7 @@ void main() {
         expect(addon.displayName, 'QOBUZ');
         expect(addon.methods, contains('download'));
 
-        final again = SpotiflacPackages(
+        final again = MorneyePackages(
           dir,
           storage: storage,
           native: native,
@@ -601,7 +648,7 @@ void main() {
       engine.scripts['empty'] = {'initialize': (args, call) async => true};
       await expectLater(
         packages.install(bytes: packageBytes(manifestFor('qobuz'), 'empty')),
-        throwsA(isA<SpotiflacPackageError>()),
+        throwsA(isA<MorneyePackageError>()),
       );
       expect(packages.addons, isEmpty);
     });
@@ -616,7 +663,7 @@ void main() {
         packages.install(
           bytes: packageBytes(manifestFor('qobuz', version: '1.1.0'), 'v2'),
         ),
-        throwsA(isA<SpotiflacPackageError>()),
+        throwsA(isA<MorneyePackageError>()),
       );
       final updated = await packages.install(
         bytes: packageBytes(manifestFor('qobuz', version: '2.0.0'), 'v2'),
@@ -655,7 +702,7 @@ void main() {
       await expectLater(
         packages.install(repositoryId: added.id, id: 'tidal'),
         throwsA(
-          isA<SpotiflacPackageError>().having(
+          isA<MorneyePackageError>().having(
             (e) => e.message,
             'message',
             contains('SHA-256'),
@@ -677,7 +724,7 @@ void main() {
       expect(packages.catalogue(added.id).single.installed, isNotNull);
       expect(
         () => packages.addRepo('http://repo.example.com/'),
-        throwsA(isA<SpotiflacPackageError>()),
+        throwsA(isA<MorneyePackageError>()),
       );
     });
 
@@ -713,7 +760,7 @@ void main() {
         packages.setEnabled(addon.key, false);
         await expectLater(
           packages.search(addon.key, 'song'),
-          throwsA(isA<SpotiflacPackageError>()),
+          throwsA(isA<MorneyePackageError>()),
         );
       },
     );
@@ -734,6 +781,44 @@ void main() {
       expect(download.file.existsSync(), isFalse);
     });
 
+
+    test('converts a lossless stream container before validating playback', () async {
+      engine.scripts['container'] = downloader(requiresContainerConversion: true);
+      native.info = {
+        'codec': 'flac',
+        'format': 'isomp4',
+        'duration_ms': 181000,
+      };
+      final conversionPackages = MorneyePackages(
+        dir,
+        storage: storage,
+        native: native,
+        starter: engine.start,
+        audioConverter: (inputPath, outputPath, codec) async {
+          expect(codec, 'copy');
+          expect(File(inputPath).existsSync(), isTrue);
+          native.info = {
+            'codec': 'flac',
+            'format': 'flac',
+            'duration_ms': 181000,
+          };
+          await File(outputPath).writeAsBytes([1, 2, 3, 4]);
+        },
+      );
+      await conversionPackages.load();
+      final addon = await conversionPackages.install(
+        bytes: packageBytes(manifestFor('qobuz'), 'container'),
+      );
+      await conversionPackages.search(addon.key, 'song');
+
+      final download = await conversionPackages.download(addon.key, 't1');
+      expect(p.extension(download.file.path), '.flac');
+      expect(download.info['codec'], 'flac');
+      expect(download.file.readAsBytesSync(), [1, 2, 3, 4]);
+      await download.cleanup();
+      await conversionPackages.shutdown();
+    });
+
     test('refuses audio the phone can’t play or that doesn’t match', () async {
       engine.scripts['v1'] = downloader();
       final addon = await packages.install(
@@ -744,14 +829,14 @@ void main() {
       native.info = {'codec': 'eac3', 'format': 'isomp4', 'duration_ms': 0};
       await expectLater(
         packages.download(addon.key, 't1'),
-        throwsA(isA<SpotiflacPackageError>()),
+        throwsA(isA<MorneyePackageError>()),
       );
 
       native.info = {'codec': 'flac', 'format': 'flac', 'duration_ms': 30000};
       await expectLater(
         packages.download(addon.key, 't1'),
         throwsA(
-          isA<SpotiflacPackageError>().having(
+          isA<MorneyePackageError>().having(
             (e) => e.message,
             'message',
             contains('duration'),

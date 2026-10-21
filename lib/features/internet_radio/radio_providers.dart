@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:flick/features/discovery/discovery_http.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/notification_service.dart';
 import 'package:flick/services/player_service.dart';
@@ -22,6 +22,146 @@ const _favoritesKey = 'lokal_radio_favorites';
 const _radioLoadTimeout = Duration(seconds: 20);
 const _radioStorageTimeout = Duration(seconds: 8);
 const _radioStopTimeout = Duration(seconds: 3);
+
+/// Fetches a public HTTPS station catalogue. Unlike the add-on transport,
+/// catalogues can follow ordinary HTTPS redirects (GitHub/CDN URLs do this),
+/// but never follow a redirect to HTTP or a credential-bearing URL.
+@visibleForTesting
+Future<Map<String, dynamic>> fetchRadioCatalogJson(
+  http.Client client,
+  Uri initialUrl,
+) async {
+  try {
+    return await _fetchRadioCatalogAtUrl(client, initialUrl);
+  } catch (_) {
+    // If the same default raw file is unavailable from raw.githubusercontent.com
+    // on a network, try GitHub's contents endpoint. Custom catalogue URLs
+    // never fall back to another host.
+    if (initialUrl.toString() != defaultRadioCatalogUrl) rethrow;
+    final apiUrl = Uri.https(
+      'api.github.com',
+      '/repos/sipbuu/lokal/contents/radios.json',
+      {'ref': 'main'},
+    );
+    return _fetchRadioCatalogAtUrl(
+      client,
+      apiUrl,
+      accept: 'application/vnd.github.raw+json',
+    );
+  }
+}
+
+Future<Map<String, dynamic>> _fetchRadioCatalogAtUrl(
+  http.Client client,
+  Uri initialUrl, {
+  String accept = 'application/json',
+}) async {
+  var url = initialUrl;
+  for (var redirects = 0; redirects <= 5; redirects++) {
+    if (url.scheme != 'https' ||
+        url.host.isEmpty ||
+        url.userInfo.isNotEmpty ||
+        url.hasFragment) {
+      throw const RadioCatalogException(
+        'Use an absolute HTTPS URL without credentials or a fragment.',
+      );
+    }
+    final request = http.Request('GET', url)
+      ..followRedirects = false
+      ..headers['Accept'] = accept
+      ..headers['User-Agent'] = 'Konnekted2';
+    final response = await radioWithTimeout(
+      client.send(request),
+      timeout: _radioLoadTimeout,
+      timeoutMessage: 'The station list timed out. Check your connection or link.',
+    );
+    if (const {301, 302, 303, 307, 308}.contains(response.statusCode)) {
+      final location = response.headers['location'];
+      unawaited(response.stream.listen((_) {}, onError: (_) {}).cancel());
+      if (location == null || location.trim().isEmpty) {
+        throw const RadioCatalogException(
+          'The station list redirected without a destination.',
+        );
+      }
+      if (redirects >= 5) {
+        throw const RadioCatalogException(
+          'The station list redirected too many times.',
+        );
+      }
+      final next = url.resolve(location);
+      if (next.scheme != 'https' ||
+          next.host.isEmpty ||
+          next.userInfo.isNotEmpty ||
+          next.hasFragment) {
+        throw const RadioCatalogException(
+          'The station list redirected to an unsafe URL.',
+        );
+      }
+      url = next;
+      continue;
+    }
+    if (response.statusCode != 200) {
+      unawaited(response.stream.listen((_) {}, onError: (_) {}).cancel());
+      throw RadioCatalogException(
+        'The station list returned HTTP ${response.statusCode}.',
+      );
+    }
+    if ((response.contentLength ?? 0) > DiscoveryRadioJsonLimit.bytes) {
+      unawaited(response.stream.listen((_) {}, onError: (_) {}).cancel());
+      throw const RadioCatalogException(
+        'The station list is larger than the allowed 2 MB.',
+      );
+    }
+    final bytes = BytesBuilder(copy: false);
+    var received = 0;
+    try {
+      await for (final chunk in response.stream.timeout(_radioLoadTimeout)) {
+        received += chunk.length;
+        if (received > DiscoveryRadioJsonLimit.bytes) {
+          throw const RadioCatalogException(
+            'The station list is larger than the allowed 2 MB.',
+          );
+        }
+        bytes.add(chunk);
+      }
+    } on TimeoutException {
+      throw const RadioCatalogException(
+        'The station list timed out while downloading. Try again.',
+      );
+    }
+    if (received == 0) {
+      throw const RadioCatalogException('The station list returned an empty response.');
+    }
+    try {
+      final decoded = jsonDecode(utf8.decode(bytes.takeBytes()));
+      if (decoded is Map<String, dynamic> && decoded['stations'] is List) {
+        parseRadioCatalog(decoded);
+        return decoded;
+      }
+      if (decoded is Map &&
+          decoded['encoding'] == 'base64' &&
+          decoded['content'] is String) {
+        final raw = base64Decode(
+          (decoded['content'] as String).replaceAll(RegExp(r'\s+'), ''),
+        );
+        final catalog = jsonDecode(utf8.decode(raw));
+        if (catalog is Map<String, dynamic> && catalog['stations'] is List) {
+          parseRadioCatalog(catalog);
+          return catalog;
+        }
+      }
+    } on FormatException {
+      // Do not expose the raw response, which may contain tokens or URLs.
+    }
+    throw const RadioCatalogException('The station list is not valid JSON.');
+  }
+  throw const RadioCatalogException('The station list redirected too many times.');
+}
+
+class DiscoveryRadioJsonLimit {
+  static const bytes = 2 * 1024 * 1024;
+}
+
 
 /// The station list's link: desktop's default until the user sets another.
 class RadioCatalogUrlNotifier extends Notifier<String> {
@@ -75,7 +215,7 @@ final radioCatalogProvider = FutureProvider<RadioCatalog?>((ref) async {
   final client = http.Client();
   try {
     final data = await radioWithTimeout(
-      DiscoveryHttp(client).json(Uri.parse(url)),
+      fetchRadioCatalogJson(client, Uri.parse(url)),
       timeout: _radioLoadTimeout,
       timeoutMessage: 'The station list timed out. Check your connection or link.',
     );

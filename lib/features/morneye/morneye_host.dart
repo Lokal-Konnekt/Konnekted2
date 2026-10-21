@@ -6,19 +6,20 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
-import 'spotiflac_network.dart';
-import 'spotiflac_session.dart';
-import 'spotiflac_storage.dart';
+import 'morneye_network.dart';
+import 'morneye_session.dart';
+import 'morneye_storage.dart';
+import 'morneye_ffmpeg.dart';
 
-/// Answers SpotiFLAC add-ons' host calls, as desktop's
-/// electron/spotiflac/host.js does: files inside the add-on's own folder,
+/// Answers Morneye add-ons' host calls, as desktop's
+/// electron/morneye/host.js does: files inside the add-on's own folder,
 /// network within its permissions, its storage and logins, and the helper
-/// functions SpotiFLAC packages expect. Converting audio with FFmpeg isn't
+/// functions Morneye packages expect. Converting audio with FFmpeg isn't
 /// available on the phone; the player decodes FLAC, ALAC, AAC, MP3, Opus and
 /// Vorbis itself.
 
 /// The native pieces: ciphers, sealing, and reading an audio file's format.
-abstract class SpotiflacNative implements SpotiflacSealer {
+abstract class MorneyeNative implements MorneyeSealer {
   Uint8List cipher(
     Uint8List data, {
     required String algorithm,
@@ -33,7 +34,7 @@ abstract class SpotiflacNative implements SpotiflacSealer {
 }
 
 /// Runs a guest callback (a progress function it passed) with [args].
-typedef SpotiflacCallback = Future<void> Function(
+typedef MorneyeCallback = Future<void> Function(
   Object? descriptor,
   List<Object?> args, {
   bool strict,
@@ -41,8 +42,8 @@ typedef SpotiflacCallback = Future<void> Function(
 
 /// What a whole-file download has written so far, for playing while it
 /// arrives.
-class SpotiflacTransfer {
-  const SpotiflacTransfer({
+class MorneyeTransfer {
+  const MorneyeTransfer({
     required this.part,
     required this.file,
     required this.total,
@@ -57,8 +58,8 @@ class SpotiflacTransfer {
   final bool done;
 }
 
-class SpotiflacCancelled implements Exception {
-  const SpotiflacCancelled();
+class MorneyeCancelled implements Exception {
+  const MorneyeCancelled();
   @override
   String toString() => 'Cancelled';
 }
@@ -73,14 +74,14 @@ class _HttpStatusError implements Exception {
 const _maxRead = 16 * 1024 * 1024;
 const _maxAudio = 4 * 1024 * 1024 * 1024;
 
-String spotiflacSanitize(Object? value) {
+String morneyeSanitize(Object? value) {
   var text = '${value ?? ''}'.replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1f]'), '_');
   text = text.replaceFirst(RegExp(r'[. ]+$'), '');
   return text.length > 180 ? text.substring(0, 180) : text;
 }
 
 /// Levenshtein similarity of two strings' UTF-8 bytes, 0–1.
-double spotiflacCompareStrings(String left, String right) {
+double morneyeCompareStrings(String left, String right) {
   final a = utf8.encode(left.trim().toLowerCase());
   final b = utf8.encode(right.trim().toLowerCase());
   if (a.isEmpty || b.isEmpty) return 0;
@@ -103,7 +104,7 @@ double spotiflacCompareStrings(String left, String right) {
   return 1 - row[b.length] / (a.length > b.length ? a.length : b.length);
 }
 
-String spotiflacNormalizeString(String value) => value
+String morneyeNormalizeString(String value) => value
     .toLowerCase()
     .replaceAll(
       RegExp(
@@ -116,7 +117,7 @@ String spotiflacNormalizeString(String value) => value
     .trim();
 
 /// Bytes from what a guest sent: `{__bytes}`, a byte list, or encoded text.
-Uint8List spotiflacBytes(Object? value, [String encoding = 'base64']) {
+Uint8List morneyeBytes(Object? value, [String encoding = 'base64']) {
   if (value is Map && value['__bytes'] is List) {
     return Uint8List.fromList(
       (value['__bytes'] as List).map((v) => (v as num).toInt()).toList(),
@@ -154,7 +155,7 @@ Uint8List spotiflacBytes(Object? value, [String encoding = 'base64']) {
 }
 
 /// [value] encoded for the guest.
-Object spotiflacEncoded(List<int> value, [String encoding = 'base64']) {
+Object morneyeEncoded(List<int> value, [String encoding = 'base64']) {
   switch (encoding) {
     case 'bytes':
     case 'raw':
@@ -174,7 +175,7 @@ Object spotiflacEncoded(List<int> value, [String encoding = 'base64']) {
 }
 
 /// The fields a WHATWG `URL` exposes.
-Map<String, String> spotiflacParseUrl(String input, String? base) {
+Map<String, String> morneyeParseUrl(String input, String? base) {
   var url = base == null ? Uri.parse(input) : Uri.parse(base).resolve(input);
   if (!url.hasScheme) throw const FormatException('Invalid URL');
   if (url.path.isEmpty && url.hasAuthority) url = url.replace(path: '/');
@@ -214,7 +215,7 @@ String _decodeForm(String value) {
 }
 
 /// `URLSearchParams` entries of [init] (a query string or entry list).
-List<List<String>> spotiflacQueryEntries(Object? init) {
+List<List<String>> morneyeQueryEntries(Object? init) {
   if (init is List) {
     return [
       for (final entry in init)
@@ -256,14 +257,14 @@ String _encodeForm(String value) {
 }
 
 /// Serializes entries the way `URLSearchParams.toString()` does.
-String spotiflacEncodeQuery(Object? entries) =>
-    spotiflacQueryEntries(entries)
+String morneyeEncodeQuery(Object? entries) =>
+    morneyeQueryEntries(entries)
         .map((e) => '${_encodeForm(e[0])}=${_encodeForm(e[1])}')
         .join('&');
 
 /// The add-on facts the host needs.
-class SpotiflacAddonInfo {
-  const SpotiflacAddonInfo({
+class MorneyeAddonInfo {
+  const MorneyeAddonInfo({
     required this.key,
     required this.name,
     required this.manifest,
@@ -273,8 +274,8 @@ class SpotiflacAddonInfo {
   final String name;
   final Map<String, Object?> manifest;
 
-  SpotiflacPermissions get permissions =>
-      SpotiflacPermissions.fromJson(manifest['permissions']);
+  MorneyePermissions get permissions =>
+      MorneyePermissions.fromJson(manifest['permissions']);
 
   Map get capabilities => manifest['capabilities'] is Map
       ? manifest['capabilities'] as Map
@@ -286,10 +287,10 @@ class SpotiflacAddonInfo {
 }
 
 /// Finds the library song with an ISRC: its path, or null.
-typedef SpotiflacIsrcLookup = Future<String?> Function(String isrc);
+typedef MorneyeIsrcLookup = Future<String?> Function(String isrc);
 
-class SpotiflacHost {
-  SpotiflacHost({
+class MorneyeHost {
+  MorneyeHost({
     required this.addon,
     required this.storage,
     required this.network,
@@ -307,18 +308,18 @@ class SpotiflacHost {
     Directory(this.root).createSync(recursive: true);
   }
 
-  final SpotiflacAddonInfo addon;
-  final SpotiflacStorage storage;
-  final SpotiflacNetwork network;
-  final SpotiflacSignedSession? session;
-  final SpotiflacNative native;
+  final MorneyeAddonInfo addon;
+  final MorneyeStorage storage;
+  final MorneyeNetwork network;
+  final MorneyeSignedSession? session;
+  final MorneyeNative native;
   final String root;
   final List<String> grants;
-  final SpotiflacIsrcLookup? isrcLookup;
+  final MorneyeIsrcLookup? isrcLookup;
 
   /// Download progress: a percent and/or a status message.
   final void Function({double? percent, String? message})? onProgress;
-  final void Function(SpotiflacTransfer transfer)? onTransfer;
+  final void Function(MorneyeTransfer transfer)? onTransfer;
   final String appVersion;
 
   /// How long a download may go without a byte before its connection is
@@ -338,7 +339,7 @@ class SpotiflacHost {
   }
 
   void _check() {
-    if (_aborted) throw const SpotiflacCancelled();
+    if (_aborted) throw const MorneyeCancelled();
   }
 
   Future<void> _sleep(Duration duration) =>
@@ -431,7 +432,7 @@ class SpotiflacHost {
         headers['Range'] = 'bytes=$offset-';
         headers['If-Range'] = validator;
       }
-      SpotiflacResponse? response;
+      MorneyeResponse? response;
       RandomAccessFile? output;
       try {
         response = await network.request(
@@ -474,7 +475,7 @@ class SpotiflacHost {
             .open(mode: offset > 0 ? FileMode.append : FileMode.write);
         written = offset;
         live?.call(
-          SpotiflacTransfer(
+          MorneyeTransfer(
             part: part,
             file: target,
             total: total,
@@ -492,7 +493,7 @@ class SpotiflacHost {
             throw StateError('Addon audio exceeds the file size limit');
           }
           live?.call(
-            SpotiflacTransfer(
+            MorneyeTransfer(
               part: part,
               file: target,
               total: total,
@@ -511,7 +512,7 @@ class SpotiflacHost {
         final saved = File(checkpoint);
         if (saved.existsSync()) await saved.delete();
         live?.call(
-          SpotiflacTransfer(
+          MorneyeTransfer(
             part: part,
             file: target,
             total: total,
@@ -553,7 +554,7 @@ class SpotiflacHost {
     List segmentsList,
     String destination,
     Map options,
-    SpotiflacCallback callback,
+    MorneyeCallback callback,
   ) async {
     if (segmentsList.isEmpty || segmentsList.length > 20000) {
       throw ArgumentError('Invalid download segments');
@@ -661,7 +662,7 @@ class SpotiflacHost {
   }
 
   Uint8List _transformBlock(Uint8List input, Map options, bool decrypt) {
-    final iv = spotiflacBytes(
+    final iv = morneyeBytes(
       options['iv'],
       '${options['ivEncoding'] ?? 'utf8'}',
     );
@@ -669,7 +670,7 @@ class SpotiflacHost {
       input,
       algorithm: '${options['algorithm'] ?? ''}',
       mode: '${options['mode'] ?? 'cbc'}',
-      key: spotiflacBytes(
+      key: morneyeBytes(
         options['key'],
         '${options['keyEncoding'] ?? 'utf8'}',
       ),
@@ -684,7 +685,7 @@ class SpotiflacHost {
     Object? output,
     Map options,
     Object? progress,
-    SpotiflacCallback callback,
+    MorneyeCallback callback,
   ) async {
     final source = file(input);
     final target = file(output);
@@ -747,7 +748,7 @@ class SpotiflacHost {
   Future<Object?> fileCall(
     String name,
     List<Object?> args,
-    SpotiflacCallback callback,
+    MorneyeCallback callback,
   ) async {
     final raw = args.isNotEmpty ? args[0] : null;
     final data = args.length > 1 ? args[1] : null;
@@ -812,7 +813,7 @@ class SpotiflacHost {
             'success': true,
             'data': name == 'read'
                 ? utf8.decode(bytes, allowMalformed: true)
-                : spotiflacEncoded(bytes, '${options['encoding'] ?? 'base64'}'),
+                : morneyeEncoded(bytes, '${options['encoding'] ?? 'base64'}'),
             'offset': start,
             'size': size,
             'eof': start + bytes.length >= size,
@@ -825,7 +826,7 @@ class SpotiflacHost {
       case 'writeBytes':
         final value = name == 'write'
             ? Uint8List.fromList(utf8.encode('$data'))
-            : spotiflacBytes(data, '${opts['encoding'] ?? 'base64'}');
+            : morneyeBytes(data, '${opts['encoding'] ?? 'base64'}');
         if (value.length > _maxRead) {
           throw StateError('File write exceeds 16 MB');
         }
@@ -885,7 +886,7 @@ class SpotiflacHost {
       case 'generatePKCE':
         final length = ((value as num?)?.toInt() ?? 64).clamp(43, 128);
         final verifier = base64Url
-            .encode(spotiflacRandomBytes(96))
+            .encode(morneyeRandomBytes(96))
             .replaceAll('=', '')
             .substring(0, length);
         final challenge = base64Url
@@ -906,12 +907,12 @@ class SpotiflacHost {
                 'authUrl': value,
                 'redirectUri': args.length > 1 ? args[1] : null,
               };
-        var url = spotiflacValidateUrl(
+        var url = morneyeValidateUrl(
           '${config['authUrl']}',
           network.permissions,
         );
         final state = base64Url
-            .encode(spotiflacRandomBytes(24))
+            .encode(morneyeRandomBytes(24))
             .replaceAll('=', '');
         final query = {...url.queryParameters, 'state': state};
         if (name == 'startOAuthWithPKCE') {
@@ -962,7 +963,7 @@ class SpotiflacHost {
         final result = await network.jsonResponse(
           '${config['tokenUrl']}',
           method: 'POST',
-          body: spotiflacEncodeQuery(form),
+          body: morneyeEncodeQuery(form),
           headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         );
         if (result['ok'] != true) {
@@ -1002,7 +1003,7 @@ class SpotiflacHost {
 
   Map<String, Object?> _blockCall(String operation, Object? data, Map options) {
     try {
-      final input = spotiflacBytes(
+      final input = morneyeBytes(
         data,
         '${options['inputEncoding'] ?? 'base64'}',
       );
@@ -1023,7 +1024,7 @@ class SpotiflacHost {
             throw RangeError('Cipher segment is out of bounds');
           }
           if (length == 0) continue;
-          final iv = spotiflacBytes(
+          final iv = morneyeBytes(
             segment['iv'],
             '${options['ivEncoding'] ?? 'base64'}',
           );
@@ -1033,7 +1034,7 @@ class SpotiflacHost {
             Uint8List.sublistView(output, start, start + length),
             algorithm: '${options['algorithm'] ?? 'aes'}',
             mode: 'ctr',
-            key: spotiflacBytes(
+            key: morneyeBytes(
               options['key'],
               '${options['keyEncoding'] ?? 'hex'}',
             ),
@@ -1046,7 +1047,7 @@ class SpotiflacHost {
         }
         return {
           'success': true,
-          'data': spotiflacEncoded(
+          'data': morneyeEncoded(
             output,
             '${options['outputEncoding'] ?? 'base64'}',
           ),
@@ -1056,7 +1057,7 @@ class SpotiflacHost {
       final output = _transformBlock(input, options, operation == 'decrypt');
       return {
         'success': true,
-        'data': spotiflacEncoded(
+        'data': morneyeEncoded(
           output,
           '${options['outputEncoding'] ?? 'base64'}',
         ),
@@ -1073,12 +1074,12 @@ class SpotiflacHost {
         sha256.convert(utf8.encode('$key')).bytes,
       );
       final data = decrypt
-          ? utf8.decode(native.open(spotiflacBytes(value), derived))
+          ? utf8.decode(native.open(morneyeBytes(value), derived))
           : base64.encode(
               native.seal(
                 Uint8List.fromList(utf8.encode('$value')),
                 derived,
-                spotiflacRandomBytes(12),
+                morneyeRandomBytes(12),
               ),
             );
       return {'success': true, 'data': data};
@@ -1088,13 +1089,13 @@ class SpotiflacHost {
   }
 
   List<int> _keyBytes(Object? value) =>
-      value is List ? spotiflacBytes(value) : utf8.encode('$value');
+      value is List ? morneyeBytes(value) : utf8.encode('$value');
 
   /// One host call from the add-on.
   Future<Object?> call(
     String method,
     List<Object?> args,
-    SpotiflacCallback callback,
+    MorneyeCallback callback,
   ) async {
     _check();
     final dot = method.indexOf('.');
@@ -1109,7 +1110,7 @@ class SpotiflacHost {
         if (action == 'exists') return false;
         return {
           'success': false,
-          'error': error is SpotiflacCancelled
+          'error': error is MorneyeCancelled
               ? 'Cancelled'
               : '$error'.replaceFirst(RegExp(r'^\w+(Error|Exception): '), ''),
           'error_type': _aborted ? 'cancelled' : 'download_error',
@@ -1215,10 +1216,28 @@ class SpotiflacHost {
     if (name == 'ffmpeg') {
       try {
         if (action == 'getInfo') return await mediaInfo(file(arg(0)));
-        return {
-          'success': false,
-          'error': 'Converting audio isn’t available on the phone',
-        };
+        if (action == 'convert') {
+          if (args.length < 2) {
+            return {'success': false, 'error': 'Expected input and output paths'};
+          }
+          final inputPath = file('${arg(0)}');
+          final outputPath = file('${arg(1)}');
+          final options = args.length > 2 && args[2] is Map
+              ? args[2] as Map
+              : const {};
+          final codec = '${options['codec'] ?? 'copy'}'.toLowerCase();
+          await morneyeConvertAudio(
+            inputPath: inputPath,
+            outputPath: outputPath,
+            codec: codec,
+          );
+          return {
+            'success': true,
+            'path': outputPath,
+            'bytes_processed': await File(outputPath).length(),
+          };
+        }
+        return {'success': false, 'error': 'Unsupported FFmpeg operation'};
       } catch (error) {
         return {'success': false, 'error': '$error'};
       }
@@ -1232,35 +1251,35 @@ class SpotiflacHost {
       case 'encode':
         return {'__bytes': utf8.encode('${arg(0)}')};
       case 'decode':
-        return utf8.decode(spotiflacBytes(arg(0)), allowMalformed: true);
+        return utf8.decode(morneyeBytes(arg(0)), allowMalformed: true);
       case 'base64Bytes':
-        return base64.encode(spotiflacBytes(arg(0)));
+        return base64.encode(morneyeBytes(arg(0)));
       case 'decodeBase64Bytes':
-        return spotiflacBytes('${arg(0) ?? ''}', 'base64');
+        return morneyeBytes('${arg(0) ?? ''}', 'base64');
     }
     if (name == 'url') {
       switch (action) {
         case 'parse':
-          return spotiflacParseUrl('${arg(0)}', arg(1) as String?);
+          return morneyeParseUrl('${arg(0)}', arg(1) as String?);
         case 'query':
-          return spotiflacQueryEntries(arg(0));
+          return morneyeQueryEntries(arg(0));
         case 'encode':
-          return spotiflacEncodeQuery(arg(0));
+          return morneyeEncodeQuery(arg(0));
       }
     }
     if (name == 'matching') {
       if (action == 'normalizeString') {
-        return spotiflacNormalizeString('${arg(0)}');
+        return morneyeNormalizeString('${arg(0)}');
       }
-      return spotiflacCompareStrings('${arg(0)}', '${arg(1)}');
+      return morneyeCompareStrings('${arg(0)}', '${arg(1)}');
     }
     if (name == 'gobackend') {
       switch (action) {
         case 'sanitizeFilename':
-          return spotiflacSanitize(arg(0));
+          return morneyeSanitize(arg(0));
         case 'buildFilename':
           final values = arg(1) is Map ? arg(1) as Map : const {};
-          return spotiflacSanitize(
+          return morneyeSanitize(
             '${arg(0)}'.replaceAllMapped(
               RegExp(r'\{([^}]+)\}'),
               (m) => '${values[m.group(1)] ?? ''}',
@@ -1294,7 +1313,7 @@ class SpotiflacHost {
         case 'appVersion':
           return '5.1.0';
         case 'appUserAgent':
-          return 'Lokal/$appVersion SpotiFLAC-compatible/5.1.0';
+          return 'Lokal/$appVersion Morneye-compatible/5.1.0';
         case 'randomUserAgent':
           return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36';
         case 'setDownloadStatus':
@@ -1318,7 +1337,7 @@ class SpotiflacHost {
         case 'base64Decode':
           try {
             return utf8.decode(
-              spotiflacBytes('${arg(0)}', 'base64'),
+              morneyeBytes('${arg(0)}', 'base64'),
               allowMalformed: true,
             );
           } catch (_) {
@@ -1351,11 +1370,11 @@ class SpotiflacHost {
           if (length < 1 || length > 4096) {
             return {'success': false, 'error': 'Invalid key length'};
           }
-          final key = spotiflacRandomBytes(length);
+          final key = morneyeRandomBytes(length);
           return {
             'success': true,
             'key': base64.encode(key),
-            'hex': spotiflacEncoded(key, 'hex'),
+            'hex': morneyeEncoded(key, 'hex'),
           };
         case 'encryptBlockCipher':
         case 'decryptBlockCipher':

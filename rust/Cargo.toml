@@ -26,10 +26,10 @@ rayon = "1.8"
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] } # Often useful particularly with bridge
 serde_json = "1.0"
-# SpotiFLAC add-ons run in QuickJS, as on desktop.
+# Morneye add-ons run in QuickJS, as on desktop.
 rquickjs = "0.14"
 futures = { version = "0.3", default-features = false, features = ["executor"] }
-# Ciphers SpotiFLAC add-ons ask the host for (desktop: electron/spotiflac/crypto.js).
+# Ciphers Morneye add-ons ask the host for (desktop: electron/morneye/crypto.js).
 aes = "0.9"
 aes-gcm = "0.11"
 blowfish = "0.10"

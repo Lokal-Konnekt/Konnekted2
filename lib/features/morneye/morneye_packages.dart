@@ -7,21 +7,22 @@ import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
-import 'spotiflac_host.dart';
-import 'spotiflac_network.dart';
-import 'spotiflac_runtime.dart';
-import 'spotiflac_session.dart';
-import 'spotiflac_storage.dart';
+import 'morneye_host.dart';
+import 'morneye_network.dart';
+import 'morneye_runtime.dart';
+import 'morneye_session.dart';
+import 'morneye_storage.dart';
+import 'morneye_ffmpeg.dart';
 
-/// SpotiFLAC add-on packages (.sflx), as desktop's
-/// electron/spotiflac/packages.js: repositories to install from, installed
+/// Morneye add-on packages (.sflx), as desktop's
+/// electron/morneye/packages.js: repositories to install from, installed
 /// packages with their settings and logins, and searching and downloading
 /// through them. The same packages run on desktop and phone.
 
-const spotiflacRegistry =
-    'https://raw.githubusercontent.com/spotiflacapp/SpotiFLAC-Extension/main/registry.json';
-const spotiflacCompatVersion = '5.1.0';
-const spotiflacFeatures = {
+const morneyeRegistry =
+    'https://raw.githubusercontent.com/mornyeapp/Mornye-Extension/refs/heads/main/registry.json';
+const morneyeCompatVersion = '5.1.0';
+const morneyeFeatures = {
   'signedSession': 3,
   'sessionRefresh': 1,
   'sessionGrant': 1,
@@ -38,10 +39,10 @@ const spotiflacFeatures = {
 String _sha256(List<int> value) => sha256.convert(value).toString();
 
 /// The installed package's stable key (also its storage namespace).
-String spotiflacKeyOf(String name) =>
+String morneyeKeyOf(String name) =>
     sha1.convert(utf8.encode('spotiflac:$name')).toString().substring(0, 10);
 
-int spotiflacCompareVersions(Object? a, Object? b) {
+int morneyeCompareVersions(Object? a, Object? b) {
   List<int> parts(Object? v) =>
       '${v ?? '0'}'.split('.').map((x) => int.tryParse(x) ?? 0).toList();
   final left = parts(a), right = parts(b);
@@ -57,21 +58,21 @@ int spotiflacCompareVersions(Object? a, Object? b) {
   return 0;
 }
 
-class SpotiflacPackageError implements Exception {
-  const SpotiflacPackageError(this.message);
+class MorneyePackageError implements Exception {
+  const MorneyePackageError(this.message);
   final String message;
   @override
   String toString() => message;
 }
 
-Map<String, Object?> spotiflacValidateManifest(Object? json) {
+Map<String, Object?> morneyeValidateManifest(Object? json) {
   if (json is! Map ||
       !RegExp(r'^[a-z0-9][a-z0-9_-]{0,99}$')
           .hasMatch('${json['name'] ?? ''}') ||
       json['displayName'] is! String ||
       !RegExp(r'^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$')
           .hasMatch('${json['version'] ?? ''}')) {
-    throw const SpotiflacPackageError('Invalid SpotiFLAC package manifest');
+    throw const MorneyePackageError('Invalid Morneye package manifest');
   }
   final manifest = json.cast<String, Object?>();
   final type = manifest['type'];
@@ -80,17 +81,17 @@ Map<String, Object?> spotiflacValidateManifest(Object? json) {
   if (type is! List ||
       !(type.contains('download_provider') ||
           (type.contains('metadata_provider') && linkReader))) {
-    throw const SpotiflacPackageError(
-      'Only download-capable or playlist-link SpotiFLAC addons can be installed',
+    throw const MorneyePackageError(
+      'Only download-capable or playlist-link Morneye addons can be installed',
     );
   }
-  if (spotiflacCompareVersions(
+  if (morneyeCompareVersions(
         manifest['minAppVersion'],
-        spotiflacCompatVersion,
+        morneyeCompatVersion,
       ) >
       0) {
-    throw SpotiflacPackageError(
-      'This addon requires SpotiFLAC compatibility ${manifest['minAppVersion']}',
+    throw MorneyePackageError(
+      'This addon requires Morneye compatibility ${manifest['minAppVersion']}',
     );
   }
   for (final required
@@ -98,9 +99,9 @@ Map<String, Object?> spotiflacValidateManifest(Object? json) {
           ? manifest['requiredRuntimeFeatures'] as List
           : const []) {
     final match = RegExp(r'^([A-Za-z]+)@(\d+)$').firstMatch('$required');
-    final have = match == null ? null : spotiflacFeatures[match.group(1)];
+    final have = match == null ? null : morneyeFeatures[match.group(1)];
     if (have == null || have < int.parse(match!.group(2)!)) {
-      throw SpotiflacPackageError('Unsupported runtime feature: $required');
+      throw MorneyePackageError('Unsupported runtime feature: $required');
     }
   }
   final permissions = manifest['permissions'];
@@ -115,16 +116,16 @@ Map<String, Object?> spotiflacValidateManifest(Object? json) {
               caseSensitive: false,
             ).hasMatch(d),
       )) {
-    throw const SpotiflacPackageError('Invalid addon network permissions');
+    throw const MorneyePackageError('Invalid addon network permissions');
   }
   final signed = manifest['signedSession'];
   if (signed is Map) {
-    spotiflacValidateUrl(
+    morneyeValidateUrl(
       '${signed['baseUrl']}',
-      SpotiflacPermissions.fromJson(permissions),
+      MorneyePermissions.fromJson(permissions),
     );
     if ((permissions as Map)['storage'] != true) {
-      throw const SpotiflacPackageError(
+      throw const MorneyePackageError(
         'Signed sessions require storage permission',
       );
     }
@@ -133,31 +134,31 @@ Map<String, Object?> spotiflacValidateManifest(Object? json) {
           (manifest['settings'] as List).length > 100) ||
       (manifest['qualityOptions'] is List &&
           (manifest['qualityOptions'] as List).length > 30)) {
-    throw const SpotiflacPackageError('Addon manifest is too large');
+    throw const MorneyePackageError('Addon manifest is too large');
   }
   return manifest;
 }
 
-class SpotiflacArchive {
-  const SpotiflacArchive(this.files, this.manifest, this.code);
+class MorneyeArchive {
+  const MorneyeArchive(this.files, this.manifest, this.code);
   final Map<String, Uint8List> files;
   final Map<String, Object?> manifest;
   final String code;
 }
 
 /// Opens and checks a package's zip.
-SpotiflacArchive spotiflacReadArchive(Uint8List bytes) {
+MorneyeArchive morneyeReadArchive(Uint8List bytes) {
   if (bytes.length > 32 * 1024 * 1024) {
-    throw const SpotiflacPackageError('Addon package exceeds 32 MB');
+    throw const MorneyePackageError('Addon package exceeds 32 MB');
   }
   final Archive zip;
   try {
     zip = ZipDecoder().decodeBytes(bytes);
   } catch (_) {
-    throw const SpotiflacPackageError('This isn’t a SpotiFLAC package');
+    throw const MorneyePackageError('This isn’t a Morneye package');
   }
   if (zip.files.length > 100) {
-    throw const SpotiflacPackageError('Addon package contains too many files');
+    throw const MorneyePackageError('Addon package contains too many files');
   }
   final files = <String, Uint8List>{};
   var total = 0;
@@ -170,30 +171,30 @@ SpotiflacArchive spotiflacReadArchive(Uint8List bytes) {
         RegExp(r'^[A-Za-z]:').hasMatch(name) ||
         name.split('/').any((part) => part == '..' || part == '.') ||
         entry.isSymbolicLink) {
-      throw const SpotiflacPackageError(
+      throw const MorneyePackageError(
         'Addon package contains an unsafe archive path',
       );
     }
     total += entry.size;
     if (total > 64 * 1024 * 1024) {
-      throw const SpotiflacPackageError('Unpacked addon package exceeds 64 MB');
+      throw const MorneyePackageError('Unpacked addon package exceeds 64 MB');
     }
     if (entry.isFile) files[name] = entry.content;
   }
   final manifestBytes = files['manifest.json'];
   final codeBytes = files['index.js'];
   if (manifestBytes == null || codeBytes == null) {
-    throw const SpotiflacPackageError(
-      'A SpotiFLAC package needs manifest.json and index.js at its root',
+    throw const MorneyePackageError(
+      'A Morneye package needs manifest.json and index.js at its root',
     );
   }
-  final manifest = spotiflacValidateManifest(
+  final manifest = morneyeValidateManifest(
     jsonDecode(utf8.decode(manifestBytes)),
   );
   if (codeBytes.length > 8 * 1024 * 1024) {
-    throw const SpotiflacPackageError('Addon script exceeds 8 MB');
+    throw const MorneyePackageError('Addon script exceeds 8 MB');
   }
-  return SpotiflacArchive(files, manifest, utf8.decode(codeBytes));
+  return MorneyeArchive(files, manifest, utf8.decode(codeBytes));
 }
 
 bool _placeholderAlbum(Object? value) {
@@ -205,7 +206,7 @@ bool _placeholderAlbum(Object? value) {
       ).hasMatch(album);
 }
 
-String? spotiflacAlbumName(Map track) {
+String? morneyeAlbumName(Map track) {
   final album = track['album'];
   final candidates = [
     track['album_name'],
@@ -226,8 +227,8 @@ String? spotiflacAlbumName(Map track) {
 }
 
 /// A song an add-on found.
-class SpotiflacTrack {
-  const SpotiflacTrack({
+class MorneyeTrack {
+  const MorneyeTrack({
     required this.provider,
     required this.id,
     required this.title,
@@ -258,7 +259,7 @@ class SpotiflacTrack {
 
   String get key => provider.substring(2);
 
-  static SpotiflacTrack of(Map track, String provider) {
+  static MorneyeTrack of(Map track, String provider) {
     final rawArtists = track['artists'];
     final artists = rawArtists is List
         ? [
@@ -273,12 +274,12 @@ class SpotiflacTrack {
     final title = '${track['name'] ?? track['title'] ?? ''}';
     final ms = (track['duration_ms'] ?? track['durationMs']) as num?;
     final images = track['images'];
-    return SpotiflacTrack(
+    return MorneyeTrack(
       provider: provider,
       id: '${track['id']}',
       title: title.length > 500 ? title.substring(0, 500) : title,
       artist: artists.join(', '),
-      album: spotiflacAlbumName(track),
+      album: morneyeAlbumName(track),
       duration: ms != null && ms > 0
           ? Duration(milliseconds: ms.toInt())
           : null,
@@ -303,8 +304,8 @@ class SpotiflacTrack {
 }
 
 /// An installed package.
-class SpotiflacAddon {
-  SpotiflacAddon({
+class MorneyeAddon {
+  MorneyeAddon({
     required this.key,
     required this.name,
     required this.manifest,
@@ -343,8 +344,8 @@ class SpotiflacAddon {
   bool get searches =>
       methods.contains('searchTracks') || methods.contains('customSearch');
 
-  SpotiflacAddonInfo get info =>
-      SpotiflacAddonInfo(key: key, name: name, manifest: manifest);
+  MorneyeAddonInfo get info =>
+      MorneyeAddonInfo(key: key, name: name, manifest: manifest);
 
   Map<String, Object?> toJson() => {
     'key': key,
@@ -357,11 +358,11 @@ class SpotiflacAddon {
     'enabled': enabled,
   };
 
-  static SpotiflacAddon? fromJson(Object? json) {
+  static MorneyeAddon? fromJson(Object? json) {
     if (json is! Map || json['key'] is! String || json['manifest'] is! Map) {
       return null;
     }
-    return SpotiflacAddon(
+    return MorneyeAddon(
       key: json['key'] as String,
       name: '${json['name']}',
       manifest: (json['manifest'] as Map).cast<String, Object?>(),
@@ -378,8 +379,8 @@ class SpotiflacAddon {
   }
 }
 
-class SpotiflacRepository {
-  SpotiflacRepository({
+class MorneyeRepository {
+  MorneyeRepository({
     required this.id,
     required this.url,
     required this.name,
@@ -395,7 +396,7 @@ class SpotiflacRepository {
   List<Map<String, Object?>> entries;
   String? error;
 
-  bool get official => url == spotiflacRegistry;
+  bool get official => url == morneyeRegistry;
 
   Map<String, Object?> toJson() => {
     'id': id,
@@ -406,11 +407,11 @@ class SpotiflacRepository {
     'error': error,
   };
 
-  static SpotiflacRepository? fromJson(Object? json) {
+  static MorneyeRepository? fromJson(Object? json) {
     if (json is! Map || json['id'] is! String || json['url'] is! String) {
       return null;
     }
-    return SpotiflacRepository(
+    return MorneyeRepository(
       id: json['id'] as String,
       url: json['url'] as String,
       name: '${json['name'] ?? ''}',
@@ -426,8 +427,8 @@ class SpotiflacRepository {
 }
 
 /// A repository package as offered, with how it relates to what's installed.
-class SpotiflacCatalogueEntry {
-  const SpotiflacCatalogueEntry(
+class MorneyeCatalogueEntry {
+  const MorneyeCatalogueEntry(
     this.entry,
     this.repositoryId, {
     this.installed,
@@ -436,7 +437,7 @@ class SpotiflacCatalogueEntry {
 
   final Map<String, Object?> entry;
   final String repositoryId;
-  final SpotiflacAddon? installed;
+  final MorneyeAddon? installed;
   final bool compatible;
 
   String get id => '${entry['id']}';
@@ -447,12 +448,12 @@ class SpotiflacCatalogueEntry {
   String get category => '${entry['category'] ?? ''}';
   bool get updateAvailable =>
       installed != null &&
-      spotiflacCompareVersions(version, installed!.version) > 0;
+      morneyeCompareVersions(version, installed!.version) > 0;
 }
 
 /// What an add-on still needs before it can download.
-class SpotiflacAccess {
-  const SpotiflacAccess(
+class MorneyeAccess {
+  const MorneyeAccess(
     this.kind, {
     required this.ready,
     required this.verified,
@@ -467,8 +468,8 @@ class SpotiflacAccess {
 }
 
 /// The finished download.
-class SpotiflacDownload {
-  SpotiflacDownload(this.file, this.metadata, this.info, this._staging);
+class MorneyeDownload {
+  MorneyeDownload(this.file, this.metadata, this.info, this._staging);
 
   final File file;
   final Map<String, Object?> metadata;
@@ -481,35 +482,43 @@ class SpotiflacDownload {
 }
 
 /// Fetches a document from a repository host (and only that host).
-typedef SpotiflacDocumentFetch = Future<Uint8List> Function(
+typedef MorneyeDocumentFetch = Future<Uint8List> Function(
   String url,
   int maxBytes,
 );
 
-class SpotiflacPackages {
-  SpotiflacPackages(
+typedef MorneyeAudioConverter = Future<void> Function(
+  String inputPath,
+  String outputPath,
+  String codec,
+);
+
+class MorneyePackages {
+  MorneyePackages(
     this.root, {
     required this.storage,
-    this._native = const NativeSpotiflac(),
-    this._starter = startNativeSpotiflacGuest,
+    this._native = const NativeMorneye(),
+    this._starter = startNativeMorneyeGuest,
     this._fetch,
     this.isrcLookup,
+    this.audioConverter,
     this.appVersion = '1.0.0',
   });
 
   final Directory root;
-  final SpotiflacStorage storage;
-  final SpotiflacNative _native;
-  final SpotiflacGuestStarter _starter;
-  final SpotiflacDocumentFetch? _fetch;
-  final SpotiflacIsrcLookup? isrcLookup;
+  final MorneyeStorage storage;
+  final MorneyeNative _native;
+  final MorneyeGuestStarter _starter;
+  final MorneyeDocumentFetch? _fetch;
+  final MorneyeIsrcLookup? isrcLookup;
+  final MorneyeAudioConverter? audioConverter;
   final String appVersion;
 
-  final _repos = <SpotiflacRepository>[];
-  final _addons = <String, SpotiflacAddon>{};
-  final _runtimes = <String, SpotiflacRuntime>{};
-  final _networks = <String, SpotiflacNetwork>{};
-  final _sessions = <String, SpotiflacSignedSession>{};
+  final _repos = <MorneyeRepository>[];
+  final _addons = <String, MorneyeAddon>{};
+  final _runtimes = <String, MorneyeRuntime>{};
+  final _networks = <String, MorneyeNetwork>{};
+  final _sessions = <String, MorneyeSignedSession>{};
   final _tracks = <String, Map>{};
   final _locks = <String, Future<void>>{};
   final _forms =
@@ -527,30 +536,48 @@ class SpotiflacPackages {
         final json = jsonDecode(await _index.readAsString()) as Map;
         _repos.addAll([
           for (final r in json['repositories'] as List? ?? const [])
-            ?SpotiflacRepository.fromJson(r),
+            ?MorneyeRepository.fromJson(r),
         ]);
         for (final a in json['packages'] as List? ?? const []) {
-          final addon = SpotiflacAddon.fromJson(a);
+          final addon = MorneyeAddon.fromJson(a);
           if (addon != null) _addons[addon.key] = addon;
         }
       } catch (_) {
         // An unreadable index starts empty rather than failing every screen.
       }
     }
-    if (!_repos.any((r) => r.url == spotiflacRegistry)) {
-      _repos.insert(
-        0,
-        SpotiflacRepository(
-          id: _sha256(utf8.encode(spotiflacRegistry)).substring(0, 16),
-          url: spotiflacRegistry,
-          name: 'SpotiFLAC official',
-        ),
-      );
+    const legacyRegistryUrl = 'https://raw.githubusercontent.com/spotiflacapp/SpotiFLAC-Extension/main/registry.json';
+    String? oldDefaultId;
+    String? currentDefaultId;
+    for (final repository in _repos) {
+      if (repository.url == legacyRegistryUrl) oldDefaultId = repository.id;
+      if (repository.url == morneyeRegistry) currentDefaultId = repository.id;
+    }
+    if (oldDefaultId != null) {
+      _repos.removeWhere((r) => r.url == legacyRegistryUrl);
+    }
+    if (currentDefaultId == null) {
+      currentDefaultId = _sha256(utf8.encode(morneyeRegistry)).substring(0, 16);
+      _repos.insert(0, MorneyeRepository(
+        id: currentDefaultId,
+        url: morneyeRegistry,
+        name: 'Morneye official',
+      ));
+    }
+    var migratedAddonRepositoryIds = false;
+    if (oldDefaultId != null) {
+      for (final addon in _addons.values) {
+        if (addon.repositoryId == oldDefaultId) {
+          addon.repositoryId = currentDefaultId;
+          migratedAddonRepositoryIds = true;
+        }
+      }
     }
     _loaded = true;
+    if (oldDefaultId != null || migratedAddonRepositoryIds) _save();
   }
 
-  void _save() => spotiflacAtomicWrite(
+  void _save() => morneyeAtomicWrite(
     _index,
     utf8.encode(
       jsonEncode({
@@ -560,15 +587,15 @@ class SpotiflacPackages {
     ),
   );
 
-  List<SpotiflacAddon> get addons =>
+  List<MorneyeAddon> get addons =>
       _addons.values.toList()
         ..sort((a, b) => a.installedAt.compareTo(b.installedAt));
-  List<SpotiflacRepository> get repositories => List.unmodifiable(_repos);
-  SpotiflacAddon? find(String key) => _addons[key];
+  List<MorneyeRepository> get repositories => List.unmodifiable(_repos);
+  MorneyeAddon? find(String key) => _addons[key];
 
   // ---------------------------------------------------------------- settings
 
-  Map<String, Object?> settings(SpotiflacAddon addon) {
+  Map<String, Object?> settings(MorneyeAddon addon) {
     Map<String, Object?> values = {};
     try {
       values = storage.read(addon.key, 'settings');
@@ -598,7 +625,7 @@ class SpotiflacPackages {
   /// Saves [values] the add-on's schema allows; secrets left empty keep theirs.
   void setSettings(String key, Map<String, Object?> values) {
     final addon = _addons[key];
-    if (addon == null) throw const SpotiflacPackageError('Addon not found');
+    if (addon == null) throw const MorneyePackageError('Addon not found');
     final current = storage.read(key, 'settings');
     void assign(List schema, Map? input, Map<String, Object?> target) {
       if (input == null) return;
@@ -620,7 +647,7 @@ class SpotiflacPackages {
         if ((type == 'boolean' && value is! bool) ||
             (type == 'number' && num.tryParse('$value') == null) ||
             (type == 'select' && !options.contains(value))) {
-          throw SpotiflacPackageError('Invalid setting: $name');
+          throw MorneyePackageError('Invalid setting: $name');
         }
         final text = '${value ?? ''}';
         target[name] = type == 'number'
@@ -660,7 +687,7 @@ class SpotiflacPackages {
     _retire(key);
   }
 
-  SpotiflacAccess access(SpotiflacAddon addon) {
+  MorneyeAccess access(MorneyeAddon addon) {
     final values = settings(addon);
     final missing = [
       for (final field in addon.settingsSchema)
@@ -676,7 +703,7 @@ class SpotiflacPackages {
       try {
         verified = _sessionFor(addon, null).status()['authenticated'] == true;
       } catch (_) {}
-      return SpotiflacAccess(
+      return MorneyeAccess(
         'verification',
         ready: verified && missing.isEmpty,
         verified: verified,
@@ -709,14 +736,14 @@ class SpotiflacPackages {
         account = storage.read(addon.key, 'credentials').isNotEmpty;
       } catch (_) {}
       final verified = tokens || account;
-      return SpotiflacAccess(
+      return MorneyeAccess(
         'login',
         ready: verified && missing.isEmpty,
         verified: verified,
         missing: missing,
       );
     }
-    return SpotiflacAccess(
+    return MorneyeAccess(
       missing.isEmpty ? 'none' : 'settings',
       ready: missing.isEmpty,
       verified: true,
@@ -730,19 +757,19 @@ class SpotiflacPackages {
     final fetch = _fetch;
     if (fetch != null) return fetch(url, maxBytes);
     final uri = Uri.parse(url);
-    final network = SpotiflacNetwork(
-      SpotiflacPermissions(network: [uri.host]),
+    final network = MorneyeNetwork(
+      MorneyePermissions(network: [uri.host]),
       userAgent: 'Lokal/$appVersion',
     );
     try {
       final response = await network.request(url);
       try {
         if (response.status != 200) {
-          throw SpotiflacPackageError(
+          throw MorneyePackageError(
             'Repository returned HTTP ${response.status}',
           );
         }
-        return await spotiflacReadAll(
+        return await morneyeReadAll(
           response.body,
           maxBytes,
         ).timeout(const Duration(seconds: 60));
@@ -765,13 +792,13 @@ class SpotiflacPackages {
     ]);
   }
 
-  Future<SpotiflacRepository> addRepo(String raw) async {
+  Future<MorneyeRepository> addRepo(String raw) async {
     var url = Uri.tryParse(raw.trim());
     if (url == null ||
         url.scheme != 'https' ||
         url.userInfo.isNotEmpty ||
         url.host.isEmpty) {
-      throw const SpotiflacPackageError('Repository URLs must use HTTPS');
+      throw const MorneyePackageError('Repository URLs must use HTTPS');
     }
     if (!url.path.toLowerCase().endsWith('.json')) {
       url = url.replace(
@@ -782,16 +809,16 @@ class SpotiflacPackages {
     final href = url.toString();
     final id = _sha256(utf8.encode(href)).substring(0, 16);
     if (!_repos.any((r) => r.id == id)) {
-      _repos.add(SpotiflacRepository(id: id, url: href, name: url.host));
+      _repos.add(MorneyeRepository(id: id, url: href, name: url.host));
       _save();
     }
     await refreshRepo(id);
     return _repos.firstWhere((r) => r.id == id);
   }
 
-  Future<List<SpotiflacCatalogueEntry>> refreshRepo(String id) async {
+  Future<List<MorneyeCatalogueEntry>> refreshRepo(String id) async {
     final repo = _repos.where((r) => r.id == id).firstOrNull;
-    if (repo == null) throw const SpotiflacPackageError('Repository not found');
+    if (repo == null) throw const MorneyePackageError('Repository not found');
     try {
       final index = jsonDecode(
         utf8.decode(await _document(repo.url, 2 * 1024 * 1024)),
@@ -800,7 +827,7 @@ class SpotiflacPackages {
           index['version'] != 1 ||
           index['extensions'] is! List ||
           (index['extensions'] as List).length > 2000) {
-        throw const SpotiflacPackageError('Invalid SpotiFLAC registry');
+        throw const MorneyePackageError('Invalid Morneye registry');
       }
       bool valid(Map e) {
         try {
@@ -825,12 +852,12 @@ class SpotiflacPackages {
           continue;
         }
         if (!valid(e)) {
-          throw const SpotiflacPackageError('Invalid registry package entry');
+          throw const MorneyePackageError('Invalid registry package entry');
         }
         entries.add({...e.cast<String, Object?>(), 'id': e['id'] ?? e['name']});
       }
       if (entries.map((e) => e['id']).toSet().length != entries.length) {
-        throw const SpotiflacPackageError('Duplicate registry package IDs');
+        throw const MorneyePackageError('Duplicate registry package IDs');
       }
       repo
         ..entries = entries
@@ -853,18 +880,18 @@ class SpotiflacPackages {
     return catalogue(id);
   }
 
-  List<SpotiflacCatalogueEntry> catalogue([String? id]) => [
+  List<MorneyeCatalogueEntry> catalogue([String? id]) => [
     for (final repo in _repos)
       if (id == null || repo.id == id)
         for (final entry in repo.entries)
-          SpotiflacCatalogueEntry(
+          MorneyeCatalogueEntry(
             entry,
             repo.id,
-            installed: _addons[spotiflacKeyOf('${entry['id']}')],
+            installed: _addons[morneyeKeyOf('${entry['id']}')],
             compatible:
-                spotiflacCompareVersions(
+                morneyeCompareVersions(
                   entry['min_app_version'],
-                  spotiflacCompatVersion,
+                  morneyeCompatVersion,
                 ) <=
                 0,
           ),
@@ -893,7 +920,7 @@ class SpotiflacPackages {
       Directory(p.join(root.path, 'packages', key));
 
   /// Installs or updates from a repository entry, a URL, or package [bytes].
-  Future<SpotiflacAddon> install({
+  Future<MorneyeAddon> install({
     String? repositoryId,
     String? id,
     String? url,
@@ -906,7 +933,7 @@ class SpotiflacPackages {
           .firstOrNull
           ?.entry;
       if (entry == null) {
-        throw const SpotiflacPackageError(
+        throw const MorneyePackageError(
           'Package not found in this repository',
         );
       }
@@ -915,39 +942,39 @@ class SpotiflacPackages {
     if (bytes == null) {
       final path = url == null ? '' : Uri.parse(url).path;
       if (!RegExp(
-        r'\.(sflx|spotiflac-ext)$',
+        r'\.(sflx|morneye-ext|spotiflac-ext)$',
         caseSensitive: false,
       ).hasMatch(path)) {
-        throw const SpotiflacPackageError(
-          'Choose a .sflx or .spotiflac-ext package',
+        throw const MorneyePackageError(
+          'Choose a .sflx or .morneye-ext package',
         );
       }
       bytes = await _document(url!, 32 * 1024 * 1024);
     }
     final digest = _sha256(bytes);
     if (entry != null && digest != '${entry['sha256']}'.toLowerCase()) {
-      throw const SpotiflacPackageError(
+      throw const MorneyePackageError(
         'Package SHA-256 does not match its repository',
       );
     }
-    final archive = spotiflacReadArchive(bytes);
+    final archive = morneyeReadArchive(bytes);
     final manifest = archive.manifest;
     final name = manifest['name'] as String;
     if (entry != null &&
         (name != entry['id'] || manifest['version'] != entry['version'])) {
-      throw const SpotiflacPackageError(
+      throw const MorneyePackageError(
         'Package identity/version does not match its registry entry',
       );
     }
-    final key = spotiflacKeyOf(name);
+    final key = morneyeKeyOf(name);
     return _locked(key, () async {
       final existing = _addons[key];
       if (existing != null && existing.name != name) {
-        throw const SpotiflacPackageError('Addon identity collision');
+        throw const MorneyePackageError('Addon identity collision');
       }
       if (existing != null &&
-          spotiflacCompareVersions(manifest['version'], existing.version) < 0) {
-        throw const SpotiflacPackageError(
+          morneyeCompareVersions(manifest['version'], existing.version) < 0) {
+        throw const MorneyePackageError(
           'Cannot downgrade an installed addon',
         );
       }
@@ -958,19 +985,19 @@ class SpotiflacPackages {
           '${DateTime.now().microsecondsSinceEpoch}',
         ),
       );
-      SpotiflacRuntime? runtime;
+      MorneyeRuntime? runtime;
       try {
         for (final file in archive.files.entries) {
           final target = File(p.join(staged.path, file.key));
           if (!p.isWithin(staged.path, target.path)) {
-            throw const SpotiflacPackageError(
+            throw const MorneyePackageError(
               'Addon package contains an unsafe archive path',
             );
           }
           await target.parent.create(recursive: true);
           await target.writeAsBytes(file.value);
         }
-        final candidate = SpotiflacAddon(
+        final candidate = MorneyeAddon(
           key: key,
           name: name,
           manifest: manifest,
@@ -988,14 +1015,14 @@ class SpotiflacPackages {
         final urlHandler = manifest['urlHandler'];
         if (types.contains('download_provider') &&
             !methods.contains('download')) {
-          throw const SpotiflacPackageError(
+          throw const MorneyePackageError(
             'Download provider has no registered download() method',
           );
         }
         if (((urlHandler is Map && urlHandler['enabled'] == true) ||
                 !types.contains('download_provider')) &&
             !methods.contains('handleUrl')) {
-          throw const SpotiflacPackageError(
+          throw const MorneyePackageError(
             'Playlist-link addon has no registered handleUrl() method',
           );
         }
@@ -1013,7 +1040,7 @@ class SpotiflacPackages {
           await staged.rename(target.path);
           final addon =
               existing ??
-              SpotiflacAddon(
+              MorneyeAddon(
                 key: key,
                 name: name,
                 manifest: manifest,
@@ -1059,11 +1086,11 @@ class SpotiflacPackages {
 
   // ---------------------------------------------------------------- runtimes
 
-  SpotiflacNetwork _networkFor(SpotiflacAddon addon) {
+  MorneyeNetwork _networkFor(MorneyeAddon addon) {
     final existing = _networks[addon.key];
     if (existing != null) return existing;
-    final network = SpotiflacNetwork(
-      SpotiflacPermissions.fromJson(addon.manifest['permissions']),
+    final network = MorneyeNetwork(
+      MorneyePermissions.fromJson(addon.manifest['permissions']),
       userAgent: 'Lokal/$appVersion',
     );
     try {
@@ -1072,7 +1099,7 @@ class SpotiflacPackages {
         network.auth = (saved['auth'] as Map).cast<String, Object?>();
       }
       if (saved['cookies'] != null) {
-        network.cookies = SpotiflacCookieJar.fromJson(saved['cookies']);
+        network.cookies = MorneyeCookieJar.fromJson(saved['cookies']);
       }
     } catch (_) {}
     Timer? timer;
@@ -1086,7 +1113,7 @@ class SpotiflacPackages {
     return _networks[addon.key] = network;
   }
 
-  void _saveConnection(String key, SpotiflacNetwork network) {
+  void _saveConnection(String key, MorneyeNetwork network) {
     if (!_addons.containsKey(key)) return;
     try {
       final auth = Map<String, Object?>.of(network.auth)..remove('pending');
@@ -1097,9 +1124,9 @@ class SpotiflacPackages {
     } catch (_) {}
   }
 
-  SpotiflacSignedSession _sessionFor(
-    SpotiflacAddon addon,
-    SpotiflacNetwork? network,
+  MorneyeSignedSession _sessionFor(
+    MorneyeAddon addon,
+    MorneyeNetwork? network,
   ) {
     final config = addon.signedSession!.cast<String, Object?>();
     final scope = _sha256(utf8.encode(jsonEncode(config)));
@@ -1108,24 +1135,24 @@ class SpotiflacPackages {
         (network == null || identical(existing.network, network))) {
       return existing;
     }
-    final session = SpotiflacSignedSession(config, storage, network, addon.key);
+    final session = MorneyeSignedSession(config, storage, network, addon.key);
     if (network != null) _sessions[scope] = session;
     return session;
   }
 
-  Future<SpotiflacRuntime> _createRuntime(
-    SpotiflacAddon addon,
+  Future<MorneyeRuntime> _createRuntime(
+    MorneyeAddon addon,
     String code, {
     String? root,
     List<String> grants = const [],
     void Function({double? percent, String? message})? onProgress,
-    void Function(SpotiflacTransfer)? onTransfer,
+    void Function(MorneyeTransfer)? onTransfer,
   }) {
     final network = _networkFor(addon);
     final session = addon.signedSession != null
         ? _sessionFor(addon, network)
         : null;
-    final host = SpotiflacHost(
+    final host = MorneyeHost(
       addon: addon.info,
       storage: storage,
       network: network,
@@ -1138,7 +1165,7 @@ class SpotiflacPackages {
       onTransfer: onTransfer,
       appVersion: appVersion,
     );
-    return SpotiflacRuntime.start(
+    return MorneyeRuntime.start(
       code,
       {
         'permissions': addon.manifest['permissions'],
@@ -1155,10 +1182,10 @@ class SpotiflacPackages {
       File(p.join(_packageDir(key).path, 'index.js')).readAsStringSync();
 
   /// The add-on's shared runtime (for browsing, logins and actions).
-  Future<SpotiflacRuntime> runtime(String key) async {
+  Future<MorneyeRuntime> runtime(String key) async {
     final addon = _addons[key];
     if (addon == null || !addon.enabled) {
-      throw const SpotiflacPackageError(
+      throw const MorneyePackageError(
         'This addon is not installed or is turned off',
       );
     }
@@ -1204,7 +1231,7 @@ class SpotiflacPackages {
   }
 
   /// Songs matching [query] (or a link, for add-ons that read links).
-  Future<List<SpotiflacTrack>> search(
+  Future<List<MorneyeTrack>> search(
     String key,
     String query, {
     int limit = 20,
@@ -1260,7 +1287,7 @@ class SpotiflacPackages {
           t,
     ];
     _remember(key, songs);
-    return [for (final t in songs.take(limit)) SpotiflacTrack.of(t, 'a-$key')];
+    return [for (final t in songs.take(limit)) MorneyeTrack.of(t, 'a-$key')];
   }
 
   // ----------------------------------------------------------------- logins
@@ -1322,7 +1349,7 @@ class SpotiflacPackages {
         DateTime.now().millisecondsSinceEpoch - (pending['createdAt'] as num) >
             180000 ||
         url.queryParameters['state'] != pending['state']) {
-      throw const SpotiflacPackageError('Invalid or expired OAuth callback');
+      throw const MorneyePackageError('Invalid or expired OAuth callback');
     }
     network.auth['code'] = url.queryParameters['code'] ?? '';
     network.auth['pending'] = null;
@@ -1342,7 +1369,7 @@ class SpotiflacPackages {
     if (network != null) {
       network.generation++;
       network.auth.clear();
-      network.cookies = SpotiflacCookieJar();
+      network.cookies = MorneyeCookieJar();
     }
     try {
       storage.write(key, 'connection', {});
@@ -1371,12 +1398,12 @@ class SpotiflacPackages {
           form.action != action ||
           form.expires.isBefore(DateTime.now()) ||
           form.steps >= 8) {
-        throw const SpotiflacPackageError('Invalid or expired addon form');
+        throw const MorneyePackageError('Invalid or expired addon form');
       }
       _forms.remove(token);
     } else if (!declared.contains(action) &&
         !(action == 'completeGrant' && addon.signedSession != null)) {
-      throw const SpotiflacPackageError(
+      throw const MorneyePackageError(
         'This action is not declared by the addon',
       );
     }
@@ -1401,9 +1428,9 @@ class SpotiflacPackages {
           !runtime.methods.contains(schema['submit_action']) ||
           schema['fields'] is! List ||
           (schema['fields'] as List).length > 12) {
-        throw const SpotiflacPackageError('Invalid addon account form');
+        throw const MorneyePackageError('Invalid addon account form');
       }
-      final next = _sha256(spotiflacRandomBytes(16));
+      final next = _sha256(morneyeRandomBytes(16));
       _forms[next] = (
         key: key,
         action: '${schema['submit_action']}',
@@ -1444,18 +1471,18 @@ class SpotiflacPackages {
   };
 
   /// Downloads song [id] through add-on [key] into a staging folder; call
-  /// [SpotiflacDownload.cleanup] once its file has been moved or copied.
-  Future<SpotiflacDownload> download(
+  /// [MorneyeDownload.cleanup] once its file has been moved or copied.
+  Future<MorneyeDownload> download(
     String key,
     String id, {
     String? quality,
     void Function({double? percent, String? message})? onProgress,
-    void Function(SpotiflacTransfer)? onTransfer,
+    void Function(MorneyeTransfer)? onTransfer,
     Future<void>? cancel,
   }) async {
     final addon = _addons[key];
     if (addon == null || !addon.enabled) {
-      throw const SpotiflacPackageError('Addon is not available');
+      throw const MorneyePackageError('Addon is not available');
     }
     final staged = Directory(
       p.join(root.path, 'work', '${DateTime.now().microsecondsSinceEpoch}'),
@@ -1538,7 +1565,7 @@ class SpotiflacPackages {
             ])
           : {'available': true, 'track_id': id};
       if (available is! Map || available['available'] != true) {
-        throw SpotiflacPackageError(
+        throw MorneyePackageError(
           available is Map && available['reason'] != null
               ? '${available['reason']}'
               : 'The addon cannot download this track',
@@ -1579,23 +1606,23 @@ class SpotiflacPackages {
         final message = result is Map
             ? (result['error_message'] ?? result['error'])
             : null;
-        throw SpotiflacPackageError('${message ?? 'Addon download failed'}');
+        throw MorneyePackageError('${message ?? 'Addon download failed'}');
       }
       final host = runtime.host;
       var file = host.file(
         '${result['file_path'] ?? result['filePath'] ?? result['path']}',
       );
       if (!File(file).existsSync() || File(file).lengthSync() == 0) {
-        throw const SpotiflacPackageError('Addon produced an empty file');
+        throw const MorneyePackageError('Addon produced an empty file');
       }
-      if (result['decryption'] != null ||
-          result['decryption_key'] != null ||
-          result['requires_container_conversion'] == true ||
-          result['requiresContainerConversion'] == true) {
-        throw const SpotiflacPackageError(
-          'This add-on sends audio that needs converting, which the phone can’t do yet',
+      if (result['decryption'] != null || result['decryption_key'] != null) {
+        throw const MorneyePackageError(
+          'This add-on sends encrypted audio that the phone cannot decrypt.',
         );
       }
+      final requiresContainerConversion =
+          result['requires_container_conversion'] == true ||
+          result['requiresContainerConversion'] == true;
       final postProcessing = addon.manifest['postProcessing'];
       if (postProcessing is Map && postProcessing['enabled'] == true) {
         for (final hook in postProcessing['hooks'] as List? ?? const []) {
@@ -1613,13 +1640,13 @@ class SpotiflacPackages {
             hook['id'],
           ], const Duration(minutes: 2));
           if (processed is! Map || processed['success'] != true) {
-            throw SpotiflacPackageError(
+            throw MorneyePackageError(
               '${(processed is Map ? processed['error'] : null) ?? 'Addon post-processing failed'}',
             );
           }
           if (processed['new_file_uri'] != null ||
               processed['newFileUri'] != null) {
-            throw const SpotiflacPackageError(
+            throw const MorneyePackageError(
               'Addon post-processing cannot replace destination URIs',
             );
           }
@@ -1627,17 +1654,48 @@ class SpotiflacPackages {
           if (moved != null) file = host.file('$moved');
         }
       }
-      var info = await _native.mediaInfo(file);
+      Map<String, Object?> info;
+      if (requiresContainerConversion) {
+        // Symphonia may not probe a FLAC bitstream wrapped in an MP4/DASH
+        // container. Try the probe first; if it is readable, ALAC-in-M4A can
+        // stay untouched and a FLAC bitstream can be remuxed without re-encoding.
+        try {
+          info = await _native.mediaInfo(file);
+        } catch (_) {
+          info = const {};
+        }
+        final sourceCodec = '${info['codec']}'.toLowerCase();
+        final alreadyPlayableAlac =
+            sourceCodec == 'alac' && p.extension(file).toLowerCase() == '.m4a';
+        if (!alreadyPlayableAlac) {
+          final output = p.join(staged.path, 'playable.flac');
+          final conversionCodec = sourceCodec == 'flac' ? 'copy' : 'flac';
+          final convert = audioConverter;
+          if (convert != null) {
+            await convert(file, output, conversionCodec);
+          } else {
+            await morneyeConvertAudio(
+              inputPath: file,
+              outputPath: output,
+              codec: conversionCodec,
+            );
+          }
+          file = output;
+          info = await _native.mediaInfo(file);
+        }
+      } else {
+        info = await _native.mediaInfo(file);
+      }
       final codec = '${info['codec']}';
       final expected = (track['duration_ms'] as num?)?.toInt() ?? 0;
       final actual = (info['duration_ms'] as num?)?.toInt() ?? 0;
       if (expected > 0 && actual > 0 && (actual - expected).abs() > 12000) {
-        throw const SpotiflacPackageError(
+        throw const MorneyePackageError(
           'Downloaded audio does not match the track duration',
         );
       }
       if (!_playable.contains(codec)) {
-        throw SpotiflacPackageError('The phone can’t play $codec audio');
+        throw MorneyePackageError('The phone can’t play $codec audio');
       }
       // The player goes by the file name: give it the extension its container needs.
       final extension = _extensions['${info['format']}'.toLowerCase()];
@@ -1648,7 +1706,7 @@ class SpotiflacPackages {
         file = renamed;
         info = {...info};
       }
-      return SpotiflacDownload(
+      return MorneyeDownload(
         File(file),
         {...track.cast<String, Object?>(), ...result.cast<String, Object?>()},
         info,

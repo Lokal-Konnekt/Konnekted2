@@ -12,7 +12,7 @@ import 'api/replaygain.dart';
 import 'api/scanner.dart';
 import 'api/simple.dart';
 import 'api/smb_api.dart';
-import 'api/spotiflac_api.dart';
+import 'api/morneye_api.dart';
 import 'api/uac2_api.dart';
 import 'audio/crossfader.dart';
 import 'audio/dsd_engine/dsd.dart';
@@ -95,32 +95,32 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<String> crateApiSpotiflacApiSpotiflacEngineCallback({
-    required SpotiflacEngine that,
+  Future<String> crateApiMorneyeApiMorneyeEngineCallback({
+    required MorneyeEngine that,
     required BigInt id,
     required String argsJson,
   });
 
-  void crateApiSpotiflacApiSpotiflacEngineClose({
-    required SpotiflacEngine that,
+  void crateApiMorneyeApiMorneyeEngineClose({
+    required MorneyeEngine that,
   });
 
-  Future<String> crateApiSpotiflacApiSpotiflacEngineInvoke({
-    required SpotiflacEngine that,
+  Future<String> crateApiMorneyeApiMorneyeEngineInvoke({
+    required MorneyeEngine that,
     required String method,
     required String argsJson,
     required BigInt timeoutMs,
   });
 
-  bool crateApiSpotiflacApiSpotiflacEngineIsClosed({
-    required SpotiflacEngine that,
+  bool crateApiMorneyeApiMorneyeEngineIsClosed({
+    required MorneyeEngine that,
   });
 
-  List<String> crateApiSpotiflacApiSpotiflacEngineMethods({
-    required SpotiflacEngine that,
+  List<String> crateApiMorneyeApiMorneyeEngineMethods({
+    required MorneyeEngine that,
   });
 
-  Future<SpotiflacEngine> crateApiSpotiflacApiSpotiflacEngineStart({
+  Future<MorneyeEngine> crateApiMorneyeApiMorneyeEngineStart({
     required String code,
     required String bootstrap,
     required String configJson,
@@ -467,7 +467,7 @@ abstract class RustLibApi extends BaseApi {
     required String pass,
   });
 
-  Uint8List crateApiSpotiflacApiSpotiflacCipher({
+  Uint8List crateApiMorneyeApiMorneyeCipher({
     required List<int> data,
     required String algorithm,
     required String mode,
@@ -477,14 +477,14 @@ abstract class RustLibApi extends BaseApi {
     required bool decrypt,
   });
 
-  Future<String> crateApiSpotiflacApiSpotiflacMediaInfo({required String path});
+  Future<String> crateApiMorneyeApiMorneyeMediaInfo({required String path});
 
-  Uint8List crateApiSpotiflacApiSpotiflacOpen({
+  Uint8List crateApiMorneyeApiMorneyeOpen({
     required List<int> data,
     required List<int> key,
   });
 
-  Uint8List crateApiSpotiflacApiSpotiflacSeal({
+  Uint8List crateApiMorneyeApiMorneyeSeal({
     required List<int> data,
     required List<int> key,
     required List<int> nonce,
@@ -580,13 +580,13 @@ abstract class RustLibApi extends BaseApi {
   });
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_SpotiflacEngine;
+  get rust_arc_increment_strong_count_MorneyeEngine;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_SpotiflacEngine;
+  get rust_arc_decrement_strong_count_MorneyeEngine;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_SpotiflacEnginePtr;
+  get rust_arc_decrement_strong_count_MorneyeEnginePtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -598,8 +598,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<String> crateApiSpotiflacApiSpotiflacEngineCallback({
-    required SpotiflacEngine that,
+  Future<String> crateApiMorneyeApiMorneyeEngineCallback({
+    required MorneyeEngine that,
     required BigInt id,
     required String argsJson,
   }) {
@@ -607,7 +607,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
             that,
             serializer,
           );
@@ -624,28 +624,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_String,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacEngineCallbackConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeEngineCallbackConstMeta,
         argValues: [that, id, argsJson],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacEngineCallbackConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeEngineCallbackConstMeta =>
       const TaskConstMeta(
-        debugName: "SpotiflacEngine_callback",
+        debugName: "MorneyeEngine_callback",
         argNames: ["that", "id", "argsJson"],
       );
 
   @override
-  void crateApiSpotiflacApiSpotiflacEngineClose({
-    required SpotiflacEngine that,
+  void crateApiMorneyeApiMorneyeEngineClose({
+    required MorneyeEngine that,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
             that,
             serializer,
           );
@@ -655,22 +655,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacEngineCloseConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeEngineCloseConstMeta,
         argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacEngineCloseConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeEngineCloseConstMeta =>
       const TaskConstMeta(
-        debugName: "SpotiflacEngine_close",
+        debugName: "MorneyeEngine_close",
         argNames: ["that"],
       );
 
   @override
-  Future<String> crateApiSpotiflacApiSpotiflacEngineInvoke({
-    required SpotiflacEngine that,
+  Future<String> crateApiMorneyeApiMorneyeEngineInvoke({
+    required MorneyeEngine that,
     required String method,
     required String argsJson,
     required BigInt timeoutMs,
@@ -679,7 +679,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
             that,
             serializer,
           );
@@ -697,28 +697,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_String,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacEngineInvokeConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeEngineInvokeConstMeta,
         argValues: [that, method, argsJson, timeoutMs],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacEngineInvokeConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeEngineInvokeConstMeta =>
       const TaskConstMeta(
-        debugName: "SpotiflacEngine_invoke",
+        debugName: "MorneyeEngine_invoke",
         argNames: ["that", "method", "argsJson", "timeoutMs"],
       );
 
   @override
-  bool crateApiSpotiflacApiSpotiflacEngineIsClosed({
-    required SpotiflacEngine that,
+  bool crateApiMorneyeApiMorneyeEngineIsClosed({
+    required MorneyeEngine that,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
             that,
             serializer,
           );
@@ -728,28 +728,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_bool,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacEngineIsClosedConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeEngineIsClosedConstMeta,
         argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacEngineIsClosedConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeEngineIsClosedConstMeta =>
       const TaskConstMeta(
-        debugName: "SpotiflacEngine_is_closed",
+        debugName: "MorneyeEngine_is_closed",
         argNames: ["that"],
       );
 
   @override
-  List<String> crateApiSpotiflacApiSpotiflacEngineMethods({
-    required SpotiflacEngine that,
+  List<String> crateApiMorneyeApiMorneyeEngineMethods({
+    required MorneyeEngine that,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
             that,
             serializer,
           );
@@ -759,21 +759,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_list_String,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacEngineMethodsConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeEngineMethodsConstMeta,
         argValues: [that],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacEngineMethodsConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeEngineMethodsConstMeta =>
       const TaskConstMeta(
-        debugName: "SpotiflacEngine_methods",
+        debugName: "MorneyeEngine_methods",
         argNames: ["that"],
       );
 
   @override
-  Future<SpotiflacEngine> crateApiSpotiflacApiSpotiflacEngineStart({
+  Future<MorneyeEngine> crateApiMorneyeApiMorneyeEngineStart({
     required String code,
     required String bootstrap,
     required String configJson,
@@ -799,19 +799,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData:
-              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine,
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacEngineStartConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeEngineStartConstMeta,
         argValues: [code, bootstrap, configJson, host],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacEngineStartConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeEngineStartConstMeta =>
       const TaskConstMeta(
-        debugName: "SpotiflacEngine_start",
+        debugName: "MorneyeEngine_start",
         argNames: ["code", "bootstrap", "configJson", "host"],
       );
 
@@ -3806,7 +3806,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Uint8List crateApiSpotiflacApiSpotiflacCipher({
+  Uint8List crateApiMorneyeApiMorneyeCipher({
     required List<int> data,
     required String algorithm,
     required String mode,
@@ -3836,16 +3836,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_list_prim_u_8_strict,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacCipherConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeCipherConstMeta,
         argValues: [data, algorithm, mode, key, iv, pkcs7, decrypt],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacCipherConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeCipherConstMeta =>
       const TaskConstMeta(
-        debugName: "spotiflac_cipher",
+        debugName: "morneye_cipher",
         argNames: [
           "data",
           "algorithm",
@@ -3858,7 +3858,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<String> crateApiSpotiflacApiSpotiflacMediaInfo({
+  Future<String> crateApiMorneyeApiMorneyeMediaInfo({
     required String path,
   }) {
     return handler.executeNormal(
@@ -3877,21 +3877,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_String,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacMediaInfoConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeMediaInfoConstMeta,
         argValues: [path],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacMediaInfoConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeMediaInfoConstMeta =>
       const TaskConstMeta(
-        debugName: "spotiflac_media_info",
+        debugName: "morneye_media_info",
         argNames: ["path"],
       );
 
   @override
-  Uint8List crateApiSpotiflacApiSpotiflacOpen({
+  Uint8List crateApiMorneyeApiMorneyeOpen({
     required List<int> data,
     required List<int> key,
   }) {
@@ -3911,21 +3911,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_list_prim_u_8_strict,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacOpenConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeOpenConstMeta,
         argValues: [data, key],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacOpenConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeOpenConstMeta =>
       const TaskConstMeta(
-        debugName: "spotiflac_open",
+        debugName: "morneye_open",
         argNames: ["data", "key"],
       );
 
   @override
-  Uint8List crateApiSpotiflacApiSpotiflacSeal({
+  Uint8List crateApiMorneyeApiMorneyeSeal({
     required List<int> data,
     required List<int> key,
     required List<int> nonce,
@@ -3947,16 +3947,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_list_prim_u_8_strict,
           decodeErrorData: sse_decode_AnyhowException,
         ),
-        constMeta: kCrateApiSpotiflacApiSpotiflacSealConstMeta,
+        constMeta: kCrateApiMorneyeApiMorneyeSealConstMeta,
         argValues: [data, key, nonce],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSpotiflacApiSpotiflacSealConstMeta =>
+  TaskConstMeta get kCrateApiMorneyeApiMorneyeSealConstMeta =>
       const TaskConstMeta(
-        debugName: "spotiflac_seal",
+        debugName: "morneye_seal",
         argNames: ["data", "key", "nonce"],
       );
 
@@ -4912,12 +4912,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   RustArcIncrementStrongCountFnType
-  get rust_arc_increment_strong_count_SpotiflacEngine => wire
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine;
+  get rust_arc_increment_strong_count_MorneyeEngine => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine;
 
   RustArcDecrementStrongCountFnType
-  get rust_arc_decrement_strong_count_SpotiflacEngine => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine;
+  get rust_arc_decrement_strong_count_MorneyeEngine => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine;
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
@@ -4926,21 +4926,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SpotiflacEngine
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+  MorneyeEngine
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return SpotiflacEngineImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return MorneyeEngineImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
-  SpotiflacEngine
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+  MorneyeEngine
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return SpotiflacEngineImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return MorneyeEngineImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -4976,12 +4976,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SpotiflacEngine
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+  MorneyeEngine
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return SpotiflacEngineImpl.frbInternalDcoDecode(raw as List<dynamic>);
+    return MorneyeEngineImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -5925,24 +5925,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SpotiflacEngine
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+  MorneyeEngine
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return SpotiflacEngineImpl.frbInternalSseDecode(
+    return MorneyeEngineImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
   }
 
   @protected
-  SpotiflacEngine
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+  MorneyeEngine
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return SpotiflacEngineImpl.frbInternalSseDecode(
+    return MorneyeEngineImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -5974,12 +5974,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SpotiflacEngine
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
+  MorneyeEngine
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return SpotiflacEngineImpl.frbInternalSseDecode(
+    return MorneyeEngineImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -7194,26 +7194,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
-    SpotiflacEngine self,
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
+    MorneyeEngine self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-      (self as SpotiflacEngineImpl).frbInternalSseEncode(move: true),
+      (self as MorneyeEngineImpl).frbInternalSseEncode(move: true),
       serializer,
     );
   }
 
   @protected
   void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
-    SpotiflacEngine self,
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
+    MorneyeEngine self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-      (self as SpotiflacEngineImpl).frbInternalSseEncode(move: false),
+      (self as MorneyeEngineImpl).frbInternalSseEncode(move: false),
       serializer,
     );
   }
@@ -7271,13 +7271,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSpotiflacEngine(
-    SpotiflacEngine self,
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMorneyeEngine(
+    MorneyeEngine self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
-      (self as SpotiflacEngineImpl).frbInternalSseEncode(move: null),
+      (self as MorneyeEngineImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -8377,42 +8377,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 }
 
 @sealed
-class SpotiflacEngineImpl extends RustOpaque implements SpotiflacEngine {
+class MorneyeEngineImpl extends RustOpaque implements MorneyeEngine {
   // Not to be used by end users
-  SpotiflacEngineImpl.frbInternalDcoDecode(List<dynamic> wire)
+  MorneyeEngineImpl.frbInternalDcoDecode(List<dynamic> wire)
     : super.frbInternalDcoDecode(wire, _kStaticData);
 
   // Not to be used by end users
-  SpotiflacEngineImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+  MorneyeEngineImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
     : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
 
   static final _kStaticData = RustArcStaticData(
     rustArcIncrementStrongCount:
-        RustLib.instance.api.rust_arc_increment_strong_count_SpotiflacEngine,
+        RustLib.instance.api.rust_arc_increment_strong_count_MorneyeEngine,
     rustArcDecrementStrongCount:
-        RustLib.instance.api.rust_arc_decrement_strong_count_SpotiflacEngine,
+        RustLib.instance.api.rust_arc_decrement_strong_count_MorneyeEngine,
     rustArcDecrementStrongCountPtr:
-        RustLib.instance.api.rust_arc_decrement_strong_count_SpotiflacEnginePtr,
+        RustLib.instance.api.rust_arc_decrement_strong_count_MorneyeEnginePtr,
   );
 
   /// Runs the package's progress callback [id] during the host call that
   /// received it. Returns the package's error message, empty on success.
   Future<String> callback({required BigInt id, required String argsJson}) =>
-      RustLib.instance.api.crateApiSpotiflacApiSpotiflacEngineCallback(
+      RustLib.instance.api.crateApiMorneyeApiMorneyeEngineCallback(
         that: this,
         id: id,
         argsJson: argsJson,
       );
 
   void close() =>
-      RustLib.instance.api.crateApiSpotiflacApiSpotiflacEngineClose(that: this);
+      RustLib.instance.api.crateApiMorneyeApiMorneyeEngineClose(that: this);
 
   /// Calls [method] with JSON [args_json]; returns its JSON result.
   Future<String> invoke({
     required String method,
     required String argsJson,
     required BigInt timeoutMs,
-  }) => RustLib.instance.api.crateApiSpotiflacApiSpotiflacEngineInvoke(
+  }) => RustLib.instance.api.crateApiMorneyeApiMorneyeEngineInvoke(
     that: this,
     method: method,
     argsJson: argsJson,
@@ -8420,9 +8420,9 @@ class SpotiflacEngineImpl extends RustOpaque implements SpotiflacEngine {
   );
 
   bool isClosed() => RustLib.instance.api
-      .crateApiSpotiflacApiSpotiflacEngineIsClosed(that: this);
+      .crateApiMorneyeApiMorneyeEngineIsClosed(that: this);
 
   /// The functions the package registered.
   List<String> methods() => RustLib.instance.api
-      .crateApiSpotiflacApiSpotiflacEngineMethods(that: this);
+      .crateApiMorneyeApiMorneyeEngineMethods(that: this);
 }

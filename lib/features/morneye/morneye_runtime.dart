@@ -2,17 +2,17 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flick/src/rust/api/spotiflac_api.dart' as native;
+import 'package:flick/src/rust/api/morneye_api.dart' as native;
 
-import 'spotiflac_bootstrap.dart';
-import 'spotiflac_host.dart';
+import 'morneye_bootstrap.dart';
+import 'morneye_host.dart';
 
-/// A running add-on, as desktop's electron/spotiflac/runtime.js: calls go
+/// A running add-on, as desktop's electron/morneye/runtime.js: calls go
 /// one at a time, each with a time limit, and a call that times out or is
 /// cancelled stops the add-on (it's started afresh next time).
 
 /// The JavaScript side of an add-on.
-abstract class SpotiflacGuest {
+abstract class MorneyeGuest {
   List<String> get methods;
   bool get closed;
   Future<String> invoke(String method, String argsJson, Duration timeout);
@@ -20,20 +20,20 @@ abstract class SpotiflacGuest {
   void close();
 }
 
-typedef SpotiflacHostBridge = FutureOr<String> Function(
+typedef MorneyeHostBridge = FutureOr<String> Function(
   String method,
   String json,
 );
 
-typedef SpotiflacGuestStarter = Future<SpotiflacGuest> Function(
+typedef MorneyeGuestStarter = Future<MorneyeGuest> Function(
   String code,
   String configJson,
-  SpotiflacHostBridge host,
+  MorneyeHostBridge host,
 );
 
-class _NativeGuest implements SpotiflacGuest {
+class _NativeGuest implements MorneyeGuest {
   _NativeGuest(this._engine);
-  final native.SpotiflacEngine _engine;
+  final native.MorneyeEngine _engine;
 
   @override
   List<String> get methods => _engine.methods();
@@ -58,22 +58,22 @@ class _NativeGuest implements SpotiflacGuest {
 }
 
 /// Starts add-ons in the native QuickJS engine.
-Future<SpotiflacGuest> startNativeSpotiflacGuest(
+Future<MorneyeGuest> startNativeMorneyeGuest(
   String code,
   String configJson,
-  SpotiflacHostBridge host,
+  MorneyeHostBridge host,
 ) async => _NativeGuest(
-  await native.SpotiflacEngine.start(
+  await native.MorneyeEngine.start(
     code: code,
-    bootstrap: spotiflacBootstrap,
+    bootstrap: morneyeBootstrap,
     configJson: configJson,
     host: host,
   ),
 );
 
 /// The ciphers, sealing and audio probe, from the native core.
-class NativeSpotiflac implements SpotiflacNative {
-  const NativeSpotiflac();
+class NativeMorneye implements MorneyeNative {
+  const NativeMorneye();
 
   @override
   Uint8List cipher(
@@ -84,7 +84,7 @@ class NativeSpotiflac implements SpotiflacNative {
     required Uint8List iv,
     required bool pkcs7,
     required bool decrypt,
-  }) => native.spotiflacCipher(
+  }) => native.morneyeCipher(
     data: data,
     algorithm: algorithm,
     mode: mode,
@@ -96,30 +96,30 @@ class NativeSpotiflac implements SpotiflacNative {
 
   @override
   Uint8List seal(Uint8List data, Uint8List key, Uint8List nonce) =>
-      native.spotiflacSeal(data: data, key: key, nonce: nonce);
+      native.morneyeSeal(data: data, key: key, nonce: nonce);
 
   @override
   Uint8List open(Uint8List data, Uint8List key) =>
-      native.spotiflacOpen(data: data, key: key);
+      native.morneyeOpen(data: data, key: key);
 
   @override
   Future<Map<String, Object?>> mediaInfo(String path) async =>
-      (jsonDecode(await native.spotiflacMediaInfo(path: path)) as Map)
+      (jsonDecode(await native.morneyeMediaInfo(path: path)) as Map)
           .cast<String, Object?>();
 }
 
-class SpotiflacRuntimeError implements Exception {
-  const SpotiflacRuntimeError(this.message);
+class MorneyeRuntimeError implements Exception {
+  const MorneyeRuntimeError(this.message);
   final String message;
   @override
   String toString() => message;
 }
 
-class SpotiflacRuntime {
-  SpotiflacRuntime._(this.host, this._guest);
+class MorneyeRuntime {
+  MorneyeRuntime._(this.host, this._guest);
 
-  final SpotiflacHost host;
-  final SpotiflacGuest _guest;
+  final MorneyeHost host;
+  final MorneyeGuest _guest;
   Future<void> _queue = Future.value();
   bool _closed = false;
 
@@ -130,13 +130,13 @@ class SpotiflacRuntime {
   bool get closed => _closed || _guest.closed;
 
   /// Loads [code] with [config]; [host] answers its calls.
-  static Future<SpotiflacRuntime> start(
+  static Future<MorneyeRuntime> start(
     String code,
     Map<String, Object?> config,
-    SpotiflacHost host, {
-    SpotiflacGuestStarter starter = startNativeSpotiflacGuest,
+    MorneyeHost host, {
+    MorneyeGuestStarter starter = startNativeMorneyeGuest,
   }) async {
-    SpotiflacRuntime? runtime;
+    MorneyeRuntime? runtime;
     // The package may call the host while it loads, before there's a runtime.
     Future<String> bridge(String method, String json) =>
         _answer(host, method, json, (descriptor, args, {strict = false}) async {
@@ -144,14 +144,14 @@ class SpotiflacRuntime {
         });
 
     final guest = await starter(code, jsonEncode(config), bridge);
-    return runtime = SpotiflacRuntime._(host, guest);
+    return runtime = MorneyeRuntime._(host, guest);
   }
 
   static Future<String> _answer(
-    SpotiflacHost host,
+    MorneyeHost host,
     String method,
     String json,
-    SpotiflacCallback callback,
+    MorneyeCallback callback,
   ) async {
     try {
       final args = jsonDecode(json);
@@ -173,7 +173,7 @@ class SpotiflacRuntime {
   }
 
   static String _message(Object error) => switch (error) {
-    SpotiflacCancelled() => 'Extension operation cancelled',
+    MorneyeCancelled() => 'Extension operation cancelled',
     StateError(:final message) => message,
     ArgumentError(:final message) => '$message',
     FormatException(:final message) => message,
@@ -192,7 +192,7 @@ class SpotiflacRuntime {
       (descriptor['__callback'] as num).toInt(),
       jsonEncode(args, toEncodable: _encodable),
     );
-    if (strict && error.isNotEmpty) throw SpotiflacRuntimeError(error);
+    if (strict && error.isNotEmpty) throw MorneyeRuntimeError(error);
   }
 
   /// Calls the add-on's [method]; its result, decoded.
@@ -202,7 +202,7 @@ class SpotiflacRuntime {
     Duration timeout = const Duration(seconds: 30),
   ]) {
     final result = _queue.then((_) async {
-      if (closed) throw const SpotiflacRuntimeError('Extension runtime closed');
+      if (closed) throw const MorneyeRuntimeError('Extension runtime closed');
       try {
         final json = await _guest.invoke(
           method,
@@ -222,7 +222,7 @@ class SpotiflacRuntime {
         ).hasMatch(message)) {
           close();
         }
-        throw SpotiflacRuntimeError(message);
+        throw MorneyeRuntimeError(message);
       }
     });
     _queue = result.then((_) {}, onError: (_) {});

@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^2.0.0
   fading_marquee_widget: ^1.2.1
   file_picker: ^12.3.0
+  ffmpeg_kit_flutter_new_audio: ^2.5.7
   fl_chart: ^1.1.1
   flutter:
     sdk: flutter

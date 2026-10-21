@@ -1,8 +1,8 @@
-/// The guest prelude every SpotiFLAC add-on runs after, copied unchanged from
-/// Lokal desktop (electron/spotiflac/bootstrap.js) so the same .sflx packages
+/// The guest prelude every Morneye add-on runs after, copied unchanged from
+/// Lokal desktop (electron/morneye/bootstrap.js) so the same .sflx packages
 /// behave the same way. It turns the single `host(method, json)` bridge into
 /// the `http`, `file`, `storage`, `auth`… APIs packages expect.
-const spotiflacBootstrap = r'''(function(bridge, config) {
+const morneyeBootstrap = r'''(function(bridge, config) {
   'use strict';
   const stringify = JSON.stringify, parse = JSON.parse;
   const callbacks = new Map(); let nextCallback = 0, extension;

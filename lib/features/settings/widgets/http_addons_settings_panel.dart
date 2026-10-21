@@ -100,16 +100,24 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
         );
       }
 
-      var labelIndex = current.addons.length + 1;
-      while (current.addons.any((addon) => addon.label == 'Music add-on $labelIndex')) {
-        labelIndex++;
+      final host = Uri.parse(endpoint).host.toLowerCase().replaceFirst(
+        RegExp(r'^www\\.'),
+        '',
+      );
+      final baseLabel = host.isEmpty ? 'Music source' : host;
+      var label = baseLabel;
+      var suffix = 2;
+      while (current.addons.any(
+        (addon) => addon.label.toLowerCase() == label.toLowerCase(),
+      )) {
+        label = '$baseLabel ($suffix)';
+        suffix++;
       }
       final addon = DiscoveryAddonConfig(
         id: DiscoveryAddonConfig.createId(),
         endpoint: endpoint,
-        // Do not display remote manifest fields; a manifest name can contain
-        // a URL or credentials. Use a local label instead.
-        label: 'Music add-on $labelIndex',
+        // Keep path tokens and remote manifest fields out of the UI label.
+        label: label,
         enabled: true,
       ).validated();
       final next = _withAddons([...current.addons, addon]);

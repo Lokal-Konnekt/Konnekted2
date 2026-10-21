@@ -1,5 +1,5 @@
-//! The ciphers SpotiFLAC add-ons ask the host for, matching Lokal desktop's
-//! electron/spotiflac/crypto.js (Node's crypto and egoroof-blowfish).
+//! The ciphers Morneye add-ons ask the host for, matching Lokal desktop's
+//! electron/morneye/crypto.js (Node's crypto and egoroof-blowfish).
 
 use aes::{Aes128, Aes192, Aes256};
 use aes_gcm::aead::{Aead, KeyInit};

@@ -8,7 +8,7 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// AES or Blowfish in CBC/CTR mode, as desktop's add-on host offers.
-Uint8List spotiflacCipher({
+Uint8List morneyeCipher({
   required List<int> data,
   required String algorithm,
   required String mode,
@@ -16,7 +16,7 @@ Uint8List spotiflacCipher({
   required List<int> iv,
   required bool pkcs7,
   required bool decrypt,
-}) => RustLib.instance.api.crateApiSpotiflacApiSpotiflacCipher(
+}) => RustLib.instance.api.crateApiMorneyeApiMorneyeCipher(
   data: data,
   algorithm: algorithm,
   mode: mode,
@@ -27,29 +27,29 @@ Uint8List spotiflacCipher({
 );
 
 /// AES-256-GCM sealing for add-on logins and settings.
-Uint8List spotiflacSeal({
+Uint8List morneyeSeal({
   required List<int> data,
   required List<int> key,
   required List<int> nonce,
-}) => RustLib.instance.api.crateApiSpotiflacApiSpotiflacSeal(
+}) => RustLib.instance.api.crateApiMorneyeApiMorneyeSeal(
   data: data,
   key: key,
   nonce: nonce,
 );
 
-Uint8List spotiflacOpen({required List<int> data, required List<int> key}) =>
-    RustLib.instance.api.crateApiSpotiflacApiSpotiflacOpen(
+Uint8List morneyeOpen({required List<int> data, required List<int> key}) =>
+    RustLib.instance.api.crateApiMorneyeApiMorneyeOpen(
       data: data,
       key: key,
     );
 
 /// What an add-on's download holds, shaped like desktop's ffprobe summary
 /// (codec, bit depth, sample rate, channels, duration, bitrate, container).
-Future<String> spotiflacMediaInfo({required String path}) =>
-    RustLib.instance.api.crateApiSpotiflacApiSpotiflacMediaInfo(path: path);
+Future<String> morneyeMediaInfo({required String path}) =>
+    RustLib.instance.api.crateApiMorneyeApiMorneyeMediaInfo(path: path);
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SpotiflacEngine>>
-abstract class SpotiflacEngine implements RustOpaqueInterface {
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<MorneyeEngine>>
+abstract class MorneyeEngine implements RustOpaqueInterface {
   /// Runs the package's progress callback [id] during the host call that
   /// received it. Returns the package's error message, empty on success.
   Future<String> callback({required BigInt id, required String argsJson});
@@ -70,12 +70,12 @@ abstract class SpotiflacEngine implements RustOpaqueInterface {
 
   /// Starts [code] after desktop's [bootstrap] prelude with [config_json].
   /// [host] answers the package's host calls: (method, JSON args) → JSON.
-  static Future<SpotiflacEngine> start({
+  static Future<MorneyeEngine> start({
     required String code,
     required String bootstrap,
     required String configJson,
     required FutureOr<String> Function(String, String) host,
-  }) => RustLib.instance.api.crateApiSpotiflacApiSpotiflacEngineStart(
+  }) => RustLib.instance.api.crateApiMorneyeApiMorneyeEngineStart(
     code: code,
     bootstrap: bootstrap,
     configJson: configJson,

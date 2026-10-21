@@ -1,5 +1,5 @@
-//! SpotiFLAC add-ons run in QuickJS, as on desktop (Lokal's
-//! electron/spotiflac/worker.js and runtime.js).
+//! Morneye add-ons run in QuickJS, as on desktop (Lokal's
+//! electron/morneye/worker.js and runtime.js).
 //!
 //! Each add-on gets its own thread, runtime and context. The guest sees one
 //! synchronous `host(method, json)` function (desktop's bootstrap prelude
@@ -55,7 +55,7 @@ impl Engine {
         let thread_tx = tx.clone();
         let thread_closed = closed.clone();
         std::thread::Builder::new()
-            .name("spotiflac".into())
+            .name("morneye".into())
             .stack_size(8 * 1024 * 1024)
             .spawn(move || run(code, bootstrap, config_json, host, rx, thread_tx, thread_closed, ready_tx))
             .map_err(|e| e.to_string())?;

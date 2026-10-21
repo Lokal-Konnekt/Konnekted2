@@ -28,8 +28,9 @@ overwritten; a rerun of an already-published tag fails publication deliberately.
 2. Use GitHub-hosted `ubuntu-24.04` runners and permit the SHA-pinned checkout,
    setup-java, flutter-action, setup-android, upload/download-artifact actions.
    Outbound access to Google/Flutter, Maven/Gradle, Pub, Rust/crates.io, GitHub,
-   Adoptium and Ubuntu packages is required. No restored native build cache is
-   used. Allow up to 120 minutes for each native/release job.
+   Adoptium and Ubuntu packages is required. Signed betas reuse caches as
+   described below; tagged releases and CI retain cold builds. Allow up to
+   120 minutes for each native/release job.
 3. Configure main-branch protections and a `v*` tag ruleset so only release
    maintainers can create tags and tags cannot be updated/deleted. The ancestry
    check supplements these controls; it cannot protect a workflow that an
@@ -80,6 +81,23 @@ armv7 and both emulator ABIs, because debug Cargokit adds x86/x86_64 itself.
 The Rust audio/USB engine is compiled from source with default features enabled;
 no native-task bypass or precompiled engine substitution is used. Third-party
 Flutter plugins retain their normal upstream dependency setup (including Rive).
+
+### Faster beta builds
+
+The main-branch beta workflow enables the setup action's optional cache for
+Flutter, Pub, the Android SDK/NDK, Rustup, Cargo downloads and Gradle dependency
+downloads. It separately caches Cargokit's ARM release target directories so
+Cargo can reuse compiled dependencies. Toolchain/build configuration changes
+invalidate the relevant keys; Rust source changes get a new cache entry with
+a compatible dependency-cache fallback. Cargo still runs with `--locked` and
+checks fingerprints for both ARM architectures on every build.
+
+The first successful run populates these caches. Later builds can be faster;
+cache eviction or a toolchain change causes a normal cold build. No APKs,
+signing directory, Gradle configuration cache or app build outputs are cached.
+These caches are enabled only for trusted main-branch betas; the other setup
+action callers keep caching disabled. Bump the `beta-tools-v1` or `beta-rust-v1`
+prefix in the workflow/action to discard a cache when troubleshooting.
 
 Dependency resolution enforces `pubspec.lock`, host Cargo uses `--locked`, and
 jobs reject changes to the root Pub/Rust locks after builds. Reproducibility here

@@ -48,8 +48,8 @@ object LauncherIcon {
                             .edit().putString(KEY_WANTED, accent).apply()
                         // Xiaomi/HyperOS can retain the foreground task for a long
                         // time. DONT_KILL_APP lets us update the launcher now.
-                        applyPending(context)
-                        result.success(null)
+                        if (applyPending(context)) result.success(null)
+                        else result.error("icon_update_failed", "Launcher rejected the icon update", null)
                     }
                 }
                 else -> result.notImplemented()
@@ -58,13 +58,13 @@ object LauncherIcon {
     }
 
     /** Enables the wanted alias and disables the others, if anything changed. */
-    fun applyPending(context: Context) {
+    fun applyPending(context: Context): Boolean {
         val wanted = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_WANTED, null) ?: return
+            .getString(KEY_WANTED, DEFAULT) ?: DEFAULT
         val pm = context.packageManager
         try {
             val current = accents.filter { isEnabled(pm, context, it) }
-            if (current == listOf(wanted)) return
+            if (current == listOf(wanted)) return true
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 pm.setComponentEnabledSettings(accents.map { accent ->
                     PackageManager.ComponentEnabledSetting(
@@ -74,7 +74,7 @@ object LauncherIcon {
                         PackageManager.DONT_KILL_APP,
                     )
                 })
-                return
+                return accents.filter { isEnabled(pm, context, it) } == listOf(wanted)
             }
             // Enable first, so there is never a moment with no launcher entry.
             setEnabled(pm, context, wanted, true)
@@ -83,7 +83,9 @@ object LauncherIcon {
             }
         } catch (e: Exception) {
             Log.w(TAG, "Could not switch the launcher icon: ${e.message}")
+            return false
         }
+        return accents.filter { isEnabled(pm, context, it) } == listOf(wanted)
     }
 
     private fun component(context: Context, accent: String): ComponentName {

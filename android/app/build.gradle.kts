@@ -101,7 +101,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            pickFirsts += listOf("**/libc++_shared.so")
+            pickFirsts += listOf("**/libc++_shared.so", "**/libdiscord_partner_sdk.so")
         }
     }
 
@@ -256,6 +256,10 @@ tasks.named("preBuild") {
 }
 
 dependencies {
+    // Keep the vendor AAR on the application: AGP rejects direct local AAR
+    // dependencies when packaging a Flutter plugin's Android library.
+    val discordSdk = rootProject.file("../third_party/mornye_discord/sdk/discord_partner_sdk.aar")
+    if (discordSdk.isFile) implementation(files(discordSdk))
     // BitChord's proven YouTube resolver: InnerTubeX handles the live client
     // catalog, cipher transforms and BotGuard PoTokens before media is cached.
     implementation("com.github.MetrolistGroup.innertubex:innertubex-android:v0.7.0")

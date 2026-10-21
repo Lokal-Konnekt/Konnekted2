@@ -191,6 +191,7 @@ class MainActivity: FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         super.onCreate(savedInstanceState)
+        volumeControlStream = AudioManager.STREAM_MUSIC
 
         if (!nativeInitRustAndroidContext(applicationContext)) {
             Log.e("Flick", "Failed to initialize Rust Android audio context")
@@ -238,6 +239,7 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         // Idempotent: cached engines skip duplicate GeneratedPluginRegistrant.
         ensurePluginsRegistered(flutterEngine)
+        LokalSystemVolume.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LauncherIcon.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LokalLibrarySyncNotification.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LokalDesktopDiscovery.register(flutterEngine.dartExecutor.binaryMessenger, this)

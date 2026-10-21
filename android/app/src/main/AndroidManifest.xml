@@ -19,6 +19,8 @@
          uses MediaStore + SAF + DSD reconciliation instead. -->
     <!-- Camera permission for Flick Replay custom poster backgrounds -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Normal permission: player sliders control Android media volume. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- Background playback permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />

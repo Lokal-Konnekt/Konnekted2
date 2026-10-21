@@ -40,6 +40,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/player_volume_control.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/flick_dialog.dart';
@@ -71,6 +72,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   bool _isFav = false;
   String? _favForSongId;
 
+  late final PlayerVolumeControl _volumeControl;
   double _volume = 1.0;
   bool _draggingSeek = false;
   double _seekDrag = 0;
@@ -94,7 +96,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   @override
   void initState() {
     super.initState();
-    _volume = _player.currentVolume.clamp(0.0, _player.maxVolume).toDouble();
+    _volumeControl = PlayerVolumeControl(_player);
+    _volume = _volumeControl.value;
     _player.currentSongNotifier.addListener(_onSongChanged);
     _player.favoriteNotificationToggleNotifier.addListener(_refreshFavorite);
     _refreshFavorite();
@@ -103,6 +106,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   @override
   void dispose() {
+    _volumeControl.dispose();
     _queue.dispose();
     _queueProgress.dispose();
     _player.currentSongNotifier.removeListener(_onSongChanged);
@@ -1025,9 +1029,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     );
   }
 
-  Widget _optionsStrip() {
-    final maxVol = _player.maxVolume;
-    final sliderValue = (_draggingVolume ? _volume : _player.currentVolume)
+  Widget _optionsStrip() => ListenableBuilder(
+    listenable: _volumeControl,
+    builder: (context, _) => _buildOptionsStrip(),
+  );
+
+  Widget _buildOptionsStrip() {
+    final maxVol = _volumeControl.max;
+    final sliderValue = (_draggingVolume ? _volume : _volumeControl.value)
         .clamp(0.0, maxVol)
         .toDouble();
     return Container(
@@ -1059,10 +1068,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 min: 0,
                 max: maxVol,
                 onChangeStart: (_) => setState(() => _draggingVolume = true),
-                onChanged: (v) {
-                  setState(() => _volume = v);
-                  _player.setVolume(v);
-                },
+                onChanged: !_volumeControl.available
+                    ? null
+                    : (v) {
+                        setState(() => _volume = v);
+                        unawaited(_volumeControl.set(v));
+                      },
                 onChangeEnd: (_) => setState(() => _draggingVolume = false),
               ),
             ),

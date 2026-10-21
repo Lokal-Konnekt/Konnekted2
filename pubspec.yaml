@@ -61,6 +61,8 @@ dependencies:
   json_annotation: ^4.9.0
   just_audio: ^0.10.6
   lucide_icons_flutter: ^3.1.8
+  mornye_discord:
+    path: third_party/mornye_discord
   native_toolchain_rust: ^1.0.7
   path: ^1.9.1
   path_provider: ^2.1.6

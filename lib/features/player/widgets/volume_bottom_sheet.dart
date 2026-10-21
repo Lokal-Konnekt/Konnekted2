@@ -1,11 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flick/services/player_volume_control.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
 
-class VolumeBottomSheet extends StatelessWidget {
+class VolumeBottomSheet extends StatefulWidget {
   final PlayerService playerService;
   const VolumeBottomSheet({super.key, required this.playerService});
 
@@ -19,13 +22,32 @@ class VolumeBottomSheet extends StatelessWidget {
   }
 
   @override
+  State<VolumeBottomSheet> createState() => _VolumeBottomSheetState();
+}
+
+class _VolumeBottomSheetState extends State<VolumeBottomSheet> {
+  late final PlayerVolumeControl _volumeControl;
+
+  @override
+  void initState() {
+    super.initState();
+    _volumeControl = PlayerVolumeControl(widget.playerService);
+  }
+
+  @override
+  void dispose() {
+    _volumeControl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final maxVolume = playerService.maxVolume;
-    final initialVolume = playerService.currentVolume.clamp(0.0, maxVolume);
-    final isAvailable = playerService.isVolumeAvailable;
-    double currentVolume = initialVolume;
-    return StatefulBuilder(
-      builder: (context, setSheetState) {
+    return ListenableBuilder(
+      listenable: _volumeControl,
+      builder: (context, _) {
+        final maxVolume = _volumeControl.max;
+        final currentVolume = _volumeControl.value;
+        final isAvailable = _volumeControl.available;
         return Container(
           decoration: AppBottomSheetSurface.decoration,
           padding: EdgeInsets.fromLTRB(
@@ -85,16 +107,7 @@ class VolumeBottomSheet extends StatelessWidget {
                       divisions: (maxVolume * 100).round(),
                       label: '${(currentVolume * 100).round()}%',
                       onChanged: isAvailable
-                          ? (value) {
-                              setSheetState(() {
-                                currentVolume = value;
-                              });
-                            }
-                          : null,
-                      onChangeEnd: isAvailable
-                          ? (value) async {
-                              await playerService.setVolume(value);
-                            }
+                          ? (value) => unawaited(_volumeControl.set(value))
                           : null,
                       activeColor: AppColors.accent,
                       inactiveColor: AppColors.textTertiary.withValues(
@@ -109,7 +122,7 @@ class VolumeBottomSheet extends StatelessWidget {
                   ),
                 ],
               ),
-              if (!isAvailable) ...[
+              if (!isAvailable && !_volumeControl.usesSystemVolume) ...[
                 const SizedBox(height: 8),
                 Text(
                   l10n.volumeIsFixedWhileBitPerfect,

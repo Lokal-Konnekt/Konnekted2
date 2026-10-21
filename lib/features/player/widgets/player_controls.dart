@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/player_volume_control.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/models/shuffle_mode.dart';
 import 'package:flick/models/album_color_mode.dart';
@@ -314,12 +315,18 @@ class _TargetPlayerControls extends StatefulWidget {
 }
 
 class _TargetPlayerControlsState extends State<_TargetPlayerControls> {
-  double _volume = 1.0;
+  late final PlayerVolumeControl _volumeControl;
 
   @override
   void initState() {
     super.initState();
-    _volume = widget.playerService.currentVolume;
+    _volumeControl = PlayerVolumeControl(widget.playerService);
+  }
+
+  @override
+  void dispose() {
+    _volumeControl.dispose();
+    super.dispose();
   }
 
   Color get _accent {
@@ -420,10 +427,15 @@ class _TargetPlayerControlsState extends State<_TargetPlayerControls> {
     );
   }
 
-  Widget _secondaryRow(BuildContext context) {
-    final maxVolume = widget.playerService.maxVolume;
-    final available = widget.playerService.isVolumeAvailable;
-    final volume = _volume.clamp(0.0, maxVolume).toDouble();
+  Widget _secondaryRow(BuildContext context) => ListenableBuilder(
+    listenable: _volumeControl,
+    builder: (context, _) => _buildSecondaryRow(context),
+  );
+
+  Widget _buildSecondaryRow(BuildContext context) {
+    final maxVolume = _volumeControl.max;
+    final available = _volumeControl.available;
+    final volume = _volumeControl.value;
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: context.responsive(8, 10, 12),
@@ -456,11 +468,7 @@ class _TargetPlayerControlsState extends State<_TargetPlayerControls> {
                 max: maxVolume <= 0 ? 1 : maxVolume,
                 value: volume,
                 onChanged: available
-                    ? (value) => setState(() => _volume = value)
-                    : null,
-                onChangeEnd: available
-                    ? (value) =>
-                          unawaited(widget.playerService.setVolume(value))
+                    ? (value) => unawaited(_volumeControl.set(value))
                     : null,
               ),
             ),

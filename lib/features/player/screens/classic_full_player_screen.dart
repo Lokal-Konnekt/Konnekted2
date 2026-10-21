@@ -32,6 +32,7 @@ import 'package:flick/models/player_action_button.dart';
 import 'package:flick/models/progress_bar_style.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/player_volume_control.dart';
 import 'package:flick/services/external_playback_service.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
@@ -1461,12 +1462,18 @@ class OutputDevicePopup extends StatefulWidget {
 }
 
 class _OutputDevicePopupState extends State<OutputDevicePopup> {
-  late double _volume;
+  late final PlayerVolumeControl _volumeControl;
 
   @override
   void initState() {
     super.initState();
-    _volume = widget.playerService.currentVolume.clamp(0.0, 1.0);
+    _volumeControl = PlayerVolumeControl(widget.playerService);
+  }
+
+  @override
+  void dispose() {
+    _volumeControl.dispose();
+    super.dispose();
   }
 
   String _time(Duration value) {
@@ -1663,15 +1670,20 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                       color: context.lokal.text.withValues(alpha: 0.72),
                     ),
                     Expanded(
-                      child: Slider(
-                        value: _volume,
-                        onChanged: (value) {
-                          setState(() => _volume = value);
-                          unawaited(widget.playerService.setVolume(value));
-                        },
-                        activeColor: context.lokal.text,
-                        inactiveColor: context.lokal.text.withValues(
-                          alpha: 0.16,
+                      child: ListenableBuilder(
+                        listenable: _volumeControl,
+                        builder: (context, _) => Slider(
+                          value: _volumeControl.value,
+                          max: _volumeControl.max,
+                          onChanged: !_volumeControl.available
+                              ? null
+                              : (value) {
+                                  unawaited(_volumeControl.set(value));
+                                },
+                          activeColor: context.lokal.text,
+                          inactiveColor: context.lokal.text.withValues(
+                            alpha: 0.16,
+                          ),
                         ),
                       ),
                     ),

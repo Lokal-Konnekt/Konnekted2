@@ -613,7 +613,7 @@ void main() {
         migrated.find(morneyeKeyOf('qobuz'))?.repositoryId,
         migrated.repositories.single.id,
       );
-      await migrated.shutdown();
+      migrated.shutdown();
     });
 
     test(
@@ -816,7 +816,7 @@ void main() {
       expect(download.info['codec'], 'flac');
       expect(download.file.readAsBytesSync(), [1, 2, 3, 4]);
       await download.cleanup();
-      await conversionPackages.shutdown();
+      conversionPackages.shutdown();
     });
 
     test('refuses audio the phone can’t play or that doesn’t match', () async {

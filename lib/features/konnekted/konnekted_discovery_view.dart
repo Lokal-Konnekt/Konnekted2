@@ -103,62 +103,15 @@ class _KonnektedDiscoveryViewState
         connected = false;
       }
 
+      if (!mounted) return;
       if (!connected) {
-        final controller = TextEditingController();
-        final cookie = await showDialog<String>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(lokalText('Connect Spotify')),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lokalText(
-                    "Paste the sp_dc session cookie from your signed-in Spotify web session. It is stored encrypted on this device.",
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  obscureText: true,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: InputDecoration(
-                    labelText: lokalText('Spotify sp_dc cookie'),
-                    hintText: lokalText('Paste cookie value'),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: Text(lokalText('Cancel')),
-              ),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.of(dialogContext).pop(controller.text),
-                child: Text(lokalText('Connect')),
-              ),
-            ],
+        widget.onNavigate(
+          const KonnektedDestination.settingsAt(
+            LokalSettingsGroup.data,
+            section: LokalDataSections.accounts,
           ),
         );
-        controller.dispose();
-        if (!mounted || cookie == null) return;
-        try {
-          await oauth.signInWithCookie(cookie);
-        } catch (_) {
-          if (mounted) {
-            _say(
-              lokalText(
-                'Spotify could not verify that cookie. Check the sp_dc value and try again.',
-              ),
-            );
-          }
-          return;
-        }
+        return;
       }
 
       try {
@@ -407,14 +360,14 @@ class _KonnektedDiscoveryViewState
             child: KonnektedMessage(
               title: lokalText('Connect Last.fm for Discovery'),
               message: lokalText(
-                'Discovery recommends music from your Last.fm scrobbles. Sign in to Last.fm in Online sources to see your shelves.',
+                'Discovery recommends music from your Last.fm scrobbles. Sign in to Last.fm in Data → Accounts to see your shelves.',
               ),
               icon: Icons.auto_awesome_rounded,
-              actionLabel: 'Open Online sources',
+              actionLabel: 'Open Accounts',
               onAction: () => widget.onNavigate(
                 const KonnektedDestination.settingsAt(
-                  LokalSettingsGroup.integrations,
-                  section: LokalOnlineSections.accounts,
+                  LokalSettingsGroup.data,
+                  section: LokalDataSections.accounts,
                 ),
               ),
             ),

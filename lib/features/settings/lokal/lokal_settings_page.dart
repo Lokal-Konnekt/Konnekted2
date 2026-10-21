@@ -52,6 +52,15 @@ Widget lokalSettingsPage({
 }) {
   if (aboutDataOnly) return const LokalSettingsAboutDataPage();
   if (group == null) return const LokalSettingsPage();
+  // Follow older account links after moving connections into Data.
+  if ((group == LokalSettingsGroup.integrations ||
+          group == LokalSettingsGroup.data) &&
+      LokalDataSections.accountAliases.contains(section?.toLowerCase())) {
+    return const LokalSettingsGroupPage(
+      group: LokalSettingsGroup.data,
+      section: LokalDataSections.accounts,
+    );
+  }
   // Add-ons are part of Online sources: open it at them.
   if (group == LokalSettingsGroup.addons) {
     return LokalSettingsGroupPage(

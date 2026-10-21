@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:flick/core/constants/app_constants.dart';
+import 'package:flick/providers/app_build_info_provider.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/manual/screens/manual_screen.dart';
@@ -22,7 +22,8 @@ void _push(BuildContext context, Widget page) => unawaited(
 );
 
 /// Where Lokal for Android's releases are published.
-const lokalReleasesUrl = 'https://github.com/Lokal-Konnekt/Konnekted2/releases';
+const lokalReleasesUrl =
+    'https://github.com/Lokal-Konnekt/lokal-mobile/releases';
 
 bool _licencesRegistered = false;
 
@@ -62,6 +63,7 @@ Future<void> _open(BuildContext context, String url) async {
 /// About: version, updates, what's new, help, licences, privacy and logs.
 List<LokalSettingsSection> aboutSettings(BuildContext context, WidgetRef ref) {
   final t = context.lokal;
+  final build = ref.watch(appBuildInfoProvider);
   return [
     LokalSettingsSection(
       title: lokalText('About'),
@@ -70,7 +72,11 @@ List<LokalSettingsSection> aboutSettings(BuildContext context, WidgetRef ref) {
           label: lokalText('Version'),
           description: lokalText('The version you’re running.'),
           trailing: Text(
-            kAppVersion,
+            build.when(
+              data: (info) => info.label,
+              loading: () => '…',
+              error: (_, _) => lokalText('Unavailable'),
+            ),
             style: LokalTheme.label(t, size: 12, color: t.text),
           ),
         ),

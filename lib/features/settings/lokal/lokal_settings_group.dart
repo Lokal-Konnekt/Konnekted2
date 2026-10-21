@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 enum LokalSettingsGroup {
   integrations(
     'Online sources',
-    'YouTube Music, add-ons, servers, Spotify and scrobbling',
+    'Playback sources, add-ons, servers and radio',
     Icons.cloud_rounded,
   ),
   playback(
@@ -26,7 +26,11 @@ enum LokalSettingsGroup {
     'Theme, accent, text size, Now Playing and interface',
     Icons.palette_rounded,
   ),
-  data('Data', 'Caches and clearing your library', Icons.storage_rounded),
+  data(
+    'Data',
+    'Accounts, Desktop link, caches and clearing your library',
+    Icons.storage_rounded,
+  ),
   about(
     'About',
     'Version, what’s new, help, licences and logs',
@@ -86,5 +90,19 @@ abstract final class LokalOnlineSections {
     'repositories': repositories,
     'radio': radioVideos,
     'videos': radioVideos,
+  };
+}
+
+/// Account connections now share Data with desktop pairing and stored data.
+abstract final class LokalDataSections {
+  static const accounts = 'Accounts';
+  static const accountAliases = {
+    'accounts',
+    'accounts & scrobbling',
+    'scrobbling',
+    'desktop link',
+    'youtube music',
+    'spotify',
+    'discord rich presence',
   };
 }

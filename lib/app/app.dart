@@ -67,7 +67,7 @@ class FlickPlayerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: LokalTheme.build(appearance.tokens),
       // A theme or accent change cross-fades every colour at once.
-      themeAnimationDuration: const Duration(milliseconds: 400),
+      themeAnimationDuration: const Duration(milliseconds: 200),
       themeAnimationCurve: Curves.easeInOutCubic,
       navigatorKey: rootNavigatorKey,
       localizationsDelegates: AppLocalizations.localizationsDelegates,

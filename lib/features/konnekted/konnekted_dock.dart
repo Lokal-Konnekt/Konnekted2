@@ -702,6 +702,12 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                             children: [
                               Hero(
                                 tag: heroTag,
+                                // The artwork travels directly between the
+                                // two real layouts, like BitChord's docked art.
+                                createRectTween: (begin, end) => RectTween(
+                                  begin: begin,
+                                  end: end,
+                                ),
                                 flightShuttleBuilder: _flight,
                                 child: KonnektedArtwork(
                                   song: song,

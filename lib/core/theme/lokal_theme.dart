@@ -85,6 +85,19 @@ abstract final class LokalTheme {
         color: t.accent,
         linearTrackColor: t.border,
       ),
+      // Keep standard MaterialPageRoute transitions quick, consistent and
+      // subtle across the app; screen-specific sheet motions remain in charge
+      // of Now Playing, dialogs and gestures.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _LokalPageTransitionsBuilder(),
+          TargetPlatform.iOS: _LokalPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: _LokalPageTransitionsBuilder(),
+          TargetPlatform.linux: _LokalPageTransitionsBuilder(),
+          TargetPlatform.macOS: _LokalPageTransitionsBuilder(),
+          TargetPlatform.windows: _LokalPageTransitionsBuilder(),
+        },
+      ),
       extensions: [t],
     );
   }
@@ -113,6 +126,39 @@ abstract final class LokalTheme {
       labelLarge: restyle(base.labelLarge),
       labelMedium: restyle(base.labelMedium, color: t.muted),
       labelSmall: restyle(base.labelSmall, color: t.muted),
+    );
+  }
+}
+
+class _LokalPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _LokalPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    final progress = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    return FadeTransition(
+      opacity: progress,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, .018),
+          end: Offset.zero,
+        ).animate(progress),
+        child: ScaleTransition(
+          scale: Tween<double>(begin: .985, end: 1).animate(progress),
+          child: child,
+        ),
+      ),
     );
   }
 }

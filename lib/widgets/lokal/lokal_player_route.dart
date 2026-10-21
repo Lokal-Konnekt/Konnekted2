@@ -143,7 +143,7 @@ class LokalPlayerRoute<T> extends PageRoute<T> {
 
   @override
   Duration get transitionDuration =>
-      _reduced ? Duration.zero : const Duration(milliseconds: 420);
+      _reduced ? Duration.zero : const Duration(milliseconds: 360);
 
   double _height() {
     final context = navigator?.context;

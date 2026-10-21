@@ -11,20 +11,20 @@ class AppConstants {
 
   // Animation durations – mutable so they can be zeroed out when animations
   // are disabled.
-  static Duration animationFast = const Duration(milliseconds: 150);
-  static Duration animationNormal = const Duration(milliseconds: 300);
-  static Duration animationSlow = const Duration(milliseconds: 500);
-  static Duration animationVerySlow = const Duration(milliseconds: 800);
-  static Duration animationDialog = const Duration(milliseconds: 400);
+  static Duration animationFast = const Duration(milliseconds: 110);
+  static Duration animationNormal = const Duration(milliseconds: 210);
+  static Duration animationSlow = const Duration(milliseconds: 360);
+  static Duration animationVerySlow = const Duration(milliseconds: 480);
+  static Duration animationDialog = const Duration(milliseconds: 260);
 
   /// Enables or disables all app-wide animation durations.
   static void setAnimationsEnabled(bool enabled) {
     if (enabled) {
-      animationFast = const Duration(milliseconds: 150);
-      animationNormal = const Duration(milliseconds: 300);
-      animationSlow = const Duration(milliseconds: 500);
-      animationVerySlow = const Duration(milliseconds: 800);
-      animationDialog = const Duration(milliseconds: 400);
+      animationFast = const Duration(milliseconds: 110);
+      animationNormal = const Duration(milliseconds: 210);
+      animationSlow = const Duration(milliseconds: 360);
+      animationVerySlow = const Duration(milliseconds: 480);
+      animationDialog = const Duration(milliseconds: 260);
     } else {
       animationFast = Duration.zero;
       animationNormal = Duration.zero;

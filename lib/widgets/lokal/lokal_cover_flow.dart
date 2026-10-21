@@ -153,10 +153,10 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   /// The cover nearest [x] across the stage, inverting `_cover`'s layout.
   int _indexAt(double x, double size) {
     final offset = x - _stageWidth / 2;
-    final near = size * .62;
+    final near = size * .72;
     final d = offset.abs() <= near
         ? offset / near
-        : offset.sign * (1 + (offset.abs() - near) / (size * .22));
+        : offset.sign * (1 + (offset.abs() - near) / (size * .30));
     return (_position.value + d).round().clamp(0, _last);
   }
 
@@ -276,13 +276,15 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final ad = d.abs();
     final side = d.sign;
     final near = ad.clamp(0.0, 1.0);
-    // Facing album to first neighbour: slide out, turn, and sink back. Past
-    // that, neighbours stack tighter at a fixed angle.
+    // Facing album to first neighbour: slide out, turn, and sink back.
+    // The original iPod Cover Flow leaves a clear front-facing cover and
+    // fans its neighbours behind it. Give each side cover its own spacing
+    // and depth instead of flattening the whole stack onto one plane.
     final dx = ad <= 1
-        ? d * size * .62
-        : side * (size * .62 + (ad - 1) * size * .22);
+        ? d * size * .72
+        : side * (size * .72 + (ad - 1) * size * .30);
     final angle = reduce ? 0.0 : -side * near * 70 * math.pi / 180;
-    final depth = reduce ? 0.0 : -near * 120 + (1 - near) * 30;
+    final depth = reduce ? 0.0 : (26 - math.min(ad, 4) * 42).toDouble();
     final facing = i == _index;
     final flip = facing ? _flip.value : 0.0;
 
@@ -297,7 +299,10 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     return Positioned(
       top: size * .06,
       child: Transform(
-        alignment: Alignment.center,
+        // Rotate around the centre of the square album artwork, not the
+        // centre of the much taller artwork-plus-reflection column. That
+        // misplaced pivot is what made covers tilt and overlap oddly.
+        origin: Offset(size / 2, size / 2),
         transform: matrix,
         child: GestureDetector(
           onTap: () => _select(i),

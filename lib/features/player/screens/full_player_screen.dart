@@ -637,7 +637,38 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           alignment: Alignment.center,
           children: [
             Positioned.fill(
-              child: current ? Hero(tag: widget.heroTag, child: art) : art,
+              child: current
+                ? Hero(
+                    tag: widget.heroTag,
+                    createRectTween: (begin, end) => RectTween(
+                      begin: begin,
+                      end: end,
+                    ),
+                    flightShuttleBuilder:
+                        (flightContext, animation, direction, fromContext, toContext) =>
+                            AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) => ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          lerpDouble(
+                            21,
+                            28,
+                            Curves.easeInOutCubic.transform(animation.value),
+                          )!,
+                        ),
+                        child: child,
+                      ),
+                      child: CachedImageWidget(
+                        imagePath: song.albumArt,
+                        audioSourcePath: song.filePath,
+                        fit: BoxFit.cover,
+                        placeholder: ColoredBox(color: flightContext.lokal.surface3),
+                        errorWidget: ColoredBox(color: flightContext.lokal.surface3),
+                      ),
+                    ),
+                    child: art,
+                  )
+                : art,
             ),
             if (current && _burstVisible)
               LokalLikeBurst(

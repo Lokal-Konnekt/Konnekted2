@@ -396,4 +396,40 @@ void main() {
     );
     expect(await protected.length(), 150);
   });
+  test('googlevideo cache downloads use the actual Range header and accept 206', () async {
+    final bytes = [
+      ...ascii.encode('\x00\x00\x00\x18ftypM4A '),
+      ...List.filled(40, 7),
+    ];
+    final requested = <String>[];
+    final client = MockClient((request) async {
+      expect(request.url.queryParameters, isNot(contains('range')));
+      final range = request.headers['range'];
+      expect(range, isNotNull);
+      requested.add(range!);
+      final parts = range.replaceFirst('bytes=', '').split('-').map(int.parse).toList();
+      return http.Response.bytes(
+        bytes.sublist(parts[0], parts[1] + 1),
+        206,
+        headers: {'content-type': 'audio/mp4'},
+      );
+    });
+    addTearDown(client.close);
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(client),
+      directory: () async => directory,
+      rangeBytes: 20,
+      probe: (_) async => const AudioProbeFormat(sampleRate: 44100, channels: 2),
+    );
+    final stream = ResolvedDiscoveryAudio(
+      Uri.parse('https://rr1---sn-abc.googlevideo.com/videoplayback?clen=${bytes.length}'),
+      length: bytes.length,
+      headers: const {'User-Agent': 'YouTube client'},
+    );
+    final song = await cache.prepare(fixtureTrack, stream);
+    expect(requested, ['bytes=0-19', 'bytes=20-39', 'bytes=40-${bytes.length - 1}']);
+    expect(song.fileType, 'M4A');
+  });
+
+
 }

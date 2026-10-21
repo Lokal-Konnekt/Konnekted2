@@ -244,6 +244,58 @@ void main() {
     expect(audio.url.host, allowedHost);
   });
 
+  test('uses the native InnerTubeX fallback when public clients are refused', () async {
+    final asked = <String>[];
+    final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET' && request.url.host == 'music.youtube.com') {
+        return http.Response(
+          '<script>var ytcfg = {"INNERTUBE_CLIENT_VERSION":"1.20261001.01.00"};</script>',
+          200,
+          headers: {'content-type': 'text/html'},
+        );
+      }
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final name = body['context']['client']['clientName'] as String;
+      asked.add(name);
+      return http.Response(
+        jsonEncode({
+          'playabilityStatus': {
+            'status': 'UNPLAYABLE',
+            'reason': 'This client cannot play this recording',
+          },
+        }),
+        200,
+      );
+    });
+    addTearDown(fake.close);
+    var fallbackCalls = 0;
+    final audio = await YoutubeAudio(
+      DiscoveryHttp(fake),
+      nativeFallback: (id, session) async {
+        fallbackCalls++;
+        expect(id, 'dQw4w9WgXcQ');
+        expect(session, isNull);
+        return ResolvedDiscoveryAudio(
+          Uri.parse('https://rr1---sn-abc.googlevideo.com/videoplayback?clen=16384'),
+          length: 16384,
+          headers: const {'User-Agent': 'InnerTubeX client'},
+        );
+      },
+    ).resolve('dQw4w9WgXcQ');
+
+    expect(asked, [
+      'VISIONOS',
+      'ANDROID_VR',
+      'ANDROID',
+      'IOS',
+      'WEB_EMBEDDED_PLAYER',
+      'WEB_REMIX',
+    ]);
+    expect(fallbackCalls, 1);
+    expect(audio.url.host, 'rr1---sn-abc.googlevideo.com');
+    expect(audio.headers['User-Agent'], 'InnerTubeX client');
+  });
+
   test('asks as visionOS first, then the Quest app', () async {
     final asked = <String>[];
     final http.Client fake = MockClient((request) async {

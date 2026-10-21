@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io' as io;
+
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as net;
 
 import 'discovery_http.dart';
@@ -13,7 +16,7 @@ import 'youtube_music_store.dart';
 /// so it asks as the apps YouTube serves plain links to: visionOS first (no
 /// proof-of-origin token needed), then the Quest app.
 class YoutubeAudio {
-  YoutubeAudio(this.http, {this.session});
+  YoutubeAudio(this.http, {this.session, this.nativeFallback});
 
   final DiscoveryHttp http;
 
@@ -21,6 +24,17 @@ class YoutubeAudio {
   /// still tries the public clients, and cookie material is only sent to
   /// YouTube Music itself.
   final YoutubeMusicSession? session;
+
+  /// Injectable seam for tests; production Android calls the native
+  /// InnerTubeX resolver when the quick public-client walk cannot play a URL.
+  final Future<ResolvedDiscoveryAudio?> Function(
+    String videoId,
+    YoutubeMusicSession? session,
+  )? nativeFallback;
+
+  static const MethodChannel _nativeChannel =
+      MethodChannel('com.mossapps.flick/youtube_stream');
+
   Future<YoutubeMusicSession?>? _sessionFuture;
   Future<String?>? _webRemixVersionFuture;
 
@@ -224,8 +238,92 @@ class YoutubeAudio {
         failure = error;
       }
     }
+    try {
+      final advanced = await _resolveWithNativeFallback(
+        videoId,
+        signedInSession,
+        cancel: cancel,
+      );
+      if (advanced != null) return advanced;
+    } on DiscoveryException catch (error) {
+      if (error.message == 'Request cancelled.') rethrow;
+      failure = error;
+    }
     throw failure ??
         const DiscoveryException('YouTube didn’t give this song’s audio.');
+  }
+
+  Future<ResolvedDiscoveryAudio?> _resolveWithNativeFallback(
+    String videoId,
+    YoutubeMusicSession? signedInSession, {
+    Future<void>? cancel,
+  }) async {
+    final injected = nativeFallback;
+    if (injected != null) return injected(videoId, signedInSession);
+    if (!io.Platform.isAndroid) return null;
+
+    final cookies = signedInSession?.cookies;
+    final cookie = cookies == null || cookies.isEmpty
+        ? null
+        : cookies.entries.map((entry) => '${entry.key}=${entry.value}').join('; ');
+    final request = _nativeChannel.invokeMapMethod<String, Object?>(
+      'resolveStream',
+      {
+        'videoId': videoId,
+        if (cookie != null) 'cookie': cookie,
+        if (signedInSession?.visitorData case final visitorData?)
+          'visitorData': visitorData,
+      },
+    ).timeout(const Duration(seconds: 95));
+    final Map<String, Object?>? response;
+    try {
+      response = cancel == null
+          ? await request
+          : await Future.any([
+              request,
+              cancel.then<Map<String, Object?>?>(
+                (_) => throw const DiscoveryException('Request cancelled.'),
+              ),
+            ]);
+    } on DiscoveryException {
+      rethrow;
+    } on PlatformException catch (_) {
+      throw const DiscoveryException(
+        'YouTube could not resolve a playable stream with its advanced resolver.',
+      );
+    } on MissingPluginException {
+      return null;
+    } on TimeoutException {
+      throw const DiscoveryException(
+        'YouTube advanced stream resolution timed out. Try again.',
+      );
+    }
+    if (response == null) return null;
+    final urlText = response['url'];
+    if (urlText is! String) return null;
+    final url = Uri.tryParse(urlText);
+    if (url == null ||
+        url.scheme != 'https' ||
+        !url.host.toLowerCase().endsWith('.googlevideo.com')) {
+      throw const DiscoveryException(
+        'YouTube returned an invalid media URL from its advanced resolver.',
+      );
+    }
+    final rawHeaders = response['headers'];
+    final headers = <String, String>{};
+    if (rawHeaders is Map) {
+      for (final entry in rawHeaders.entries) {
+        if (entry.key is String && entry.value is String) {
+          headers[entry.key as String] = entry.value as String;
+        }
+      }
+    }
+    final rawLength = response['length'];
+    return ResolvedDiscoveryAudio(
+      url,
+      length: rawLength is num && rawLength > 0 ? rawLength.toInt() : null,
+      headers: headers,
+    );
   }
 
   Future<void> _probeMedia(

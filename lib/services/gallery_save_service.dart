@@ -17,7 +17,7 @@ class GallerySaveService {
   }) async {
     if (!Platform.isAndroid) {
       throw const GallerySaveException(
-        'Saving recap images is currently supported on Android only.',
+        'Saving images is currently supported on Android only.',
       );
     }
 
@@ -48,12 +48,12 @@ class GallerySaveService {
         }
 
         throw const GallerySaveException(
-          'Storage permission is required to save recap images on this Android version.',
+          'Storage permission is required to save images on this Android version.',
         );
       }
 
       throw GallerySaveException(
-        error.message ?? 'Failed to save the recap image to your gallery.',
+        error.message ?? 'Failed to save the image to your gallery.',
       );
     }
   }

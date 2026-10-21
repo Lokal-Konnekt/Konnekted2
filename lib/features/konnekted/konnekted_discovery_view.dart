@@ -25,6 +25,9 @@ import 'konnekted_data.dart';
 import 'konnekted_destination.dart';
 import 'konnekted_discovery.dart';
 import 'konnekted_style.dart';
+import 'library/lokal_music_detail_page.dart';
+import 'library/lokal_library_kit.dart' show pushLokal;
+import 'library/lokal_online_catalogue.dart';
 
 /// Home's Discovery tab, desktop's `RecommendationSections`: Fresh Finds,
 /// Quick Picks, Scrobble History, Albums and Artists For You, from Last.fm.
@@ -336,14 +339,6 @@ class _KonnektedDiscoveryViewState
     return queue;
   }
 
-  void _playSongs(List<Song> songs, String missing) {
-    if (songs.isEmpty) {
-      _say(missing);
-    } else {
-      widget.onPlay(songs.first, songs);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = context.lokal;
@@ -590,9 +585,20 @@ class _KonnektedDiscoveryViewState
           ),
           _AlbumShelf(
             albums: albums,
-            onTap: (album) => _playSongs(
-              _library().album(album.title, album.artist),
-              '${album.title} isn’t in your library yet.',
+            onTap: (album) => pushLokal(
+              context,
+              LokalMusicDetailPage.album(
+                title: album.title,
+                artist: album.artist,
+                localSongs: _library().album(album.title, album.artist),
+                initialOnline: true,
+                release: LokalCatalogueAlbum(
+                  title: album.title,
+                  artist: album.artist,
+                  artwork: album.artworkUrl,
+                  url: album.url,
+                ),
+              ),
             ),
           ),
         ],
@@ -603,9 +609,13 @@ class _KonnektedDiscoveryViewState
           ),
           _ArtistShelf(
             artists: artists,
-            onTap: (artist) => _playSongs(
-              _library().artist(artist.name),
-              'No songs by ${artist.name} in your library yet.',
+            onTap: (artist) => pushLokal(
+              context,
+              LokalMusicDetailPage.artist(
+                name: artist.name,
+                localSongs: _library().artist(artist.name),
+                initialOnline: true,
+              ),
             ),
           ),
         ],
@@ -788,9 +798,20 @@ class _KonnektedDiscoveryViewState
           ),
           _AlbumShelf(
             albums: albums,
-            onTap: (album) => _playSongs(
-              library.album(album.title, album.artist),
-              '${album.title} isn’t in your library yet.',
+            onTap: (album) => pushLokal(
+              context,
+              LokalMusicDetailPage.album(
+                title: album.title,
+                artist: album.artist,
+                localSongs: library.album(album.title, album.artist),
+                initialOnline: true,
+                release: LokalCatalogueAlbum(
+                  title: album.title,
+                  artist: album.artist,
+                  artwork: album.artworkUrl,
+                  url: album.url,
+                ),
+              ),
             ),
           ),
         ],
@@ -801,9 +822,13 @@ class _KonnektedDiscoveryViewState
           ),
           _ArtistShelf(
             artists: artists,
-            onTap: (artist) => _playSongs(
-              library.artist(artist.name),
-              'No songs by ${artist.name} in your library yet.',
+            onTap: (artist) => pushLokal(
+              context,
+              LokalMusicDetailPage.artist(
+                name: artist.name,
+                localSongs: library.artist(artist.name),
+                initialOnline: true,
+              ),
             ),
           ),
         ],

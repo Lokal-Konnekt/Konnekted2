@@ -89,6 +89,20 @@ void main() {
     final authorization = <String>[];
     final cookies = <String>[];
     final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET' && request.url.host == 'music.youtube.com') {
+        return http.Response(
+          '<script>var ytcfg = {"INNERTUBE_CLIENT_VERSION":"1.20261001.01.00"};</script>',
+          200,
+          headers: {'content-type': 'text/html'},
+        );
+      }
+      if (request.method == 'GET') {
+        return http.Response.bytes(
+          [0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32, 32],
+          206,
+          headers: {'content-type': 'audio/mp4'},
+        );
+      }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       final client = body['context']['client'] as Map<String, dynamic>;
       final name = '${client['clientName']}';
@@ -148,6 +162,13 @@ void main() {
   test('falls back to the current Android client when older clients are refused', () async {
     final asked = <String>[];
     final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response.bytes(
+          [0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32, 32],
+          206,
+          headers: {'content-type': 'audio/mp4'},
+        );
+      }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       final name = body['context']['client']['clientName'] as String;
       asked.add(name);
@@ -200,7 +221,7 @@ void main() {
     final audio = await YoutubeAudio(DiscoveryHttp(fake))
         .resolve('dQw4w9WgXcQ');
     expect(asked, ['VISIONOS', 'ANDROID_VR']);
-    expect(audio.headers['User-Agent'], YoutubeAudio.clients.last.userAgent);
+    expect(audio.headers['User-Agent'], YoutubeAudio.clients[1].userAgent);
     expect(
       () => YoutubeAudio(DiscoveryHttp(fake)).resolve('not a video id'),
       throwsA(isA<DiscoveryException>()),

@@ -43,10 +43,9 @@ import 'package:flick/widgets/common/flick_dialog.dart';
 
 const String _font = 'GoogleSansFlex';
 
-/// Wave player: fluid artwork backdrop, big art, flowing lyrics, labeled action
-/// chips. Same constructor as the old screen, so every existing entry point
-/// (mini player, navigation helper) keeps working. The previous screen lives on
-/// as [ClassicFullPlayerScreen] (⋮ → Player layout switches to it).
+/// Wave player: fluid artwork backdrop, big art, flowing lyrics, and labeled
+/// action chips. The same constructor keeps the mini-player and navigation
+/// entry points working with this player.
 class FullPlayerScreen extends ConsumerStatefulWidget {
   final Object heroTag;
   const FullPlayerScreen({super.key, this.heroTag = 'album_art_hero'});

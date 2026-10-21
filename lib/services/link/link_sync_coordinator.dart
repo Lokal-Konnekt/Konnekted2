@@ -25,6 +25,7 @@ class LinkSyncCoordinator {
     required this.credentials,
     required this.favorites,
     this.onChanged,
+    this.onProfileChanged,
     this.onProgress,
     this.initialProgress = const LinkSyncProgress(),
   });
@@ -32,6 +33,7 @@ class LinkSyncCoordinator {
   final LokalRemoteCredentials credentials;
   final FavoritesService favorites;
   final void Function()? onChanged;
+  final void Function()? onProfileChanged;
   final void Function(LinkSyncProgress)? onProgress;
   final LinkSyncProgress initialProgress;
   late LinkSyncProgress _progress = initialProgress;
@@ -117,7 +119,6 @@ class LinkSyncCoordinator {
       if (_progress.catalogSongs case final count?) {
         await prefs.setInt('$_prefix.catalog_songs', count);
       }
-      onChanged?.call();
       _report(LinkSyncPhase.complete, completedAt: completedAt);
     } catch (_) {
       _report(
@@ -186,6 +187,7 @@ class LinkSyncCoordinator {
         );
       }
       await prefs.setBool('$_prefix.catalog', true);
+      onChanged?.call();
     }
     _matchCandidates = List<Song>.of(await SongRepository().getAllSongs());
     for (final kind in ['library', 'history']) {
@@ -246,8 +248,10 @@ class LinkSyncCoordinator {
           }
         } else {
           final added = await LinkJournal.instance.mergeLibrary(items);
-          await _materializeLibraryPage(added);
-          onChanged?.call();
+          if (added.isNotEmpty) {
+            await _materializeLibraryPage(added);
+            onChanged?.call();
+          }
         }
         await prefs.setInt(pullKey, reply.body['cursor'] as int);
         processed += items.length;
@@ -258,6 +262,7 @@ class LinkSyncCoordinator {
     _requireReady();
     _report(LinkSyncPhase.finalizing);
     await LinkProfileService.sync(credentials);
+    onProfileChanged?.call();
   }
 
   Future<void> _materializeLibraryPage(List<Map<String, dynamic>> items) async {

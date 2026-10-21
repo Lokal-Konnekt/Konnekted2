@@ -239,6 +239,7 @@ class MainActivity: FlutterActivity() {
         // Idempotent: cached engines skip duplicate GeneratedPluginRegistrant.
         ensurePluginsRegistered(flutterEngine)
         LauncherIcon.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
+        LokalLibrarySyncNotification.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LokalDesktopDiscovery.register(flutterEngine.dartExecutor.binaryMessenger, this)
         YoutubeNativeResolver.initialize(applicationContext)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, YOUTUBE_CHANNEL)

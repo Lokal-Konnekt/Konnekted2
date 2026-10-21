@@ -86,3 +86,21 @@ Local FLAC and WebM receiver probes using temporary files and an isolated
 in-memory DB confirmed that the desktop endpoint saves those uploads. WebM
 acceptance requires the desktop receiver update. It does not
 validate Android permissions, phone networking or the paired-device transfer.
+
+Home retains established shelf/mix data while library and favorite providers
+reload during sync. Empty operation pages and successful no-change checks do
+not invalidate favorites/playlists; profile refresh has its own callback.
+History import bursts are coalesced before Home re-queries them, with a trailing
+refresh so the last changes are still reflected.
+
+Android library sync now has a separate, silent progress notification. Explicit
+merges show Preparing immediately; automatic checks notify only when work is
+reported. It shows phase and processed counts, uses a determinate bar only when
+a total is known, and ends in Complete or Paused. Progress updates are coalesced;
+terminal states flush immediately. It does not replace playback controls.
+Notifications use the app's existing Android notification permission and open
+the app when tapped. Completed/paused notices expire after 20 seconds; ongoing
+notices expire after two minutes without an update if the process is killed.
+This status notification does not itself keep transfers running in the
+background. Android notification rendering and the recorded Home flicker still
+require verification on the reported phone; validation here is source-level.

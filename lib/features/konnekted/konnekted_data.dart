@@ -20,20 +20,40 @@ final konnektedHistoryRepositoryProvider = Provider<RecentlyPlayedRepository>(
 // rebuilds each tab on switch, and Home's shelves should be there at once
 // when you come back rather than pop in empty.
 
-final konnektedRecentSongsProvider = StreamProvider<List<Song>>((ref) {
-  final repository = ref.watch(konnektedHistoryRepositoryProvider);
-  // Subscribe before the initial read so a play during startup is not lost.
+// History merge writes arrive in bursts. Keep the first update responsive,
+// then coalesce the rest instead of queuing a DB read for every imported play.
+Stream<void> _homeHistoryChanges(Ref ref, RecentlyPlayedRepository repository) {
   final changes = StreamController<void>();
-  final subscription = repository.watchHistory().listen(
-    changes.add,
-    onError: changes.addError,
-  );
+  Timer? timer;
+  var pending = false;
+  void settle() {
+    timer = null;
+    if (!pending || changes.isClosed) return;
+    pending = false;
+    changes.add(null);
+    timer = Timer(const Duration(milliseconds: 500), settle);
+  }
+
+  final subscription = repository.watchHistory().listen((_) {
+    if (timer != null) {
+      pending = true;
+    } else {
+      changes.add(null);
+      timer = Timer(const Duration(milliseconds: 500), settle);
+    }
+  }, onError: changes.addError);
   changes.add(null);
   ref.onDispose(() {
+    timer?.cancel();
     unawaited(subscription.cancel());
     unawaited(changes.close());
   });
-  return changes.stream.asyncMap((_) async {
+  return changes.stream;
+}
+
+final konnektedRecentSongsProvider = StreamProvider<List<Song>>((ref) {
+  final repository = ref.watch(konnektedHistoryRepositoryProvider);
+  return _homeHistoryChanges(ref, repository).asyncMap((_) async {
     final entries = await repository.getRecentHistory(limit: 40);
     final seen = <String>{};
     return entries
@@ -47,37 +67,37 @@ final konnektedRecentSongsProvider = StreamProvider<List<Song>>((ref) {
 /// Home's personal greeting line, from the latest plays (desktop's rules).
 final konnektedGreetingProvider = StreamProvider<String>((ref) {
   final repository = ref.watch(konnektedHistoryRepositoryProvider);
-  final changes = StreamController<void>();
-  final subscription = repository.watchHistory().listen(
-    changes.add,
-    onError: changes.addError,
-  );
-  changes.add(null);
-  ref.onDispose(() {
-    unawaited(subscription.cancel());
-    unawaited(changes.close());
-  });
-  return changes.stream.asyncMap(
+  return _homeHistoryChanges(ref, repository).asyncMap(
     (_) async =>
         lokalHomeGreeting(await repository.getRecentHistory(limit: 40)),
   );
 });
 
+// Riverpod's whenData drops retained data when its input is AsyncLoading.
+// A live library refresh must not turn established shelves into placeholders.
+AsyncValue<R> _homeData<T, R>(AsyncValue<T> source, R Function(T) map) {
+  if (source.hasValue) return AsyncData(map(source.requireValue));
+  return source.when(
+    data: (value) => AsyncData(map(value)),
+    loading: () => const AsyncLoading(),
+    error: (error, stack) => AsyncError(error, stack),
+  );
+}
+
 final konnektedFavoritesProvider = Provider<AsyncValue<List<Song>>>(
   (ref) =>
-      ref.watch(favoritesProvider).whenData((state) => state.favoriteSongs),
+      _homeData(ref.watch(favoritesProvider), (state) => state.favoriteSongs),
 );
 
 final konnektedLibraryProvider = Provider<AsyncValue<List<Song>>>(
-  (ref) => ref.watch(songsProvider).whenData((state) => state.songs),
+  (ref) => _homeData(ref.watch(songsProvider), (state) => state.songs),
 );
 
 final konnektedRecentlyAddedProvider = Provider<AsyncValue<List<Song>>>(
-  (ref) => ref
-      .watch(konnektedLibraryProvider)
-      .whenData(
-        (songs) => _newestFirst(songs).take(12).toList(growable: false),
-      ),
+  (ref) => _homeData(
+    ref.watch(konnektedLibraryProvider),
+    (songs) => _newestFirst(songs).take(12).toList(growable: false),
+  ),
 );
 
 ({String key, List<LokalMix> mixes})? _mixes;
@@ -121,7 +141,7 @@ final konnektedMixesProvider = FutureProvider<List<LokalMix>>((ref) async {
 /// per run (desktop's rule).
 final konnektedMadeForYouProvider =
     Provider<AsyncValue<List<LokalMadeForYouPick>>>(
-      (ref) => ref.watch(konnektedMixesProvider).whenData(lokalMadeForYou),
+      (ref) => _homeData(ref.watch(konnektedMixesProvider), lokalMadeForYou),
     );
 
 /// Wraps one song as a Cover Flow entry: each cover is a song, not an
@@ -136,7 +156,7 @@ AlbumGroup konnektedSongCover(Song song) => AlbumGroup(
 /// Home's Cover Flow: Made for you, one cover per song. Tapping one plays it
 /// with the whole shelf as the queue.
 final konnektedCoverAlbumsProvider = Provider<AsyncValue<List<AlbumGroup>>>(
-  (ref) => ref.watch(konnektedMadeForYouProvider).whenData((picks) {
+  (ref) => _homeData(ref.watch(konnektedMadeForYouProvider), (picks) {
     final seen = <String>{};
     return [
       for (final pick in picks)

@@ -127,6 +127,8 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
             ),
             SliverToBoxAdapter(
               child: library.when(
+                skipLoadingOnReload: true,
+                skipError: true,
                 loading: () => const KonnektedLoading(),
                 error: (_, _) => KonnektedMessage(
                   title: lokalText('Your library needs another look'),
@@ -490,6 +492,8 @@ class KonnektedSongShelf extends StatelessWidget {
     children: [
       KonnektedSectionHeading(title: title, onSeeAll: onSeeAll),
       songs.when(
+        skipLoadingOnReload: true,
+        skipError: true,
         loading: () => KonnektedLoading(
           label: lokalText("Loading {arg0}", args: {'arg0': title}),
         ),

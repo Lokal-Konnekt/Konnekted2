@@ -6179,9 +6179,17 @@ class PlayerService {
     final preampDb = await _appPreferencesService.getReplayGainPreampDb();
     final preventClipping =
         await _appPreferencesService.getReplayGainPreventClipping();
+    final effectiveMode = effectiveReplayGainModeForSong(
+      mode: mode,
+      song: song,
+      albumContext: _playbackContext.source == PlaybackSource.album &&
+          (_playbackContext.sourceName?.trim().toLowerCase() ?? '') ==
+              (song.album?.trim().toLowerCase() ?? ''),
+      queue: queue,
+    );
     return computeReplayGainDbForSong(
       song,
-      mode: mode,
+      mode: effectiveMode,
       preampDb: preampDb,
       preventClipping: preventClipping,
     );
@@ -6207,7 +6215,14 @@ class PlayerService {
         mode: mode,
         gainDb: computeReplayGainDbForSong(
           song,
-          mode: mode,
+          mode: effectiveReplayGainModeForSong(
+            mode: mode,
+            song: song,
+            albumContext: _playbackContext.source == PlaybackSource.album &&
+                (_playbackContext.sourceName?.trim().toLowerCase() ?? '') ==
+                    (song.album?.trim().toLowerCase() ?? ''),
+            queue: queue,
+          ),
           preampDb: preampDb,
           preventClipping: preventClipping,
         ),

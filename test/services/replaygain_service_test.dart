@@ -9,11 +9,16 @@ Song _song({
   double? trackPeak,
   double? albumGain,
   double? albumPeak,
+  String? album,
+  String? albumArtist,
+  String artist = 'a',
 }) {
   return Song(
     id: '1',
     title: 't',
-    artist: 'a',
+    artist: artist,
+    album: album,
+    albumArtist: albumArtist,
     duration: const Duration(seconds: 60),
     fileType: 'FLAC',
     replaygainTrackGain: trackGain,
@@ -153,6 +158,70 @@ void main() {
           preventClipping: false,
         ),
         -3.0,
+      );
+    });
+  });
+
+  group('effectiveReplayGainModeForSong', () {
+    test('Smart uses album gain in an album context', () {
+      final song = _song(album: 'Night Drive', albumArtist: 'Artist');
+      expect(
+        effectiveReplayGainModeForSong(
+          mode: ReplayGainMode.smart,
+          song: song,
+          albumContext: true,
+          queue: [song],
+        ),
+        ReplayGainMode.album,
+      );
+    });
+
+    test('Smart uses album gain for a queue from one album', () {
+      final first = _song(album: 'Night Drive', albumArtist: 'Artist');
+      final second = _song(album: 'night drive', albumArtist: 'artist');
+      expect(
+        effectiveReplayGainModeForSong(
+          mode: ReplayGainMode.smart,
+          song: first,
+          albumContext: false,
+          queue: [first, second],
+        ),
+        ReplayGainMode.album,
+      );
+    });
+
+    test('Smart uses track gain for mixed albums or an empty queue', () {
+      final first = _song(album: 'Night Drive', albumArtist: 'Artist');
+      final second = _song(album: 'Daylight', albumArtist: 'Artist');
+      expect(
+        effectiveReplayGainModeForSong(
+          mode: ReplayGainMode.smart,
+          song: first,
+          albumContext: false,
+          queue: [first, second],
+        ),
+        ReplayGainMode.track,
+      );
+      expect(
+        effectiveReplayGainModeForSong(
+          mode: ReplayGainMode.smart,
+          song: first,
+          albumContext: false,
+          queue: const [],
+        ),
+        ReplayGainMode.track,
+      );
+    });
+
+    test('unknown album falls back to track gain', () {
+      expect(
+        effectiveReplayGainModeForSong(
+          mode: ReplayGainMode.smart,
+          song: _song(albumArtist: 'Artist'),
+          albumContext: true,
+          queue: const [],
+        ),
+        ReplayGainMode.track,
       );
     });
   });

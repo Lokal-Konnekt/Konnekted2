@@ -114,9 +114,16 @@ class FavoritesService {
   }
 
   /// Apply one winning remote intent without producing a new local operation.
-  Future<void> setFromLink(String songId, bool liked) async {
+  Future<void> setFromLink(String songId, bool liked) =>
+      setManyFromLink({songId: liked});
+
+  Future<void> setManyFromLink(Map<String, bool> changes) async {
     await _ensureLoaded();
-    liked ? _favoriteIds.add(songId) : _favoriteIds.remove(songId);
+    for (final entry in changes.entries) {
+      entry.value
+          ? _favoriteIds.add(entry.key)
+          : _favoriteIds.remove(entry.key);
+    }
     await _saveFavorites(captureLink: false);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(

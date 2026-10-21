@@ -54,3 +54,21 @@ refused streams with smaller client-appropriate download chunks. These changes
 still require Android playback verification. Startup restores the saved accent
 before rendering, and launcher aliases follow the selected theme. The full-player
 device picker is centered inside the safe area with a dimmed backdrop.
+
+Library operation sync applies likes and playlists before listening history.
+Each received page rebuilds a changed playlist once, saves the batch of winning
+likes once, and reuses one song-library snapshot plus cached matches. Hash-only
+metadata operations and already-current tag values do not rewrite song rows.
+The progress label includes metadata because the same operation log carries
+song tag edits as well as likes and playlists. Phone edits trigger a debounced
+sync; desktop changes are checked more often during recent interaction, with
+slower checks while idle. The existing idle disconnect remains in place.
+
+Desktop-control notifications fetch covers through the authenticated artwork
+service and pass the locally cached image to Android. Position-only notification
+updates retain artwork. Late cover completions are guarded against track,
+connection and output changes. Missing art uses Lokal branding, and the output
+label shows the device name without a product prefix.
+
+These follow-ups have source-level validation only; notification artwork and
+sync latency still require a paired-device check.

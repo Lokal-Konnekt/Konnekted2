@@ -71,7 +71,7 @@ class LokalOutputPill extends ConsumerWidget {
             const SizedBox(width: 5),
             Flexible(
               child: Text(
-                l10n.linkOutputName(link.desktopName),
+                link.desktopName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: t.accent, fontSize: 10),

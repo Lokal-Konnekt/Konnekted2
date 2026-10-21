@@ -1,3 +1,5 @@
+import '../../models/song.dart';
+
 import 'dart:convert';
 
 import 'package:isar_community/isar.dart';
@@ -34,6 +36,21 @@ class LinkSyncCoordinator {
   final LinkSyncProgress initialProgress;
   late LinkSyncProgress _progress = initialProgress;
   Future<void>? _active;
+  List<Song>? _matchCandidates;
+  final _matchCache = <String, Song?>{};
+  bool get busy => _active != null;
+
+  Future<Song?> _match(Map<String, dynamic> track) async {
+    final key = track['track_key']?.toString();
+    if (key != null && _matchCache.containsKey(key)) return _matchCache[key];
+    final song = await LinkJournal.instance.match(
+      track,
+      candidates: _matchCandidates,
+    );
+    if (key != null) _matchCache[key] = song;
+    return song;
+  }
+
   static String prefixFor(LokalRemoteCredentials value) =>
       'lokal.link.${value.desktopId}.user.${value.desktopUserId ?? 'guest'}';
   String get _prefix => prefixFor(credentials);
@@ -48,7 +65,6 @@ class LinkSyncCoordinator {
       await LinkJournal.instance.capturePlaylists(
         await PlaylistService.instance.getPlaylists(),
       );
-      await _backfillHistory();
       await _synchronize(importCatalog: true);
     });
   }
@@ -110,6 +126,9 @@ class LinkSyncCoordinator {
         total: _progress.total,
       );
       rethrow;
+    } finally {
+      _matchCandidates = null;
+      _matchCache.clear();
     }
   }
 
@@ -168,7 +187,9 @@ class LinkSyncCoordinator {
       }
       await prefs.setBool('$_prefix.catalog', true);
     }
-    for (final kind in ['history', 'library']) {
+    _matchCandidates = List<Song>.of(await SongRepository().getAllSongs());
+    for (final kind in ['library', 'history']) {
+      if (kind == 'history') await _backfillHistory();
       _requireReady();
       final phase = kind == 'history'
           ? LinkSyncPhase.history
@@ -200,15 +221,19 @@ class LinkSyncCoordinator {
         if (kind == 'history') {
           final added = await LinkJournal.instance.mergeHistory(items);
           for (final item in added) {
-            var song = await LinkJournal.instance.match(item);
+            var song = await _match(item);
             final raw =
                 item['track'] ??
                 jsonDecode(item['track_json'] as String? ?? '{}');
-            if (song == null && raw is Map && raw['id'] != null)
+            if (song == null && raw is Map && raw['id'] != null) {
               song = await source.importTrack(
                 server,
                 Map<String, dynamic>.from(raw),
               );
+              _matchCandidates?.add(song);
+              final key = item['track_key']?.toString();
+              if (key != null) _matchCache[key] = song;
+            }
             if (song != null)
               await RecentlyPlayedRepository().recordPlay(
                 song.id,
@@ -221,7 +246,8 @@ class LinkSyncCoordinator {
           }
         } else {
           final added = await LinkJournal.instance.mergeLibrary(items);
-          for (final item in added) await _materialize(item);
+          await _materializeLibraryPage(added);
+          onChanged?.call();
         }
         await prefs.setInt(pullKey, reply.body['cursor'] as int);
         processed += items.length;
@@ -234,16 +260,38 @@ class LinkSyncCoordinator {
     await LinkProfileService.sync(credentials);
   }
 
+  Future<void> _materializeLibraryPage(List<Map<String, dynamic>> items) async {
+    final playlists = <String, Map<String, dynamic>>{};
+    final likes = <String, bool>{};
+    for (final item in items) {
+      if (item['entity'] == 'playlist') {
+        playlists[item['entity_id'] as String] = item;
+      } else if (item['entity'] == 'like') {
+        if (!await LinkJournal.instance.wins(item, 'liked')) continue;
+        final song = await _match({
+          ...Map<String, dynamic>.from(item['fields'] as Map),
+          'track_key': item['entity_id'],
+        });
+        if (song != null) likes[song.id] = item['op'] == 'like';
+      } else {
+        await _materialize(item);
+      }
+    }
+    if (likes.isNotEmpty) await favorites.setManyFromLink(likes);
+    // mergeLibrary has already persisted every operation in this page. One
+    // replay per playlist produces the same state as replaying it per member.
+    for (final item in playlists.values) {
+      await _materialize(item);
+    }
+  }
+
   Future<void> _materialize(Map<String, dynamic> item) async {
     final journal = LinkJournal.instance,
         fields = Map<String, dynamic>.from(item['fields'] as Map);
     switch (item['entity']) {
       case 'like':
         if (!await journal.wins(item, 'liked')) return;
-        final song = await journal.match({
-          ...fields,
-          'track_key': item['entity_id'],
-        });
+        final song = await _match({...fields, 'track_key': item['entity_id']});
         if (song != null)
           await favorites.setFromLink(song.id, item['op'] == 'like');
         break;
@@ -295,10 +343,7 @@ class LinkSyncCoordinator {
               });
         final songIds = <String>[];
         for (final entry in positions) {
-          final song = await journal.match({
-            ...entry.value,
-            'track_key': entry.key,
-          });
+          final song = await _match({...entry.value, 'track_key': entry.key});
           if (song != null) songIds.add(song.id);
         }
         final old = await PlaylistService.instance.getPlaylist(localId);
@@ -334,10 +379,19 @@ class LinkSyncCoordinator {
         );
         break;
       case 'track':
-        final song = await journal.match({
-          ...fields,
-          'track_key': item['entity_id'],
-        });
+        const editable = [
+          'title',
+          'artist',
+          'album',
+          'album_artist',
+          'genre',
+          'year',
+          'track_num',
+        ];
+        // Desktop UPDATE triggers can emit hash-only operations even when
+        // tag values did not change. They must not rewrite every phone row.
+        if (!editable.any(fields.containsKey)) return;
+        final song = await _match({...fields, 'track_key': item['entity_id']});
         if (song?.filePath == null) return;
         await journal.registerTrackAlias(song!.id, item['entity_id'] as String);
         final winning = <String, dynamic>{};
@@ -352,6 +406,19 @@ class LinkSyncCoordinator {
         ])
           if (fields.containsKey(field) && await journal.wins(item, field))
             winning[field] = fields[field];
+        final current = <String, dynamic>{
+          'title': song.title,
+          'artist': song.artist,
+          'album': song.album,
+          'album_artist': song.albumArtist,
+          'genre': song.genre,
+          'year': song.year,
+          'track_num': song.trackNumber,
+        };
+        winning.removeWhere(
+          (field, value) => value == null || value == current[field],
+        );
+        if (winning.isEmpty) return;
         await SongRepository().updateSongMetadata(
           song.filePath!,
           title: winning['title'] as String?,

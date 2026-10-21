@@ -65,6 +65,7 @@ class NotificationService {
   Future<void> showFor(
     MediaNotificationOwner owner, {
     required Song song,
+    String? outputName,
     required bool isPlaying,
     bool isLive = true,
     bool isFavorite = false,
@@ -75,6 +76,7 @@ class NotificationService {
     try {
       await _channel.invokeMethod('showNotification', <String, dynamic>{
         'title': song.title,
+        'outputName': outputName,
         'artist': song.artist,
         'albumArtPath': song.albumArt,
         'isPlaying': isPlaying,
@@ -227,6 +229,7 @@ class NotificationService {
     try {
       final args = <String, dynamic>{
         'title': song.title,
+        'outputName': null,
         'artist': song.artist,
         'albumArtPath': song.albumArt,
         'isPlaying': isPlaying,
@@ -285,6 +288,7 @@ class NotificationService {
     try {
       final args = <String, dynamic>{
         'title': song.title,
+        'outputName': null,
         'artist': song.artist,
         'albumArtPath': song.albumArt,
         'isPlaying': isPlaying,

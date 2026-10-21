@@ -214,10 +214,10 @@ class _LokalDesktopLinkScreenState
             LinkSyncPhase.preparing => lokalText('Preparing your libraries…'),
             LinkSyncPhase.catalog => lokalText('Adding desktop songs…'),
             LinkSyncPhase.history => lokalText('Syncing listening history…'),
-            LinkSyncPhase.library => lokalText('Syncing likes and playlists…'),
-            LinkSyncPhase.finalizing => lokalText(
-              'Updating your profile…',
+            LinkSyncPhase.library => lokalText(
+              'Syncing likes, playlists and metadata…',
             ),
+            LinkSyncPhase.finalizing => lokalText('Updating your profile…'),
             LinkSyncPhase.complete => lokalText('Libraries are up to date'),
             LinkSyncPhase.paused => lokalText('Library sync paused'),
           };

@@ -197,6 +197,53 @@ void main() {
     expect(audio.headers['User-Agent'], contains('com.google.android.youtube'));
   });
 
+  test('tries another client when a valid player response has a denied media URL', () async {
+    final asked = <String>[];
+    const deniedHost = 'rr1---sn-abc.googlevideo.com';
+    const allowedHost = 'rr2---sn-abc.googlevideo.com';
+    final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET') {
+        if (request.url.host == deniedHost) return http.Response('', 403);
+        expect(request.headers['range'], 'bytes=0-16383');
+        return http.Response.bytes(
+          [0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32, 32],
+          206,
+          headers: {'content-type': 'audio/mp4'},
+        );
+      }
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final name = body['context']['client']['clientName'] as String;
+      asked.add(name);
+      if (name == 'VISIONOS') {
+        return http.Response(
+          jsonEncode(_player([
+            _format(140, 'audio/mp4; codecs="mp4a.40.2"', 130000, host: deniedHost),
+          ])),
+          200,
+        );
+      }
+      if (name == 'ANDROID_VR') {
+        return http.Response(
+          jsonEncode(_player([
+            _format(140, 'audio/mp4; codecs="mp4a.40.2"', 130000, host: allowedHost),
+          ])),
+          200,
+        );
+      }
+      return http.Response(
+        jsonEncode({
+          'playabilityStatus': {'status': 'UNPLAYABLE'},
+        }),
+        200,
+      );
+    });
+    addTearDown(fake.close);
+
+    final audio = await YoutubeAudio(DiscoveryHttp(fake)).resolve('dQw4w9WgXcQ');
+    expect(asked, ['VISIONOS', 'ANDROID_VR']);
+    expect(audio.url.host, allowedHost);
+  });
+
   test('asks as visionOS first, then the Quest app', () async {
     final asked = <String>[];
     final http.Client fake = MockClient((request) async {

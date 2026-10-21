@@ -156,15 +156,6 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
     }
   }
 
-  Future<void> _setYoutubeCatalogEnabled(bool enabled) async {
-    final current = _settings;
-    if (current == null) return;
-    await _persist(
-      DiscoverySettings(youtubeEnabled: enabled, addons: current.addons).validated(),
-      'Source updated.',
-    );
-  }
-
   Future<void> _setEnabled(int index, bool enabled) async {
     final current = _settings;
     if (current == null || index < 0 || index >= current.addons.length) return;
@@ -204,17 +195,6 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SwitchListTile.adaptive(
-            key: const ValueKey('youtube-catalog-enabled'),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('YouTube Music catalog'),
-            subtitle: const Text('Guest public song search in Discovery.'),
-            value: _settings?.youtubeEnabled ?? false,
-            onChanged: _busy || _settings == null
-                ? null
-                : _setYoutubeCatalogEnabled,
-          ),
-          const Divider(height: 20),
           const Text(
             'HTTP music add-ons',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),

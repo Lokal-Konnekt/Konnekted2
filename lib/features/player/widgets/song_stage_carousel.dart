@@ -132,6 +132,10 @@ class SongStageCarouselState extends State<SongStageCarousel>
       } else {
         await widget.onPrevious();
       }
+      // Notifier callbacks schedule the parent's rebuild; the playback future
+      // can finish before didUpdateWidget receives the newly selected song.
+      // Keep the incoming stage centred until that rebuild has run.
+      if (mounted) await WidgetsBinding.instance.endOfFrame;
       // didUpdateWidget replaces the centred incoming stage. If playback did
       // not advance, return to the real current song rather than snapping it.
       if (mounted && _current.id == before) await _moveTo(0);
@@ -201,8 +205,23 @@ class SongStageCarouselState extends State<SongStageCarousel>
     builder: (context, constraints) {
       final width = constraints.maxWidth;
       if (width <= 0) return const SizedBox.shrink();
-      Widget stage(Song song) =>
-          RepaintBoundary(child: widget.stageBuilder(song));
+      Widget stage(Song song, double offset, String slot) {
+        final repeated =
+            [
+              _previous,
+              _next,
+              _current,
+            ].where((item) => item?.id == song.id).length >
+            1;
+        return Transform.translate(
+          // A neighbour keeps its decoded image when it becomes the centre.
+          // Slot suffixes also allow queues containing the same song twice.
+          key: ValueKey((song.id, repeated ? slot : null)),
+          offset: Offset(offset, 0),
+          child: RepaintBoundary(child: widget.stageBuilder(song)),
+        );
+      }
+
       return ClipRect(
         child: GestureDetector(
           behavior: HitTestBehavior.translucent,
@@ -214,19 +233,9 @@ class SongStageCarouselState extends State<SongStageCarousel>
             fit: StackFit.expand,
             children: [
               if (_previous != null)
-                Transform.translate(
-                  offset: Offset(-width + _offset, 0),
-                  child: stage(_previous!),
-                ),
-              if (_next != null)
-                Transform.translate(
-                  offset: Offset(width + _offset, 0),
-                  child: stage(_next!),
-                ),
-              Transform.translate(
-                offset: Offset(_offset, 0),
-                child: stage(_current),
-              ),
+                stage(_previous!, -width + _offset, 'previous'),
+              if (_next != null) stage(_next!, width + _offset, 'next'),
+              stage(_current, _offset, 'current'),
             ],
           ),
         ),

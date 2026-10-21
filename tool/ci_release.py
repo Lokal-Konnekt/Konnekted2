@@ -122,7 +122,7 @@ def package_apk(apk, destination, flavor, version, code, env, certificate):
                 if f"lib/{abi}/{library}" not in archive.namelist():
                     raise ValueError(f"APK is missing {abi}/{library}")
     destination.mkdir(exist_ok=True)
-    name = f"konnekted-{version}+{code}-{flavor}-arm64-armv7.apk"
+    name = f"Lokal-{version}+{code}-{flavor}-arm64-armv7.apk"
     output = destination / name
     shutil.copyfile(apk, output)
     with output.open("rb") as stream:

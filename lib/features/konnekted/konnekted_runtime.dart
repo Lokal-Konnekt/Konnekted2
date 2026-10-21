@@ -1,3 +1,4 @@
+import 'package:flick/services/local_metadata_repair.dart';
 import 'package:flick/services/lokal_launcher_icon.dart';
 import 'package:flick/features/library_jobs/artist_metadata.dart';
 
@@ -68,7 +69,10 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     });
     ref.listenManual(konnektedLibraryProvider, (_, next) {
       final songs = next.value;
-      if (songs != null) ref.read(artistMetadataProvider.notifier).warm(songs);
+      if (songs != null) {
+        ref.read(artistMetadataProvider.notifier).warm(songs);
+        LocalMetadataRepair.instance.warm(songs);
+      }
     }, fireImmediately: true);
     _player = ref.read(playerServiceProvider);
     _player.isPlayingNotifier.addListener(_updateIconBusy);

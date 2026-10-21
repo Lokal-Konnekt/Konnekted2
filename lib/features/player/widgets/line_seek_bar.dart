@@ -404,47 +404,12 @@ class _LineSeekBarPainter extends CustomPainter {
 
     final dotX = playedWidth.clamp(0.0, trackWidth);
 
-    if (targetStyle) {
-      final thumbHeight = math.min(size.height * 0.58, 14.0);
-      final thumbWidth = 4.0;
-      final thumbRect = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(dotX, centerY),
-          width: thumbWidth,
-          height: thumbHeight,
-        ),
-        const Radius.circular(3),
-      );
-      paint.color = activeColor;
-      canvas.drawRRect(thumbRect, paint);
-      return;
-    }
-
-    if (glowIntensity > 0) {
-      final glowPaint = Paint()..style = PaintingStyle.fill;
-      for (int i = 3; i >= 0; i--) {
-        final radius = dotRadius + (i + 1) * 8.0;
-        final alpha = (glowIntensity * 0.06 / (i + 1)).clamp(0.0, 1.0);
-        glowPaint.color = activeColor.withValues(alpha: alpha);
-        canvas.drawCircle(Offset(dotX, centerY), radius, glowPaint);
-      }
-    }
-
-    final dotPaint = Paint()
-      ..color = activeColor
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(dotX, centerY), dotRadius, dotPaint);
-
-    if (dotRadius > 3) {
-      final highlightPaint = Paint()
-        ..color = Colors.white.withValues(alpha: 0.4)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(
-        Offset(dotX - dotRadius * 0.2, centerY - dotRadius * 0.2),
-        dotRadius * 0.35,
-        highlightPaint,
-      );
-    }
+    final thumbRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(dotX, centerY), width: 4, height: 22),
+      const Radius.circular(2),
+    );
+    paint.color = activeColor;
+    canvas.drawRRect(thumbRect, paint);
   }
 
   @override

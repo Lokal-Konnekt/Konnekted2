@@ -66,7 +66,7 @@ abstract final class LokalPlayerMotion {
             child: ClipRRect(
               clipBehavior: radius > 0 ? Clip.antiAlias : Clip.none,
               borderRadius: BorderRadius.vertical(top: Radius.circular(radius)),
-              child: child,
+              child: RepaintBoundary(child: child),
             ),
           ),
         ),
@@ -545,7 +545,13 @@ class _PullSheetState extends State<_PullSheet>
     // The finger that pulls it belongs to the mini player underneath.
     child: AnimatedBuilder(
       animation: _progress,
-      child: HeroMode(enabled: false, child: Builder(builder: widget.builder)),
+      child: HeroMode(
+        enabled: false,
+        child: TickerMode(
+          enabled: false,
+          child: Builder(builder: widget.builder),
+        ),
+      ),
       builder: (context, child) {
         final sheet = LokalPlayerMotion.sheet(
           progress: _progress.value,

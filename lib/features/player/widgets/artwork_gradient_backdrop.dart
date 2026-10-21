@@ -1,0 +1,150 @@
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flick/core/theme/lokal_appearance.dart';
+
+/// Artwork palette, painted directly: no second artwork decode, image blur,
+/// backdrop capture, rotation texture or saveLayer on the slide-up path.
+class ArtworkGradientBackdrop extends ConsumerStatefulWidget {
+  const ArtworkGradientBackdrop({super.key, required this.colors})
+    : assert(colors.length > 0);
+  final List<Color> colors;
+  @override
+  ConsumerState<ArtworkGradientBackdrop> createState() =>
+      _ArtworkGradientBackdropState();
+}
+
+class _ArtworkGradientBackdropState
+    extends ConsumerState<ArtworkGradientBackdrop>
+    with TickerProviderStateMixin {
+  late final _drift = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 18),
+    value: .5,
+  );
+  late final _palette = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 650),
+    value: 1,
+  );
+  late List<Color> _from = widget.colors;
+  Animation<double>? _route;
+  bool _reduceMotion = false;
+  bool _performance = true;
+  Color _color(int index) => Color.lerp(
+    _from[index % _from.length],
+    widget.colors[index % widget.colors.length],
+    Curves.easeInOut.transform(_palette.value),
+  )!;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final route = ModalRoute.of(context)?.animation;
+    if (!identical(route, _route)) {
+      _route?.removeStatusListener(_routeChanged);
+      _route = route;
+      route?.addStatusListener(_routeChanged);
+    }
+    _configure();
+  }
+
+  void _routeChanged(AnimationStatus _) => _configure();
+  void _configure() {
+    final settled =
+        _route == null || _route!.status == AnimationStatus.completed;
+    if (_performance || _reduceMotion || !settled) {
+      _drift.stop();
+    } else if (!_drift.isAnimating) {
+      _drift.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(ArtworkGradientBackdrop oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(oldWidget.colors, widget.colors)) {
+      final t = Curves.easeInOut.transform(_palette.value);
+      _from = List.generate(
+        3,
+        (i) => Color.lerp(
+          _from[i % _from.length],
+          oldWidget.colors[i % oldWidget.colors.length],
+          t,
+        )!,
+      );
+      if (_reduceMotion) {
+        _palette.value = 1;
+      } else {
+        _palette.forward(from: 0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _route?.removeStatusListener(_routeChanged);
+    _drift.dispose();
+    _palette.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _performance = ref.watch(
+      lokalAppearanceProvider.select(
+        (appearance) => appearance.performanceMode,
+      ),
+    );
+    _configure();
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: _PalettePainter(
+          Listenable.merge([_drift, _palette]),
+          _color,
+          () => _drift.value,
+        ),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+class _PalettePainter extends CustomPainter {
+  _PalettePainter(Listenable repaint, this.color, this.phase)
+    : super(repaint: repaint);
+  final Color Function(int) color;
+  final double Function() phase;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawRect(
+      rect,
+      Paint()..color = Color.lerp(color(0), Colors.black, .58)!,
+    );
+    final t = math.sin(phase() * math.pi - math.pi / 2);
+    for (var i = 0; i < 3; i++) {
+      final center = Alignment(
+        i == 1 ? .7 - t * .15 : -.7 + t * .2,
+        i == 2 ? .8 : -.6 + i * .65,
+      );
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = RadialGradient(
+            center: center,
+            radius: 1.15,
+            colors: [
+              color(i).withValues(alpha: .55),
+              color(i).withValues(alpha: 0),
+            ],
+          ).createShader(rect),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PalettePainter oldDelegate) => true;
+}

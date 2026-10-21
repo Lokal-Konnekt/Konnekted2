@@ -53,6 +53,14 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
     });
   }
 
+  bool _earned(MilestoneType type) =>
+      (_current[type.category] ?? 0) >= type.threshold ||
+      _records.keys.any(
+        (record) =>
+            record.category == type.category &&
+            record.threshold >= type.threshold,
+      );
+
   @override
   Widget build(BuildContext context) {
     ref.listen(milestoneRevisionProvider, (_, _) {
@@ -68,7 +76,7 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
     final available = MilestoneType.values
         .where((type) => categories.contains(type.category))
         .toList();
-    final earned = available.where(_records.containsKey).length;
+    final earned = available.where(_earned).length;
     return Scaffold(
       backgroundColor: t.bg,
       body: SafeArea(
@@ -289,6 +297,7 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
                           itemCount: types.length,
                           itemBuilder: (context, index) => _BadgeTile(
                             type: types[index],
+                            earned: _earned(types[index]),
                             record: _records[types[index]],
                             current: _current[category] ?? 0,
                             onTap: () => _handleTileTap(
@@ -331,8 +340,8 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
     MilestoneType type,
     MilestoneRecord? record,
   ) async {
-    if (record != null) {
-      await _showCelebration(type, achievedAt: record.achievedAt);
+    if (_earned(type)) {
+      await _showCelebration(type, achievedAt: record?.achievedAt);
     } else {
       await _showLockedSheet(type);
     }
@@ -340,7 +349,7 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
 
   Future<void> _showCelebration(
     MilestoneType type, {
-    required DateTime achievedAt,
+    DateTime? achievedAt,
   }) async {
     final next = await _service.getNextMilestone();
     if (!mounted) return;
@@ -392,18 +401,19 @@ class _BadgeTile extends StatelessWidget {
   const _BadgeTile({
     required this.type,
     required this.record,
+    required this.earned,
     required this.current,
     required this.onTap,
   });
   final MilestoneType type;
   final MilestoneRecord? record;
+  final bool earned;
   final int current;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = context.lokal;
-    final earned = record != null;
     return Material(
       color: earned ? t.surface : t.surface2,
       borderRadius: BorderRadius.circular(24),
@@ -463,8 +473,10 @@ class _BadgeTile extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 earned
-                    ? MaterialLocalizations.of(context)
-                          .formatShortDate(record!.achievedAt.toLocal())
+                    ? record == null
+                          ? 'Unlocked'
+                          : MaterialLocalizations.of(context)
+                                .formatShortDate(record!.achievedAt.toLocal())
                     : '$current / ${type.threshold}',
                 style: TextStyle(
                   color: t.muted,

@@ -455,7 +455,9 @@ class MorneyeNetwork {
     };
   }
 
-  void close() => _client.close(force: true);
+  // Let active response finalizers return their connection before it closes.
+  // Force-closing the pool races Dart's _HttpClient._returnConnection.
+  void close() => _client.close();
 }
 
 /// Reads [stream] into memory, failing past [limit] bytes.

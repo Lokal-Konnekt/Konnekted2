@@ -18,13 +18,14 @@ List<Song> preferLocalLibrarySongs(List<Song> songs) {
   }
   return [
     for (final song in songs)
-      if (song.sourceType != 'lokal' ||
-          song.duration <= Duration.zero ||
-          !(local[key(song)] ?? const <Song>[]).any(
-            (candidate) =>
-                (candidate.duration - song.duration).abs() <=
-                const Duration(seconds: 2),
-          ))
+      if (!(song.filePath?.startsWith('ghost://') ?? false) &&
+          (song.sourceType != 'lokal' ||
+              song.duration <= Duration.zero ||
+              !(local[key(song)] ?? const <Song>[]).any(
+                (candidate) =>
+                    (candidate.duration - song.duration).abs() <=
+                    const Duration(seconds: 2),
+              )))
         song,
   ];
 }

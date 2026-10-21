@@ -1,3 +1,8 @@
+import 'package:isar_community/isar.dart';
+
+import '../data/database.dart';
+import 'link/link_journal.dart';
+
 import 'dart:convert';
 import 'dart:async';
 
@@ -347,7 +352,21 @@ class MilestoneService {
 
   Future<int> getAccumulatedListenSeconds() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_accumulatedListenSecondsKey) ?? 0;
+    final local = prefs.getInt(_accumulatedListenSecondsKey) ?? 0;
+    if (!Database.isInitialized) return local;
+    final ownDevice = await LinkJournal.instance.deviceId();
+    final imported = await Database.instance.playEventEntitys
+        .filter()
+        .not()
+        .deviceIdEqualTo(ownDevice)
+        .findAll();
+    // Stable event IDs make repeated syncs idempotent. Own phone events are
+    // already included in the local live counter and must not be added twice.
+    final remoteMs = imported.fold<int>(
+      0,
+      (sum, event) => sum + event.msPlayed,
+    );
+    return local + remoteMs ~/ 1000;
   }
 
   Future<void> addListenSeconds(int seconds) async {
@@ -452,14 +471,27 @@ class MilestoneService {
 
   Future<bool> isMilestoneShown(MilestoneType type) async {
     final shown = await getShownMilestones();
-    return shown.any((r) => r.type == type);
+    return shown.any(
+      (r) =>
+          r.type.category == type.category &&
+          r.type.threshold >= type.threshold,
+    );
   }
 
   /// Highest reached-but-unshown tier, preferring categories in declaration
   /// order (songs → hours → dayStreak → uniqueArtists) and, within a category,
   /// the highest threshold met.
   Future<MilestoneType?> checkMilestones() async {
-    final shownSet = (await getShownMilestones()).map((r) => r.type).toSet();
+    final records = await getShownMilestones();
+    final shownSet = {
+      for (final type in MilestoneType.values)
+        if (records.any(
+          (r) =>
+              r.type.category == type.category &&
+              r.type.threshold >= type.threshold,
+        ))
+          type,
+    };
     final values = await _currentValues();
 
     for (final category in MilestoneCategory.values) {
@@ -479,7 +511,15 @@ class MilestoneService {
   /// declaration order) along with the units still needed to unlock it.
   Future<({MilestoneType? next, int remaining})> getNextMilestone() async {
     final shown = await getShownMilestones();
-    final shownSet = shown.map((r) => r.type).toSet();
+    final shownSet = {
+      for (final type in MilestoneType.values)
+        if (shown.any(
+          (r) =>
+              r.type.category == type.category &&
+              r.type.threshold >= type.threshold,
+        ))
+          type,
+    };
     final values = await _currentValues();
 
     for (final type in MilestoneType.values) {

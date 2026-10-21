@@ -1,3 +1,5 @@
+import 'lyrics_matching.dart';
+
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -56,7 +58,9 @@ class OnlineLyricsResult {
     if (lines.isEmpty) return null;
     // Strip LRC tags for snippet
     final clean = lines
-        .map((l) => l.replaceAll(RegExp(r'\[\d{2}:\d{2}\.\d{2,3}\]'), '').trim())
+        .map(
+          (l) => l.replaceAll(RegExp(r'\[\d{2}:\d{2}\.\d{2,3}\]'), '').trim(),
+        )
         .where((l) => l.isNotEmpty)
         .toList();
     if (clean.isEmpty) return null;
@@ -128,6 +132,63 @@ class OnlineLyricsService {
     }
   }
 
+  /// Exact request then a duration-constrained search, as desktop does.
+  Future<OnlineLyricsResult?> fetchBest({
+    required String artist,
+    required String title,
+    String? album,
+    Duration? duration,
+  }) async {
+    final cleanTitle = lyricsSearchTitle(title),
+        cleanArtist = lyricsSearchArtist(artist);
+    final exact = await fetchExact(
+      artist: artist,
+      title: title,
+      album: album,
+      duration: duration,
+    );
+    bool near(OnlineLyricsResult row) =>
+        duration == null ||
+        duration.inSeconds == 0 ||
+        row.duration == null ||
+        (row.duration! - duration.inMilliseconds / 1000).abs() <= 5;
+    if (exact != null &&
+        near(exact) &&
+        (exact.hasSyncedLyrics || exact.instrumental))
+      return exact;
+    final cleanExact = cleanTitle != title || cleanArtist != artist
+        ? await fetchExact(
+            artist: cleanArtist,
+            title: cleanTitle,
+            duration: duration,
+          )
+        : null;
+    if (cleanExact != null && near(cleanExact) && cleanExact.hasSyncedLyrics)
+      return cleanExact;
+    final candidates =
+        (await search(artist: cleanArtist, title: cleanTitle))
+            .where(
+              (row) =>
+                  near(row) &&
+                  lyricsMatchName(lyricsSearchTitle(row.trackName ?? '')) ==
+                      lyricsMatchName(cleanTitle) &&
+                  lyricsMatchName(lyricsSearchArtist(row.artistName ?? '')) ==
+                      lyricsMatchName(cleanArtist),
+            )
+            .toList()
+          ..sort(
+            (a, b) => ((a.duration ?? 0) - (duration?.inSeconds ?? 0))
+                .abs()
+                .compareTo(
+                  ((b.duration ?? 0) - (duration?.inSeconds ?? 0)).abs(),
+                ),
+          );
+    return candidates.where((row) => row.hasSyncedLyrics).firstOrNull ??
+        (exact != null && near(exact) ? exact : null) ??
+        (cleanExact != null && near(cleanExact) ? cleanExact : null) ??
+        candidates.where((row) => row.hasPlainLyrics).firstOrNull;
+  }
+
   Future<OnlineLyricsResult?> fetchExact({
     required String artist,
     required String title,
@@ -153,8 +214,8 @@ class OnlineLyricsService {
       queryParams['duration'] = duration.inSeconds.toString();
     }
 
-    final uri =
-        Uri.parse('$_baseUrl/get').replace(queryParameters: queryParams);
+    final uri = Uri.parse('$_baseUrl/get')
+        .replace(queryParameters: queryParams);
     try {
       final response = await _client.get(uri).timeout(_requestTimeout);
       if (response.statusCode == 200) {
@@ -201,17 +262,14 @@ class OnlineLyricsService {
       queryParams['album_name'] = album;
     }
 
-    final uri =
-        Uri.parse('$_baseUrl/search').replace(queryParameters: queryParams);
+    final uri = Uri.parse('$_baseUrl/search')
+        .replace(queryParameters: queryParams);
     try {
       final response = await _client.get(uri).timeout(_requestTimeout);
       if (response.statusCode == 200) {
         final list = jsonDecode(response.body) as List<dynamic>;
         final results = list
-            .map(
-              (e) =>
-                  OnlineLyricsResult.fromJson(e as Map<String, dynamic>),
-            )
+            .map((e) => OnlineLyricsResult.fromJson(e as Map<String, dynamic>))
             .toList();
         _put(_searchCache, cacheKey, results);
         return results;

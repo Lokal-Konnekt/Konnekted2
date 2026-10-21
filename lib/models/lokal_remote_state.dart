@@ -256,6 +256,7 @@ enum LinkSyncPhase {
   idle,
   preparing,
   catalog,
+  metadata,
   history,
   library,
   finalizing,
@@ -279,6 +280,7 @@ class LinkSyncProgress {
   bool get busy => switch (phase) {
     LinkSyncPhase.preparing ||
     LinkSyncPhase.catalog ||
+    LinkSyncPhase.metadata ||
     LinkSyncPhase.history ||
     LinkSyncPhase.library ||
     LinkSyncPhase.finalizing => true,

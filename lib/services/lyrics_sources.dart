@@ -1,8 +1,9 @@
+import 'graceful_http_client.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/models/song.dart';
 
@@ -96,7 +97,7 @@ class AdditionalLyricsSources {
     Song song, {
     bool Function()? stillCurrent,
   }) async {
-    final client = http.Client();
+    final client = GracefulHttpClient();
     Future<String?> text(String endpoint, Map<String, String> query) async {
       if (stillCurrent != null && !stillCurrent()) return null;
       final uri = Uri.parse(endpoint)

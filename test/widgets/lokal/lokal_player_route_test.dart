@@ -123,13 +123,17 @@ void main() {
     expect(top, inInclusiveRange(_miniTop - 230, _miniTop - 190));
     await gesture.up();
     await tester.pump();
-    // Handed to the route right where the finger let go: no jump.
-    final route = home.route!;
-    expect(route.progress, closeTo(1 - top / _miniTop, .02));
-    await tester.pump(const Duration(milliseconds: 16));
-    expect(sheetTop(tester), lessThanOrEqualTo(top));
+    // The overlay finishes its spring before handing over the same player
+    // state. It must keep moving upwards throughout, without a handoff jump.
+    var lastTop = top;
+    for (var frame = 0; frame < 120 && home.route == null; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final nextTop = sheetTop(tester);
+      expect(nextTop, lessThanOrEqualTo(lastTop + .1));
+      lastTop = nextTop;
+    }
     await tester.pumpAndSettle();
-    expect(route.progress, 1);
+    expect(home.route!.progress, 1);
     expect(sheetTop(tester), 0);
   });
 

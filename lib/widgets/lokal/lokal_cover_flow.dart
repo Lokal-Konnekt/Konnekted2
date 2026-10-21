@@ -65,10 +65,13 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   late final Listenable _animation = Listenable.merge([_position, _flip]);
   final _faces = <String, Widget>{};
   double? _faceSize;
+  bool _reduceMotion = false;
+  bool _disposing = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
     _faces.clear(); // Theme, locale and text-size changes rebuild the faces.
   }
 
@@ -95,6 +98,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
 
   @override
   void dispose() {
+    _disposing = true;
     _position.dispose();
     _flip.dispose();
     super.dispose();
@@ -110,9 +114,8 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     setState(() {});
   }
 
-  bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
-
   void _settle({double velocity = 0}) {
+    if (!mounted || _disposing) return;
     // Momentum carries roughly a third of a second of the fling.
     final projected = _position.value + velocity * .32;
     final target = projected.round().clamp(0, _last).toDouble();

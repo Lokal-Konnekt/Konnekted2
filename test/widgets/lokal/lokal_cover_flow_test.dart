@@ -36,6 +36,29 @@ void main() {
     _album('Third', [_track('3a', 'Third')]),
   ];
 
+  testWidgets(
+    'removing cover flow during a drag does not query a dead context',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          LokalCoverFlow(
+            albums: albums,
+            cover: (_) => const ColoredBox(color: Colors.blueGrey),
+            onPlay: (_, _) {},
+          ),
+        ),
+      );
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(LokalCoverFlow)),
+      );
+      await gesture.moveBy(const Offset(-40, 0));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await gesture.cancel();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('a swipe spins to the next album and settles on it', (
     tester,
   ) async {

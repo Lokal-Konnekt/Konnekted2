@@ -215,7 +215,9 @@ const List<ManualSection> kManualSections = [
       ManualEntry(
         title: 'Lyrics',
         body: 'Tap the lyrics icon to open the lyrics view. If synced lyrics are available, they highlight in time with the music.',
-        tips: ['Tap the edit icon in lyrics to open the Lyrics Sync Studio.'],
+        tips: [
+          'Use the translate and romanize icons above lyrics to show a subline.',
+        ],
       ),
       ManualEntry(
         title: 'Equalizer',
@@ -296,7 +298,7 @@ const List<ManualSection> kManualSections = [
   ),
   ManualSection(
     id: 'lyrics',
-    title: 'Lyrics & Sync Studio',
+    title: 'Lyrics',
     icon: LucideIcons.fileText,
     entries: [
       ManualEntry(
@@ -305,15 +307,11 @@ const List<ManualSection> kManualSections = [
       ),
       ManualEntry(
         title: 'Fetching lyrics',
-        body: 'Lokal fetches lyrics automatically when available. You can also paste or edit them manually.',
+        body: 'Enable automatic lyrics and order providers in Playback settings. Use the source selector above lyrics to try another match.',
       ),
       ManualEntry(
-        title: 'Sync Studio',
-        body: 'Open from the lyrics edit icon. Tap "Set" as each line plays to time-sync lyrics to the music. Save to persist the sync.',
-        tips: [
-          'Use the waveform scrubber to jump to a line you missed.',
-          'Re-sync a line by tapping it again at the right moment.',
-        ],
+        title: 'Translation and romanization',
+        body: 'Tap Translate to show lyrics in the app language, or Romanize to show non-Latin lyrics in Latin script. Source translations are preferred; other requests use the same on-demand translation service as desktop. Tap the selected icon again to return to the original.',
       ),
     ],
   ),

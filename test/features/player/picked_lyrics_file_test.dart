@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flick/features/player/screens/lyrics_sync_screen.dart';
+import 'package:flick/features/player/widgets/picked_lyrics_file.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:share_plus/share_plus.dart' show XFile;
 
@@ -26,7 +26,8 @@ void main() {
 }
 
 final class _PickedFile extends PlatformFile {
-  _PickedFile(List<int> bytes, {this.error}) : bytes = Uint8List.fromList(bytes);
+  _PickedFile(List<int> bytes, {this.error})
+    : bytes = Uint8List.fromList(bytes);
   final Uint8List bytes;
   final FileSystemException? error;
 
@@ -45,6 +46,7 @@ final class _PickedFile extends PlatformFile {
     if (error != null) throw error!;
     return bytes;
   }
+
   @override
   Stream<Uint8List> readAsByteStream() => Stream.value(bytes);
 }

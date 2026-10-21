@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.repository == 'Lokal-Konnekt/Konnekted2'
+    if: github.repository == 'Lokal-Konnekt/lokal-mobile'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -103,7 +103,7 @@ jobs:
     name: Publish trusted tag
     needs: [prepare, signed-apks]
     if: >-
-      github.repository == 'Lokal-Konnekt/Konnekted2' &&
+      github.repository == 'Lokal-Konnekt/lokal-mobile' &&
       github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 10

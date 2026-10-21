@@ -231,7 +231,7 @@ class KonnektedHomeTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final at = now ?? DateTime.now();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
+      padding: konnektedTopBarPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

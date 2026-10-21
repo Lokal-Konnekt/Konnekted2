@@ -73,15 +73,21 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
     _dockCollapsed.value = false;
   }
 
-  /// Scrolling down tucks the dock away, scrolling up brings it back, like
-  /// Apple Music on iOS 26. Sideways shelves and Cover Flow don't count.
-  bool _onScroll(UserScrollNotification n) {
+  /// Follow the first non-zero user scroll delta, including overscroll at
+  /// the top. Ballistic updates cannot undo a deliberate direction reversal.
+  /// Horizontal shelves and the dock's own player gestures are outside this.
+  bool _onScroll(ScrollNotification n) {
     if (n.metrics.axis != Axis.vertical) return false;
-    if (n.direction == ScrollDirection.reverse && n.metrics.extentBefore > 24) {
-      _dockCollapsed.value = true;
-    } else if (n.direction == ScrollDirection.forward) {
-      _dockCollapsed.value = false;
+    double? delta;
+    if (n is ScrollUpdateNotification && n.dragDetails != null) {
+      delta = n.scrollDelta;
+    } else if (n is OverscrollNotification && n.dragDetails != null) {
+      delta = n.overscroll;
+    } else if (n is UserScrollNotification) {
+      if (n.direction == ScrollDirection.reverse) _dockCollapsed.value = true;
+      if (n.direction == ScrollDirection.forward) _dockCollapsed.value = false;
     }
+    if (delta != null && delta != 0) _dockCollapsed.value = delta > 0;
     return false;
   }
 
@@ -167,6 +173,14 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
 
   /// The mini player, for where Now Playing rises from and sinks back to.
   final _miniPlayerKey = GlobalKey();
+  final _miniArtworkKey = GlobalKey();
+  final _playerPageKey = GlobalKey();
+
+  Rect? _miniArtworkRect() {
+    final box = _miniArtworkKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
 
   /// Now Playing while a finger pulls it up out of the mini player.
   LokalPlayerPull? _pull;
@@ -181,22 +195,35 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
   static const _playerHero = 'konnekted-player-art';
 
   Future<void> _openPlayer({double? from}) async {
+    if (from == null && _pull != null) {
+      _pull!.open();
+      return;
+    }
     final result = await NavigationHelper.navigateToFullPlayer(
       context,
       heroTag: _playerHero,
       startTop: _miniPlayerTop,
       initialProgress: from,
+      sourceArtwork: _miniArtworkRect,
+      playerKey: _playerPageKey,
     );
     if (result != null && mounted) _legacyNavigate(result);
   }
 
   void _pullPlayerStart() {
-    _pull?.end(0);
+    if (_pull != null) {
+      _pull!.resume();
+      return;
+    }
     _pull = NavigationHelper.pullFullPlayer(
       context,
       heroTag: _playerHero,
       startTop: _miniPlayerTop,
+      sourceArtwork: _miniArtworkRect,
+      playerKey: _playerPageKey,
+      onClosed: () => _pull = null,
       onOpen: (progress) {
+        _pull = null;
         if (mounted) unawaited(_openPlayer(from: progress));
       },
     );
@@ -204,7 +231,6 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
 
   void _pullPlayerEnd(double velocityDown) {
     _pull?.end(velocityDown);
-    _pull = null;
   }
 
   Future<void> _play(Song song, List<Song> songs) async {
@@ -250,6 +276,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
 
   @override
   void dispose() {
+    _pull?.cancel();
     _tab.dispose();
     _dockCollapsed.dispose();
     super.dispose();
@@ -303,7 +330,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                             ),
                           ),
                         ),
-                        child: NotificationListener<UserScrollNotification>(
+                        child: NotificationListener<ScrollNotification>(
                           onNotification: _onScroll,
                           child: Navigator(
                             key: nestedNavigatorKey,
@@ -352,6 +379,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                             onExpand: () => _dockCollapsed.value = false,
                             miniPlayer: KonnektedMiniPlayer(
                               key: _miniPlayerKey,
+                              artworkKey: _miniArtworkKey,
                               onOpen: _openPlayer,
                               onPullUpStart: _pullPlayerStart,
                               onPullUpUpdate: (dy) => _pull?.dragBy(dy),

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
+import 'lokal_player_artwork.dart';
+
 /// The motion shared by Now Playing and the mini player, like Apple Music:
 /// one 0..1 value (0 = sunk into the mini player, 1 = open) that a finger
 /// moves directly and a spring settles, so a release carries on in one
@@ -12,8 +14,8 @@ abstract final class LokalPlayerMotion {
   /// Close to critically damped, so it lands without wobbling.
   static final spring = SpringDescription.withDampingRatio(
     mass: 1,
-    stiffness: 340,
-    ratio: .95,
+    stiffness: 210,
+    ratio: 1,
   );
 
   /// A release past this share of the way carries on to that end.
@@ -86,10 +88,12 @@ class LokalPlayerRoute<T> extends PageRoute<T> {
     this.startTop,
     this.reduceMotion,
     this.initialProgress,
+    this.sourceArtwork,
     super.settings,
-  }) : _heroes = ValueNotifier(true);
+  }) : _heroes = ValueNotifier(sourceArtwork == null);
 
   final WidgetBuilder builder;
+  final Rect? Function()? sourceArtwork;
 
   /// Where the sheet's top edge starts from and lands back at (the mini
   /// player's top, in global coordinates), read every frame; null or a null
@@ -165,7 +169,9 @@ class LokalPlayerRoute<T> extends PageRoute<T> {
   AnimationController createAnimationController() {
     final controller = super.createAnimationController();
     controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) _heroes.value = true;
+      if (status == AnimationStatus.completed && sourceArtwork == null) {
+        _heroes.value = true;
+      }
     });
     return controller;
   }
@@ -306,21 +312,33 @@ class LokalPlayerRoute<T> extends PageRoute<T> {
   ) => AnimatedBuilder(
     animation: animation,
     child: child,
-    builder: (context, child) => LokalPlayerMotion.sheet(
-      progress: animation.value,
-      startTop: _startTop(MediaQuery.sizeOf(context).height),
-      child: child!,
-    ),
+    builder: (context, child) {
+      final top = _startTop(MediaQuery.sizeOf(context).height);
+      final sheet = LokalPlayerMotion.sheet(
+        progress: animation.value,
+        startTop: top,
+        child: child!,
+      );
+      return sourceArtwork == null
+          ? sheet
+          : LokalPlayerMorph(
+              progress: animation.value,
+              sheetOffset: (1 - animation.value) * top,
+              sourceArtwork: sourceArtwork!,
+              child: sheet,
+            );
+    },
   );
 }
 
 /// A pull up on the mini player: Now Playing rises under the finger, then
-/// on release either opens (handed to `onOpen` with the progress reached,
-/// which pushes a [LokalPlayerRoute] from there) or sinks back. Shown in the
+/// on release either springs fully open before handing its existing player
+/// state to [LokalPlayerRoute], or sinks back. Shown in the
 /// navigator's overlay, because pushing a route mid-drag would cancel the
 /// finger.
 class LokalPlayerPull {
-  LokalPlayerPull._(this._key);
+  LokalPlayerPull._(this._key, this._onClosed);
+  final VoidCallback? _onClosed;
 
   final GlobalKey<_PullSheetState> _key;
   OverlayEntry? _entry;
@@ -332,8 +350,10 @@ class LokalPlayerPull {
     required double? Function() startTop,
     required void Function(double progress) onOpen,
     bool Function()? reduceMotion,
+    Rect? Function()? sourceArtwork,
+    VoidCallback? onClosed,
   }) {
-    final pull = LokalPlayerPull._(GlobalKey<_PullSheetState>());
+    final pull = LokalPlayerPull._(GlobalKey<_PullSheetState>(), onClosed);
     final entry = OverlayEntry(
       builder: (context) => _PullSheet(
         key: pull._key,
@@ -341,11 +361,18 @@ class LokalPlayerPull {
         startTop: startTop,
         reduceMotion: reduceMotion,
         takePending: pull._takePending,
+        sourceArtwork: sourceArtwork,
         onOpen: (progress) {
+          // Remove and push in the same frame. The caller shares the player's
+          // GlobalKey with the route, preserving decoded artwork, backdrop
+          // phase, listeners and layout instead of mounting a second player.
           pull._remove();
           onOpen(progress);
         },
-        onClosed: pull._remove,
+        onClosed: () {
+          pull._remove();
+          onClosed?.call();
+        },
       ),
     );
     pull._entry = entry;
@@ -376,10 +403,16 @@ class LokalPlayerPull {
     final state = _key.currentState;
     if (state == null) {
       _remove(); // Let go before the sheet was even built.
+      _onClosed?.call();
     } else {
       state.end(velocityDown);
     }
   }
+
+  /// A new gesture can take over an in-flight settling spring.
+  void resume() => _key.currentState?.resume();
+  void open() => _key.currentState?.open();
+  void cancel() => _remove();
 
   void _remove() {
     final entry = _entry;
@@ -399,6 +432,7 @@ class _PullSheet extends StatefulWidget {
     required this.onClosed,
     required this.takePending,
     this.reduceMotion,
+    this.sourceArtwork,
   });
 
   final WidgetBuilder builder;
@@ -407,6 +441,7 @@ class _PullSheet extends StatefulWidget {
   final void Function(double progress) onOpen;
   final VoidCallback onClosed;
   final bool Function()? reduceMotion;
+  final Rect? Function()? sourceArtwork;
 
   @override
   State<_PullSheet> createState() => _PullSheetState();
@@ -451,7 +486,7 @@ class _PullSheetState extends State<_PullSheet>
       fromOpen: false,
     )) {
       HapticFeedback.selectionClick();
-      widget.onOpen(_progress.value);
+      _settleOpen(velocityDown);
       return;
     }
     if (_reduced || _progress.value == 0) {
@@ -466,7 +501,37 @@ class _PullSheetState extends State<_PullSheet>
             -velocityDown / LokalPlayerMotion.travel(_startTop()),
           ),
         )
-        .whenCompleteOrCancel(widget.onClosed);
+        .then((_) {
+          if (mounted && _released) widget.onClosed();
+        });
+  }
+
+  void resume() {
+    _progress.stop();
+    _released = false;
+  }
+
+  void open() {
+    _released = true;
+    _settleOpen(0);
+  }
+
+  void _settleOpen(double velocityDown) {
+    if (_reduced || _progress.value == 1) {
+      widget.onOpen(1);
+      return;
+    }
+    _progress
+        .animateWith(
+          LokalPlayerMotion.simulation(
+            _progress.value,
+            1,
+            -velocityDown / LokalPlayerMotion.travel(_startTop()),
+          ),
+        )
+        .then((_) {
+          if (mounted && _released) widget.onOpen(1);
+        });
   }
 
   @override
@@ -481,11 +546,21 @@ class _PullSheetState extends State<_PullSheet>
     child: AnimatedBuilder(
       animation: _progress,
       child: HeroMode(enabled: false, child: Builder(builder: widget.builder)),
-      builder: (context, child) => LokalPlayerMotion.sheet(
-        progress: _progress.value,
-        startTop: _startTop(),
-        child: child!,
-      ),
+      builder: (context, child) {
+        final sheet = LokalPlayerMotion.sheet(
+          progress: _progress.value,
+          startTop: _startTop(),
+          child: child!,
+        );
+        return widget.sourceArtwork == null
+            ? sheet
+            : LokalPlayerMorph(
+                progress: _progress.value,
+                sheetOffset: (1 - _progress.value) * _startTop(),
+                sourceArtwork: widget.sourceArtwork!,
+                child: sheet,
+              );
+      },
     ),
   );
 }

@@ -131,8 +131,10 @@ class LokalPageBar extends StatelessWidget {
     this.showBack = true,
     this.leading,
     this.actions = const [],
+    this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 0),
   });
 
+  final EdgeInsetsGeometry padding;
   final bool showBack;
   final Widget? leading;
   final List<Widget> actions;
@@ -141,7 +143,7 @@ class LokalPageBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final canPop = showBack && Navigator.of(context).canPop();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: padding,
       child: SizedBox(
         height: 44,
         child: Row(
@@ -177,8 +179,10 @@ class LokalRoundAction extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.iconSize = 22,
   });
 
+  final double iconSize;
   final IconData icon;
   final String label;
   final VoidCallback? onPressed;
@@ -190,7 +194,7 @@ class LokalRoundAction extends StatelessWidget {
     child: LokalGlassButton(
       semanticLabel: label,
       onPressed: onPressed,
-      child: Icon(icon, color: context.lokal.text, size: 22),
+      child: Icon(icon, color: context.lokal.text, size: iconSize),
     ),
   );
 }

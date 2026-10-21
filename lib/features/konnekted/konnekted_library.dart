@@ -109,15 +109,18 @@ class KonnektedLibrary extends ConsumerWidget {
         slivers: [
           SliverToBoxAdapter(
             child: LokalPageBar(
+              padding: konnektedTopBarPadding,
               showBack: false,
               leading: LokalRoundAction(
                 icon: Icons.add_rounded,
+                iconSize: 24,
                 label: lokalText('Add music, playlists and folders'),
                 onPressed: () => _showAdd(context, ref),
               ),
               actions: [
                 LokalRoundAction(
                   icon: Icons.settings_rounded,
+                  iconSize: 24,
                   label: lokalText('Library settings'),
                   onPressed: () => onNavigate(_librarySettings),
                 ),

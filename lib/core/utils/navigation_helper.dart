@@ -44,6 +44,8 @@ class NavigationHelper {
     required String heroTag,
     double? Function()? startTop,
     double? initialProgress,
+    Rect? Function()? sourceArtwork,
+    Key? playerKey,
   }) async {
     // Prevent multiple simultaneous navigations
     if (_isNavigating || _isFullPlayerOpen) {
@@ -83,9 +85,11 @@ class NavigationHelper {
           ? rootNavigatorKey.currentState!
           : Navigator.of(context);
       final route = LokalPlayerRoute<int>(
-        builder: (context) => FullPlayerScreen(heroTag: heroTag),
+        builder: (context) =>
+            FullPlayerScreen(key: playerKey, heroTag: heroTag),
         startTop: startTop,
         initialProgress: initialProgress,
+        sourceArtwork: sourceArtwork,
         reduceMotion: () => AppConstants.animationNormal == Duration.zero,
         settings: const RouteSettings(name: '/full_player'),
       );
@@ -116,14 +120,19 @@ class NavigationHelper {
     required String heroTag,
     required double? Function() startTop,
     required void Function(double progress) onOpen,
+    Rect? Function()? sourceArtwork,
+    VoidCallback? onClosed,
+    Key? playerKey,
   }) {
     if (_isNavigating || _isFullPlayerOpen) return null;
     final navigator = rootNavigatorKey.currentState ?? Navigator.of(context);
     return LokalPlayerPull.start(
       navigator,
-      builder: (_) => FullPlayerScreen(heroTag: heroTag),
+      builder: (_) => FullPlayerScreen(key: playerKey, heroTag: heroTag),
       startTop: startTop,
       onOpen: onOpen,
+      sourceArtwork: sourceArtwork,
+      onClosed: onClosed,
       reduceMotion: () => AppConstants.animationNormal == Duration.zero,
     );
   }

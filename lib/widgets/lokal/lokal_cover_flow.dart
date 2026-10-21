@@ -180,7 +180,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = math.min(220.0, constraints.maxWidth * .52);
-        _albumWidth = size * .6;
+        _albumWidth = size * .72;
         _stageWidth = constraints.maxWidth;
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -276,8 +276,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final ad = d.abs();
     final side = d.sign;
     final near = ad.clamp(0.0, 1.0);
-    // Facing album to first neighbour: slide out, turn, and sink back. Past
-    // that, neighbours stack tighter at a fixed angle.
+    // Facing album to first neighbour: slide out, turn, and sink back.
     // The original iPod Cover Flow leaves a clear front-facing cover and
     // fans its neighbours behind it. Give each side cover its own spacing
     // and depth instead of flattening the whole stack onto one plane.
@@ -285,7 +284,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
         ? d * size * .72
         : side * (size * .72 + (ad - 1) * size * .30);
     final angle = reduce ? 0.0 : -side * near * 70 * math.pi / 180;
-    final depth = reduce ? 0.0 : 26 - math.min(ad, 4) * 42;
+    final depth = reduce ? 0.0 : (26 - math.min(ad, 4) * 42).toDouble();
     final facing = i == _index;
     final flip = facing ? _flip.value : 0.0;
 

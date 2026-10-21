@@ -40,7 +40,7 @@ class YoutubeAudio {
           )
           .timeout(const Duration(seconds: 6));
       if (response.statusCode != 200) return null;
-      return RegExp(r'"INNERTUBE_CLIENT_VERSION"\\s*:\\s*"([^"]+)"')
+      return RegExp(r'"INNERTUBE_CLIENT_VERSION"\s*:\s*"([^"]+)"')
           .firstMatch(response.body)
           ?.group(1);
     } catch (_) {

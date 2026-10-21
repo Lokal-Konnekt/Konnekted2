@@ -200,6 +200,13 @@ void main() {
   test('asks as visionOS first, then the Quest app', () async {
     final asked = <String>[];
     final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response.bytes(
+          [0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32, 32],
+          206,
+          headers: {'content-type': 'audio/mp4'},
+        );
+      }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       final name = body['context']['client']['clientName'] as String;
       asked.add(name);

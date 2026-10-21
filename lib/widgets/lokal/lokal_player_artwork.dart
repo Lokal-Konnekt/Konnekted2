@@ -52,10 +52,10 @@ class LokalPlayerArtwork extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) =>
-      enabled && LokalPlayerMorph.activeOf(context)
-      ? _ArtworkAnchor(child: child)
-      : child;
+  Widget build(BuildContext context) => _ArtworkAnchor(
+    enabled: enabled && LokalPlayerMorph.activeOf(context),
+    child: child,
+  );
 }
 
 class _ArtworkPortal extends SingleChildRenderObjectWidget {
@@ -144,35 +144,81 @@ class _RenderArtworkPortal extends RenderProxyBox {
 }
 
 class _ArtworkAnchor extends SingleChildRenderObjectWidget {
-  const _ArtworkAnchor({required super.child});
+  const _ArtworkAnchor({required this.enabled, required super.child});
+  final bool enabled;
   @override
   _RenderArtworkAnchor createRenderObject(BuildContext context) =>
-      _RenderArtworkAnchor();
+      _RenderArtworkAnchor(enabled);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderArtworkAnchor object) {
+    object.enabled = enabled;
+  }
 }
 
 class _RenderArtworkAnchor extends RenderProxyBox {
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    RenderObject? ancestor = parent;
+  _RenderArtworkAnchor(this._enabled);
+  bool _enabled;
+  _RenderArtworkPortal? _portal;
+
+  set enabled(bool value) {
+    if (_enabled == value) return;
+    _enabled = value;
+    _register();
+    markNeedsPaint();
+  }
+
+  // Register before painting: the carousel's retained repaint layers can skip
+  // our paint entirely when the player moves from the preview into its route.
+  void _register() {
+    RenderObject? ancestor = _enabled ? parent : null;
     while (ancestor != null && ancestor is! _RenderArtworkPortal) {
       ancestor = ancestor.parent;
     }
-    if (ancestor is _RenderArtworkPortal) {
-      ancestor.artwork = this;
-      if (ancestor.lifting) return;
+    final next = ancestor is _RenderArtworkPortal ? ancestor : null;
+    if (identical(next, _portal)) return;
+    _unregister();
+    _portal = next;
+    if (next != null) {
+      next.artwork = this;
+      next.markNeedsPaint();
+    }
+    markNeedsPaint();
+  }
+
+  void _unregister() {
+    final portal = _portal;
+    _portal = null;
+    if (portal != null && identical(portal.artwork, this)) {
+      portal.artwork = null;
+      portal.markNeedsPaint();
+    }
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _register();
+  }
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    _register();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final portal = _portal;
+    if (portal != null && identical(portal.artwork, this) && portal.lifting) {
+      return;
     }
     super.paint(context, offset);
   }
 
   @override
   void detach() {
-    RenderObject? ancestor = parent;
-    while (ancestor != null && ancestor is! _RenderArtworkPortal) {
-      ancestor = ancestor.parent;
-    }
-    if (ancestor is _RenderArtworkPortal && identical(ancestor.artwork, this)) {
-      ancestor.artwork = null;
-    }
+    _unregister();
     super.detach();
   }
 }

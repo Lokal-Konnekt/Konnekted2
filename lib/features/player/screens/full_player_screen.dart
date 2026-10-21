@@ -644,6 +644,28 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       begin: begin,
                       end: end,
                     ),
+                    flightShuttleBuilder:
+                        (flightContext, animation, direction, fromContext, toContext) =>
+                            AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) => ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          lerpDouble(
+                            21,
+                            28,
+                            Curves.easeInOutCubic.transform(animation.value),
+                          )!,
+                        ),
+                        child: child,
+                      ),
+                      child: CachedImageWidget(
+                        imagePath: song.albumArt,
+                        audioSourcePath: song.filePath,
+                        fit: BoxFit.cover,
+                        placeholder: ColoredBox(color: flightContext.lokal.surface3),
+                        errorWidget: ColoredBox(color: flightContext.lokal.surface3),
+                      ),
+                    ),
                     child: art,
                   )
                 : art,

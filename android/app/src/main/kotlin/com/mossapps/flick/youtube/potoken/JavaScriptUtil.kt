@@ -26,8 +26,8 @@ internal fun parseChallengeData(rawChallengeData: String): String {
     }
 
     val interpreter = JSONObject()
-        .put("privateDoNotAccessOrElseSafeScriptWrappedValue", firstStringIn(1))
-        .put("privateDoNotAccessOrElseTrustedResourceUrlWrappedValue", firstStringIn(2))
+        .put("privateDoNotAccessOrElseSafeScriptWrappedValue", firstStringIn(1) ?: JSONObject.NULL)
+        .put("privateDoNotAccessOrElseTrustedResourceUrlWrappedValue", firstStringIn(2) ?: JSONObject.NULL)
 
     return JSONObject()
         .put("messageId", challenge.getString(0))

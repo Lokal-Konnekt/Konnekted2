@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 /// Butterchurn renders MilkDrop presets in WebGL. The Flutter spectrum painter
@@ -27,6 +28,32 @@ class _MilkDropVisualizerState extends State<MilkDropVisualizer> {
   InAppWebViewController? _controller;
   DateTime _lastSent = DateTime.fromMillisecondsSinceEpoch(0);
   String? _status;
+  late final Future<String> _documentFuture = _loadDocument();
+
+  Future<String> _loadDocument() async {
+    try {
+      final assets = await Future.wait([
+        rootBundle.loadString('assets/milkdrop/butterchurn.min.js'),
+        rootBundle.loadString('assets/milkdrop/butterchurnPresetsMinimal.min.js'),
+      ]);
+      return _document
+          .replaceFirst(
+            '<!-- BUTTERCHURN_ENGINE -->',
+            '<script>\\n${assets[0]}\\n</script>',
+          )
+          .replaceFirst(
+            '<!-- BUTTERCHURN_PRESETS -->',
+            '<script>\\n${assets[1]}\\n</script>',
+          );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _status = 'MilkDrop assets failed to load; using fallback visualizer.');
+      }
+      return _document
+          .replaceFirst('<!-- BUTTERCHURN_ENGINE -->', '')
+          .replaceFirst('<!-- BUTTERCHURN_PRESETS -->', '');
+    }
+  }
 
   @override
   void didUpdateWidget(covariant MilkDropVisualizer oldWidget) {
@@ -71,27 +98,34 @@ class _MilkDropVisualizerState extends State<MilkDropVisualizer> {
   Widget build(BuildContext context) => Stack(
     fit: StackFit.expand,
     children: [
-      InAppWebView(
-        initialData: InAppWebViewInitialData(
-          data: _document,
-          baseUrl: WebUri('https://localhost/'),
-        ),
-        initialSettings: InAppWebViewSettings(
-          javaScriptEnabled: true,
-          transparentBackground: true,
-          supportZoom: false,
-          disableVerticalScroll: true,
-          disableHorizontalScroll: true,
-          mediaPlaybackRequiresUserGesture: false,
-          isInspectable: false,
-        ),
-        onWebViewCreated: (controller) => _controller = controller,
-        onLoadStop: (controller, url) => _sendState(force: true),
-        onConsoleMessage: (controller, message) {
-          if (message.message.contains('MilkDrop library unavailable') ||
-              message.message.contains('WebGL')) {
-            if (mounted) setState(() => _status = 'MilkDrop unavailable');
-          }
+      FutureBuilder<String>(
+        future: _documentFuture,
+        builder: (context, snapshot) {
+          final html = snapshot.data;
+          if (html == null) return const SizedBox.shrink();
+          return InAppWebView(
+            initialData: InAppWebViewInitialData(
+              data: html,
+              baseUrl: WebUri('https://localhost/'),
+            ),
+            initialSettings: InAppWebViewSettings(
+              javaScriptEnabled: true,
+              transparentBackground: true,
+              supportZoom: false,
+              disableVerticalScroll: true,
+              disableHorizontalScroll: true,
+              mediaPlaybackRequiresUserGesture: false,
+              isInspectable: false,
+            ),
+            onWebViewCreated: (controller) => _controller = controller,
+            onLoadStop: (controller, url) => _sendState(force: true),
+            onConsoleMessage: (controller, message) {
+              if (message.message.contains('MilkDrop library unavailable') ||
+                  message.message.contains('WebGL')) {
+                if (mounted) setState(() => _status = 'MilkDrop unavailable');
+              }
+            },
+          );
         },
       ),
       if (_status != null)
@@ -143,8 +177,8 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; back
 canvas { display:block; width:100vw; height:100vh; background:transparent; }
 #status { position:absolute; left:8px; right:8px; bottom:8px; color:#fff; font:12px sans-serif; text-shadow:0 1px 4px #000; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/butterchurn@2.6.7/lib/butterchurn.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/butterchurn-presets@2.4.7/lib/butterchurnPresetsMinimal.min.js"></script>
+<!-- BUTTERCHURN_ENGINE -->
+<!-- BUTTERCHURN_PRESETS -->
 </head>
 <body>
 <canvas id="milkdrop"></canvas><div id="status"></div>
@@ -176,7 +210,7 @@ canvas { display:block; width:100vw; height:100vh; background:transparent; }
     if (visualizer) return true;
     if (unavailable) return false;
     const engine = unwrap(window.butterchurn || window.Butterchurn);
-    const pack = unwrap(window.butterchurnPresets || window.ButterchurnPresets);
+    const pack = unwrap(window.butterchurnPresets || window.butterchurnPresetsMinimal || window.ButterchurnPresets || window.ButterchurnPresetsMinimal);
     if (!engine || !pack) {
       unavailable = true;
       status.textContent = 'MilkDrop library unavailable; showing fallback visualizer.';

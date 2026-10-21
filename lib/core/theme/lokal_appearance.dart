@@ -125,7 +125,9 @@ class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
         ? state
         : state.copyWith(theme: themes.first, clearAccent: true);
     final accentName = value['accent']?.toString();
-    final accents = LokalAccent.values.where((item) => item.name == accentName);
+    final accents = LokalAccent.presets.where(
+      (item) => item.name == accentName,
+    );
     if (accents.isNotEmpty) {
       next = next.copyWith(accent: accents.first);
     } else {

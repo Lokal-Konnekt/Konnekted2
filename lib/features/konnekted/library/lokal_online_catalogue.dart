@@ -355,7 +355,7 @@ class LokalOnlineCatalogue {
           if (unique.isNotEmpty) return (unique.values.toList(), source.name);
         } catch (_) {}
       }
-      return (const [], 'Online');
+      return (const <LokalCatalogueTrack>[], 'Online');
     } finally {
       client.close();
     }

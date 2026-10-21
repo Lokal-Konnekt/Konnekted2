@@ -1,6 +1,6 @@
 # Konnekted2
 
-[![Android CI](https://github.com/Lokal-Konnekt/Konnekted2/actions/workflows/android-ci.yml/badge.svg)](https://github.com/Lokal-Konnekt/Konnekted2/actions/workflows/android-ci.yml)
+[![Android CI](https://github.com/Lokal-Konnekt/lokal-mobile/actions/workflows/android-ci.yml/badge.svg)](https://github.com/Lokal-Konnekt/lokal-mobile/actions/workflows/android-ci.yml)
 
 **Android preview / work in progress.** Source is available here; features and
 native output still require the validation described below.
@@ -28,6 +28,11 @@ feature ledger and [docs/BUILD.md](docs/BUILD.md) for setup, build commands and
 the hardware validation checklist.
 
 ## Build APKs on GitHub
+
+Main-branch beta builds are published as GitHub prereleases using the same
+permanent signing key on every run. Install subsequent signed betas over the
+existing signed beta to keep app data. Old debug-signed betas require a one-time
+migration; see [the beta update notes](docs/RELEASING.md#beta-updates).
 
 Open **Actions → Android release → Run workflow**, choose `full`, `play`, or
 `both`, and run from `main`. A successful run provides signed APKs and SHA-256

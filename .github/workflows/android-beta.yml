@@ -14,55 +14,97 @@ concurrency:
 
 jobs:
   build:
-    name: Build beta APK
+    name: Build updateable signed beta APK
+    if: github.repository == 'Lokal-Konnekt/lokal-mobile' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 120
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      build_number: ${{ steps.metadata.outputs.build_number }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          channel: stable
-          cache: true
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Prepare Flutter dependencies
-        run: |
-          # integration_test is only used by host-side tests. Keeping it out
-          # of the beta package prevents Flutter from registering its Android
-          # plugin in an APK classpath where that plugin is unavailable.
-          sed -i '/^  integration_test:$/,+1d' pubspec.yaml
-          flutter pub get
+      - name: Require trusted main history
+        run: git merge-base --is-ancestor HEAD refs/remotes/origin/main
 
-      - name: Build arm64 beta APK
-        run: flutter build apk --debug --flavor full --target-platform android-arm64 --no-pub
+      - name: Require the permanent signing identity
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python3 tool/ci_release.py check-signing
 
-      - uses: actions/upload-artifact@v4
+      - name: Assign an increasing beta version code
+        id: metadata
+        env:
+          RELEASE_FLAVOR: full
+          # Shared with the release helper: pubspec build + this workflow's
+          # run number. Re-running the same beta keeps its versionCode.
+        run: python3 tool/ci_release.py metadata
+
+      - uses: ./.github/actions/android-toolchain
+
+      - name: Build and package the signed beta
+        env:
+          RELEASE_FLAVOR: full
+          RELEASE_VERSION: ${{ steps.metadata.outputs.version }}
+          RELEASE_BUILD_NUMBER: ${{ steps.metadata.outputs.build_number }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        # Uses the same key and application ID as other sideloaded releases.
+        # A runner-generated debug key must never be used for published betas.
+        run: python3 tool/ci_release.py build
+
+      - name: Remove temporary signing material
+        if: always()
+        run: python3 tool/ci_release.py cleanup
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: konnekted-beta-arm64
-          path: build/app/outputs/flutter-apk/app-full-debug.apk
+          name: lokal-mobile-beta-${{ github.run_number }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/konnekted-release/*
           if-no-files-found: error
           retention-days: 7
 
   publish:
     name: Publish beta release
     needs: build
+    if: github.repository == 'Lokal-Konnekt/lokal-mobile' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: konnekted-beta-arm64
+          name: lokal-mobile-beta-${{ github.run_number }}-${{ github.run_attempt }}
           path: beta
-      - name: Publish downloadable APK
+
+      - name: Publish downloadable signed APK
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           COMMIT: ${{ github.sha }}
           RUN_NUMBER: ${{ github.run_number }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
+          VERSION: ${{ needs.build.outputs.version }}
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
+        working-directory: beta
         run: |
-          gh release create "beta-${RUN_NUMBER}-${RUN_ATTEMPT}" beta/*.apk \
+          sha256sum --check --strict SHA256SUMS-*.txt
+          cat > "$RUNNER_TEMP/beta-notes.md" <<EOF_NOTES
+          ARM64 + ARMv7 Android beta ${RUN_NUMBER} (${VERSION}, versionCode ${BUILD_NUMBER}).
+
+          This APK uses the permanent Android signing key so subsequent signed betas can update it in place. The public metadata file includes the signing certificate fingerprint.
+
+          Older debug-signed betas used a different temporary key on each GitHub runner. They can update in place only if their original signing key was retained and reused as the permanent key. Back up app data and app-private downloads before a one-time reinstall. Keep using the signed beta channel after that.
+          EOF_NOTES
+          gh release create "beta-${RUN_NUMBER}-${RUN_ATTEMPT}" ./*.apk ./*-metadata.json ./SHA256SUMS-*.txt \
             --target "$COMMIT" --title "Android beta ${RUN_NUMBER}" \
-            --prerelease --latest=false \
-            --notes "ARM64 Android beta for testing. Debug-signed APK; not a production release."
+            --prerelease --latest=false --notes-file "$RUNNER_TEMP/beta-notes.md"

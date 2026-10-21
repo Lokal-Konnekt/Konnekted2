@@ -24,7 +24,7 @@ overwritten; a rerun of an already-published tag fails publication deliberately.
 
 1. Import all source, vendored native sources, Gradle wrapper (including JAR),
    fonts/assets, `pubspec.lock`, and `rust/Cargo.lock`; enable GitHub Actions on
-   `Lokal-Konnekt/Konnekted2`. The workflows must exist on `main` for dispatch.
+   `Lokal-Konnekt/lokal-mobile`. The workflows must exist on `main` for dispatch.
 2. Use GitHub-hosted `ubuntu-24.04` runners and permit the SHA-pinned checkout,
    setup-java, flutter-action, setup-android, upload/download-artifact actions.
    Outbound access to Google/Flutter, Maven/Gradle, Pub, Rust/crates.io, GitHub,
@@ -132,3 +132,46 @@ actionlint .github/workflows/android-ci.yml .github/workflows/android-release.ym
 
 USB, DSD/DoP, DAP and background-playback validation still require the physical
 device checklist in `BUILD.md`.
+
+
+## Beta updates
+
+`Android beta APK` publishes signed full-flavor release APKs on main pushes or
+manual main dispatches. It uses the existing four `ANDROID_KEYSTORE_*` /
+`ANDROID_KEY_*` Actions secrets listed above, the pinned toolchain and the same
+release packaging helper. It never generates a debug key or falls back to one.
+Missing signing secrets stop the build before toolchain installation. Only APKs,
+checksums and public metadata are uploaded; decoded keys are removed on success,
+failure and cancellation. No test jobs are added to the beta workflow.
+
+Each beta gets the pubspec build number plus the beta workflow run number as
+its Android versionCode. Keep the pubspec build number non-decreasing between
+betas. A rerun keeps the code of that original beta, so rerunning an old beta is
+not a way to update a newer installation. Beta run numbers and Android release
+run numbers are independent: when switching between the beta and tag/manual
+release channels, choose a release build number greater than the installed
+versionCode. APK filenames and the GitHub repository name do not determine
+Android update compatibility.
+
+Android updates require the same application ID, a compatible signing
+certificate, and a non-decreasing versionCode (a greater code for a new build).
+The application ID remains `com.lokalkonnekt.konnekted2` despite the repository
+rename. Changing it would create a different app. Keep the signing identity and
+its backups unchanged too; do not generate a replacement key for the rename.
+The public `*-metadata.json` records `signingCertificateSha256` and versionCode
+so published builds can be compared without exposing private signing material.
+
+Previously, the beta workflow built `--debug` on a fresh runner. Each run could
+create a different `~/.android/debug.keystore`, and the workflow did not retain
+that keystore. Consequently beta 30 and beta 40 could have different signing
+certificates even though their package name matched. An APK contains the public
+certificate, not the private key needed to make a compatible update. A retained
+old key must also be reused as the permanent signing identity to preserve that
+installation's update path.
+
+If the installed beta's original key was not backed up, it cannot receive an
+in-place update signed by the new permanent key. Back up app data and any files
+stored in app-private storage before a one-time uninstall/reinstall of the first
+signed beta. Later signed betas built with that same key can update in place.
+This change does not recover or rotate an existing key, uninstall an app, change
+its data, or retroactively replace old release assets.

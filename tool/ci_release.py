@@ -131,6 +131,7 @@ def package_apk(apk, destination, flavor, version, code, env, certificate):
     (destination / f"{flavor}-metadata.json").write_text(json.dumps({
         "version": version, "versionCode": code, "flavor": flavor,
         "abis": ["arm64-v8a", "armeabi-v7a"], "sha256": digest,
+        "signingCertificateSha256": certificate,
         "commit": env.get("GITHUB_SHA"), "run_id": env.get("GITHUB_RUN_ID"),
         "run_attempt": env.get("GITHUB_RUN_ATTEMPT"),
         "flutter": "3.47.1", "dart": "3.13.1", "rust": "1.98.0",

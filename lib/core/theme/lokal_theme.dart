@@ -102,6 +102,34 @@ abstract final class LokalTheme {
     );
   }
 
+  static TextTheme _textTheme(TextTheme base, LokalTokens t) {
+    TextStyle? restyle(TextStyle? style, {Color? color, FontWeight? weight}) =>
+        style?.copyWith(
+          fontFamily: sans,
+          fontFamilyFallback: AppTheme.fontFamilyFallback,
+          color: color ?? t.text,
+          fontWeight: weight ?? style.fontWeight,
+        );
+    return base.copyWith(
+      displayLarge: restyle(base.displayLarge, weight: FontWeight.w600),
+      displayMedium: restyle(base.displayMedium, weight: FontWeight.w600),
+      displaySmall: restyle(base.displaySmall, weight: FontWeight.w600),
+      headlineLarge: restyle(base.headlineLarge, weight: FontWeight.w600),
+      headlineMedium: restyle(base.headlineMedium, weight: FontWeight.w600),
+      headlineSmall: restyle(base.headlineSmall, weight: FontWeight.w600),
+      titleLarge: restyle(base.titleLarge, weight: FontWeight.w600),
+      titleMedium: restyle(base.titleMedium),
+      titleSmall: restyle(base.titleSmall),
+      bodyLarge: restyle(base.bodyLarge),
+      bodyMedium: restyle(base.bodyMedium),
+      bodySmall: restyle(base.bodySmall, color: t.muted),
+      labelLarge: restyle(base.labelLarge),
+      labelMedium: restyle(base.labelMedium, color: t.muted),
+      labelSmall: restyle(base.labelSmall, color: t.muted),
+    );
+  }
+}
+
 class _LokalPageTransitionsBuilder extends PageTransitionsBuilder {
   const _LokalPageTransitionsBuilder();
 
@@ -131,34 +159,6 @@ class _LokalPageTransitionsBuilder extends PageTransitionsBuilder {
           child: child,
         ),
       ),
-    );
-  }
-}
-
-  static TextTheme _textTheme(TextTheme base, LokalTokens t) {
-    TextStyle? restyle(TextStyle? style, {Color? color, FontWeight? weight}) =>
-        style?.copyWith(
-          fontFamily: sans,
-          fontFamilyFallback: AppTheme.fontFamilyFallback,
-          color: color ?? t.text,
-          fontWeight: weight ?? style.fontWeight,
-        );
-    return base.copyWith(
-      displayLarge: restyle(base.displayLarge, weight: FontWeight.w600),
-      displayMedium: restyle(base.displayMedium, weight: FontWeight.w600),
-      displaySmall: restyle(base.displaySmall, weight: FontWeight.w600),
-      headlineLarge: restyle(base.headlineLarge, weight: FontWeight.w600),
-      headlineMedium: restyle(base.headlineMedium, weight: FontWeight.w600),
-      headlineSmall: restyle(base.headlineSmall, weight: FontWeight.w600),
-      titleLarge: restyle(base.titleLarge, weight: FontWeight.w600),
-      titleMedium: restyle(base.titleMedium),
-      titleSmall: restyle(base.titleSmall),
-      bodyLarge: restyle(base.bodyLarge),
-      bodyMedium: restyle(base.bodyMedium),
-      bodySmall: restyle(base.bodySmall, color: t.muted),
-      labelLarge: restyle(base.labelLarge),
-      labelMedium: restyle(base.labelMedium, color: t.muted),
-      labelSmall: restyle(base.labelSmall, color: t.muted),
     );
   }
 }

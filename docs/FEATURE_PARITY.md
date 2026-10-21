@@ -110,3 +110,7 @@ Remaining gaps include unported product features and real-device validation:
    background playback and widgets.
 9. Add design assets and a release signing configuration outside the repository;
    signing material must never be committed.
+
+### Discord Rich Presence
+
+Android integration adapted from Mornye’s official Social SDK bridge is prepared, opt-in under Online sources → Accounts. Lokal application ID is configured; the verified SDK is encrypted in the repository and staged by signed build workflows using an Actions secret. SDK-enabled native bridge compiles/links for both ARM ABIs. APK/device behavior is not yet validated. See [setup and limitations](DISCORD_PRESENCE.md).

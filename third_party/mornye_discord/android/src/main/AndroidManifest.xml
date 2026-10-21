@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <queries><package android:name="com.discord" /></queries>
+    <application>
+        <!-- Presence only. Keep Lokal's own audio/microphone/Bluetooth permissions. -->
+        <service android:name="com.discord.socialsdk.ForegroundService" tools:node="remove" />
+        <activity android:name="com.discord.socialsdk.AuthenticationActivity" tools:node="remove" />
+    </application>
+</manifest>

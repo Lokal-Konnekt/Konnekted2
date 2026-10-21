@@ -1,4 +1,5 @@
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/features/settings/widgets/discord_presence_settings_tile.dart';
 
 import 'dart:async';
 
@@ -90,6 +91,13 @@ List<LokalSettingsSection> onlineSourcesSettings(
           'Sign in, import playlists and sync Liked Songs.',
         ),
         onTap: () => _push(context, const SpotifyLibraryScreen()),
+      ),
+      LokalSettingCustom(
+        label: lokalText('Discord Rich Presence'),
+        description: lokalText(
+          'Show your music on Discord using the Discord app on your phone. Off by default; local cover files stay on your device.',
+        ),
+        child: const DiscordPresenceSettingsTile(),
       ),
       LokalSettingCustom(
         label: lokalText('Last.fm'),

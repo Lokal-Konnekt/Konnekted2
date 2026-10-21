@@ -118,9 +118,13 @@ def package_apk(apk, destination, flavor, version, code, env, certificate):
         raise ValueError("APK package/version metadata did not match the requested release")
     with zipfile.ZipFile(apk) as archive:
         for abi in ("arm64-v8a", "armeabi-v7a"):
-            for library in ("librust_lib_flick_player.so", "libflutter.so", "libapp.so"):
+            for library in ("librust_lib_flick_player.so", "libflutter.so", "libapp.so",
+                            "libmornye_discord.so", "libdiscord_partner_sdk.so"):
                 if f"lib/{abi}/{library}" not in archive.namelist():
                     raise ValueError(f"APK is missing {abi}/{library}")
+        for notice in ("Discord-License-Notices.txt", "Mornye-Discord-Bridge-License.txt"):
+            if f"assets/{notice}" not in archive.namelist():
+                raise ValueError(f"APK is missing {notice}")
     destination.mkdir(exist_ok=True)
     name = f"Lokal-{version}+{code}-{flavor}-arm64-armv7.apk"
     output = destination / name
@@ -135,7 +139,7 @@ def package_apk(apk, destination, flavor, version, code, env, certificate):
         "commit": env.get("GITHUB_SHA"), "run_id": env.get("GITHUB_RUN_ID"),
         "run_attempt": env.get("GITHUB_RUN_ATTEMPT"),
         "flutter": "3.47.1", "dart": "3.13.1", "rust": "1.98.0",
-        "ndk": "28.2.13676358",
+        "ndk": "28.2.13676358", "discordSocialSdk": "1.10.19337",
     }, indent=2) + "\n")
 
 

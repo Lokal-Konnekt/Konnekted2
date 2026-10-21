@@ -39,3 +39,7 @@ for those adapted build configurations are retained in `android/compat/LICENSES.
 Keep the license files distributed with `rust/vendor`, `rust_builder/cargokit`, and `assets/fonts`. Google Sans Flex and Noto Sans SC are SIL Open Font License fonts. Other third-party dependencies retain their respective licenses, available through Flutter's license registry and Cargo package metadata.
 
 No affiliation with or endorsement by Google, YouTube, Spotify, Tidal, Deezer, Discord, Last.fm or ListenBrainz is implied.
+
+## Mornye Discord Social SDK bridge
+
+Android native bridge adapted from [Mornye](https://github.com/mornyeapp/Mornye) (Copyright © 2026 zarzet), under the MIT License. Full license: `third_party/mornye_discord/LICENSE`. Discord SDK binaries are separately licensed; when staged, their official notices are packaged in Android assets.

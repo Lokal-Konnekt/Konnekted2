@@ -86,3 +86,6 @@ key.properties
 *.p12
 *.pfx
 *.pem
+
+# Discord Social SDK: downloaded from the developer portal, never committed
+/third_party/mornye_discord/sdk/

@@ -10,6 +10,7 @@ import 'package:flick/providers/equalizer_provider.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/player_service.dart';
+import 'package:flick/services/discord_presence_service.dart';
 import 'package:flick/services/widget_intent_handler.dart';
 import 'package:flick/services/widget_sync_service.dart';
 import 'package:flick/widgets/common/floating_scan_progress.dart';
@@ -47,6 +48,10 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _player = ref.read(playerServiceProvider);
+    _run(
+      'Discord presence',
+      () => DiscordPresenceService.instance.start(_player),
+    );
     ref.read(equalizerProvider);
     ref.read(updateCheckProvider.notifier);
     _widgetSync = installWidgetSync(ref);
@@ -219,6 +224,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _player.onlinePlaybackError.removeListener(_onOnlinePlaybackError);
     _widgetSync.close();
     _run('Widget intent detach', _widgetIntents.detach);
+    _run('Discord presence shutdown', DiscordPresenceService.instance.stop);
     super.dispose();
   }
 

@@ -1,5 +1,8 @@
 import 'dart:math' as math;
 
+import 'package:flick/features/player/widgets/milkdrop_visualizer.dart';
+import 'package:flick/features/player/widgets/milkdrop_presets.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/providers/album_color_provider.dart';
@@ -497,21 +500,37 @@ class _AudioVisualizerState extends ConsumerState<AudioVisualizer>
     final albumColor = colorMode == 'album_art'
         ? widget.albumColor ?? ref.watch(albumDominantColorSyncProvider)
         : null;
+    final track = widget.playerService.currentSongNotifier.value;
+    final allowedPresets = ref.watch(milkDropPresetSelectionProvider).toList()..sort();
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
-          return CustomPaint(
-            painter: _VisualizerBarPainter(
-              barHeights: _displayHeights,
-              animationStyle: widget.animationStyle,
-              colorMode: colorMode,
-              albumColor: albumColor,
-              blockOpacities: widget.animationStyle == 'blocks'
-                  ? List.of(_blockOpacities)
-                  : const [],
-              repaint: _controller,
-            ),
+          final bars = _displayHeights;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              CustomPaint(
+                painter: _VisualizerBarPainter(
+                  barHeights: bars,
+                  animationStyle: widget.animationStyle,
+                  colorMode: colorMode,
+                  albumColor: albumColor,
+                  blockOpacities: widget.animationStyle == 'blocks'
+                      ? List.of(_blockOpacities)
+                      : const [],
+                  repaint: _controller,
+                ),
+              ),
+              Positioned.fill(
+                child: MilkDropVisualizer(
+                  bands: bars,
+                  trackKey: track?.id ?? '',
+                  playing: _isPlaying,
+                  allowedPresets: allowedPresets,
+                ),
+              ),
+            ],
           );
         },
       ),

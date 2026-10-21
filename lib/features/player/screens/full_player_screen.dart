@@ -580,6 +580,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     final art = PlayerArtworkImage(
       song: song,
       radius: lerpDouble(28, 12, progress)!,
+      crossfade: false,
     );
     final shown = _burst;
     return GestureDetector(
@@ -593,47 +594,48 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             alignment: Alignment.center,
             children: [
               Positioned.fill(
-                child: current
-                    ? Hero(
-                        tag: widget.heroTag,
-                        createRectTween: (begin, end) =>
-                            RectTween(begin: begin, end: end),
-                        flightShuttleBuilder:
-                            (
-                              flightContext,
-                              animation,
-                              direction,
-                              fromContext,
-                              toContext,
-                            ) => AnimatedBuilder(
-                              animation: animation,
-                              builder: (context, child) => ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                  lerpDouble(
-                                    21,
-                                    28,
-                                    Curves.easeInOutCubic.transform(
-                                      animation.value,
-                                    ),
-                                  )!,
+                child: HeroMode(
+                  enabled: current,
+                  child: Hero(
+                    tag: widget.heroTag,
+                    createRectTween: (begin, end) =>
+                        RectTween(begin: begin, end: end),
+                    flightShuttleBuilder:
+                        (
+                          flightContext,
+                          animation,
+                          direction,
+                          fromContext,
+                          toContext,
+                        ) => AnimatedBuilder(
+                          animation: animation,
+                          builder: (context, child) => ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              lerpDouble(
+                                21,
+                                28,
+                                Curves.easeInOutCubic.transform(
+                                  animation.value,
                                 ),
-                                child: child,
-                              ),
-                              child: CachedImageWidget(
-                                imagePath: song.albumArt,
-                                audioSourcePath: song.filePath,
-                                fit: BoxFit.cover,
-                                placeholder: ColoredBox(
-                                  color: flightContext.lokal.surface3,
-                                ),
-                                errorWidget: ColoredBox(
-                                  color: flightContext.lokal.surface3,
-                                ),
-                              ),
+                              )!,
                             ),
-                        child: art,
-                      )
-                    : art,
+                            child: child,
+                          ),
+                          child: CachedImageWidget(
+                            imagePath: song.albumArt,
+                            audioSourcePath: song.filePath,
+                            fit: BoxFit.cover,
+                            placeholder: ColoredBox(
+                              color: flightContext.lokal.surface3,
+                            ),
+                            errorWidget: ColoredBox(
+                              color: flightContext.lokal.surface3,
+                            ),
+                          ),
+                        ),
+                    child: art,
+                  ),
+                ),
               ),
               if (current && _burstVisible)
                 LokalLikeBurst(
@@ -1388,22 +1390,31 @@ class _FluidBackdropState extends State<_FluidBackdrop>
       child: AnimatedBuilder(
         animation: _motion,
         child: RepaintBoundary(
-          child: ImageFiltered(
-            imageFilter: ImageFilter.blur(
-              sigmaX: 48,
-              sigmaY: 48,
-              tileMode: TileMode.clamp,
-            ),
-            child: PlayerArtworkImage(
-              song: widget.song,
-              radius: 0,
-              decodeWidth: 256,
-              placeholder: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [widget.colors.first, widget.colors.last],
+          // Blur a bounded square before fitting it to the screen. Filtering
+          // a screen-sized surface and then rotating/scaling it creates large
+          // offscreen textures and exposes filter edges on Android GPUs.
+          child: FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox.square(
+              dimension: 256,
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(
+                  sigmaX: 18,
+                  sigmaY: 18,
+                  tileMode: TileMode.clamp,
+                ),
+                child: PlayerArtworkImage(
+                  song: widget.song,
+                  radius: 0,
+                  decodeWidth: 256,
+                  placeholder: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [widget.colors.first, widget.colors.last],
+                      ),
+                    ),
                   ),
                 ),
               ),

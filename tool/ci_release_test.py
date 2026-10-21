@@ -157,7 +157,7 @@ class PackagingTests(unittest.TestCase):
             self.package()
             for call in tool.call_args_list:
                 self.assertNotIn("ANDROID_KEYSTORE_PASSWORD", call.kwargs["env"])
-        output = self.dest / "konnekted-0.1.0-alpha.1+23-full-arm64-armv7.apk"
+        output = self.dest / "Lokal-0.1.0-alpha.1+23-full-arm64-armv7.apk"
         self.assertEqual(output.read_bytes(), self.apk.read_bytes())
         self.assertEqual((self.dest / "SHA256SUMS-full.txt").read_text(),
                          f"{hashlib.sha256(output.read_bytes()).hexdigest()}  {output.name}\n")

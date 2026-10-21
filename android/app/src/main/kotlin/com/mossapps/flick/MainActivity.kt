@@ -68,6 +68,7 @@ import android.os.storage.StorageManager
 import android.os.storage.StorageVolume
 import androidx.documentfile.provider.DocumentFile
 import com.mossapps.flick.audiofx.JustAudioProcessingController
+import com.mossapps.flick.youtube.YoutubeNativeResolver
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
@@ -95,6 +96,7 @@ import kotlin.math.min
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.mossapps.flick/storage"
+    private val YOUTUBE_CHANNEL = "com.mossapps.flick/youtube_stream"
     private val PLAYER_CHANNEL = "com.mossapps.flick/player"
     private val INTEGRATION_CHANNEL = "com.mossapps.flick/integration"
     private val UAC2_CHANNEL = "com.mossapps.flick/uac2"
@@ -231,6 +233,38 @@ class MainActivity: FlutterActivity() {
         // Idempotent: cached engines skip duplicate GeneratedPluginRegistrant.
         ensurePluginsRegistered(flutterEngine)
         LauncherIcon.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
+        YoutubeNativeResolver.initialize(applicationContext)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, YOUTUBE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                if (call.method != "resolveStream") {
+                    result.notImplemented()
+                } else {
+                    val videoId = call.argument<String>("videoId")
+                    if (videoId == null || !Regex("^[A-Za-z0-9_-]{11}$").matches(videoId)) {
+                        result.error("INVALID_VIDEO_ID", "Invalid YouTube video id.", null)
+                    } else {
+                        val cookie = call.argument<String>("cookie")
+                        val visitorData = call.argument<String>("visitorData")
+                        mainScope.launch {
+                            try {
+                                val stream = withContext(Dispatchers.IO) {
+                                    YoutubeNativeResolver.resolveStream(videoId, cookie, visitorData)
+                                }
+                                result.success(stream)
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                result.error("CANCELLED", "YouTube resolution was cancelled.", null)
+                            } catch (e: Exception) {
+                                Log.w("YoutubeNativeResolver", "Advanced YouTube resolution failed: ${e.javaClass.simpleName}")
+                                result.error(
+                                    "RESOLVE_FAILED",
+                                    "YouTube could not resolve a playable stream.",
+                                    null,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "openDocumentTree" -> {

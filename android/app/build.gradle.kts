@@ -256,6 +256,16 @@ tasks.named("preBuild") {
 }
 
 dependencies {
+    // BitChord's proven YouTube resolver: InnerTubeX handles the live client
+    // catalog, cipher transforms and BotGuard PoTokens before media is cached.
+    implementation("com.github.MetrolistGroup.innertubex:innertubex-android:v0.7.0")
+    implementation("io.ktor:ktor-client-core:3.5.2")
+    implementation("io.ktor:ktor-client-okhttp:3.5.2")
+    implementation("io.ktor:ktor-client-content-negotiation:3.5.2")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.5.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("com.squareup.okhttp3:okhttp:5.3.2")
+
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("androidx.media:media:1.7.0")

@@ -3562,7 +3562,7 @@ class MainActivity: FlutterActivity() {
     private fun readSiblingLyricsFromContentUri(audioUri: Uri): Map<String, String>? {
         val audioName = DocumentFile.fromSingleUri(this, audioUri)?.name ?: return null
         val stem = audioName.substringBeforeLast('.', audioName)
-        val candidateNames = listOf("$stem.lrc", "$stem.txt", "$stem.xml")
+        val candidateNames = listOf("$stem.ttml", "$stem.elrc", "$stem.lrc", "$stem.txt", "$stem.xml")
         val candidateSet = candidateNames.map { it.lowercase() }.toSet()
 
         val authority = audioUri.authority ?: return null
@@ -3654,7 +3654,7 @@ class MainActivity: FlutterActivity() {
         val audioFile = java.io.File(audioPath)
         val parent = audioFile.parentFile ?: return null
         val stem = audioFile.name.substringBeforeLast('.', audioFile.name)
-        val candidateNames = listOf("$stem.lrc", "$stem.txt", "$stem.xml", "$stem.LRC", "$stem.TXT", "$stem.XML")
+        val candidateNames = listOf("$stem.ttml", "$stem.elrc", "$stem.lrc", "$stem.txt", "$stem.xml", "$stem.TTML", "$stem.ELRC", "$stem.LRC", "$stem.TXT", "$stem.XML")
 
         for (candidateName in candidateNames) {
             val candidateFile = java.io.File(parent, candidateName)

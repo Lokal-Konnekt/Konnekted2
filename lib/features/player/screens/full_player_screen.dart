@@ -1,8 +1,8 @@
+import '../widgets/lyrics_source_button.dart';
+import '../widgets/player_lyrics_transition.dart';
 import '../widgets/artwork_gradient_backdrop.dart';
 import '../widgets/lyric_motion_line.dart';
 import '../widgets/material_player_thumb.dart';
-
-import 'package:flick/services/lyrics_sources.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -123,6 +123,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   }
 
   void _onSongChanged() {
+    _draggingSeek = false;
     _refreshFavorite();
     if (_showLyrics) _loadLyrics();
   }
@@ -150,13 +151,16 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     });
   }
 
-  Future<void> _loadLyrics({bool force = false}) async {
+  Future<void> _loadLyrics({
+    bool force = false,
+    bool refreshOnline = false,
+  }) async {
     final song = _player.currentSongNotifier.value;
     if (song == null) return;
     if (!force && _lyricsForSongId == song.id && _lyrics != null) return;
     setState(() {
       _lyricsLoading = true;
-      _lyrics = null;
+      if (_lyricsForSongId != song.id) _lyrics = null;
       _lyricsForSongId = song.id;
     });
     final request = ++_lyricsRequest;
@@ -166,9 +170,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       data = await _lyricsService.loadLyricsForSong(
         song,
         forceRefresh: force,
+        refreshOnline: refreshOnline,
         source: _lyricsSource,
         stillCurrent: () => mounted && request == _lyricsRequest,
-        fetchOnline: ref.read(appPreferencesProvider).lyricsAutoFetch,
+        fetchOnline:
+            refreshOnline || ref.read(appPreferencesProvider).lyricsAutoFetch,
       );
     } catch (_) {
       data = null;
@@ -176,7 +182,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     if (!mounted || request != _lyricsRequest) return;
     if (_player.currentSongNotifier.value?.id != song.id) return;
     setState(() {
-      _lyrics = data;
+      if (!refreshOnline || data != null) _lyrics = data;
       _lyricsLoading = false;
     });
   }
@@ -352,21 +358,18 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         children: [
                           _topBar(song, isCasting, diagnostics),
                           Expanded(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 260),
-                              child: _showLyrics
-                                  ? _lyricsArea(song)
-                                  : _artArea(song, compact),
+                            child: PlayerLyricsTransition(
+                              showLyrics: _showLyrics,
+                              cover: _artArea(song, compact),
+                              lyrics: _lyricsArea(song),
                             ),
                           ),
                           _seekRow(),
                           SizedBox(height: compact ? 6 : 10),
                           _transport(compact),
                           SizedBox(height: compact ? 8 : 12),
-                          if (!_showLyrics) ...[
-                            _optionsStrip(),
-                            SizedBox(height: compact ? 8 : 12),
-                          ],
+                          _optionsStrip(),
+                          SizedBox(height: compact ? 8 : 12),
                           _chipRow(),
                         ],
                       );
@@ -685,7 +688,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     final data = _lyrics;
     final display = _sublineLyrics ?? data;
     Widget body;
-    if (_lyricsLoading) {
+    if (_lyricsLoading && data == null) {
       body = const Center(
         child: SizedBox(
           width: 28,
@@ -721,7 +724,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       );
     } else {
       body = _FlowingLyrics(
-        key: ValueKey('${song.id}|${identityHashCode(display)}'),
+        key: ValueKey(song.id),
         player: _player,
         lyrics: display!,
         showTranslation: _sublineLyrics != null,
@@ -744,24 +747,16 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 ),
               ),
             ),
-            PopupMenuButton<String>(
-              tooltip: 'Lyrics source: ${_lyrics?.source ?? _lyricsSource}',
-              icon: const Icon(
-                Icons.tune_rounded,
-                color: Colors.white70,
-                size: 20,
-              ),
-              initialValue: _lyricsSource,
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'auto', child: Text('Automatic')),
-                const PopupMenuItem(value: 'local', child: Text('Local file')),
-                for (final source in lyricsSources.entries)
-                  PopupMenuItem(value: source.key, child: Text(source.value)),
-              ],
+            LyricsSourceButton(
+              selected: _lyricsSource,
+              lyrics: data,
+              busy: _lyricsLoading,
               onSelected: (source) {
                 setState(() => _lyricsSource = source);
                 unawaited(_loadLyrics(force: true));
               },
+              onRefresh: () =>
+                  unawaited(_loadLyrics(force: true, refreshOnline: true)),
             ),
             if (data != null)
               LyricsSublineButtons(
@@ -921,13 +916,23 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   ),
                   child: Slider(
                     value: value,
-                    onChangeStart: (_) => setState(() => _draggingSeek = true),
+                    onChangeStart: (v) => setState(() {
+                      _draggingSeek = true;
+                      _seekDrag = v;
+                    }),
                     onChanged: (v) => setState(() => _seekDrag = v),
-                    onChangeEnd: (v) {
-                      _player.seek(
-                        Duration(milliseconds: (v * totalMs).round()),
-                      );
-                      setState(() => _draggingSeek = false);
+                    onChangeEnd: (v) async {
+                      final id = _player.currentSongNotifier.value?.id;
+                      try {
+                        await _player.seek(
+                          Duration(milliseconds: (v * totalMs).round()),
+                        );
+                      } finally {
+                        if (mounted &&
+                            _player.currentSongNotifier.value?.id == id &&
+                            _seekDrag == v)
+                          setState(() => _draggingSeek = false);
+                      }
                     },
                   ),
                 ),
@@ -1280,12 +1285,19 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   bool _clockPlaying = false;
   double _clockSpeed = 1;
 
-  late final List<LyricsLine> _lines = widget.lyrics.lines;
-  late final List<int> _ts = [
+  List<LyricsLine> get _lines => widget.lyrics.lines;
+  late List<int> _ts = [
     for (final l in widget.lyrics.lines) l.timestamp.inMilliseconds,
   ];
 
   List<double> _heights = const [];
+  List<double> _baseHeights = const [], _subHeights = const [];
+  final _subText = <int, String>{};
+  double _sublineReveal = 0;
+  LyricsData? _layoutLyrics;
+  TextScaler? _layoutScaler;
+  Locale? _layoutLocale;
+  TextDirection? _layoutDirection;
   List<double> _tops = const [];
   double _w = 0;
   double _h = 0;
@@ -1308,6 +1320,19 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     widget.player.playbackSpeedNotifier.addListener(_onClockState);
     widget.player.positionNotifier.addListener(_onPosition);
     _ticker = createTicker(_onTick)..start();
+  }
+
+  @override
+  void didUpdateWidget(_FlowingLyrics oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.lyrics, oldWidget.lyrics)) {
+      for (final line in oldWidget.lyrics.lines) {
+        if (line.translation?.isNotEmpty == true)
+          _subText[line.timestamp.inMilliseconds] = line.translation!;
+      }
+      _ts = [for (final line in _lines) line.timestamp.inMilliseconds];
+      _layoutLyrics = null;
+    }
   }
 
   @override
@@ -1358,45 +1383,68 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   void _ensureLayout(double w, double h) {
     if ((w - _w).abs() < 0.5 &&
         (h - _h).abs() < 0.5 &&
-        _heights.length == _lines.length) {
+        _heights.length == _lines.length &&
+        identical(_layoutLyrics, widget.lyrics) &&
+        _layoutScaler == MediaQuery.textScalerOf(context) &&
+        _layoutLocale == Localizations.maybeLocaleOf(context) &&
+        _layoutDirection == Directionality.of(context)) {
       return;
     }
     _w = w;
     _h = h;
-    final hs = <double>[];
-    final tops = <double>[];
-    var y = 0.0;
+    final hs = <double>[], subs = <double>[];
     for (final l in _lines) {
       double lh;
+      var sh = 0.0;
       if (l.text.trim().isEmpty) {
         lh = 30;
       } else {
-        final tp = TextPainter(
-          text: TextSpan(text: l.text, style: _base),
-          textDirection: TextDirection.ltr,
-        )..layout(maxWidth: math.max(w, 40));
-        lh = tp.height;
+        lh = LyricMotionLine.height(context, l.text, _base, math.max(w, 40));
         if (_translationOf(l) case final sub?) {
-          final sp = TextPainter(
-            text: TextSpan(text: sub, style: _sub),
-            textDirection: TextDirection.ltr,
-          )..layout(maxWidth: math.max(w, 40));
-          lh += _subGap + sp.height;
+          final sp = LyricMotionLine.layout(
+            context,
+            sub,
+            _sub,
+            math.max(w, 40),
+          );
+          sh = _subGap + sp.height;
+          sp.dispose();
         }
       }
-      tops.add(y);
       hs.add(lh);
-      y += lh + _gap;
+      subs.add(sh);
     }
-    _heights = hs;
+    _baseHeights = hs;
+    _subHeights = subs;
+    _layoutLyrics = widget.lyrics;
+    _layoutScaler = MediaQuery.textScalerOf(context);
+    _layoutLocale = Localizations.maybeLocaleOf(context);
+    _layoutDirection = Directionality.of(context);
+    _geometry();
+  }
+
+  void _geometry() {
+    var y = 0.0;
+    final tops = <double>[], heights = <double>[];
+    for (var i = 0; i < _baseHeights.length; i++) {
+      tops.add(y);
+      final height = _baseHeights[i] + _subHeights[i] * _sublineReveal;
+      heights.add(height);
+      y += height + _gap;
+    }
+    _heights = heights;
     _tops = tops;
-    _needsJump = true;
   }
 
   String? _translationOf(LyricsLine line) {
-    if (!widget.showTranslation) return null;
-    final text = line.translation?.trim();
-    return text == null || text.isEmpty ? null : text;
+    if (line.translation?.trim().isNotEmpty == true)
+      _subText[line.timestamp.inMilliseconds] = line.translation!.trim();
+    if (widget.showTranslation) {
+      return line.translation?.trim().isNotEmpty == true
+          ? line.translation!.trim()
+          : null;
+    }
+    return _subText[line.timestamp.inMilliseconds];
   }
 
   void _onTick(Duration elapsed) {
@@ -1406,6 +1454,14 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     _lastElapsed = elapsed;
     if (_heights.isEmpty || _heights.length != _lines.length) return;
 
+    final targetReveal = widget.showTranslation ? 1.0 : 0.0;
+    final subMoving = (_sublineReveal - targetReveal).abs() > .002;
+    _sublineReveal = MediaQuery.disableAnimationsOf(context)
+        ? targetReveal
+        : _sublineReveal +
+              (targetReveal - _sublineReveal) * (1 - math.exp(-dt * 10));
+    if (!subMoving) _sublineReveal = targetReveal;
+    _geometry();
     final ms = _posNowMs();
     final a = _indexAt(ms);
     final aScroll = _indexAt(ms + 300);
@@ -1423,6 +1479,7 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
 
     final settled =
         !playing &&
+        !subMoving &&
         (target - _offset).abs() < 0.2 &&
         (a - _focus).abs() < 0.003 &&
         a == _active;
@@ -1460,9 +1517,14 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
             position: Duration(milliseconds: _posMs),
             style: _base,
           )
-        : Text(
-            l.text,
-            style: _base.copyWith(color: Colors.white.withValues(alpha: op)),
+        : Opacity(
+            opacity: op,
+            child: LyricMotionLine(
+              line: l,
+              timing: false,
+              position: Duration.zero,
+              style: _base,
+            ),
           );
 
     final sub = _translationOf(l);
@@ -1475,12 +1537,26 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 text,
-                const SizedBox(height: _subGap),
-                Text(
-                  sub,
-                  style: _sub.copyWith(
-                    color: Colors.white.withValues(
-                      alpha: (i == _active ? .72 : op * .8),
+                ClipRect(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    heightFactor: _sublineReveal,
+                    child: Opacity(
+                      opacity: _sublineReveal,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: _subGap),
+                        child: Transform.translate(
+                          offset: Offset(0, (1 - _sublineReveal) * 6),
+                          child: Text(
+                            sub,
+                            style: _sub.copyWith(
+                              color: Colors.white.withValues(
+                                alpha: i == _active ? .72 : op * .8,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

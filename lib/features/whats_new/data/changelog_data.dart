@@ -40,6 +40,19 @@ const kLokalReleaseNotes = ChangelogEntry(
   date: '2026-10-21',
   sections: [
     ChangelogSection(
+      title: 'Lyrics and seamless player transitions',
+      bullets: [
+        'Lyrics and artwork blend smoothly while keeping playback controls in place. Returning to lyrics keeps your scroll position.',
+        'Japanese lyric lookup uses desktop matching, and timed words wrap without overlapping the next line.',
+        'The lyrics source sheet shows timing type and lets you refresh the search. Translate and Romanize sublines animate in and out.',
+        'Translation is unavailable when lyrics already match your system language.',
+        'Updated paired desktops can sync saved syllable lyrics to music already copied to your phone.',
+        'Home settings opens Data with Accounts first. Playback, Online sources and About each have a row in You → More.',
+        'Cover Flow fills two songs from each of the first six mixes as your library loads.',
+        'Failed Android sources reload on retry; stalled seeks time out rather than blocking later commands.',
+      ],
+    ),
+    ChangelogSection(
       title: 'Player and lyrics follow-up',
       bullets: [
         'The full player uses soft artwork-colored gradients instead of a live background blur. Performance mode keeps the background still.',
@@ -54,7 +67,7 @@ const kLokalReleaseNotes = ChangelogEntry(
         'Sync repairs audio details for music already copied to your phone; transferring the files again is not required.',
         'History-only desktop songs no longer become library files. Listening history remains available to milestones.',
         'Listening hours include synced events without counting this phone’s plays twice, and lower artist milestones unlock correctly.',
-        'Missing quality details and genres are read from local files. Home settings opens the combined Data and About page.',
+        'Missing quality details and genres are read from local files.',
       ],
     ),
     ChangelogSection(

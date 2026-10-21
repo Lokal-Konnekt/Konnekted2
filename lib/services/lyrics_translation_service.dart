@@ -8,7 +8,19 @@ import 'lyrics_service.dart';
 
 /// Desktop's on-demand, marker-delimited translation/romanization protocol.
 /// Cache by exact source text and target language, keeping source/timing intact.
+class SameLyricsLanguage implements Exception {
+  const SameLyricsLanguage();
+}
+
 class LyricsTranslationService {
+  static bool sameLanguage(String? source, String target) {
+    if (source == null || source.isEmpty) return false;
+    final s = source.toLowerCase().replaceAll('_', '-');
+    final t = target.toLowerCase().replaceAll('_', '-');
+    if (s.startsWith('zh') && t.startsWith('zh')) return s == t;
+    return s.split('-').first == t.split('-').first;
+  }
+
   static final nonLatin = RegExp(
     r'[^\u0000-\u024F\u1E00-\u1EFF\s\p{P}\p{N}\p{S}]',
     unicode: true,
@@ -20,6 +32,8 @@ class LyricsTranslationService {
     required String target,
     required bool Function() current,
   }) async {
+    if (!romanize && sameLanguage(lyrics.language, target))
+      throw const SameLyricsLanguage();
     final slots = <int>[
       for (var i = 0; i < lyrics.lines.length; i++)
         if (lyrics.lines[i].text.trim().isNotEmpty &&
@@ -28,9 +42,11 @@ class LyricsTranslationService {
     ];
     if (slots.isEmpty) return null;
     final key =
-        'lokal.lyrics.subline.${sha256.convert(utf8.encode(jsonEncode([romanize, target, slots.map((i) => lyrics.lines[i].text).toList()])))}';
+        'lokal.lyrics.subline.v2.${sha256.convert(utf8.encode(jsonEncode([romanize, target, slots.map((i) => lyrics.lines[i].text).toList()])))}';
     final prefs = await SharedPreferences.getInstance();
     List<String>? answers = prefs.getStringList(key);
+    var detected = prefs.getString('$key.language');
+    final languages = <String, int>{};
     if (answers == null || answers.length != slots.length) {
       final batches = <List<int>>[];
       var batch = <int>[], size = 0;
@@ -67,7 +83,11 @@ class LyricsTranslationService {
                 .timeout(const Duration(seconds: 12));
             if (response.statusCode != 200) continue;
             final root = jsonDecode(response.body);
-            if (root is! List || root.first is! List) continue;
+            if (root is! List || root.isEmpty || root.first is! List) continue;
+            if (root.length > 2 && root[2] is String) {
+              final lang = root[2] as String;
+              languages[lang] = (languages[lang] ?? 0) + payload.length;
+            }
             final text = (root.first as List)
                 .whereType<List>()
                 .map(
@@ -96,9 +116,17 @@ class LyricsTranslationService {
           answers.addAll(answer!);
         }
       }
+      if (languages.isNotEmpty) {
+        final ranked = languages.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        detected = ranked.first.key;
+        await prefs.setString('$key.language', detected);
+      }
       await prefs.setStringList(key, answers);
     }
     if (!current()) return null;
+    if (!romanize && sameLanguage(detected, target))
+      throw const SameLyricsLanguage();
     final result = <int, String>{
       for (var i = 0; i < slots.length; i++) slots[i]: answers[i],
     };
@@ -110,6 +138,8 @@ class LyricsTranslationService {
       isSynchronized: lyrics.isSynchronized,
       source: lyrics.source,
       rawContent: lyrics.rawContent,
+      language: lyrics.language ?? detected,
+      translationLanguage: romanize ? null : target,
     );
   }
 }

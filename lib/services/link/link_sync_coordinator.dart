@@ -199,6 +199,14 @@ class LinkSyncCoordinator {
         _report(LinkSyncPhase.metadata, processed: done, total: total);
       },
     );
+    _report(LinkSyncPhase.lyrics);
+    await source.syncCopiedLyrics(
+      server,
+      stillCurrent: () => socket.connected,
+      onProgress: (done, total) =>
+          _report(LinkSyncPhase.lyrics, processed: done, total: total),
+    );
+    _requireReady();
     _matchCandidates = List<Song>.of(await SongRepository().getAllSongs());
     for (final kind in ['library', 'history']) {
       if (kind == 'history') await _backfillHistory();

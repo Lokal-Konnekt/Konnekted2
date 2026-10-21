@@ -145,6 +145,25 @@ void main() {
     );
     final first = lokalMadeForYou([mix]);
     expect(first, hasLength(2));
-    expect(identical(lokalMadeForYou([mix, mix]), first), isTrue);
+    expect(
+      lokalMadeForYou([mix, mix]).map((p) => p.song.id),
+      first.map((p) => p.song.id),
+    );
+    final all = [
+      mix,
+      for (var m = 1; m < 6; m++)
+        LokalMix(
+          id: 'm$m',
+          name: 'Mix $m',
+          type: LokalMixType.genre,
+          tracks: [for (var i = 0; i < 4; i++) _song('$m-$i')],
+        ),
+    ];
+    final filled = lokalMadeForYou(all);
+    expect(filled, hasLength(12));
+    for (final mix in all) {
+      expect(filled.where((p) => p.mix.id == mix.id), hasLength(2));
+    }
+    expect(filled.take(2).map((p) => p.song.id), first.map((p) => p.song.id));
   });
 }

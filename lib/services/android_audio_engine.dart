@@ -159,6 +159,7 @@ class AndroidAudioEngine implements AudioEngine {
   List<String> _playlistSignature = const <String>[];
   bool _awaitingInitialSeek = false;
   bool _loadedSingleTrackOnly = false;
+  bool _sourceFailed = false;
 
   // Crossfade state. [_player] is always the currently-audible/active player;
   // [_secondary] is the idle slot reused as the incoming player on each fade.
@@ -204,7 +205,7 @@ class AndroidAudioEngine implements AudioEngine {
     _subscriptions.add(
       player.playerStateStream.listen((state) {
         if (!identical(player, _player)) return;
-        _emit(_state.copyWith(isPlaying: state.playing));
+        _emit(_state.copyWith(isPlaying: state.playing && !_sourceFailed));
       }),
     );
 
@@ -280,7 +281,10 @@ class AndroidAudioEngine implements AudioEngine {
           'trackFileType=${_loadedTrack?.fileType} '
           'trackTitle=${_loadedTrack?.title}',
         );
-        final failedTrack = _loadedTrack;
+        _sourceFailed = true;
+        _playlistSignature = const [];
+        _emit(_state.copyWith(isPlaying: false));
+        final failedTrack = _resolveTrack(error.index) ?? _loadedTrack;
         if (failedTrack != null) {
           _onTrackError?.call(failedTrack);
         }
@@ -352,16 +356,43 @@ class AndroidAudioEngine implements AudioEngine {
       await player
           .setAudioSource(source, initialIndex: initialIndex, preload: true)
           .timeout(const Duration(seconds: 30));
-    } on TimeoutException {
-      // stop() cancels ExoPlayer's pending prepare before the next queued tap.
+      _sourceFailed = false;
+    } catch (error) {
+      // A failed source must never be reused by seek/resume. stop() also
+      // cancels an outstanding prepare before the next queued command.
+      _sourceFailed = true;
+      _emit(_state.copyWith(isPlaying: false));
       try {
         await player.stop().timeout(const Duration(seconds: 3));
       } catch (_) {}
       _playlistSignature = const [];
       _loadedSingleTrackOnly = false;
-      throw TimeoutException(
-        'Audio source did not become ready. Retry or choose another source.',
-      );
+      if (error is TimeoutException) {
+        throw TimeoutException(
+          'Audio source did not become ready. Retry or choose another source.',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _seekPlayer(
+    just_audio.AudioPlayer player,
+    Duration position, {
+    int? index,
+  }) async {
+    try {
+      await player
+          .seek(position, index: index)
+          .timeout(const Duration(seconds: 15));
+    } catch (_) {
+      _sourceFailed = true;
+      _playlistSignature = const [];
+      _emit(_state.copyWith(isPlaying: false));
+      try {
+        await player.stop().timeout(const Duration(seconds: 3));
+      } catch (_) {}
+      rethrow;
     }
   }
 
@@ -379,6 +410,7 @@ class AndroidAudioEngine implements AudioEngine {
         .map((song) => song.id)
         .toList(growable: false);
     final canReusePlaylist =
+        !_sourceFailed &&
         _playlistSignature.isNotEmpty &&
         listEquals(_playlistSignature, nextSignature);
 
@@ -395,7 +427,7 @@ class AndroidAudioEngine implements AudioEngine {
         final source = await _sourceBuilder(track)
             .timeout(const Duration(seconds: 30));
         await _loadSource(player, source);
-        await player.seek(Duration.zero);
+        await _seekPlayer(player, Duration.zero);
       } finally {
         _awaitingInitialSeek = false;
       }
@@ -424,7 +456,7 @@ class AndroidAudioEngine implements AudioEngine {
         player.sequence.isNotEmpty &&
         !_loadedSingleTrackOnly) {
       devLog('[Playback] Android load(${track.id}) using existing playlist');
-      await player.seek(Duration.zero, index: index);
+      await _seekPlayer(player, Duration.zero, index: index);
     } else if (shouldFastStartCurrentTrackOnly) {
       devLog(
         '[Playback] Android load(${track.id}) fast-starting current track',
@@ -434,7 +466,7 @@ class AndroidAudioEngine implements AudioEngine {
         final source = await _sourceBuilder(track)
             .timeout(const Duration(seconds: 30));
         await _loadSource(player, source);
-        await player.seek(Duration.zero);
+        await _seekPlayer(player, Duration.zero);
       } finally {
         _awaitingInitialSeek = false;
       }
@@ -453,7 +485,7 @@ class AndroidAudioEngine implements AudioEngine {
           throw StateError('No audio sources available for playback');
         }
         await _loadSource(player, source, initialIndex: index);
-        await player.seek(Duration.zero, index: index);
+        await _seekPlayer(player, Duration.zero, index: index);
       } finally {
         _awaitingInitialSeek = false;
       }
@@ -474,6 +506,9 @@ class AndroidAudioEngine implements AudioEngine {
 
   @override
   Future<void> play() async {
+    if (_sourceFailed && _loadedTrack != null) {
+      await load(_loadedTrack!);
+    }
     final player = await _ensurePlayer();
     // just_audio keeps this future alive while playback is active, which would
     // block the PlayerService command queue until the track ends.
@@ -549,7 +584,7 @@ class AndroidAudioEngine implements AudioEngine {
         await player.setVolume(_rampUserVolume);
       } catch (_) {}
     }
-    await player.seek(position);
+    await _seekPlayer(player, position);
   }
 
   @override
@@ -590,8 +625,10 @@ class AndroidAudioEngine implements AudioEngine {
         final incoming = await _ensureSecondary();
         final source = await _sourceBuilder(next);
         _rampUserVolume = outgoing.volume <= 0 ? 1.0 : outgoing.volume;
-        await incoming.setAudioSource(source, preload: true);
-        await incoming.seek(Duration.zero);
+        await incoming
+            .setAudioSource(source, preload: true)
+            .timeout(const Duration(seconds: 30));
+        await incoming.seek(Duration.zero).timeout(const Duration(seconds: 15));
         await incoming.setVolume(0);
         await incoming.setSpeed(outgoing.speed);
         await incoming.setLoopMode(just_audio.LoopMode.off);
@@ -667,13 +704,10 @@ class AndroidAudioEngine implements AudioEngine {
 
   Future<void> _finishCrossfade(just_audio.AudioPlayer outgoing) async {
     try {
-      await outgoing.stop();
+      await outgoing.stop().timeout(const Duration(seconds: 3));
     } catch (_) {}
     try {
       await outgoing.setVolume(_rampUserVolume);
-    } catch (_) {}
-    try {
-      await outgoing.seek(Duration.zero);
     } catch (_) {}
     _crossfadeArmed = false;
   }
@@ -686,13 +720,10 @@ class AndroidAudioEngine implements AudioEngine {
     final secondary = _secondary;
     if (secondary != null) {
       try {
-        await secondary.stop();
+        await secondary.stop().timeout(const Duration(seconds: 3));
       } catch (_) {}
       try {
         await secondary.setVolume(_rampUserVolume);
-      } catch (_) {}
-      try {
-        await secondary.seek(Duration.zero);
       } catch (_) {}
     }
     // If we were mid-fade, the active player's volume was being ramped down;

@@ -52,6 +52,7 @@ class LibrarySyncNotification {
       ),
       LinkSyncPhase.history => lokalText('Syncing listening history…'),
       LinkSyncPhase.metadata => lokalText('Checking copied audio details…'),
+      LinkSyncPhase.lyrics => lokalText('Syncing saved lyrics…'),
       LinkSyncPhase.finalizing => lokalText('Updating your profile…'),
       LinkSyncPhase.complete => lokalText('Your libraries are up to date.'),
       LinkSyncPhase.paused => lokalText('Reconnect to your desktop to resume.'),

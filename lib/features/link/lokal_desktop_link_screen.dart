@@ -220,6 +220,7 @@ class _LokalDesktopLinkScreenState
             LinkSyncPhase.metadata => lokalText(
               'Checking copied audio details…',
             ),
+            LinkSyncPhase.lyrics => lokalText('Syncing saved lyrics…'),
             LinkSyncPhase.finalizing => lokalText('Updating your profile…'),
             LinkSyncPhase.complete => lokalText('Libraries are up to date'),
             LinkSyncPhase.paused => lokalText('Library sync paused'),

@@ -1,3 +1,4 @@
+import '../lyrics_service.dart';
 import '../graceful_http_client.dart';
 import '../local_metadata_repair.dart';
 
@@ -168,10 +169,74 @@ class LokalDesktopSource extends NetworkSourceService {
       final saved = entity;
       await Database.instance.writeTxn(() => Database.songs.put(saved));
       committed = true;
+      await syncCopiedLyrics(server, copies: [saved]);
     } finally {
       client.close();
       if (await part.exists()) await part.delete();
       if (!committed && await file.exists()) await file.delete();
+    }
+  }
+
+  Future<void> syncCopiedLyrics(
+    NetworkServerEntity server, {
+    List<SongEntity>? copies,
+    bool Function()? stillCurrent,
+    void Function(int, int)? onProgress,
+  }) async {
+    final client = GracefulHttpClient();
+    try {
+      final rows =
+          copies ??
+          await Database.songs
+              .filter()
+              .remoteServerIdEqualTo(server.id)
+              .sourceTypeIsNull()
+              .findAll();
+      final credentials = await _credentials(server);
+      for (var offset = 0; offset < rows.length; offset += 50) {
+        if (stillCurrent?.call() == false) return;
+        final page = rows
+            .skip(offset)
+            .take(50)
+            .where((row) => row.remoteId != null)
+            .toList();
+        if (page.isEmpty) continue;
+        final response = await client
+            .post(
+              credentials.origin.replace(path: '/api/remote/library/lyrics'),
+              headers: {
+                ..._headers(credentials),
+                'content-type': 'application/json',
+              },
+              body: jsonEncode({
+                'ids': page.map((row) => row.remoteId!).toList(),
+              }),
+            )
+            .timeout(const Duration(seconds: 15));
+        if (stillCurrent?.call() == false) return;
+        if (response.statusCode == 404 || response.statusCode == 403) return;
+        if (response.statusCode != 200 ||
+            response.bodyBytes.length > 4 * 1024 * 1024)
+          return;
+        final body = jsonDecode(response.body);
+        if (body['items'] is! List) return;
+        for (final item in (body['items'] as List).whereType<Map>()) {
+          if (item['lyrics'] is! Map) continue;
+          for (final row in page.where(
+            (row) => row.remoteId == item['id']?.toString(),
+          )) {
+            await LyricsService.storeDesktopLyrics(
+              SongRepository().songFromEntity(row),
+              Map<String, dynamic>.from(item['lyrics'] as Map),
+            );
+          }
+        }
+        onProgress?.call((offset + 50).clamp(0, rows.length), rows.length);
+      }
+    } catch (_) {
+      /* Lyrics are optional; an older/offline PC must not fail file copy. */
+    } finally {
+      client.close();
     }
   }
 

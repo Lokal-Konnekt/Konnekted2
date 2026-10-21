@@ -250,16 +250,34 @@ List<LokalMadeForYouPick> pickMadeForYou(
 
 List<LokalMadeForYouPick>? _picked;
 
-/// This run's Made for you: picked the first time there are mixes, then
-/// kept until the app restarts, so a card never moves under your finger
-/// when the mixes refresh (desktop's rule).
+/// Keep this run's valid picks, filling newly available mixes as the library
+/// loads. A partial initial snapshot must not freeze Cover Flow at two songs.
 List<LokalMadeForYouPick> lokalMadeForYou(
   List<LokalMix> mixes, {
   Random? random,
 }) {
-  final known = _picked;
-  if (known != null && known.isNotEmpty) return known;
-  final picks = pickMadeForYou(mixes, random: random);
+  final rng = random ?? Random();
+  final seen = <String>{};
+  final picks = <LokalMadeForYouPick>[];
+  for (final mix in {
+    for (final mix in mixes) mix.id: mix,
+  }.values.take(lokalMadeForYouMixes)) {
+    final available = {for (final song in mix.tracks) song.id: song};
+    final kept = (_picked ?? const <LokalMadeForYouPick>[])
+        .where(
+          (pick) =>
+              pick.mix.id == mix.id && available.containsKey(pick.song.id),
+        )
+        .map((pick) => available[pick.song.id]!)
+        .toList();
+    var count = 0;
+    for (final song in [...kept, ..._shuffled(mix.tracks, rng)]) {
+      if (count >= lokalMadeForYouPerMix) break;
+      if (!seen.add(song.id)) continue;
+      picks.add(LokalMadeForYouPick(song: song, mix: mix));
+      count++;
+    }
+  }
   if (picks.isNotEmpty) _picked = picks;
   return picks;
 }

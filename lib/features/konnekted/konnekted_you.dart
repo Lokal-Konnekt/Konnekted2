@@ -190,8 +190,12 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
                 ?.totalListeningTime
                 .inMinutes,
             streak: streak,
-            onSettings: () =>
-                navigate(const KonnektedDestination.aboutDataSettings()),
+            onSettings: () => navigate(
+              const KonnektedDestination.settingsAt(
+                LokalSettingsGroup.data,
+                section: LokalDataSections.accounts,
+              ),
+            ),
           ),
           const LokalDevicesCard(),
           _Label(lokalText('Recap')),
@@ -260,10 +264,26 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
             title: lokalText('More'),
             children: [
               LokalSettingLink(
-                label: lokalText('Settings'),
-                description: lokalText('How Lokal plays, looks and connects.'),
-                icon: Icons.settings_rounded,
-                onTap: () => navigate(KonnektedDestination.settings),
+                label: lokalText('Playback'),
+                description: lokalText('Audio, queue, lyrics and output.'),
+                icon: Icons.play_circle_outline_rounded,
+                onTap: () => navigate(
+                  const KonnektedDestination.settingsAt(
+                    LokalSettingsGroup.playback,
+                  ),
+                ),
+              ),
+              LokalSettingLink(
+                label: lokalText('Online sources'),
+                description: lokalText(
+                  'Source priority, add-ons, servers and radio.',
+                ),
+                icon: Icons.cloud_rounded,
+                onTap: () => navigate(
+                  const KonnektedDestination.settingsAt(
+                    LokalSettingsGroup.integrations,
+                  ),
+                ),
               ),
               LokalSettingLink(
                 label: lokalText('What’s new'),

@@ -19,6 +19,9 @@ class _LyricsSublineButtonsState extends State<LyricsSublineButtons> {
   String? _mode;
   bool _busy = false;
   int _generation = 0;
+  String? _blockedTarget;
+  String get _target =>
+      WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag();
   @override
   void didUpdateWidget(LyricsSublineButtons oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -26,6 +29,7 @@ class _LyricsSublineButtonsState extends State<LyricsSublineButtons> {
       _generation++;
       _mode = null;
       _busy = false;
+      _blockedTarget = null;
     }
   }
 
@@ -44,16 +48,45 @@ class _LyricsSublineButtonsState extends State<LyricsSublineButtons> {
       _busy = true;
     });
     LyricsData? result;
-    if (mode == 'translate' &&
-        widget.lyrics.lines.any((l) => l.translation?.isNotEmpty == true)) {
-      result = widget.lyrics;
-    } else {
-      result = await LyricsTranslationService.convert(
-        widget.lyrics,
-        romanize: mode == 'romanize',
-        target: Localizations.localeOf(context).languageCode,
-        current: () => mounted && generation == _generation,
+    try {
+      if (mode == 'translate' &&
+          LyricsTranslationService.sameLanguage(
+            widget.lyrics.language,
+            _target,
+          ))
+        throw const SameLyricsLanguage();
+      if (mode == 'translate' &&
+          widget.lyrics.translationLanguage != null &&
+          LyricsTranslationService.sameLanguage(
+            widget.lyrics.translationLanguage,
+            _target,
+          ) &&
+          widget.lyrics.lines.any((l) => l.translation?.isNotEmpty == true)) {
+        result = widget.lyrics;
+      } else {
+        result = await LyricsTranslationService.convert(
+          widget.lyrics,
+          romanize: mode == 'romanize',
+          target: _target,
+          current: () => mounted && generation == _generation,
+        );
+      }
+    } on SameLyricsLanguage {
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _blockedTarget = _target;
+        _mode = null;
+        _busy = false;
+      });
+      widget.onChanged(null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('These lyrics are already in your system language.'),
+        ),
       );
+      return;
+    } catch (_) {
+      result = null;
     }
     if (!mounted || generation != _generation) return;
     setState(() {
@@ -94,7 +127,15 @@ class _LyricsSublineButtonsState extends State<LyricsSublineButtons> {
                   size: 22,
                   color: _mode == mode ? context.lokal.accent : null,
                 ),
-          onPressed: () => _toggle(mode),
+          onPressed:
+              mode == 'translate' &&
+                  (_blockedTarget == _target ||
+                      LyricsTranslationService.sameLanguage(
+                        widget.lyrics.language,
+                        _target,
+                      ))
+              ? null
+              : () => _toggle(mode),
         ),
     ],
   );

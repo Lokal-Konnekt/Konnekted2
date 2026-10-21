@@ -177,3 +177,41 @@ Implemented; Android profiling/device validation remains outstanding:
   closing, Android preparation timeouts and a crossfade resume future that could
   hold the playback command queue. The ANR trace does not by itself prove a
   single root cause; native hardware paths remain unchanged.
+
+
+## Lyrics motion, paired lyrics and failed-source recovery (2026-10-21)
+
+Implemented; Android device confirmation remains outstanding:
+
+- Artwork/lyrics use a reversible fade with a small vertical transition, with no
+  cover flip. Both views retain state; the hidden view's tickers are disabled.
+  Transport and options remain in place. Seek drag state is held until handoff.
+- Timed lyrics are shaped and measured as one TextPainter paragraph, including
+  CJK wrapping, text scaling and RTL runs. Word sweep/lift and held notes reuse
+  cached paragraph geometry. This does not add desktop's full duet/bg-word model.
+- Bini matching follows desktop's title/artist/duration/timing scoring rather
+  than exact artist strings. Fresh source preferences prioritize syllable lyrics;
+  existing custom order and timing preference remain. Manual selections remain
+  authoritative. TTML supports bare-second timestamps and language metadata.
+- The player source bottom sheet shows the current timing type, source
+  capabilities and refresh search; refresh retries cached LRCLIB misses.
+  Translation/romanization sublines animate without remounting the lyric view.
+  Translation rejects known/detected matches to the system language.
+- The paired desktop endpoint exports existing cache/sidecar lyrics without
+  online requests. Mobile copies normalized words/timestamps/language, retains
+  better cached timing and repairs already copied songs on the next merge.
+  This requires the companion desktop update; older desktops still copy audio.
+- Home wheel opens Data with Accounts first. You → More has dedicated Playback,
+  Online sources and About rows. Cover Flow fills newly available mixes rather
+  than freezing the first partial set, keeping valid picks stable.
+- The supplied log ends in two Android Source errors for Tearz. Failed prepares,
+  async source errors and seek failures invalidate source/playlist/resume reuse.
+  Resume reloads rejected sources, seeks have a bounded wait and failures reach
+  the user. Redundant crossfade cleanup seeks are removed. The log does not
+  identify the underlying file/network failure; no claim of a reproduced Xiaomi
+  hardware fix is made.
+
+Validation: focused Dart lyric/parser/matching/layout/mix and failed-source tests,
+Dart analysis (no errors), and desktop export/quality tests. No APK or CI build
+was run for this follow-up. Public-provider availability and device frame pacing
+remain unverified.

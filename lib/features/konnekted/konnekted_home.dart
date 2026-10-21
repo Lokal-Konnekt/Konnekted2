@@ -80,8 +80,12 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
           SliverToBoxAdapter(
             child: KonnektedHomeTopBar(
               greeting: ref.watch(konnektedGreetingProvider).value,
-              onSettings: () =>
-                  onNavigate(const KonnektedDestination.aboutDataSettings()),
+              onSettings: () => onNavigate(
+                const KonnektedDestination.settingsAt(
+                  LokalSettingsGroup.data,
+                  section: LokalDataSections.accounts,
+                ),
+              ),
               onAppearance: () => onNavigate(
                 const KonnektedDestination.settingsAt(
                   LokalSettingsGroup.appearance,

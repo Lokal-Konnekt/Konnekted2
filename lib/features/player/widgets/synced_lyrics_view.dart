@@ -1,3 +1,5 @@
+import 'animated_lyric_subline.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -91,7 +93,15 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
     }
     if (!identical(oldWidget.lyrics, widget.lyrics)) {
       _estimatesForWidth = null;
-      _needsInitialJump = true;
+      final oldLines = oldWidget.lyrics.lines, newLines = widget.lyrics.lines;
+      if (oldLines.length != newLines.length ||
+          Iterable<int>.generate(newLines.length).any(
+            (i) =>
+                oldLines[i].timestamp != newLines[i].timestamp ||
+                oldLines[i].text != newLines[i].text,
+          )) {
+        _needsInitialJump = true;
+      }
     }
     if (oldWidget.active != widget.active && widget.active) {
       _needsInitialJump = true;
@@ -433,21 +443,15 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 content,
-                if (line.translation?.isNotEmpty == true)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                    child: Text(
-                      line.translation!,
-                      textAlign: alignment.textAlign,
-                      style: TextStyle(
-                        fontSize: 15,
-                        height: 1.3,
-                        color: Colors.white.withValues(
-                          alpha: isActive ? .72 : .35,
-                        ),
-                      ),
-                    ),
+                AnimatedLyricSubline(
+                  text: line.translation,
+                  textAlign: alignment.textAlign,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.3,
+                    color: Colors.white.withValues(alpha: isActive ? .72 : .35),
                   ),
+                ),
               ],
             ),
           ),

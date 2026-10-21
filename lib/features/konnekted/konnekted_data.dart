@@ -125,7 +125,7 @@ final konnektedMixesProvider = FutureProvider<List<LokalMix>>((ref) async {
   if (library.isEmpty) return const [];
   final now = DateTime.now();
   final key =
-      '${now.year}-${now.month}-${now.day}|${library.length}|${liked.length}';
+      '${now.year}-${now.month}-${now.day}|${Object.hashAll(library.map((s) => Object.hash(s.id, s.artist, s.genre, s.album)))}|${Object.hashAll(liked.map((s) => s.id))}';
   final cached = _mixes;
   if (cached != null && cached.key == key) return cached.mixes;
   final history = ref.read(konnektedHistoryRepositoryProvider);

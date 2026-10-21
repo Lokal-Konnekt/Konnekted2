@@ -257,6 +257,7 @@ enum LinkSyncPhase {
   preparing,
   catalog,
   metadata,
+  lyrics,
   history,
   library,
   finalizing,
@@ -281,6 +282,7 @@ class LinkSyncProgress {
     LinkSyncPhase.preparing ||
     LinkSyncPhase.catalog ||
     LinkSyncPhase.metadata ||
+    LinkSyncPhase.lyrics ||
     LinkSyncPhase.history ||
     LinkSyncPhase.library ||
     LinkSyncPhase.finalizing => true,

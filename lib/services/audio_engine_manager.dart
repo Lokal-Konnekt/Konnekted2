@@ -26,6 +26,9 @@ class AudioEngineManager {
 
   bool get canResumeCurrentTrack => _engineHasLoadedTrack;
 
+  /// An asynchronous decoder/source error invalidates the resume shortcut.
+  void invalidateLoadedTrack() => _engineHasLoadedTrack = false;
+
   Future<void> attachEngine(
     AudioEngine engine, {
     AudioEngineType? engineType,
@@ -89,9 +92,7 @@ class AudioEngineManager {
 
     final inFlight = _transitionInFlight;
     if (inFlight != null) {
-      devLog(
-        '[Engine] Waiting for in-flight engine transition to complete',
-      );
+      devLog('[Engine] Waiting for in-flight engine transition to complete');
       await inFlight;
       if (_engineInitialized &&
           _currentEngine != null &&
@@ -126,6 +127,7 @@ class AudioEngineManager {
   }) async {
     final engine = _requireEngine();
     devLog('[Playback] load(${track.id})');
+    _engineHasLoadedTrack = false;
     await engine.load(track);
     _engineHasLoadedTrack = true;
     if (initialPosition > Duration.zero) {
@@ -155,6 +157,7 @@ class AudioEngineManager {
   Future<void> load(Song track) async {
     final engine = _requireEngine();
     devLog('[Playback] load(${track.id})');
+    _engineHasLoadedTrack = false;
     await engine.load(track);
     _engineHasLoadedTrack = true;
   }
@@ -173,6 +176,7 @@ class AudioEngineManager {
 
   Future<void> stop() async {
     final engine = _requireEngine();
+    _engineHasLoadedTrack = false;
     await engine.stop();
   }
 

@@ -62,12 +62,15 @@ class LyricsData {
   final bool isSynchronized;
   final String? source;
   final String rawContent;
+  final String? language, translationLanguage;
 
   const LyricsData({
     required this.lines,
     required this.isSynchronized,
     this.source,
     required this.rawContent,
+    this.language,
+    this.translationLanguage,
   });
 }
 
@@ -98,6 +101,8 @@ class LyricsService {
   /// Where lyrics are looked up online (LRCLIB unless given).
   final OnlineLyricsService? online;
   final Map<String, LyricsData?> _cache = {};
+  static int _desktopRevision = 0;
+  int _seenDesktopRevision = 0;
 
   /// The song's own lyrics (a manual pick, its tags, a file beside it). With
   /// [fetchOnline], a song that carries none is looked up on LRCLIB, as
@@ -106,9 +111,15 @@ class LyricsService {
     Song song, {
     bool forceRefresh = false,
     bool fetchOnline = false,
+    bool refreshOnline = false,
     String source = 'auto',
     bool Function()? stillCurrent,
   }) async {
+    if (refreshOnline) OnlineLyricsService.clearLookupCache();
+    if (_seenDesktopRevision != _desktopRevision) {
+      _cache.clear();
+      _seenDesktopRevision = _desktopRevision;
+    }
     if (source != 'auto' && source != 'local')
       return fetchOnlineLyrics(
         song,
@@ -116,8 +127,22 @@ class LyricsService {
         stillCurrent: stillCurrent,
       );
     final own = await _loadOwnLyrics(song, forceRefresh: forceRefresh);
-    if (own != null || !fetchOnline || source == 'local') return own;
-    return fetchOnlineLyrics(song, stillCurrent: stillCurrent);
+    if (!fetchOnline ||
+        source == 'local' ||
+        (!refreshOnline &&
+            own?.lines.any((l) => l.words?.isNotEmpty == true) == true))
+      return own;
+    if (own != null && await getManualLyricsPathForSong(song) != null)
+      return own;
+    final found = await fetchOnlineLyrics(song, stillCurrent: stillCurrent);
+    int rank(LyricsData? data) => data == null
+        ? 0
+        : data.lines.any((l) => l.words?.isNotEmpty == true)
+        ? 3
+        : data.isSynchronized
+        ? 2
+        : 1;
+    return rank(found) > rank(own) ? found : own ?? found;
   }
 
   /// Ordered online fallback, or an explicit source selected during playback.
@@ -243,15 +268,24 @@ class LyricsService {
       await clearManualLyricsPathForSong(song);
     }
 
-    final embedded = await _loadEmbeddedLyricsText(filePath);
-    if (embedded != null && embedded.content.trim().isNotEmpty) {
-      final parsed = _parseLyrics(embedded.content, source: embedded.source);
-      _cache[filePath] = parsed;
-      return parsed;
+    final desktop = await _desktopLyrics(song);
+    if (desktop != null &&
+        desktop.lines.any((l) => l.words?.isNotEmpty == true)) {
+      _cache[filePath] = desktop;
+      return desktop;
     }
-
     final loaded = await _loadLyricsText(filePath);
     if (loaded == null || loaded.content.trim().isEmpty) {
+      if (desktop != null) {
+        _cache[filePath] = desktop;
+        return desktop;
+      }
+      final embedded = await _loadEmbeddedLyricsText(filePath);
+      if (embedded != null && embedded.content.trim().isNotEmpty) {
+        final parsed = _parseLyrics(embedded.content, source: embedded.source);
+        _cache[filePath] = parsed;
+        return parsed;
+      }
       _cache[filePath] = null;
       return null;
     }
@@ -259,6 +293,108 @@ class LyricsService {
     final parsed = _parseLyrics(loaded.content, source: loaded.source);
     _cache[filePath] = parsed;
     return parsed;
+  }
+
+  static LyricsData? fromDesktop(Map<String, dynamic> payload) {
+    final rows = payload['lines'];
+    if (rows is! List) return null;
+    Duration seconds(Object? value) => Duration(
+      microseconds: ((value is num ? value.toDouble() : 0) * 1000000).round(),
+    );
+    final lines = <LyricsLine>[];
+    for (final row in rows.whereType<Map>()) {
+      if (row['gap'] == true) continue;
+      final words = <LyricsWord>[];
+      for (final word
+          in (row['words'] is List ? row['words'] as List : const [])
+              .whereType<Map>()) {
+        if (word['time'] is! num || word['end'] is! num) continue;
+        words.add(
+          LyricsWord(
+            start: seconds(word['time']),
+            end: seconds(word['end']),
+            text: '${word['word'] ?? ''}${word['space'] == true ? ' ' : ''}',
+          ),
+        );
+      }
+      final text = row['text']?.toString() ?? '';
+      if (text.trim().isEmpty) continue;
+      final translation = row['translation'];
+      lines.add(
+        LyricsLine(
+          timestamp: seconds(row['time']),
+          text: text,
+          words: words.isEmpty ? null : words,
+          translation: translation is Map
+              ? translation['text']?.toString()
+              : translation?.toString(),
+        ),
+      );
+    }
+    if (lines.isEmpty) return null;
+    lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return LyricsData(
+      lines: lines,
+      isSynchronized:
+          payload['type'] == 'synced' ||
+          payload['type'] == 'syllable' ||
+          payload['sync'] == 'syllable' ||
+          payload['sync'] == 'line',
+      source: payload['source']?.toString() ?? 'Desktop',
+      rawContent: jsonEncode(payload),
+      language: payload['language']?.toString(),
+      translationLanguage: payload['translationLang']?.toString(),
+    );
+  }
+
+  static Future<File> _desktopFile(Song song) async {
+    final directory = Directory(
+      '${(await getApplicationDocumentsDirectory()).path}/desktop_lyrics',
+    );
+    await directory.create(recursive: true);
+    return File('${directory.path}/${Uri.encodeComponent(song.id)}.json');
+  }
+
+  static Future<void> storeDesktopLyrics(
+    Song song,
+    Map<String, dynamic> payload,
+  ) async {
+    final candidate = fromDesktop(payload);
+    if (candidate == null) return;
+    final file = await _desktopFile(song);
+    final encoded = jsonEncode(payload);
+    int rank(LyricsData data) =>
+        data.lines.any((l) => l.words?.isNotEmpty == true)
+        ? 3
+        : data.isSynchronized
+        ? 2
+        : 1;
+    if (await file.exists()) {
+      try {
+        final raw = await file.readAsString();
+        if (raw == encoded) return;
+        final existing = fromDesktop(
+          Map<String, dynamic>.from(jsonDecode(raw) as Map),
+        );
+        if (existing != null && rank(existing) > rank(candidate)) return;
+      } catch (_) {}
+    }
+    final part = File('${file.path}.part');
+    await part.writeAsString(encoded, flush: true);
+    await part.rename(file.path);
+    _desktopRevision++;
+  }
+
+  static Future<LyricsData?> _desktopLyrics(Song song) async {
+    try {
+      final file = await _desktopFile(song);
+      if (!await file.exists()) return null;
+      return fromDesktop(
+        Map<String, dynamic>.from(jsonDecode(await file.readAsString()) as Map),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<String?> getManualLyricsPathForSong(Song song) async {
@@ -691,6 +827,8 @@ class LyricsService {
     final sep = Platform.pathSeparator;
 
     final candidates = <String>[
+      '${parent.path}$sep$stem.ttml',
+      '${parent.path}$sep$stem.elrc',
       '${parent.path}$sep$stem.lrc',
       '${parent.path}$sep$stem.txt',
       '${parent.path}$sep$stem.xml',
@@ -876,7 +1014,7 @@ class LyricsService {
                     .round(),
           );
         final parts = value.split(':');
-        if (parts.length < 2) return null;
+        if (parts.isEmpty) return null;
         var seconds = 0.0;
         for (final part in parts) {
           final number = double.tryParse(part);
@@ -890,10 +1028,15 @@ class LyricsService {
         (e) => e.name.local == 'p',
       );
       final lines = <LyricsLine>[];
+      final plain = <LyricsLine>[];
       for (final paragraph in paragraphs) {
         final start = time(paragraph.getAttribute('begin'));
         final text = paragraph.innerText.replaceAll(RegExp(r'\s+'), ' ').trim();
-        if (start == null || text.isEmpty) continue;
+        if (text.isEmpty) continue;
+        if (start == null) {
+          plain.add(LyricsLine(timestamp: Duration.zero, text: text));
+          continue;
+        }
         final words = <LyricsWord>[];
         for (final span in paragraph.descendants.whereType<XmlElement>().where(
           (e) => e.name.local == 'span',
@@ -929,13 +1072,19 @@ class LyricsService {
           ),
         );
       }
-      if (lines.isNotEmpty) {
+      if (lines.isNotEmpty || plain.isNotEmpty) {
+        final timed = lines.isNotEmpty;
+        if (!timed) lines.addAll(plain);
         lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
         return LyricsData(
           lines: lines,
-          isSynchronized: true,
+          isSynchronized: timed,
           source: source,
           rawContent: xml,
+          language: document.rootElement.attributes
+              .where((a) => a.name.local == 'lang')
+              .firstOrNull
+              ?.value,
         );
       }
     } catch (_) {

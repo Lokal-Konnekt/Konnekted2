@@ -1,4 +1,4 @@
-import 'package:flick/services/lyrics_sources.dart';
+import 'lyrics_source_button.dart';
 
 import 'dart:async';
 
@@ -49,6 +49,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
   LyricsData? _lyricsData;
   LyricsData? _sublineLyrics;
   bool _isLoading = true;
+  String? _loadedSongId;
   String _selectedLyricsSource = 'auto';
   int _lyricsRequest = 0;
   bool _hasManualLyricsSelection = false;
@@ -74,11 +75,14 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
     super.dispose();
   }
 
-  Future<void> _loadLyricsForSong(Song song) async {
+  Future<void> _loadLyricsForSong(
+    Song song, {
+    bool refreshOnline = false,
+  }) async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
-      _lyricsData = null;
+      if (_loadedSongId != song.id) _lyricsData = null;
       _sublineLyrics = null;
     });
 
@@ -86,9 +90,11 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
     final loaded = await widget.lyricsService.loadLyricsForSong(
       song,
       forceRefresh: true,
+      refreshOnline: refreshOnline,
       source: _selectedLyricsSource,
       stillCurrent: () => mounted && request == _lyricsRequest,
-      fetchOnline: ref.read(appPreferencesProvider).lyricsAutoFetch,
+      fetchOnline:
+          refreshOnline || ref.read(appPreferencesProvider).lyricsAutoFetch,
     );
     final manualSource = await widget.lyricsService.getManualLyricsPathForSong(
       song,
@@ -97,7 +103,8 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
     if (widget.song.id != song.id) return;
 
     setState(() {
-      _lyricsData = loaded;
+      if (!refreshOnline || loaded != null) _lyricsData = loaded;
+      _loadedSongId = song.id;
       _hasManualLyricsSelection =
           manualSource != null && manualSource.isNotEmpty;
       _isLoading = false;
@@ -122,7 +129,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
     try {
       final pickedFile = await FilePicker.pickFile(
         type: FileType.custom,
-        allowedExtensions: const ['lrc', 'txt', 'xml'],
+        allowedExtensions: const ['ttml', 'elrc', 'lrc', 'txt', 'xml'],
       );
       if (pickedFile == null) return;
 
@@ -385,20 +392,16 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
               lyrics: lyrics,
               onChanged: (value) => setState(() => _sublineLyrics = value),
             ),
-          PopupMenuButton<String>(
-            tooltip: 'Lyrics source',
-            initialValue: _selectedLyricsSource,
-            icon: const Icon(Icons.tune_rounded),
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 'auto', child: Text('Automatic')),
-              const PopupMenuItem(value: 'local', child: Text('Local file')),
-              for (final source in lyricsSources.entries)
-                PopupMenuItem(value: source.key, child: Text(source.value)),
-            ],
+          LyricsSourceButton(
+            selected: _selectedLyricsSource,
+            lyrics: _lyricsData,
+            busy: _isLoading,
             onSelected: (source) {
               setState(() => _selectedLyricsSource = source);
               unawaited(_loadLyricsForSong(widget.song));
             },
+            onRefresh: () =>
+                unawaited(_loadLyricsForSong(widget.song, refreshOnline: true)),
           ),
         ],
       ),
@@ -411,7 +414,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
   }
 
   Widget _buildBody(BuildContext context) {
-    if (_isLoading) {
+    if (_isLoading && _lyricsData == null) {
       return Center(child: CircularProgressIndicator(color: AppColors.accent));
     }
 

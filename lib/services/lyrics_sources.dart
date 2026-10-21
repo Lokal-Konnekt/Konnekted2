@@ -1,3 +1,4 @@
+import 'bini_lyrics_matcher.dart';
 import 'graceful_http_client.dart';
 
 import 'dart:async';
@@ -8,12 +9,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/models/song.dart';
 
 const lyricsSources = <String, String>{
-  'lrclib': 'LRCLIB',
   'binilyrics': 'BiniLyrics',
   'betterlyrics': 'BetterLyrics',
   'betterlyrics_qq': 'BetterLyrics Portato',
   'lyricsplus': 'LyricsPlus',
   'unison': 'Unison',
+  'lrclib': 'LRCLIB',
   'kugou': 'KuGou',
   'lyricsovh': 'lyrics.ovh',
 };
@@ -21,25 +22,29 @@ const lyricsSources = <String, String>{
 class LyricsSourcesState {
   const LyricsSourcesState({
     this.order = const [
-      'lrclib',
       'binilyrics',
       'betterlyrics',
       'betterlyrics_qq',
       'lyricsplus',
       'unison',
+      'lrclib',
       'kugou',
       'lyricsovh',
     ],
     this.disabled = const {},
-    this.preferWords = false,
+    this.preferWords = true,
   });
   final List<String> order;
   final Set<String> disabled;
   final bool preferWords;
   static Future<LyricsSourcesState> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved =
+    var saved =
         prefs.getStringList('lokal.lyrics.sources.order') ?? const <String>[];
+    const legacy =
+        'lrclib,binilyrics,betterlyrics,betterlyrics_qq,lyricsplus,unison,kugou,lyricsovh';
+    if (saved.join(',') == legacy) saved = const [];
+
     return LyricsSourcesState(
       order: {
         ...saved.where(lyricsSources.containsKey),
@@ -47,7 +52,7 @@ class LyricsSourcesState {
       }.toList(),
       disabled: (prefs.getStringList('lokal.lyrics.sources.disabled') ?? [])
           .toSet(),
-      preferWords: prefs.getBool('lokal.lyrics.sources.words') ?? false,
+      preferWords: prefs.getBool('lokal.lyrics.sources.words') ?? true,
     );
   }
 }
@@ -159,22 +164,7 @@ class AdditionalLyricsSources {
           });
           final results = body?['results'];
           if (results is! List) return null;
-          String normalize(Object? value) =>
-              value.toString().trim().toLowerCase();
-          final hit = results
-              .whereType<Map>()
-              .where(
-                (row) =>
-                    normalize(row['track_name']) == normalize(song.title) &&
-                    normalize(row['artist_name']) == normalize(song.artist) &&
-                    (song.duration == Duration.zero ||
-                        row['duration'] is! num ||
-                        ((row['duration'] as num).toDouble() -
-                                    song.duration.inSeconds)
-                                .abs() <=
-                            5),
-              )
-              .firstOrNull;
+          final hit = pickBiniLyrics(results, song);
           final url = hit?['lyricsUrl'];
           return url is String ? await text(url, {}) : null;
         case 'lyricsplus':

@@ -97,6 +97,12 @@ class OnlineLyricsService {
   static final Map<String, OnlineLyricsResult?> _exactCache = {};
   static final Map<String, List<OnlineLyricsResult>> _searchCache = {};
 
+  /// Explicit playback search refresh also retries previously cached misses.
+  static void clearLookupCache() {
+    _exactCache.clear();
+    _searchCache.clear();
+  }
+
   static String _norm(String? s) =>
       (s ?? '').trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 

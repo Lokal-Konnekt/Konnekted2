@@ -3,9 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flick/services/lyrics_service.dart';
 
-/// Desktop Lokal's real timing sweep, 700 ms word lift and held-note movement.
-/// Untimed lines remain line-synced; no invented word timestamps.
-class LyricMotionLine extends StatelessWidget {
+/// One shaped paragraph for measurement and painting, including CJK fallback,
+/// RTL shaping and accessibility text scaling. Timed units never change wrapping.
+class LyricMotionLine extends StatefulWidget {
   const LyricMotionLine({
     super.key,
     required this.line,
@@ -14,139 +14,277 @@ class LyricMotionLine extends StatelessWidget {
     this.sung = Colors.white,
     this.unsung = const Color(0x6BFFFFFF),
     this.textAlign = TextAlign.start,
+    this.timing = true,
   });
   final LyricsLine line;
   final Duration position;
   final TextStyle style;
   final Color sung, unsung;
   final TextAlign textAlign;
+  final bool timing;
+  static TextPainter layout(
+    BuildContext context,
+    String text,
+    TextStyle style,
+    double width, {
+    TextAlign align = TextAlign.start,
+  }) => TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: Directionality.of(context),
+    textAlign: align,
+    textScaler: MediaQuery.textScalerOf(context),
+    locale: Localizations.maybeLocaleOf(context),
+  )..layout(maxWidth: width);
+  static double height(
+    BuildContext context,
+    String text,
+    TextStyle style,
+    double width,
+  ) {
+    final painter = layout(context, text, style, width);
+    final height = painter.height + 8;
+    painter.dispose();
+    return height;
+  }
+
+  @override
+  State<LyricMotionLine> createState() => _LyricMotionLineState();
+}
+
+class _Run {
+  _Run(this.boxes, this.word, {this.letter = 0, this.letters = 0});
+  final List<TextBox> boxes;
+  final LyricsWord? word;
+  final int letter, letters;
+}
+
+class _LyricMotionLineState extends State<LyricMotionLine> {
+  TextPainter? _lit, _dim;
+  Object? _key;
+  List<_Run> _runs = [];
+  static final _joined = RegExp(
+    r'[\u0590-\u0DFF\u0E00-\u0E7F\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF]',
+  );
+  void _layout(double width) {
+    final key = Object.hash(
+      widget.line.text,
+      widget.line.words,
+      widget.timing,
+      widget.style,
+      widget.sung,
+      widget.unsung,
+      widget.textAlign,
+      width,
+      MediaQuery.textScalerOf(context),
+      Directionality.of(context),
+      Localizations.maybeLocaleOf(context),
+    );
+    if (_key == key) return;
+    _key = key;
+    _lit?.dispose();
+    _dim?.dispose();
+    _lit = LyricMotionLine.layout(
+      context,
+      widget.line.text,
+      widget.style.copyWith(color: widget.sung),
+      width,
+      align: widget.textAlign,
+    );
+    _dim = LyricMotionLine.layout(
+      context,
+      widget.line.text,
+      widget.style.copyWith(color: widget.unsung),
+      width,
+      align: widget.textAlign,
+    );
+    List<TextBox> boxes(int start, int end) => _lit!.getBoxesForSelection(
+      TextSelection(baseOffset: start, extentOffset: end),
+    );
+    _runs = [];
+    var cursor = 0;
+    for (final word
+        in widget.timing
+            ? widget.line.words ?? const <LyricsWord>[]
+            : const <LyricsWord>[]) {
+      final text = word.text.replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (text.isEmpty) continue;
+      final start = widget.line.text.indexOf(text, cursor);
+      if (start < 0) continue;
+      if (start > cursor) _runs.add(_Run(boxes(cursor, start), null));
+      final end = start + text.length;
+      final chars = text.characters.toList();
+      final held = (word.end - word.start).inMilliseconds / 1000;
+      final n = chars.length;
+      final grow =
+          n > 0 &&
+          n <= 7 &&
+          !text.contains('-') &&
+          !_joined.hasMatch(text) &&
+          (n == 1
+              ? held >= 1.1
+              : n <= 3
+              ? held >= 1.3 + (n - 2) * .15
+              : n == 4
+              ? held >= 1.05
+              : held >= math.max(.9, n * .2));
+      if (grow) {
+        var at = start;
+        for (var i = 0; i < n; i++) {
+          _runs.add(
+            _Run(boxes(at, at + chars[i].length), word, letter: i, letters: n),
+          );
+          at += chars[i].length;
+        }
+      } else {
+        _runs.add(_Run(boxes(start, end), word));
+      }
+      cursor = end;
+    }
+    if (cursor < widget.line.text.length)
+      _runs.add(_Run(boxes(cursor, widget.line.text.length), null));
+  }
+
+  @override
+  void dispose() {
+    _lit?.dispose();
+    _dim?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      _layout(constraints.maxWidth);
+      return Semantics(
+        label: widget.line.text,
+        child: SizedBox(
+          height: _lit!.height + 8,
+          width: constraints.maxWidth,
+          child: CustomPaint(
+            painter: _LyricPainter(
+              _lit!,
+              _dim!,
+              _runs,
+              widget.position,
+              MediaQuery.disableAnimationsOf(context),
+              widget.style.fontSize ?? 24,
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _LyricPainter extends CustomPainter {
+  _LyricPainter(
+    this.lit,
+    this.dim,
+    this.runs,
+    this.position,
+    this.reduced,
+    this.fontSize,
+  );
+  final TextPainter lit, dim;
+  final List<_Run> runs;
+  final Duration position;
+  final bool reduced;
+  final double fontSize;
   static double smooth(double x) {
     final v = x.clamp(0.0, 1.0);
     return v * v * (3 - 2 * v);
   }
 
-  static final _joined = RegExp(
-    r'[\u0590-\u0DFF\u0E00-\u0E7F\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF]',
-  );
   @override
-  Widget build(BuildContext context) {
-    final words = line.words;
-    if (words == null || words.isEmpty)
-      return Text(line.text, style: style, textAlign: textAlign);
-    final motion = !MediaQuery.disableAnimationsOf(context);
-    final groups = <List<LyricsWord>>[];
-    var current = <LyricsWord>[];
-    for (final word in words) {
-      if (current.isNotEmpty && RegExp(r'^\s').hasMatch(word.text)) {
-        groups.add(current);
-        current = [];
+  void paint(Canvas canvas, Size size) {
+    // Untimed lines stay line-synced; do not invent syllable timestamps.
+    if (runs.every((r) => r.word == null)) {
+      lit.paint(canvas, const Offset(0, 4));
+      return;
+    }
+    canvas.save();
+    canvas.translate(0, 4);
+    for (final run in runs) {
+      final word = run.word;
+      final span = word == null
+          ? 1
+          : math.max(1, (word.end - word.start).inMilliseconds);
+      final elapsed = word == null
+          ? -1
+          : (position - word.start).inMilliseconds;
+      var p = (elapsed / span).clamp(0.0, 1.0);
+      var lift = word == null || reduced
+          ? 0.0
+          : .06 * smooth(math.min(elapsed / 700, 1 - (elapsed - span) / 700));
+      var scale = 1.0;
+      if (run.letters > 0) {
+        p = (p * run.letters - run.letter).clamp(0.0, 1.0);
+        if (!reduced) {
+          final phase = ((elapsed - run.letter * span * .09) / (span * 1.5))
+              .clamp(0.0, 1.0);
+          final k = phase < .25
+              ? smooth(phase / .25)
+              : phase < .3
+              ? 1.0
+              : phase < .75
+              ? 1 - smooth((phase - .3) / .45)
+              : 0.0;
+          final earned = math.pow(
+            ((span / 1000 - .4) / 2.6).clamp(0.0, 1.0),
+            2,
+          );
+          final swell = .04 + earned * .08;
+          scale += swell * k;
+          lift += swell * k * .9;
+        }
       }
-      current.add(word);
-      if (RegExp(r'\s$').hasMatch(word.text) || _joined.hasMatch(word.text)) {
-        groups.add(current);
-        current = [];
+      for (final box in run.boxes) {
+        final rect = box.toRect();
+        canvas.save();
+        canvas.translate(rect.center.dx, rect.center.dy - fontSize * lift);
+        canvas.scale(scale);
+        canvas.translate(-rect.center.dx, -rect.center.dy);
+        canvas.clipRect(rect.inflate(.15));
+        dim.paint(canvas, Offset.zero);
+        if (word != null && p > 0) {
+          if (p >= 1) {
+            lit.paint(canvas, Offset.zero);
+          } else {
+            canvas.saveLayer(rect, Paint());
+            lit.paint(canvas, Offset.zero);
+            final feather = math.min(
+              .45,
+              fontSize * .6 / math.max(1, rect.width),
+            );
+            final edge = p * (1 + feather * 2) - feather;
+            canvas.drawRect(
+              rect,
+              Paint()
+                ..blendMode = BlendMode.dstIn
+                ..shader = LinearGradient(
+                  begin: box.direction == TextDirection.rtl
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  end: box.direction == TextDirection.rtl
+                      ? Alignment.centerLeft
+                      : Alignment.centerRight,
+                  colors: const [Colors.white, Colors.transparent],
+                  stops: [
+                    (edge - feather).clamp(0.0, 1.0),
+                    (edge + feather).clamp(0.0, 1.0),
+                  ],
+                ).createShader(rect),
+            );
+            canvas.restore();
+          }
+        }
+        canvas.restore();
       }
     }
-    if (current.isNotEmpty) groups.add(current);
-    return Wrap(
-      alignment: textAlign == TextAlign.center
-          ? WrapAlignment.center
-          : textAlign == TextAlign.right || textAlign == TextAlign.end
-          ? WrapAlignment.end
-          : WrapAlignment.start,
-      children: [
-        for (final group in groups)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [for (final word in group) _word(word, motion)],
-          ),
-      ],
-    );
+    canvas.restore();
   }
 
-  Widget _word(LyricsWord word, bool motion) {
-    final span = math.max(1, (word.end - word.start).inMilliseconds);
-    final elapsed = (position - word.start).inMilliseconds;
-    final p = (elapsed / span).clamp(0.0, 1.0);
-    final lift = motion
-        ? smooth(math.min(elapsed / 700, 1 - (elapsed - span) / 700))
-        : 0.0;
-    final text = word.text.trimRight();
-    final letters = text.characters.toList();
-    final n = letters.length;
-    final held = span / 1000;
-    final grow =
-        motion &&
-        n > 0 &&
-        n <= 7 &&
-        !text.contains('-') &&
-        !_joined.hasMatch(text) &&
-        (n == 1
-            ? held >= 1.1
-            : n <= 3
-            ? held >= 1.3 + (n - 2) * .15
-            : n == 4
-            ? held >= 1.05
-            : held >= math.max(.9, n * .2));
-    if (grow) {
-      final earned = math
-          .pow(((held - .4) / 2.6).clamp(0.0, 1.0), 2)
-          .toDouble();
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < n; i++)
-            Builder(
-              builder: (_) {
-                final phase = ((elapsed / 1000 - i * held * .09) / (held * 1.5))
-                    .clamp(0.0, 1.0);
-                final k = phase < .25
-                    ? smooth(phase / .25)
-                    : phase < .3
-                    ? 1.0
-                    : phase < .75
-                    ? 1 - smooth((phase - .3) / .45)
-                    : 0.0;
-                final swell =
-                    (n <= 3 ? .05 : .04) +
-                    earned * (1 - (n > 1 ? i / (n - 1) : 0) * .45) * .08;
-                return Transform.translate(
-                  offset: Offset(0, -swell * k * (style.fontSize ?? 24) * .9),
-                  child: Transform.scale(
-                    scale: 1 + swell * k,
-                    child: _sweep(letters[i], (p * n - i).clamp(0.0, 1.0)),
-                  ),
-                );
-              },
-            ),
-          if (word.text.length > text.length)
-            Text(word.text.substring(text.length), style: style),
-        ],
-      );
-    }
-    return Transform.translate(
-      offset: Offset(0, -.06 * (style.fontSize ?? 24) * lift),
-      child: _sweep(word.text, p),
-    );
-  }
-
-  Widget _sweep(String text, double p) => ShaderMask(
-    blendMode: BlendMode.srcIn,
-    shaderCallback: (rect) {
-      final feather = math.min(
-        .45,
-        (style.fontSize ?? 24) * .6 / math.max(1, rect.width),
-      );
-      // At either endpoint the glyph is completely unlit/lit, including narrow letters.
-      final edge = p * (1 + feather * 2) - feather;
-      return LinearGradient(
-        colors: [sung, unsung],
-        stops: [
-          (edge - feather).clamp(0.0, 1.0),
-          (edge + feather).clamp(0.0, 1.0),
-        ],
-      ).createShader(rect);
-    },
-    child: Text(text, style: style.copyWith(color: Colors.white)),
-  );
+  @override
+  bool shouldRepaint(_LyricPainter old) =>
+      old.position != position || old.lit != lit || old.reduced != reduced;
 }

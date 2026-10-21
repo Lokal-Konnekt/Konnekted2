@@ -5037,6 +5037,7 @@ class PlayerService {
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
     final loadingGen = ++_networkLoadingGen;
+    onlinePlaybackError.value = null;
     _cancelPendingPlayback();
     try {
       _debugLog(
@@ -5155,9 +5156,11 @@ class PlayerService {
       AppLog.instance.add(
         '[Playback] Failed to start ${song.title} on ${currentEngineType.logLabel}: $e',
       );
-      if (e is TimeoutException)
-        onlinePlaybackError.value =
-            e.message ?? 'Playback timed out. Retry this song.';
+      _playbackManager.invalidateLoadedTrack();
+      isPlayingNotifier.value = false;
+      onlinePlaybackError.value = e is TimeoutException
+          ? e.message ?? 'Playback timed out. Retry this song.'
+          : 'Could not open “${song.title}”. Retry, or check that the file or source is available.';
       _debugLog(
         '[Playback] play() failed for ${song.title} '
         'on ${currentEngineType.logLabel}: $e',
@@ -5280,6 +5283,12 @@ class PlayerService {
   /// WavPack containers are not decodable by ExoPlayer, so retry them on the
   /// Rust decoder instead of leaving playback stalled on the failed track.
   void _onAndroidTrackError(Song song) {
+    _playbackManager.invalidateLoadedTrack();
+    isNetworkLoadingNotifier.value = false;
+    isPlayingNotifier.value = false;
+    AppLog.instance.add(
+      '[Playback] Android source failed: title=${song.title} type=${song.fileType} network=${song.isNetworkSource}',
+    );
     // The system tier ran into a queued placeholder: look it up and play it.
     final index = _justAudioPlayer?.currentIndex;
     if (index != null &&
@@ -5298,7 +5307,11 @@ class PlayerService {
       );
       return;
     }
-    if (!song.requiresRustDecoder) return;
+    if (!song.requiresRustDecoder) {
+      onlinePlaybackError.value =
+          'Could not open “${song.title}”. Retry, or check that the file or source is available.';
+      return;
+    }
     _debugLog(
       '[Playback] System tier failed to decode ${song.title}; '
       'retrying on the Rust decoder',
@@ -5452,6 +5465,7 @@ class PlayerService {
     }
 
     _debugLog('[Playback] resume() called');
+    onlinePlaybackError.value = null;
     // Use the cached route selection maintained by the session manager's device
     // listener rather than doing another blocking device probe on resume.
     final desiredEngine = _sessionManager.selectedMode;
@@ -5782,6 +5796,10 @@ class PlayerService {
         if (recovered) {
           return;
         }
+        _playbackManager.invalidateLoadedTrack();
+        isPlayingNotifier.value = false;
+        onlinePlaybackError.value = 'Playback could not resume. Retry the song or choose another source.';
+        AppLog.instance.add('[Playback] Resume failed: $e');
         _debugLog('[PlayerService] togglePlayPause error: $e\n$stack');
       }
     });
@@ -5795,6 +5813,9 @@ class PlayerService {
     try {
       await _playbackManager.seek(position);
     } catch (e) {
+      _playbackManager.invalidateLoadedTrack();
+      onlinePlaybackError.value = 'Could not seek. Retry the song.';
+      AppLog.instance.add('[Playback] Seek failed: $e');
       _debugLog('Seek failed: $e');
     }
     unawaited(_updateNotificationState());

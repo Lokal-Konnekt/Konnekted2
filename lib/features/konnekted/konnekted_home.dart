@@ -1,3 +1,4 @@
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/data/repositories/song_repository.dart';
@@ -128,8 +129,10 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
               child: library.when(
                 loading: () => const KonnektedLoading(),
                 error: (_, _) => KonnektedMessage(
-                  title: 'Your library needs another look',
-                  message: 'We couldn’t load your music. Try again, or check your music folders in Library.',
+                  title: lokalText('Your library needs another look'),
+                  message: lokalText(
+                    'We couldn’t load your music. Try again, or check your music folders in Library.',
+                  ),
                   icon: Icons.cloud_off_rounded,
                   actionLabel: 'Try again',
                   onAction: () => ref.invalidate(songsProvider),
@@ -138,8 +141,10 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
                     ? Padding(
                         padding: const EdgeInsets.only(top: 24),
                         child: KonnektedMessage(
-                          title: 'Make room for your favorites',
-                          message: 'Add a music folder to start your collection. Your albums, favorites, and listening history will live here.',
+                          title: lokalText('Make room for your favorites'),
+                          message: lokalText(
+                            'Add a music folder to start your collection. Your albums, favorites, and listening history will live here.',
+                          ),
                           icon: Icons.library_music_rounded,
                           actionLabel: 'Add your music',
                           onAction: () => onNavigate(_addMusic),
@@ -156,7 +161,7 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
             ),
             SliverToBoxAdapter(
               child: KonnektedSongShelf(
-                title: 'On repeat, lately',
+                title: lokalText('On repeat, lately'),
                 songs: ref.watch(konnektedRecentSongsProvider),
                 emptyTitle: 'Your next listen starts a story',
                 emptyMessage: 'The music you play will appear here. Pick something from your library to begin.',
@@ -167,7 +172,7 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
             ),
             SliverToBoxAdapter(
               child: KonnektedSongShelf(
-                title: 'Close to your heart',
+                title: lokalText('Close to your heart'),
                 songs: ref.watch(konnektedFavoritesProvider),
                 emptyTitle: 'Keep the songs you love close',
                 emptyMessage:
@@ -179,7 +184,7 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
             ),
             SliverToBoxAdapter(
               child: KonnektedSongShelf(
-                title: 'Fresh in your library',
+                title: lokalText('Fresh in your library'),
                 songs: ref.watch(konnektedRecentlyAddedProvider),
                 emptyTitle: 'A collection that’s yours',
                 emptyMessage:
@@ -234,7 +239,7 @@ class KonnektedHomeTopBar extends StatelessWidget {
             children: [
               Semantics(
                 button: true,
-                label: 'Appearance',
+                label: lokalText('Appearance'),
                 excludeSemantics: true,
                 onTap: onAppearance,
                 child: GestureDetector(
@@ -248,10 +253,10 @@ class KonnektedHomeTopBar extends StatelessWidget {
               ),
               const Spacer(),
               Tooltip(
-                message: 'Settings',
+                message: lokalText('Settings'),
                 excludeFromSemantics: true,
                 child: LokalGlassButton(
-                  semanticLabel: 'Settings',
+                  semanticLabel: lokalText('Settings'),
                   onPressed: onSettings,
                   child: Icon(
                     Icons.settings_rounded,
@@ -327,7 +332,7 @@ class _KonnektedCoverFlowSectionState
         Semantics(
           header: true,
           child: Text(
-            'MADE FOR YOU',
+            lokalText('MADE FOR YOU'),
             style: LokalTheme.label(t, color: t.accent),
           ),
         ),
@@ -370,7 +375,7 @@ class _FlowButton extends StatelessWidget {
     final t = context.lokal;
     return Semantics(
       button: true,
-      label: 'Open Flow',
+      label: lokalText('Open Flow'),
       excludeSemantics: true,
       child: LokalGlass.capsule(
         thickness: LokalGlassThickness.thin,
@@ -399,7 +404,10 @@ class _FlowButton extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text('FLOW', style: LokalTheme.label(t, color: t.text)),
+                Text(
+                  lokalText('FLOW'),
+                  style: LokalTheme.label(t, color: t.text),
+                ),
               ],
             ),
           ),
@@ -482,10 +490,14 @@ class KonnektedSongShelf extends StatelessWidget {
     children: [
       KonnektedSectionHeading(title: title, onSeeAll: onSeeAll),
       songs.when(
-        loading: () => KonnektedLoading(label: 'Loading $title'),
+        loading: () => KonnektedLoading(
+          label: lokalText("Loading {arg0}", args: {'arg0': title}),
+        ),
         error: (_, _) => KonnektedMessage(
-          title: 'Couldn’t load this shelf',
-          message: 'Your music is still yours. Try loading this section again.',
+          title: lokalText('Couldn’t load this shelf'),
+          message: lokalText(
+            'Your music is still yours. Try loading this section again.',
+          ),
           actionLabel: 'Try again',
           onAction: onRetry,
           icon: Icons.refresh_rounded,
@@ -512,7 +524,10 @@ class KonnektedSongShelf extends StatelessWidget {
                   width: width,
                   child: Semantics(
                     button: true,
-                    label: 'Play ${song.title} by ${song.artist}',
+                    label: lokalText(
+                      "Play {arg0} by {arg1}",
+                      args: {'arg0': song.title, 'arg1': song.artist},
+                    ),
                     onTap: () => onPlay(song, items),
                     onLongPressHint: 'Song actions',
                     onLongPress: () =>
@@ -626,8 +641,8 @@ class KonnektedYourMixes extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const KonnektedSectionHeading(
-          title: 'Your Mixes',
+        KonnektedSectionHeading(
+          title: lokalText('Your Mixes'),
           icon: Icons.radio_rounded,
         ),
         Padding(
@@ -670,7 +685,10 @@ class _MixCard extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: 'Play ${mix.title}, ${mix.tracks.length} songs',
+      label: lokalText(
+        "Play {arg0}, {arg1} songs",
+        args: {'arg0': mix.title, 'arg1': mix.tracks.length},
+      ),
       excludeSemantics: true,
       onTap: play,
       child: InkWell(
@@ -695,7 +713,7 @@ class _MixCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              '${mix.tracks.length} songs',
+              lokalText("{arg0} songs", args: {'arg0': mix.tracks.length}),
               style: TextStyle(fontSize: 12, color: t.muted),
             ),
           ],

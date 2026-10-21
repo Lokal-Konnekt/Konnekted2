@@ -8694,5 +8694,62 @@
   "yourYearlyRecapFillsInAs": "Your yearly recap fills in as you keep listening throughout the year.",
   "@yourYearlyRecapFillsInAs": {
     "description": "lib/data/repositories/recently_played_repository.dart:39"
+  },
+  "linkDesktop": "Desktop link",
+  "linkDevices": "Devices",
+  "linkConnectDesktop": "Connect your Lokal desktop",
+  "linkPairingHint": "On your desktop, open Phone Remote and choose Pair a phone. Keep both devices on the same Wi-Fi.",
+  "linkScanQr": "Scan pairing QR code",
+  "linkInvalidQr": "This is not a valid Lokal pairing code.",
+  "linkCameraUnavailable": "Camera access is unavailable. Go back and enter the desktop address and pairing code instead.",
+  "linkSearchDesktops": "Find desktops on Wi-Fi",
+  "linkSearching": "Looking for desktops…",
+  "linkNoDesktopFound": "No desktop found. You can enter its address manually.",
+  "linkDesktopAddress": "Desktop address",
+  "linkPairingCode": "Six-digit pairing code",
+  "linkPair": "Pair desktop",
+  "linkConnecting": "Connecting…",
+  "linkMatchTheme": "Match desktop theme and accent",
+  "linkConnected": "Connected",
+  "linkOffline": "Offline",
+  "linkReconnect": "Reconnect",
+  "linkDisconnect": "Disconnect",
+  "linkForget": "Forget desktop",
+  "linkForgetDescription": "Remove this desktop’s saved credentials from this phone? Your music and merged library stay on this phone.",
+  "linkActionFailed": "The desktop link could not complete this action.",
+  "linkPlayback": "Playback output",
+  "linkControlDesktop": "Control desktop from Now Playing",
+  "linkPlayOnDesktop": "Play on desktop",
+  "linkPlayOnPhone": "Play on this phone",
+  "linkUpdateDesktop": "Update Lokal on your PC to control this phone from it and sync your library.",
+  "linkMergeLibraries": "Merge your libraries",
+  "linkMergePreview": "Keep music, likes and playlists from both devices. Completed plays are combined once. No music files are deleted. Later edits sync in both directions.",
+  "linkMerge": "Merge",
+  "linkNotNow": "Not now",
+  "linkHistoryCount": "{count} desktop plays ready to merge",
+  "linkSendDownloads": "Send phone downloads to PC",
+  "linkSendDownloadsDescription": "Copy new phone downloads and missing handoff songs to the paired desktop. Original files stay on this phone.",
+  "linkLegacyRemote": "Connect to an older desktop manually",
+  "linkDownloadToPhone": "Download to phone",
+  "linkDownloaded": "Saved on this phone",
+  "linkOutputName": "Lokal on {name}",
+  "linkOnboardingDescription": "Control either device, move your queue between them, and keep likes, playlists and listening history together. This is optional and can be set up later.",
+  "linkFollowAccent": "Follow app accent",
+  "linkPerformanceTitle": "Make animations smoother?",
+  "linkPerformanceBody": "Performance mode keeps your theme and uses solid surfaces instead of glass.",
+  "linkEnablePerformance": "Use Performance mode",
+  "@linkHistoryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@linkOutputName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

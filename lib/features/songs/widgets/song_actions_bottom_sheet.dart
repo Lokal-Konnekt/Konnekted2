@@ -1,3 +1,6 @@
+import 'package:flick/services/link/lokal_desktop_source.dart';
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -142,44 +145,58 @@ class SongActionsBottomSheet extends ConsumerWidget {
       if (onRemoveFromPlaylist != null)
         _MenuRow(
           icon: Icons.playlist_remove_rounded,
-          label: 'Remove from playlist',
+          label: lokalText('Remove from playlist'),
           onTap: close(onRemoveFromPlaylist!),
         ),
       if (onSelect != null)
         _MenuRow(
           icon: Icons.checklist_rounded,
-          label: 'Select',
+          label: lokalText('Select'),
           onTap: close(onSelect!),
         ),
       if (!nowPlaying && queueActions && !song.isFromLocker) ...[
         _MenuRow(
           icon: Icons.playlist_play_rounded,
-          label: 'Play next',
+          label: lokalText('Play next'),
           onTap: close(() async {
             final player = container.read(playerProvider.notifier);
             final index = await player.addToQueue(song);
             if (index > 0) await player.moveQueueItemToNext(index);
-            _say('“${song.title}” plays next');
+            _say(lokalText("“{arg0}” plays next", args: {'arg0': song.title}));
           }),
         ),
         _MenuRow(
           icon: Icons.queue_music_rounded,
-          label: 'Add to queue',
+          label: lokalText('Add to queue'),
           onTap: close(() async {
             await container.read(playerProvider.notifier).addToQueue(song);
-            _say('Added “${song.title}” to the queue');
+            _say(
+              lokalText(
+                "Added “{arg0}” to the queue",
+                args: {'arg0': song.title},
+              ),
+            );
           }),
         ),
       ],
+      if (song.sourceType == 'lokal')
+        _MenuRow(
+          icon: Icons.download_rounded,
+          label: l10n.linkDownloadToPhone,
+          onTap: close(() async {
+            await LokalDesktopSource.instance.downloadToPhone(song);
+            _say(l10n.linkDownloaded);
+          }),
+        ),
       if (!nowPlaying)
         _MenuRow(
           icon: Icons.radio_rounded,
-          label: 'Start radio',
+          label: lokalText('Start radio'),
           onTap: close(() => startLokalRadio(rootContext, seed: song)),
         ),
       _MenuRow(
         icon: liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-        label: liked ? 'Unlike' : 'Like',
+        label: liked ? lokalText('Unlike') : lokalText('Like'),
         highlighted: liked,
         onTap: close(() async {
           await container
@@ -190,31 +207,31 @@ class SongActionsBottomSheet extends ConsumerWidget {
       ),
       _MenuRow(
         icon: Icons.playlist_add_rounded,
-        label: 'Add to a playlist',
+        label: lokalText('Add to a playlist'),
         onTap: close(() => AddToPlaylistSheet.show(rootContext, song)),
       ),
       if (!nowPlaying && hasAlbum)
         _MenuRow(
           icon: Icons.album_rounded,
-          label: 'Go to album',
+          label: lokalText('Go to album'),
           onTap: close(() => openLokalAlbumForSong(rootContext, song)),
         ),
       if (!nowPlaying && song.artist.trim().isNotEmpty)
         _MenuRow(
           icon: Icons.person_rounded,
-          label: 'Go to artist',
+          label: lokalText('Go to artist'),
           onTap: close(() => openLokalArtist(rootContext, song: song)),
         ),
       if (videos)
         _MenuRow(
           icon: Icons.smart_display_rounded,
-          label: 'Watch video',
+          label: lokalText('Watch video'),
           onTap: close(() => watchMusicVideo(rootContext, song)),
         ),
       if (_canEdit)
         _MenuRow(
           icon: Icons.edit_rounded,
-          label: 'Edit info',
+          label: lokalText('Edit info'),
           onTap: close(() async {
             final saved = await MetadataEditorBottomSheet.show(
               rootContext,
@@ -225,7 +242,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
         ),
       _MenuRow(
         icon: Icons.image_rounded,
-        label: 'Change artwork',
+        label: lokalText('Change artwork'),
         onTap: close(() async {
           final changed = await AlbumArtPickerBottomSheet.show(
             rootContext,
@@ -237,13 +254,13 @@ class SongActionsBottomSheet extends ConsumerWidget {
       if (!nowPlaying)
         _MenuRow(
           icon: Icons.info_outline_rounded,
-          label: 'Song info',
+          label: lokalText('Song info'),
           onTap: close(() => SongMetadataSheet.show(rootContext, song)),
         ),
       if (_isLocalFile)
         _MenuRow(
           icon: Icons.ios_share_rounded,
-          label: 'Share',
+          label: lokalText('Share'),
           onTap: close(
             () => SharePlus.instance.share(
               ShareParams(files: [XFile(song.filePath!)]),
@@ -253,7 +270,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
       if (!nowPlaying)
         _MenuRow(
           icon: Icons.style_rounded,
-          label: 'Share as card',
+          label: lokalText('Share as card'),
           onTap: close(
             () => showModalBottomSheet<void>(
               useRootNavigator: true,
@@ -275,7 +292,9 @@ class SongActionsBottomSheet extends ConsumerWidget {
         Divider(height: 17, color: t.border, indent: 24, endIndent: 24),
         _MenuRow(
           icon: Icons.delete_outline_rounded,
-          label: _isLocalFile ? 'Delete from device' : 'Remove from library',
+          label: _isLocalFile
+              ? lokalText('Delete from device')
+              : lokalText('Remove from library'),
           destructive: true,
           onTap: close(_confirmDelete),
         ),
@@ -345,27 +364,29 @@ class SongActionsBottomSheet extends ConsumerWidget {
     final container = ProviderScope.containerOf(rootContext, listen: false);
     final choice = await showLokalSettingsSheet<String>(
       context: rootContext,
-      title: 'Delete “${song.title}”?',
+      title: lokalText("Delete “{arg0}”?", args: {'arg0': song.title}),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           LokalSheetOption(
             icon: Icons.library_music_outlined,
-            label: 'Remove from library',
+            label: lokalText('Remove from library'),
             description: _isLocalFile
-                ? 'The file stays on your device.'
-                : 'You can add it again by rescanning.',
+                ? lokalText('The file stays on your device.')
+                : lokalText('You can add it again by rescanning.'),
             onTap: () => Navigator.of(context).pop('remove'),
           ),
           if (_isLocalFile)
             LokalSheetOption(
               icon: Icons.delete_forever_rounded,
-              label: 'Delete from device',
-              description: 'Deletes the file too. This can’t be undone.',
+              label: lokalText('Delete from device'),
+              description: lokalText(
+                'Deletes the file too. This can’t be undone.',
+              ),
               onTap: () => Navigator.of(context).pop('file'),
             ),
           LokalSheetOption(
-            label: 'Cancel',
+            label: lokalText('Cancel'),
             onTap: () => Navigator.of(context).pop(),
           ),
         ],
@@ -403,10 +424,15 @@ class SongActionsBottomSheet extends ConsumerWidget {
     container.invalidate(songsProvider);
     _say(
       !deleteFile
-          ? 'Removed “${song.title}” from your library'
+          ? lokalText(
+              "Removed “{arg0}” from your library",
+              args: {'arg0': song.title},
+            )
           : deleted
-          ? 'Deleted “${song.title}”'
-          : 'Removed from your library, but couldn’t delete the file',
+          ? lokalText("Deleted “{arg0}”", args: {'arg0': song.title})
+          : lokalText(
+              'Removed from your library, but couldn’t delete the file',
+            ),
     );
   }
 }

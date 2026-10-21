@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flick/core/constants/app_constants.dart';
@@ -211,9 +213,11 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Couldn’t play this song. Check that its file or server is available.',
+            lokalText(
+              'Couldn’t play this song. Check that its file or server is available.',
+            ),
           ),
         ),
       );
@@ -235,8 +239,8 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
       } else {
         _lastBack = now;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Press back again to exit'),
+          SnackBar(
+            content: Text(lokalText('Press back again to exit')),
             duration: Duration(seconds: 2),
           ),
         );
@@ -339,10 +343,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                         right: 0,
                         bottom: 0,
                         child: ListenableBuilder(
-                          listenable: Listenable.merge([
-                            _tab,
-                            _dockCollapsed,
-                          ]),
+                          listenable: Listenable.merge([_tab, _dockCollapsed]),
                           builder: (_, _) => KonnektedDock(
                             selected: _tab.value,
                             onSelect: _select,

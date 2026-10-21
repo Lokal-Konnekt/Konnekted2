@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -110,13 +112,13 @@ class KonnektedLibrary extends ConsumerWidget {
               showBack: false,
               leading: LokalRoundAction(
                 icon: Icons.add_rounded,
-                label: 'Add music, playlists and folders',
+                label: lokalText('Add music, playlists and folders'),
                 onPressed: () => _showAdd(context, ref),
               ),
               actions: [
                 LokalRoundAction(
                   icon: Icons.settings_rounded,
-                  label: 'Library settings',
+                  label: lokalText('Library settings'),
                   onPressed: () => onNavigate(_librarySettings),
                 ),
               ],
@@ -125,7 +127,7 @@ class KonnektedLibrary extends ConsumerWidget {
           SliverToBoxAdapter(
             // Easter egg: a long press on the title opens Classipod.
             child: LokalLargeTitle(
-              title: 'Library',
+              title: lokalText('Library'),
               onLongPress: () =>
                   Navigator.of(context).push(ClassipodScreen.route(context)),
             ),
@@ -133,8 +135,8 @@ class KonnektedLibrary extends ConsumerWidget {
           if (library.hasError && songs == null)
             SliverToBoxAdapter(
               child: KonnektedMessage(
-                title: 'Couldn’t open your collection',
-                message: 'Try again or manage your music folders.',
+                title: lokalText('Couldn’t open your collection'),
+                message: lokalText('Try again or manage your music folders.'),
                 actionLabel: 'Try again',
                 onAction: () => ref.invalidate(songsProvider),
               ),
@@ -142,8 +144,10 @@ class KonnektedLibrary extends ConsumerWidget {
           else if (songs != null && songs.isEmpty)
             SliverToBoxAdapter(
               child: KonnektedMessage(
-                title: 'All your music. All yours.',
-                message: 'Choose a folder and let your collection take shape.',
+                title: lokalText('All your music. All yours.'),
+                message: lokalText(
+                  'Choose a folder and let your collection take shape.',
+                ),
                 icon: Icons.library_music_rounded,
                 actionLabel: 'Add a music folder',
                 onAction: () => _addFolder(context),
@@ -153,7 +157,7 @@ class KonnektedLibrary extends ConsumerWidget {
           if (songs != null && songs.isNotEmpty)
             SliverToBoxAdapter(
               child: KonnektedSongShelf(
-                title: 'Recently added',
+                title: lokalText('Recently added'),
                 songs: ref.watch(konnektedRecentlyAddedProvider),
                 emptyTitle: 'Nothing new yet',
                 emptyMessage: 'New songs show up here.',
@@ -163,16 +167,20 @@ class KonnektedLibrary extends ConsumerWidget {
                     lokalPlay(context, ref, queue, start: song),
               ),
             ),
-          const SliverToBoxAdapter(child: LokalSectionTitle(title: 'More')),
+          SliverToBoxAdapter(
+            child: LokalSectionTitle(title: lokalText('More')),
+          ),
           SliverToBoxAdapter(child: _MoreRows(onNavigate: onNavigate)),
           if (songs == null)
-            const SliverToBoxAdapter(
-              child: KonnektedLoading(label: 'Opening your collection'),
+            SliverToBoxAdapter(
+              child: KonnektedLoading(
+                label: lokalText('Opening your collection'),
+              ),
             )
           else if (songs.isNotEmpty) ...[
             SliverToBoxAdapter(
               child: LokalSectionTitle(
-                title: 'Songs',
+                title: lokalText('Songs'),
                 onSeeAll: () => onNavigate(KonnektedDestination.songs),
               ),
             ),
@@ -290,37 +298,37 @@ class _MoreRows extends StatelessWidget {
     children: [
       LokalNavRow(
         icon: Icons.history_rounded,
-        label: 'Recently played',
+        label: lokalText('Recently played'),
         onTap: () => onNavigate(KonnektedDestination.recentlyPlayed),
       ),
       LokalNavRow(
         icon: Icons.auto_graph_rounded,
-        label: 'Recap',
+        label: lokalText('Recap'),
         onTap: () => onNavigate(KonnektedDestination.recap),
       ),
       LokalNavRow(
         icon: Icons.folder_rounded,
-        label: 'Folders',
+        label: lokalText('Folders'),
         onTap: () => onNavigate(KonnektedDestination.folders),
       ),
       LokalNavRow(
         icon: Icons.link_rounded,
-        label: 'Linked playlists',
+        label: lokalText('Linked playlists'),
         onTap: () => onNavigate(KonnektedDestination.linkedPlaylists),
       ),
       LokalNavRow(
         icon: Icons.radio_rounded,
-        label: 'Radio',
+        label: lokalText('Radio'),
         onTap: () => pushLokal(context, const InternetRadioPage()),
       ),
       LokalNavRow(
         icon: Icons.smart_display_rounded,
-        label: 'Videos',
+        label: lokalText('Videos'),
         onTap: () => pushLokal(context, const MusicVideosPage()),
       ),
       LokalNavRow(
         icon: Icons.circle,
-        label: 'Spotify library',
+        label: lokalText('Spotify library'),
         onTap: () => onNavigate(_accounts),
       ),
     ],

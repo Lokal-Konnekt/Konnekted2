@@ -1,3 +1,4 @@
+import 'package:flick/l10n/l10n.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/models/song.dart';
 import 'package:flutter/material.dart';
@@ -70,8 +71,10 @@ class LokalGenresPage extends ConsumerWidget {
     final genres = ref.watch(lokalGenresProvider);
     final list = genres.value;
     return LokalLibraryPage(
-      title: 'Genres',
-      subtitle: list == null ? null : '${list.length} genres',
+      title: lokalText('Genres'),
+      subtitle: list == null
+          ? null
+          : lokalText("{arg0} genres", args: {'arg0': list.length}),
       slivers: [
         if (list == null)
           const SliverToBoxAdapter(
@@ -81,11 +84,13 @@ class LokalGenresPage extends ConsumerWidget {
             ),
           )
         else if (list.isEmpty)
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: LokalEmptyState(
               icon: Icons.category_rounded,
-              title: 'No genres yet',
-              message: 'Genres come from your files’ tags. Add a genre in Edit metadata and it shows up here.',
+              title: lokalText('No genres yet'),
+              message: lokalText(
+                'Genres come from your files’ tags. Add a genre in Edit metadata and it shows up here.',
+              ),
             ),
           )
         else

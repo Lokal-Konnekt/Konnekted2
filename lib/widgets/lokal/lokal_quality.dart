@@ -1,3 +1,4 @@
+import 'package:flick/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -101,7 +102,10 @@ class LokalQualityPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: '${tier.label} quality. ${tier.hint}',
+    label: lokalText(
+      "{arg0} quality. {arg1}",
+      args: {'arg0': tier.label, 'arg1': tier.hint},
+    ),
     excludeSemantics: true,
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flick/core/utils/app_log.dart';
@@ -126,9 +128,9 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     if (!mounted || !_player.playbackDesyncedNotifier.value) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Playback needs to be synchronized'),
+        content: Text(lokalText('Playback needs to be synchronized')),
         action: SnackBarAction(
-          label: 'Sync',
+          label: lokalText('Sync'),
           onPressed: () => _run('Playback sync', _player.syncNow),
         ),
       ),

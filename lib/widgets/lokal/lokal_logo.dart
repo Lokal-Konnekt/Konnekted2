@@ -1,3 +1,4 @@
+import 'package:flick/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -22,7 +23,7 @@ class LokalLogo extends StatelessWidget {
     final accent = context.lokal.accent;
     return Semantics(
       image: true,
-      label: 'Lokal',
+      label: lokalText('Lokal'),
       child: SizedBox.square(
         dimension: size,
         child: Stack(

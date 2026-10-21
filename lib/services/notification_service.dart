@@ -10,12 +10,22 @@ class MediaNotificationOwner {
     required this.onPlay,
     required this.onPause,
     required this.onStop,
+    this.onNext,
+    this.onPrevious,
+    this.onSeek,
+    this.onToggleFavorite,
+    this.onToggleShuffle,
   });
 
   final VoidCallback onTogglePlayPause;
   final VoidCallback onPlay;
   final VoidCallback onPause;
   final VoidCallback onStop;
+  final VoidCallback? onNext;
+  final VoidCallback? onPrevious;
+  final void Function(Duration)? onSeek;
+  final VoidCallback? onToggleFavorite;
+  final VoidCallback? onToggleShuffle;
 }
 
 /// Flutter service to communicate with native Android notification service.
@@ -26,6 +36,20 @@ class NotificationService {
   NotificationService._internal();
 
   static const _channel = MethodChannel('com.mossapps.flick/player');
+
+  int? _accentColor;
+  Future<void> setLokalAccent(int color) async {
+    if (_accentColor == color) return;
+    _accentColor = color;
+    if (!_isNotificationVisible) return;
+    try {
+      await _channel.invokeMethod('updateNotification', {'color': color});
+    } on PlatformException {
+      /* The next metadata update carries the accent. */
+    } on MissingPluginException {
+      /* Non-Android host. */
+    }
+  }
 
   bool _isNotificationVisible = false;
   bool get isNotificationVisible => _isNotificationVisible;
@@ -42,6 +66,10 @@ class NotificationService {
     MediaNotificationOwner owner, {
     required Song song,
     required bool isPlaying,
+    bool isLive = true,
+    bool isFavorite = false,
+    bool isShuffle = false,
+    Duration position = Duration.zero,
   }) async {
     _owner = owner;
     try {
@@ -50,18 +78,45 @@ class NotificationService {
         'artist': song.artist,
         'albumArtPath': song.albumArt,
         'isPlaying': isPlaying,
-        'duration': 0,
-        'position': 0,
-        'isShuffle': false,
-        'isFavorite': false,
+        'duration': isLive ? 0 : song.duration.inMilliseconds,
+        'position': position.inMilliseconds,
+        if (_accentColor != null) 'color': _accentColor,
+        'isShuffle': isShuffle,
+        'isFavorite': isFavorite,
         'isCasting': false,
         // A live station: the notification shows play/pause only.
-        'isLive': true,
+        'isLive': isLive,
       });
       _isNotificationVisible = true;
     } catch (e) {
       devLog('Failed to show notification: $e');
     }
+  }
+
+  Future<void> updateFor(
+    MediaNotificationOwner owner, {
+    required Duration position,
+    required bool isPlaying,
+  }) async {
+    if (!identical(_owner, owner)) return;
+    try {
+      await _channel.invokeMethod('updateNotification', {
+        'position': position.inMilliseconds,
+        'isPlaying': isPlaying,
+        if (_accentColor != null) 'color': _accentColor,
+      });
+    } on PlatformException {
+      /* Reconnect republishes metadata. */
+    } on MissingPluginException {
+      /* Non-Android host. */
+    }
+  }
+
+  /// Used when the listener explicitly chooses another playback output.
+  void stopCurrentOwner() {
+    final owner = _owner;
+    _owner = null;
+    owner?.onStop();
   }
 
   /// Hands the notification back to the library player.
@@ -96,6 +151,19 @@ class NotificationService {
             owner.onPause();
           case 'stop':
             owner.onStop();
+          case 'next':
+            owner.onNext?.call();
+          case 'previous':
+            owner.onPrevious?.call();
+          case 'toggleFavorite':
+            owner.onToggleFavorite?.call();
+          case 'toggleShuffle':
+            owner.onToggleShuffle?.call();
+          case 'seek':
+            final raw = call.arguments;
+            final value = raw is Map ? raw['position'] : raw;
+            if (value is num)
+              owner.onSeek?.call(Duration(milliseconds: value.toInt()));
         }
         // A live stream has no next/previous, seek, shuffle or favorite.
         return;
@@ -173,7 +241,8 @@ class NotificationService {
       if (castVolumePercent != null) {
         args['castVolume'] = castVolumePercent;
       }
-      if (color != null) args['color'] = color;
+      final effectiveColor = _accentColor ?? color;
+      if (effectiveColor != null) args['color'] = effectiveColor;
       await _channel.invokeMethod('showNotification', args);
       _isNotificationVisible = true;
     } catch (e) {
@@ -226,7 +295,8 @@ class NotificationService {
 
       if (isShuffle != null) args['isShuffle'] = isShuffle;
       if (isFavorite != null) args['isFavorite'] = isFavorite;
-      if (color != null) args['color'] = color;
+      final effectiveColor = _accentColor ?? color;
+      if (effectiveColor != null) args['color'] = effectiveColor;
       if (isCasting != null) {
         args['isCasting'] = isCasting;
         args['castDeviceName'] = castDeviceName;

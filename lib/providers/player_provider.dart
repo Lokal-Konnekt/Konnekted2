@@ -4,11 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'lastfm_provider.dart';
+import 'lokal_remote_provider.dart';
+import '../models/lokal_remote_state.dart';
+import '../services/link/remote_playback_target.dart';
 import 'listenbrainz_provider.dart';
 import '../models/playback_context.dart';
 import '../models/shuffle_mode.dart';
 import '../models/song.dart';
 import '../services/player_service.dart';
+
 import 'package:flick/core/utils/dev_log.dart';
 
 // Re-export LoopMode from player_service
@@ -104,6 +108,18 @@ final playerServiceProvider = Provider<PlayerService>((ref) {
 /// Notifier that bridges PlayerService ValueNotifiers to Riverpod state.
 class PlayerNotifier extends Notifier<PlayerState> {
   late PlayerService _service;
+  DesktopPlaybackTarget? get _desktop {
+    final link = ref.read(lokalRemoteControllerProvider);
+    return link.controlsDesktop
+        ? DesktopPlaybackTarget(
+            outputName: link.desktopName,
+            command: (action, value) => ref
+                .read(lokalRemoteControllerProvider.notifier)
+                .sendRawCommand(action, value),
+          )
+        : null;
+  }
+
   Song? _lastTrackedSong;
   int _lastTrackedPositionSeconds = 0;
   int _lastTrackedDurationSeconds = 0;
@@ -140,6 +156,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
 
     // Listen to ValueNotifiers and update state (except position/bufferedPosition)
     void syncState() {
+      if (ref.read(lokalRemoteControllerProvider).controlsDesktop) return;
       final latestSong = _service.currentSongNotifier.value;
       final latestDurationSeconds = _service.durationNotifier.value.inSeconds;
 
@@ -191,6 +208,7 @@ class PlayerNotifier extends Notifier<PlayerState> {
     }
 
     void syncPosition() {
+      if (ref.read(lokalRemoteControllerProvider).controlsDesktop) return;
       final latestPosition = _service.positionNotifier.value;
       final latestPositionSeconds = latestPosition.inSeconds;
       final latestSong = _service.currentSongNotifier.value;
@@ -236,6 +254,44 @@ class PlayerNotifier extends Notifier<PlayerState> {
         );
       }
     }
+
+    ref.listen(lokalRemoteControllerProvider, (previous, next) {
+      if (next.controlsDesktop) {
+        final remote = next.snapshot;
+        if (remote == null) return;
+        Song convert(LokalRemoteTrack track) => Song(
+          id: 'desktop:${track.id}',
+          title: track.title,
+          artist: track.artist,
+          album: track.album,
+          duration: Duration(milliseconds: (track.duration * 1000).round()),
+          fileType: track.fileType,
+          sourceType: 'lokal',
+          remoteId: track.id,
+        );
+        state = state.copyWith(
+          currentSong: remote.currentTrack == null
+              ? null
+              : convert(remote.currentTrack!),
+          clearSong: remote.currentTrack == null,
+          isPlaying: remote.isPlaying,
+          position: Duration(milliseconds: (remote.progress * 1000).round()),
+          duration: Duration(milliseconds: (remote.duration * 1000).round()),
+          isShuffle: remote.shuffle,
+          shuffleMode: remote.shuffle ? ShuffleMode.songs : ShuffleMode.off,
+          loopMode: remote.repeat == 'one'
+              ? LoopMode.one
+              : remote.repeat == 'all'
+              ? LoopMode.all
+              : LoopMode.off,
+          queue: remote.queue.map(convert).toList(),
+          upNext: const [],
+          currentIndex: remote.currentIndex,
+        );
+      } else if (previous?.controlsDesktop == true) {
+        syncState();
+      }
+    });
 
     // Add listeners
     _service.currentSongNotifier.addListener(syncState);
@@ -339,55 +395,114 @@ class PlayerNotifier extends Notifier<PlayerState> {
   }
 
   /// Play a song, optionally with a playlist context.
-  Future<void> play(Song song, {List<Song>? playlist, PlaybackContext? context}) async {
+  Future<void> play(
+    Song song, {
+    List<Song>? playlist,
+    PlaybackContext? context,
+  }) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.play(song, queue: playlist);
+      return;
+    }
     await _service.play(song, playlist: playlist, context: context);
   }
 
   /// Toggle play/pause.
   Future<void> togglePlayPause() async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.command('togglePlay', null);
+      return;
+    }
     await _service.togglePlayPause();
   }
 
   /// Pause playback.
   Future<void> pause() async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.pause();
+      return;
+    }
     await _service.pause();
   }
 
   /// Resume playback.
   Future<void> resume() async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.resume();
+      return;
+    }
     await _service.resume();
   }
 
   /// Seek to a position.
   Future<void> seek(Duration position) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.seek(position);
+      return;
+    }
     await _service.seek(position);
   }
 
   /// Skip to next song.
   Future<void> next() async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.next();
+      return;
+    }
     await _service.next();
   }
 
   /// Skip to previous song.
   /// [allowRestart] true = button behavior (restart if >3s), false = swipe/slide (always previous track)
   Future<void> previous({bool allowRestart = true}) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.previous();
+      return;
+    }
     await _service.previous(allowRestart: allowRestart);
   }
 
   Future<void> previousBySwipe() async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.previous();
+      return;
+    }
     await _service.previousBySwipe();
   }
 
   /// Toggle shuffle mode.
   Future<void> toggleShuffle() async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.command('setShuffle', !state.isShuffle);
+      return;
+    }
     await _service.toggleShuffle();
   }
 
   Future<int> addToQueue(Song song) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.addToQueue(song);
+      return state.queue.length;
+    }
     return _service.addToQueue(song);
   }
 
   Future<void> playFromQueueIndex(int index) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.command('playQueueIndex', index);
+      return;
+    }
     await _service.playFromQueueIndex(index);
   }
 
@@ -396,18 +511,38 @@ class PlayerNotifier extends Notifier<PlayerState> {
   }
 
   Future<void> clearQueue() async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.command('clearQueue', null);
+      return;
+    }
     await _service.clearQueue();
   }
 
   Future<void> removeFromQueue(int index) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.removeFromQueue(index);
+      return;
+    }
     await _service.removeFromQueue(index);
   }
 
   Future<void> moveQueueItem(int oldIndex, int newIndex) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.reorderQueue(oldIndex, newIndex);
+      return;
+    }
     await _service.moveQueueItem(oldIndex, newIndex);
   }
 
   Future<void> moveQueueItemToNext(int index) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.reorderQueue(index, state.currentIndex + 1);
+      return;
+    }
     await _service.moveQueueItemToNext(index);
   }
 
@@ -425,16 +560,47 @@ class PlayerNotifier extends Notifier<PlayerState> {
 
   /// Toggle loop mode (quick cycle: off → all → one).
   void toggleLoopMode() {
+    final desktop = _desktop;
+    if (desktop != null) {
+      unawaited(
+        desktop.command(
+          'setRepeat',
+          state.loopMode == LoopMode.off
+              ? 'all'
+              : state.loopMode == LoopMode.all
+              ? 'one'
+              : 'none',
+        ),
+      );
+      return;
+    }
     unawaited(_service.toggleLoopMode());
   }
 
   /// Set a specific loop mode.
   Future<void> setLoopMode(LoopMode mode) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.command(
+        'setRepeat',
+        mode == LoopMode.one
+            ? 'one'
+            : mode == LoopMode.all
+            ? 'all'
+            : 'none',
+      );
+      return;
+    }
     await _service.setLoopMode(mode);
   }
 
   /// Set a specific shuffle mode.
   Future<void> setShuffleMode(ShuffleMode mode) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.command('setShuffle', mode != ShuffleMode.off);
+      return;
+    }
     await _service.setShuffleMode(mode);
   }
 
@@ -475,6 +641,11 @@ class PlayerNotifier extends Notifier<PlayerState> {
 
   /// Set volume (0.0 to 1.0).
   Future<void> setVolume(double volume) async {
+    final desktop = _desktop;
+    if (desktop != null) {
+      await desktop.setVolume(volume);
+      return;
+    }
     await _service.setVolume(volume);
   }
 

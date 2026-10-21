@@ -249,9 +249,8 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
         return;
       }
 
-      Navigator.of(
-        context,
-      ).pop(_AlbumArtSheetResult(message: successMessage(result)));
+      Navigator.of(context)
+          .pop(_AlbumArtSheetResult(message: successMessage(result)));
     } catch (error) {
       if (!mounted) {
         return;
@@ -314,7 +313,13 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
                         const SizedBox(height: 4),
                         Text(
                           albumName != null && albumName.isNotEmpty
-                              ? '$albumName • $effectiveAlbumArtist'
+                              ? lokalText(
+                                  "{arg0} • {arg1}",
+                                  args: {
+                                    'arg0': albumName,
+                                    'arg1': effectiveAlbumArtist,
+                                  },
+                                )
                               : widget.song.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -460,7 +465,9 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? AppColors.accent.withValues(alpha: 0.15) : AppColors.surfaceLight,
+          color: selected
+              ? AppColors.accent.withValues(alpha: 0.15)
+              : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected ? AppColors.accent : AppColors.glassBorder,
@@ -472,7 +479,9 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
             Icon(
               icon,
               size: 14,
-              color: selected ? AppColors.accent : context.adaptiveTextSecondary,
+              color: selected
+                  ? AppColors.accent
+                  : context.adaptiveTextSecondary,
             ),
             const SizedBox(width: 6),
             Text(
@@ -481,7 +490,9 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
                 fontFamily: 'GoogleSansFlex',
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: selected ? AppColors.accent : context.adaptiveTextSecondary,
+                color: selected
+                    ? AppColors.accent
+                    : context.adaptiveTextSecondary,
               ),
             ),
           ],
@@ -496,8 +507,7 @@ class _AlbumArtPickerBottomSheetState extends State<AlbumArtPickerBottomSheet> {
         context,
         icon: LucideIcons.search,
         title: l10n.searchingOnline,
-        subtitle:
-            l10n.lookingForCoverArtFromMusicbrainz,
+        subtitle: l10n.lookingForCoverArtFromMusicbrainz,
       );
     }
 

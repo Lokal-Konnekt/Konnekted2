@@ -16,6 +16,9 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:flick/l10n/generated/app_localizations.dart';
+
+import 'lokal_ui_translations.dart';
+
 import 'package:flick/services/app_preferences_service.dart';
 
 export 'package:flick/l10n/generated/app_localizations.dart';
@@ -35,6 +38,14 @@ export 'package:flick/l10n/model_labels.dart';
 const List<Locale> kSupportedLocales = <Locale>[
   Locale('en'),
   Locale('zh', 'CN'),
+  Locale('fr'),
+  Locale('de'),
+  Locale('es'),
+  Locale('it'),
+  Locale('pt', 'BR'),
+  Locale('nl'),
+  Locale('pl'),
+  Locale('sv'),
 ];
 
 /// Used when nothing else matches.
@@ -46,6 +57,38 @@ AppLocalizations _current = lookupAppLocalizations(kFallbackLocale);
 
 /// Global accessor. Prefer `context.l10n` inside widgets.
 AppLocalizations get l10n => _current;
+
+/// Localizes fixed Lokal presentation phrases without changing navigation
+/// identifiers or translating song, artist, album, and file metadata.
+String lokalText(String message, {Map<String, Object?> args = const {}}) {
+  const autonyms = {
+    'English',
+    'Français',
+    'Deutsch',
+    'Español',
+    'Italiano',
+    'Português (Brasil)',
+    'Nederlands',
+    'Polski',
+    'Svenska',
+    '简体中文',
+    'Lokal',
+    'Flick',
+    'YouTube Music',
+    'Spotify',
+    'Last.fm',
+    'ListenBrainz',
+  };
+  final locale = l10n.localeName.replaceAll('-', '_');
+  var value = autonyms.contains(message)
+      ? message
+      : (lokalUiTranslations[locale]?[message] ??
+            lokalUiTranslations[locale.split('_').first]?[message] ??
+            message);
+  for (final entry in args.entries)
+    value = value.replaceAll('{${entry.key}}', entry.value?.toString() ?? '');
+  return value;
+}
 
 /// Idiomatic widget-layer accessor.
 extension AppLocalizationsX on BuildContext {

@@ -18,12 +18,18 @@ const RecentlyPlayedEntitySchema = CollectionSchema(
   name: r'RecentlyPlayedEntity',
   id: 2313323638749217169,
   properties: {
+    r'eventId': PropertySchema(id: 0, name: r'eventId', type: IsarType.string),
+    r'listenedMs': PropertySchema(
+      id: 1,
+      name: r'listenedMs',
+      type: IsarType.long,
+    ),
     r'playedAt': PropertySchema(
-      id: 0,
+      id: 2,
       name: r'playedAt',
       type: IsarType.dateTime,
     ),
-    r'songId': PropertySchema(id: 1, name: r'songId', type: IsarType.long),
+    r'songId': PropertySchema(id: 3, name: r'songId', type: IsarType.long),
   },
 
   estimateSize: _recentlyPlayedEntityEstimateSize,
@@ -42,6 +48,19 @@ const RecentlyPlayedEntitySchema = CollectionSchema(
           name: r'songId',
           type: IndexType.value,
           caseSensitive: false,
+        ),
+      ],
+    ),
+    r'eventId': IndexSchema(
+      id: -2707901133518603130,
+      name: r'eventId',
+      unique: false,
+      replace: false,
+      properties: [
+        IndexPropertySchema(
+          name: r'eventId',
+          type: IndexType.hash,
+          caseSensitive: true,
         ),
       ],
     ),
@@ -74,6 +93,12 @@ int _recentlyPlayedEntityEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  {
+    final value = object.eventId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -83,8 +108,10 @@ void _recentlyPlayedEntitySerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeDateTime(offsets[0], object.playedAt);
-  writer.writeLong(offsets[1], object.songId);
+  writer.writeString(offsets[0], object.eventId);
+  writer.writeLong(offsets[1], object.listenedMs);
+  writer.writeDateTime(offsets[2], object.playedAt);
+  writer.writeLong(offsets[3], object.songId);
 }
 
 RecentlyPlayedEntity _recentlyPlayedEntityDeserialize(
@@ -94,9 +121,11 @@ RecentlyPlayedEntity _recentlyPlayedEntityDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = RecentlyPlayedEntity();
+  object.eventId = reader.readStringOrNull(offsets[0]);
   object.id = id;
-  object.playedAt = reader.readDateTime(offsets[0]);
-  object.songId = reader.readLong(offsets[1]);
+  object.listenedMs = reader.readLongOrNull(offsets[1]);
+  object.playedAt = reader.readDateTime(offsets[2]);
+  object.songId = reader.readLong(offsets[3]);
   return object;
 }
 
@@ -108,8 +137,12 @@ P _recentlyPlayedEntityDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 1:
+      return (reader.readLongOrNull(offset)) as P;
+    case 2:
+      return (reader.readDateTime(offset)) as P;
+    case 3:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -332,6 +365,81 @@ extension RecentlyPlayedEntityQueryWhere
   }
 
   QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterWhereClause>
+  eventIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'eventId', value: [null]),
+      );
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterWhereClause>
+  eventIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'eventId',
+          lower: [null],
+          includeLower: false,
+          upper: [],
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterWhereClause>
+  eventIdEqualTo(String? eventId) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'eventId', value: [eventId]),
+      );
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterWhereClause>
+  eventIdNotEqualTo(String? eventId) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'eventId',
+                lower: [],
+                upper: [eventId],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'eventId',
+                lower: [eventId],
+                includeLower: false,
+                upper: [],
+              ),
+            );
+      } else {
+        return query
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'eventId',
+                lower: [eventId],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'eventId',
+                lower: [],
+                upper: [eventId],
+                includeUpper: false,
+              ),
+            );
+      }
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterWhereClause>
   playedAtEqualTo(DateTime playedAt) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
@@ -444,6 +552,213 @@ extension RecentlyPlayedEntityQueryFilter
     RecentlyPlayedEntity,
     QAfterFilterCondition
   >
+  eventIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'eventId'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'eventId'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'eventId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'eventId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'eventId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'eventId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'eventId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'eventId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'eventId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'eventId',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'eventId', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  eventIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'eventId', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
   idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -501,6 +816,103 @@ extension RecentlyPlayedEntityQueryFilter
       return query.addFilterCondition(
         FilterCondition.between(
           property: r'id',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  listenedMsIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'listenedMs'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  listenedMsIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'listenedMs'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  listenedMsEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'listenedMs', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  listenedMsGreaterThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'listenedMs',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  listenedMsLessThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'listenedMs',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecentlyPlayedEntity,
+    RecentlyPlayedEntity,
+    QAfterFilterCondition
+  >
+  listenedMsBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'listenedMs',
           lower: lower,
           includeLower: includeLower,
           upper: upper,
@@ -672,6 +1084,34 @@ extension RecentlyPlayedEntityQueryLinks
 extension RecentlyPlayedEntityQuerySortBy
     on QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QSortBy> {
   QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
+  sortByEventId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'eventId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
+  sortByEventIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'eventId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
+  sortByListenedMs() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'listenedMs', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
+  sortByListenedMsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'listenedMs', Sort.desc);
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
   sortByPlayedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'playedAt', Sort.asc);
@@ -703,6 +1143,20 @@ extension RecentlyPlayedEntityQuerySortBy
 extension RecentlyPlayedEntityQuerySortThenBy
     on QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QSortThenBy> {
   QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
+  thenByEventId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'eventId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
+  thenByEventIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'eventId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
   thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -713,6 +1167,20 @@ extension RecentlyPlayedEntityQuerySortThenBy
   thenByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
+  thenByListenedMs() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'listenedMs', Sort.asc);
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QAfterSortBy>
+  thenByListenedMsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'listenedMs', Sort.desc);
     });
   }
 
@@ -748,6 +1216,20 @@ extension RecentlyPlayedEntityQuerySortThenBy
 extension RecentlyPlayedEntityQueryWhereDistinct
     on QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QDistinct> {
   QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QDistinct>
+  distinctByEventId({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'eventId', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QDistinct>
+  distinctByListenedMs() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'listenedMs');
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, RecentlyPlayedEntity, QDistinct>
   distinctByPlayedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'playedAt');
@@ -772,6 +1254,20 @@ extension RecentlyPlayedEntityQueryProperty
   QueryBuilder<RecentlyPlayedEntity, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, String?, QQueryOperations>
+  eventIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'eventId');
+    });
+  }
+
+  QueryBuilder<RecentlyPlayedEntity, int?, QQueryOperations>
+  listenedMsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'listenedMs');
     });
   }
 

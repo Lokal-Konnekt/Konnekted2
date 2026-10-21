@@ -1,3 +1,7 @@
+import 'package:flick/l10n/l10n.dart';
+
+import '../link/lokal_devices_card.dart';
+
 import 'dart:async';
 
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -173,13 +177,17 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
                 ?.totalListeningTime
                 .inMinutes,
             streak: streak,
-            onSettings: () => navigate(const KonnektedDestination.aboutDataSettings()),
+            onSettings: () =>
+                navigate(const KonnektedDestination.aboutDataSettings()),
           ),
-          const _Label('Recap'),
+          const LokalDevicesCard(),
+          _Label(lokalText('Recap')),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
             child: Text(
-              'Your week, month and year in music. Tap one for the story.',
+              lokalText(
+                'Your week, month and year in music. Tap one for the story.',
+              ),
               style: TextStyle(fontSize: 13, color: context.lokal.muted),
             ),
           ),
@@ -210,7 +218,7 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
             milestones: milestones,
             onOpen: () => _push(const MilestonesScreen()),
           ),
-          const _Label('Accounts'),
+          _Label(lokalText('Accounts')),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Wrap(
@@ -218,17 +226,17 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
               runSpacing: 8,
               children: [
                 _AccountChip(
-                  label: 'Last.fm',
+                  label: lokalText('Last.fm'),
                   connected: accounts.lastFm != null,
                   onTap: () => navigate(_scrobblingSection),
                 ),
                 _AccountChip(
-                  label: 'ListenBrainz',
+                  label: lokalText('ListenBrainz'),
                   connected: accounts.listenBrainz != null,
                   onTap: () => navigate(_scrobblingSection),
                 ),
                 _AccountChip(
-                  label: 'YouTube Music',
+                  label: lokalText('YouTube Music'),
                   connected: accounts.youtubeMusic,
                   onTap: () => navigate(_accountsSection),
                 ),
@@ -236,23 +244,23 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
             ),
           ),
           LokalSettingsSection(
-            title: 'More',
+            title: lokalText('More'),
             children: [
               LokalSettingLink(
-                label: 'Settings',
-                description: 'How Lokal plays, looks and connects.',
+                label: lokalText('Settings'),
+                description: lokalText('How Lokal plays, looks and connects.'),
                 icon: Icons.settings_rounded,
                 onTap: () => navigate(KonnektedDestination.settings),
               ),
               LokalSettingLink(
-                label: 'What’s new',
-                description: 'What changed in this version.',
+                label: lokalText('What’s new'),
+                description: lokalText('What changed in this version.'),
                 icon: Icons.auto_awesome_rounded,
                 onTap: () => unawaited(WhatsNewBottomSheet.show<void>(context)),
               ),
               LokalSettingLink(
-                label: 'Help',
-                description: 'Every control, explained.',
+                label: lokalText('Help'),
+                description: lokalText('Every control, explained.'),
                 icon: Icons.help_outline_rounded,
                 onTap: () => navigate(
                   const KonnektedDestination.settingsAt(
@@ -262,8 +270,10 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
                 ),
               ),
               LokalSettingLink(
-                label: 'About',
-                description: 'Version, updates, licences and privacy.',
+                label: lokalText('About'),
+                description: lokalText(
+                  'Version, updates, licences and privacy.',
+                ),
                 icon: Icons.info_outline_rounded,
                 onTap: () => navigate(
                   const KonnektedDestination.settingsAt(
@@ -333,10 +343,10 @@ class _YouHeader extends StatelessWidget {
             children: [
               const Spacer(),
               Tooltip(
-                message: 'Settings',
+                message: lokalText('Settings'),
                 excludeFromSemantics: true,
                 child: LokalGlassButton(
-                  semanticLabel: 'Settings',
+                  semanticLabel: lokalText('Settings'),
                   onPressed: onSettings,
                   child: Icon(Icons.settings_rounded, color: t.text),
                 ),
@@ -397,7 +407,7 @@ class _YouHeader extends StatelessWidget {
               Expanded(
                 child: _HeaderStat(
                   value: weekMinutes == null ? '—' : _count(weekMinutes!),
-                  label: 'Minutes this week',
+                  label: lokalText('Minutes this week'),
                 ),
               ),
               if (streak != null) ...[
@@ -405,7 +415,7 @@ class _YouHeader extends StatelessWidget {
                 Expanded(
                   child: _HeaderStat(
                     value: _count(streak!),
-                    label: 'Day streak',
+                    label: lokalText('Day streak'),
                   ),
                 ),
               ],
@@ -477,7 +487,10 @@ class _RecapCard extends StatelessWidget {
         : 'Play a few songs';
     return Semantics(
       button: true,
-      label: '${_periodLabel(period)} recap. $headline. $detail',
+      label: lokalText(
+        "{arg0} recap. {arg1}. {arg2}",
+        args: {'arg0': _periodLabel(period), 'arg1': headline, 'arg2': detail},
+      ),
       excludeSemantics: true,
       child: SizedBox(
         width: 156,
@@ -562,7 +575,7 @@ class _StatsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Label(
-          'Stats',
+          lokalText('Stats'),
           trailing: LokalSegmented<ListeningRecapPeriod>(
             segments: [
               for (final p in youRecapPeriods) LokalSegment(p, _periodLabel(p)),
@@ -590,11 +603,11 @@ class _StatsSection extends StatelessWidget {
                           value: has
                               ? _count(recap!.totalListeningTime.inMinutes)
                               : '0',
-                          label: 'Minutes',
+                          label: lokalText('Minutes'),
                         ),
                         _Figure(
                           value: has ? _count(recap!.totalPlays) : '0',
-                          label: 'Plays',
+                          label: lokalText('Plays'),
                         ),
                         _Figure(
                           value: peak == null
@@ -603,7 +616,7 @@ class _StatsSection extends StatelessWidget {
                                   hour: peak,
                                   minute: 0,
                                 ).format(context),
-                          label: 'Peak hour',
+                          label: lokalText('Peak hour'),
                         ),
                       ],
                     ),
@@ -612,8 +625,9 @@ class _StatsSection extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                       child: Text(
-                        'Your top artists and songs show up here once you’ve '
-                        'played some music.',
+                        lokalText(
+                          "Your top artists and songs show up here once you’ve played some music.",
+                        ),
                         style: TextStyle(
                           fontSize: 13,
                           height: 1.4,
@@ -624,7 +638,7 @@ class _StatsSection extends StatelessWidget {
                   else ...[
                     if (recap!.topArtists.isNotEmpty)
                       _TopList(
-                        title: 'Top artists',
+                        title: lokalText('Top artists'),
                         rows: [
                           for (final a in recap.topArtists.take(3))
                             (a.artist, '${_count(a.plays)} plays'),
@@ -632,7 +646,7 @@ class _StatsSection extends StatelessWidget {
                       ),
                     if (recap.topSongs.isNotEmpty)
                       _TopList(
-                        title: 'Top songs',
+                        title: lokalText('Top songs'),
                         rows: [
                           for (final s in recap.topSongs.take(3))
                             (s.song.title, s.song.artist),
@@ -640,7 +654,7 @@ class _StatsSection extends StatelessWidget {
                       ),
                     if (recap.topAlbums.isNotEmpty)
                       _TopList(
-                        title: 'Top albums',
+                        title: lokalText('Top albums'),
                         rows: [
                           for (final a in recap.topAlbums.take(3))
                             (a.album, a.artist),
@@ -649,8 +663,10 @@ class _StatsSection extends StatelessWidget {
                   ],
                   Divider(height: 1, thickness: 1, color: t.border),
                   LokalSettingLink(
-                    label: 'Full history',
-                    description: 'Every song you’ve played, newest first.',
+                    label: lokalText('Full history'),
+                    description: lokalText(
+                      'Every song you’ve played, newest first.',
+                    ),
                     icon: Icons.history_rounded,
                     onTap: onHistory,
                   ),
@@ -724,7 +740,7 @@ class _TopList extends StatelessWidget {
                   SizedBox(
                     width: 22,
                     child: Text(
-                      '${i + 1}',
+                      lokalText("{arg0}", args: {'arg0': i + 1}),
                       style: LokalTheme.label(t, size: 12, color: t.accent),
                     ),
                   ),
@@ -772,10 +788,13 @@ class _MilestonesSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Label(
-          'Milestones',
+          lokalText('Milestones'),
           trailing: TextButton(
             onPressed: onOpen,
-            child: Text('SEE ALL', style: LokalTheme.label(t, color: t.accent)),
+            child: Text(
+              lokalText('SEE ALL'),
+              style: LokalTheme.label(t, color: t.accent),
+            ),
           ),
         ),
         if (milestones.isEmpty)
@@ -788,8 +807,10 @@ class _MilestonesSection extends StatelessWidget {
               child: Material(
                 type: MaterialType.transparency,
                 child: LokalSettingLink(
-                  label: 'No badges yet',
-                  description: 'Your first one unlocks at 100 songs.',
+                  label: lokalText('No badges yet'),
+                  description: lokalText(
+                    'Your first one unlocks at 100 songs.',
+                  ),
                   icon: Icons.emoji_events_outlined,
                   onTap: onOpen,
                 ),
@@ -876,7 +897,13 @@ class _AccountChip extends StatelessWidget {
     final state = connected ? 'Connected' : 'Connect';
     return Semantics(
       button: true,
-      label: '$label, ${connected ? 'connected' : 'not connected'}',
+      label: lokalText(
+        "{arg0}, {arg1}",
+        args: {
+          'arg0': label,
+          'arg1': connected ? 'connected' : 'not connected',
+        },
+      ),
       excludeSemantics: true,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

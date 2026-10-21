@@ -4,6 +4,7 @@ import 'package:isar_community/isar.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'entities/artist_entity.dart';
+import 'entities/link_event_entities.dart';
 import 'entities/folder_entity.dart';
 import 'entities/network_server_entity.dart';
 import 'entities/recently_played_entity.dart';
@@ -11,6 +12,7 @@ import 'entities/song_audio_cache_entity.dart';
 import 'entities/song_entity.dart';
 
 export 'entities/artist_entity.dart';
+export 'entities/link_event_entities.dart';
 export 'entities/folder_entity.dart';
 export 'entities/network_server_entity.dart';
 export 'entities/recently_played_entity.dart';
@@ -22,6 +24,7 @@ class Database {
   static const String _databaseName = 'flick_player';
 
   static Isar? _instance;
+  static bool get isInitialized => _instance != null;
 
   static Isar get instance {
     if (_instance == null) {
@@ -42,6 +45,8 @@ class Database {
       ArtistEntitySchema,
       SongAudioCacheEntitySchema,
       NetworkServerEntitySchema,
+      PlayEventEntitySchema,
+      LibraryOpEntitySchema,
     ];
 
     try {

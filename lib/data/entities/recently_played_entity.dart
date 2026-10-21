@@ -11,6 +11,12 @@ class RecentlyPlayedEntity {
   @Index()
   late int songId;
 
+  @Index()
+  String? eventId;
+
+  /// Measured listen time for linked plays; null preserves legacy estimates.
+  int? listenedMs;
+
   /// Timestamp when the song was played
   @Index()
   late DateTime playedAt;

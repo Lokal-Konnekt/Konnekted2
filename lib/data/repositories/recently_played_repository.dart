@@ -5,6 +5,7 @@ import '../../core/utils/string_sort_utils.dart';
 import '../database.dart';
 import '../../models/song.dart';
 import 'song_repository.dart';
+
 import 'package:flick/l10n/l10n.dart';
 
 enum ListeningRecapPeriod { daily, weekly, monthly, yearly }
@@ -30,14 +31,10 @@ extension ListeningRecapPeriodX on ListeningRecapPeriod {
 
   String get emptyMessage {
     return switch (this) {
-      ListeningRecapPeriod.daily =>
-        l10n.playAFewTracksTodayTo,
-      ListeningRecapPeriod.weekly =>
-        l10n.yourWeeklyRecapAppearsOnceYou,
-      ListeningRecapPeriod.monthly =>
-        l10n.yourMonthlyRecapNeedsABit,
-      ListeningRecapPeriod.yearly =>
-        l10n.yourYearlyRecapFillsInAs,
+      ListeningRecapPeriod.daily => l10n.playAFewTracksTodayTo,
+      ListeningRecapPeriod.weekly => l10n.yourWeeklyRecapAppearsOnceYou,
+      ListeningRecapPeriod.monthly => l10n.yourMonthlyRecapNeedsABit,
+      ListeningRecapPeriod.yearly => l10n.yourYearlyRecapFillsInAs,
     };
   }
 
@@ -194,8 +191,13 @@ class ListeningRecap {
 class RecentlyPlayedEntry {
   final Song song;
   final DateTime playedAt;
+  final int? listenedMs;
 
-  RecentlyPlayedEntry({required this.song, required this.playedAt});
+  RecentlyPlayedEntry({
+    required this.song,
+    required this.playedAt,
+    this.listenedMs,
+  });
 }
 
 /// Repository for recently played history operations.
@@ -211,14 +213,27 @@ class RecentlyPlayedRepository {
       _songRepository = songRepository ?? SongRepository();
 
   /// Record a song as played.
-  Future<void> recordPlay(String songId) async {
+  Future<void> recordPlay(
+    String songId, {
+    String? eventId,
+    DateTime? playedAt,
+    int? listenedMs,
+  }) async {
     final id = int.tryParse(songId);
     if (id == null) return;
 
     await _isar.writeTxn(() async {
-      final entity = RecentlyPlayedEntity()
-        ..songId = id
-        ..playedAt = DateTime.now();
+      final existing = eventId == null
+          ? null
+          : await _isar.recentlyPlayedEntitys
+                .filter()
+                .eventIdEqualTo(eventId)
+                .findFirst();
+      final entity = existing ?? RecentlyPlayedEntity();
+      entity.songId = id;
+      entity.playedAt = playedAt ?? existing?.playedAt ?? DateTime.now();
+      entity.eventId = eventId;
+      entity.listenedMs = listenedMs ?? existing?.listenedMs;
 
       await _isar.recentlyPlayedEntitys.put(entity);
 
@@ -227,7 +242,8 @@ class RecentlyPlayedRepository {
       if (count > maxHistoryEntries) {
         final toDelete = count - maxHistoryEntries;
         final oldEntries = await _isar.recentlyPlayedEntitys
-            .where()
+            .filter()
+            .eventIdIsNull()
             .sortByPlayedAt()
             .limit(toDelete)
             .findAll();
@@ -270,6 +286,7 @@ class RecentlyPlayedRepository {
       final recentEntry = RecentlyPlayedEntry(
         song: song,
         playedAt: entry.playedAt,
+        listenedMs: entry.listenedMs,
       );
 
       final playedDate = DateTime(
@@ -333,6 +350,7 @@ class RecentlyPlayedRepository {
         RecentlyPlayedEntry(
           song: _entityToSong(songEntity),
           playedAt: entry.playedAt,
+          listenedMs: entry.listenedMs,
         ),
       );
     }
@@ -403,8 +421,10 @@ class RecentlyPlayedRepository {
 
   /// How many times each song id has been played, over the whole history.
   Future<Map<String, int>> getPlayCounts() async {
-    final ids =
-        await _isar.recentlyPlayedEntitys.where().songIdProperty().findAll();
+    final ids = await _isar.recentlyPlayedEntitys
+        .where()
+        .songIdProperty()
+        .findAll();
     final counts = <String, int>{};
     for (final id in ids) {
       final key = id.toString();
@@ -553,6 +573,7 @@ class RecentlyPlayedRepository {
         RecentlyPlayedEntry(
           song: _entityToSong(songEntity),
           playedAt: entry.playedAt,
+          listenedMs: entry.listenedMs,
         ),
       );
     }
@@ -579,7 +600,9 @@ class RecentlyPlayedRepository {
 
     for (final entry in entries) {
       final song = entry.song;
-      totalListeningTime += song.duration;
+      totalListeningTime += entry.listenedMs == null
+          ? song.duration
+          : Duration(milliseconds: entry.listenedMs!);
 
       final songAccumulator = songStats.putIfAbsent(
         song.id,

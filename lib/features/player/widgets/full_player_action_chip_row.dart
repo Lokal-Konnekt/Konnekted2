@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../../link/lokal_devices_card.dart';
+
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:flick/core/theme/app_colors.dart';
@@ -39,6 +42,7 @@ class FullPlayerActionChipRow extends StatelessWidget {
           horizontal: context.responsive(16, 20, 24),
         ),
         children: [
+          const Center(child: LokalOutputPill()),
           _ActionChip(
             icon: LucideIcons.listMusic,
             label: l10n.queue,

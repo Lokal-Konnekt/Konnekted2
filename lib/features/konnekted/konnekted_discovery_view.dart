@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -104,14 +106,15 @@ class _KonnektedDiscoveryViewState
         final cookie = await showDialog<String>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Connect Spotify'),
+            title: Text(lokalText('Connect Spotify')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Paste the sp_dc session cookie from your signed-in Spotify web session. '
-                  'It is stored encrypted on this device.',
+                Text(
+                  lokalText(
+                    "Paste the sp_dc session cookie from your signed-in Spotify web session. It is stored encrypted on this device.",
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -120,9 +123,9 @@ class _KonnektedDiscoveryViewState
                   obscureText: true,
                   autocorrect: false,
                   enableSuggestions: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Spotify sp_dc cookie',
-                    hintText: 'Paste cookie value',
+                  decoration: InputDecoration(
+                    labelText: lokalText('Spotify sp_dc cookie'),
+                    hintText: lokalText('Paste cookie value'),
                   ),
                 ),
               ],
@@ -130,11 +133,12 @@ class _KonnektedDiscoveryViewState
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancel'),
+                child: Text(lokalText('Cancel')),
               ),
               FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(controller.text),
-                child: const Text('Connect'),
+                onPressed: () =>
+                    Navigator.of(dialogContext).pop(controller.text),
+                child: Text(lokalText('Connect')),
               ),
             ],
           ),
@@ -145,7 +149,11 @@ class _KonnektedDiscoveryViewState
           await oauth.signInWithCookie(cookie);
         } catch (_) {
           if (mounted) {
-            _say('Spotify could not verify that cookie. Check the sp_dc value and try again.');
+            _say(
+              lokalText(
+                'Spotify could not verify that cookie. Check the sp_dc value and try again.',
+              ),
+            );
           }
           return;
         }
@@ -154,7 +162,12 @@ class _KonnektedDiscoveryViewState
       try {
         await settings.saveDiscoveryEnabled(true);
       } catch (_) {
-        if (mounted) _say('Spotify connected, but Discovery settings could not be saved.');
+        if (mounted)
+          _say(
+            lokalText(
+              'Spotify connected, but Discovery settings could not be saved.',
+            ),
+          );
       }
       ref.invalidate(konnektedSpotifyDiscoveryProvider);
     }
@@ -185,7 +198,8 @@ class _KonnektedDiscoveryViewState
         await discovery.setSource(KonnektedDiscoverySource.youtube);
       }
     } catch (_) {
-      if (mounted) _say('Could not sign in to YouTube Music. Try again.');
+      if (mounted)
+        _say(lokalText('Could not sign in to YouTube Music. Try again.'));
     }
   }
 
@@ -202,7 +216,7 @@ class _KonnektedDiscoveryViewState
       final tracks = await youtubeMusicMix(account, mix.id);
       if (!mounted) return;
       if (tracks.isEmpty) {
-        _say('This mix did not return any playable tracks.');
+        _say(lokalText('This mix did not return any playable tracks.'));
         return;
       }
       // Plays as soon as the first track is ready (your copy costs nothing;
@@ -236,7 +250,7 @@ class _KonnektedDiscoveryViewState
         if (seen.add(song.id)) songs.add(song);
       }
       if (songs.isEmpty) {
-        _say('No tracks from this mix could be prepared.');
+        _say(lokalText('No tracks from this mix could be prepared.'));
       } else {
         _progress.clear();
         widget.onPlay(songs.first, songs);
@@ -246,7 +260,11 @@ class _KonnektedDiscoveryViewState
       if (mounted) _say(error.message);
     } catch (_) {
       if (mounted) {
-        _say('Could not load this YouTube Music mix. Refresh and try again.');
+        _say(
+          lokalText(
+            'Could not load this YouTube Music mix. Refresh and try again.',
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = null);
@@ -277,7 +295,12 @@ class _KonnektedDiscoveryViewState
       final song = await widget.findSong(track, onStatus: _status);
       if (!mounted) return;
       if (song == null) {
-        _say('Couldn’t find ${track.title} on YouTube Music or your add-ons.');
+        _say(
+          lokalText(
+            "Couldn’t find {arg0} on YouTube Music or your add-ons.",
+            args: {'arg0': track.title},
+          ),
+        );
       } else {
         _progress.clear();
         widget.onPlay(song, _shelfQueue(track, song, shelf, library));
@@ -423,8 +446,10 @@ class _KonnektedDiscoveryViewState
           Padding(
             padding: const EdgeInsets.only(top: 20),
             child: KonnektedMessage(
-              title: 'Sign in to YouTube Music',
-              message: 'Connect your account to see your mixes, Likes, history and personalized picks.',
+              title: lokalText('Sign in to YouTube Music'),
+              message: lokalText(
+                'Connect your account to see your mixes, Likes, history and personalized picks.',
+              ),
               icon: Icons.music_note_rounded,
               actionLabel: 'Sign in',
               onAction: _connectYoutubeMusic,
@@ -435,8 +460,10 @@ class _KonnektedDiscoveryViewState
           Padding(
             padding: const EdgeInsets.only(top: 20),
             child: KonnektedMessage(
-              title: 'Connect Last.fm for Discovery',
-              message: 'Discovery recommends music from your Last.fm scrobbles. Sign in to Last.fm in Online sources to see your shelves.',
+              title: lokalText('Connect Last.fm for Discovery'),
+              message: lokalText(
+                'Discovery recommends music from your Last.fm scrobbles. Sign in to Last.fm in Online sources to see your shelves.',
+              ),
               icon: Icons.auto_awesome_rounded,
               actionLabel: 'Open Online sources',
               onAction: () => widget.onNavigate(
@@ -450,25 +477,29 @@ class _KonnektedDiscoveryViewState
         else if (data == null && discovery.loading)
           KonnektedLoading(
             label: source == KonnektedDiscoverySource.youtube
-                ? 'Loading your YouTube Music shelves…'
-                : 'Building your Last.fm recommendations…',
+                ? lokalText('Loading your YouTube Music shelves…')
+                : lokalText('Building your Last.fm recommendations…'),
           )
         else if (data != null && data.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 20),
             child: KonnektedMessage(
-              title: 'Nothing to recommend yet',
+              title: lokalText('Nothing to recommend yet'),
               message: source == KonnektedDiscoverySource.youtube
-                  ? 'No YouTube Music recommendations were returned. Refresh to retry.'
-                  : 'No Last.fm recommendations are available yet. Scrobble a few songs, then refresh.',
+                  ? lokalText(
+                      'No YouTube Music recommendations were returned. Refresh to retry.',
+                    )
+                  : lokalText(
+                      'No Last.fm recommendations are available yet. Scrobble a few songs, then refresh.',
+                    ),
               icon: Icons.auto_awesome_rounded,
             ),
           ),
         if (source == KonnektedDiscoverySource.youtube && mixes.isNotEmpty) ...[
-          const KonnektedSectionHeading(
-            title: 'Mixed for you',
+          KonnektedSectionHeading(
+            title: lokalText('Mixed for you'),
             icon: Icons.queue_music_rounded,
-            subtitle: 'Your YouTube Music radio mixes.',
+            subtitle: lokalText('Your YouTube Music radio mixes.'),
           ),
           _MixShelf(
             mixes: mixes,
@@ -493,7 +524,7 @@ class _KonnektedDiscoveryViewState
             'Your Likes',
             Icons.thumb_up_alt_rounded,
             liked.length,
-            subtitle: 'Songs you liked on YouTube Music.',
+            subtitle: lokalText('Songs you liked on YouTube Music.'),
           ),
           tracks(_Shelf.liked, liked),
         ],
@@ -504,8 +535,8 @@ class _KonnektedDiscoveryViewState
             Icons.music_note_rounded,
             fresh.length,
             subtitle: source == KonnektedDiscoverySource.youtube
-                ? 'More from your YouTube Music home page.'
-                : 'More music from Last.fm.',
+                ? lokalText('More from your YouTube Music home page.')
+                : lokalText('More music from Last.fm.'),
           ),
           tracks(_Shelf.fresh, fresh),
         ],
@@ -515,7 +546,9 @@ class _KonnektedDiscoveryViewState
             'Quick Picks',
             Icons.auto_awesome_rounded,
             quick.length,
-            subtitle: 'Tracks you scrobbled most often over the past week.',
+            subtitle: lokalText(
+              'Tracks you scrobbled most often over the past week.',
+            ),
           ),
           tracks(_Shelf.quick, quick),
         ],
@@ -528,8 +561,8 @@ class _KonnektedDiscoveryViewState
             Icons.history_rounded,
             history.length,
             subtitle: source == KonnektedDiscoverySource.youtube
-                ? 'Your YouTube Music listening history.'
-                : 'Your last 100 scrobbles, by day.',
+                ? lokalText('Your YouTube Music listening history.')
+                : lokalText('Your last 100 scrobbles, by day.'),
           ),
           _History(
             entries: _open == _Shelf.history
@@ -551,8 +584,8 @@ class _KonnektedDiscoveryViewState
           ),
         ],
         if (source == KonnektedDiscoverySource.lastfm && albums.isNotEmpty) ...[
-          const KonnektedSectionHeading(
-            title: 'Albums For You',
+          KonnektedSectionHeading(
+            title: lokalText('Albums For You'),
             icon: Icons.album_rounded,
           ),
           _AlbumShelf(
@@ -564,8 +597,8 @@ class _KonnektedDiscoveryViewState
           ),
         ],
         if (artists.isNotEmpty) ...[
-          const KonnektedSectionHeading(
-            title: 'Artists For You',
+          KonnektedSectionHeading(
+            title: lokalText('Artists For You'),
             icon: Icons.person_rounded,
           ),
           _ArtistShelf(
@@ -646,7 +679,7 @@ class _KonnektedDiscoveryViewState
             ),
           )
         else if (snapshot.isLoading && value == null)
-          const KonnektedLoading(label: 'Building your Spotify shelves…')
+          KonnektedLoading(label: lokalText('Building your Spotify shelves…'))
         else if (value?.error case final error?)
           Padding(
             padding: const EdgeInsets.all(20),
@@ -661,9 +694,10 @@ class _KonnektedDiscoveryViewState
           )
         else if (value == null || !value.enabled)
           KonnektedMessage(
-            title: 'Spotify Discovery is off',
-            message:
-                'Connect your Spotify session to enable personal shelves.',
+            title: lokalText('Spotify Discovery is off'),
+            message: lokalText(
+              'Connect your Spotify session to enable personal shelves.',
+            ),
             icon: Icons.auto_awesome_rounded,
             actionLabel: 'Connect Spotify',
             onAction: () => unawaited(
@@ -672,9 +706,10 @@ class _KonnektedDiscoveryViewState
           )
         else if (!value.connected)
           KonnektedMessage(
-            title: 'Connect Spotify for Discovery',
-            message:
-                'Paste your Spotify session cookie to load your personal shelves.',
+            title: lokalText('Connect Spotify for Discovery'),
+            message: lokalText(
+              'Paste your Spotify session cookie to load your personal shelves.',
+            ),
             icon: Icons.auto_awesome_rounded,
             actionLabel: 'Enter cookie',
             onAction: () => unawaited(
@@ -682,10 +717,11 @@ class _KonnektedDiscoveryViewState
             ),
           )
         else if (data == null || data.isEmpty)
-          const KonnektedMessage(
-            title: 'Nothing to recommend yet',
-            message:
-                'Spotify did not return any personal shelves yet. Refresh and try again.',
+          KonnektedMessage(
+            title: lokalText('Nothing to recommend yet'),
+            message: lokalText(
+              'Spotify did not return any personal shelves yet. Refresh and try again.',
+            ),
             icon: Icons.auto_awesome_rounded,
           ),
         if (fresh.isNotEmpty) ...[
@@ -694,7 +730,7 @@ class _KonnektedDiscoveryViewState
             'Fresh Finds',
             Icons.music_note_rounded,
             fresh.length,
-            subtitle: 'New tracks around your Spotify taste.',
+            subtitle: lokalText('New tracks around your Spotify taste.'),
           ),
           tracks(_Shelf.fresh, fresh),
         ],
@@ -704,7 +740,7 @@ class _KonnektedDiscoveryViewState
             'Quick Picks',
             Icons.auto_awesome_rounded,
             quick.length,
-            subtitle: 'Your short-term top tracks.',
+            subtitle: lokalText('Your short-term top tracks.'),
           ),
           tracks(_Shelf.quick, quick),
         ],
@@ -714,7 +750,7 @@ class _KonnektedDiscoveryViewState
             'Liked Songs',
             Icons.favorite_rounded,
             liked.length,
-            subtitle: 'Your latest Spotify likes.',
+            subtitle: lokalText('Your latest Spotify likes.'),
           ),
           tracks(_Shelf.liked, liked),
         ],
@@ -724,7 +760,7 @@ class _KonnektedDiscoveryViewState
             'Recently Played',
             Icons.history_rounded,
             history.length,
-            subtitle: 'Your latest Spotify listening.',
+            subtitle: lokalText('Your latest Spotify listening.'),
           ),
           _History(
             entries: _open == _Shelf.history
@@ -746,8 +782,8 @@ class _KonnektedDiscoveryViewState
           ),
         ],
         if (data?.albums case final albums? when albums.isNotEmpty) ...[
-          const KonnektedSectionHeading(
-            title: 'Albums For You',
+          KonnektedSectionHeading(
+            title: lokalText('Albums For You'),
             icon: Icons.album_rounded,
           ),
           _AlbumShelf(
@@ -759,8 +795,8 @@ class _KonnektedDiscoveryViewState
           ),
         ],
         if (data?.artists case final artists? when artists.isNotEmpty) ...[
-          const KonnektedSectionHeading(
-            title: 'Artists For You',
+          KonnektedSectionHeading(
+            title: lokalText('Artists For You'),
             icon: Icons.person_rounded,
           ),
           _ArtistShelf(
@@ -822,7 +858,7 @@ class _Header extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            'Discovery',
+                            lokalText('Discovery'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -835,9 +871,15 @@ class _Header extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           switch (source) {
-                            KonnektedDiscoverySource.lastfm => 'LAST.FM',
-                            KonnektedDiscoverySource.youtube => 'YOUTUBE MUSIC',
-                            KonnektedDiscoverySource.spotify => 'SPOTIFY',
+                            KonnektedDiscoverySource.lastfm => lokalText(
+                              'LAST.FM',
+                            ),
+                            KonnektedDiscoverySource.youtube => lokalText(
+                              'YOUTUBE MUSIC',
+                            ),
+                            KonnektedDiscoverySource.spotify => lokalText(
+                              'SPOTIFY',
+                            ),
                           },
                           style: LokalTheme.label(t, size: 10, color: t.muted),
                         ),
@@ -845,7 +887,9 @@ class _Header extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Personalized recommendations from your selected provider.',
+                      lokalText(
+                        'Personalized recommendations from your selected provider.',
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 12, color: t.muted),
@@ -874,19 +918,19 @@ class _Header extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _ProviderChip(
-                        label: 'Last.fm',
+                        label: lokalText('Last.fm'),
                         selected: source == KonnektedDiscoverySource.lastfm,
                         onTap: () =>
                             onSourceChanged(KonnektedDiscoverySource.lastfm),
                       ),
                       _ProviderChip(
-                        label: 'YouTube Music',
+                        label: lokalText('YouTube Music'),
                         selected: source == KonnektedDiscoverySource.youtube,
                         onTap: () =>
                             onSourceChanged(KonnektedDiscoverySource.youtube),
                       ),
                       _ProviderChip(
-                        label: 'Spotify',
+                        label: lokalText('Spotify'),
                         selected: source == KonnektedDiscoverySource.spotify,
                         onTap: () =>
                             onSourceChanged(KonnektedDiscoverySource.spotify),
@@ -907,7 +951,7 @@ class _Header extends StatelessWidget {
                         ),
                       )
                     : const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Refresh'),
+                label: Text(lokalText('Refresh')),
               ),
             ],
           ),
@@ -937,10 +981,14 @@ class _ProviderChip extends StatelessWidget {
       button: true,
       selected: selected,
       enabled: onTap != null,
-      label: comingSoon ? '$label, coming soon' : label,
+      label: comingSoon
+          ? lokalText("{arg0}, coming soon", args: {'arg0': label})
+          : label,
       excludeSemantics: true,
       child: Tooltip(
-        message: comingSoon ? '$label is coming soon' : label,
+        message: comingSoon
+            ? lokalText("{arg0} is coming soon", args: {'arg0': label})
+            : label,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -1001,7 +1049,7 @@ class _MixShelf extends StatelessWidget {
             width: 136,
             child: Semantics(
               button: true,
-              label: 'Play mix ' + mix.title,
+              label: lokalText('Play mix ') + mix.title,
               excludeSemantics: true,
               child: InkWell(
                 onTap: busy ? null : () => onTap(mix),
@@ -1089,8 +1137,14 @@ class KonnektedDiscoveryRow extends StatelessWidget {
     );
     return Semantics(
       button: true,
-      label:
-          'Play ${track.title} by ${track.artist}${inLibrary ? ', in your library' : ''}',
+      label: lokalText(
+        "Play {arg0} by {arg1}{arg2}",
+        args: {
+          'arg0': track.title,
+          'arg1': track.artist,
+          'arg2': inLibrary ? ', in your library' : '',
+        },
+      ),
       excludeSemantics: true,
       onTap: onTap,
       child: InkWell(
@@ -1259,7 +1313,10 @@ class _AlbumShelf extends StatelessWidget {
           );
           return Semantics(
             button: true,
-            label: 'Play ${album.title} by ${album.artist}',
+            label: lokalText(
+              "Play {arg0} by {arg1}",
+              args: {'arg0': album.title, 'arg1': album.artist},
+            ),
             excludeSemantics: true,
             onTap: () => onTap(album),
             child: GestureDetector(
@@ -1347,7 +1404,10 @@ class _ArtistShelf extends StatelessWidget {
           );
           return Semantics(
             button: true,
-            label: 'Play songs by ${artist.name}',
+            label: lokalText(
+              "Play songs by {arg0}",
+              args: {'arg0': artist.name},
+            ),
             excludeSemantics: true,
             onTap: () => onTap(artist),
             child: GestureDetector(

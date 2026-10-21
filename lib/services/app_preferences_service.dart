@@ -114,7 +114,8 @@ class AppPreferences {
   final bool showMoreArtists;
   final bool detailHeaderArtExpanded;
   final bool detailHeaderCenteredTitle;
-  final String songTileThumbnailMode; // 'artwork', 'trackNumber', or 'trackNumberOnArt'
+  final String
+  songTileThumbnailMode; // 'artwork', 'trackNumber', or 'trackNumberOnArt'
   final bool extendedVolumeEnabled;
   final String replayGainMode; // 'off', 'track', or 'album'
   final String lyricsTextAlign; // 'left', 'center', or 'right'
@@ -166,14 +167,14 @@ class AppPreferences {
     this.widgetBgOpacity = 3,
     this.widgetShowAlbumArt = true,
     this.widgetShowArtist = true,
-    this.widgetAccentColor = 'white',
+    this.widgetAccentColor = 'theme',
     this.widgetFlagshipTheme = 'art_dominant',
-    this.widgetFlagshipAccent = 'white',
+    this.widgetFlagshipAccent = 'theme',
     this.widgetFlagshipShowArtist = true,
     this.widgetCompactBgOpacity = 3,
     this.widgetCompactShowAlbumArt = true,
     this.widgetCompactShowArtist = true,
-    this.widgetCompactAccent = 'white',
+    this.widgetCompactAccent = 'theme',
     this.widgetTextScale = 1.0,
     this.widgetFlagshipTextScale = 1.0,
     this.widgetCompactTextScale = 1.0,
@@ -373,8 +374,7 @@ class AppPreferences {
       showBrowseMore: showBrowseMore ?? this.showBrowseMore,
       showQuickAccess: showQuickAccess ?? this.showQuickAccess,
       showEngineSelector: showEngineSelector ?? this.showEngineSelector,
-      showUsbVolumeOnMenu:
-          showUsbVolumeOnMenu ?? this.showUsbVolumeOnMenu,
+      showUsbVolumeOnMenu: showUsbVolumeOnMenu ?? this.showUsbVolumeOnMenu,
       showUsbVolumeOnSettings:
           showUsbVolumeOnSettings ?? this.showUsbVolumeOnSettings,
       crossfadeEnabled: crossfadeEnabled ?? this.crossfadeEnabled,
@@ -452,8 +452,7 @@ class AppPreferences {
       replaceAlbumWithBitPerfectCapsule:
           replaceAlbumWithBitPerfectCapsule ??
           this.replaceAlbumWithBitPerfectCapsule,
-      albumsStretchArtwork:
-          albumsStretchArtwork ?? this.albumsStretchArtwork,
+      albumsStretchArtwork: albumsStretchArtwork ?? this.albumsStretchArtwork,
       animatedAlbumArt: animatedAlbumArt ?? this.animatedAlbumArt,
       folderGridPageSize: folderGridPageSize ?? this.folderGridPageSize,
       lastSeenChangelogVersion:
@@ -479,26 +478,21 @@ class AppPreferences {
           pauseOnUsbDacDisconnect ?? this.pauseOnUsbDacDisconnect,
       pauseOnBluetoothConnect:
           pauseOnBluetoothConnect ?? this.pauseOnBluetoothConnect,
-      pauseOnUsbDacConnect:
-          pauseOnUsbDacConnect ?? this.pauseOnUsbDacConnect,
+      pauseOnUsbDacConnect: pauseOnUsbDacConnect ?? this.pauseOnUsbDacConnect,
       preferredBluetoothDevice:
           preferredBluetoothDevice ?? this.preferredBluetoothDevice,
       btPreferredCodec: btPreferredCodec ?? this.btPreferredCodec,
       btLdacBitrate: btLdacBitrate ?? this.btLdacBitrate,
-      btAbsoluteVolumeSync:
-          btAbsoluteVolumeSync ?? this.btAbsoluteVolumeSync,
-      btEnableCodecControl:
-          btEnableCodecControl ?? this.btEnableCodecControl,
+      btAbsoluteVolumeSync: btAbsoluteVolumeSync ?? this.btAbsoluteVolumeSync,
+      btEnableCodecControl: btEnableCodecControl ?? this.btEnableCodecControl,
       btSampleRate: btSampleRate ?? this.btSampleRate,
-      btLdacBitsPerSample:
-          btLdacBitsPerSample ?? this.btLdacBitsPerSample,
+      btLdacBitsPerSample: btLdacBitsPerSample ?? this.btLdacBitsPerSample,
       floatingPlayerEnabled:
           floatingPlayerEnabled ?? this.floatingPlayerEnabled,
       floatingIslandEnabled:
           floatingIslandEnabled ?? this.floatingIslandEnabled,
       autoFocusSearch: autoFocusSearch ?? this.autoFocusSearch,
-      searchPlaybackMode:
-          searchPlaybackMode ?? this.searchPlaybackMode,
+      searchPlaybackMode: searchPlaybackMode ?? this.searchPlaybackMode,
       refreshRateMode: refreshRateMode ?? this.refreshRateMode,
       visualizerEnabled: visualizerEnabled ?? this.visualizerEnabled,
       orbitRadiusRatio: orbitRadiusRatio ?? this.orbitRadiusRatio,
@@ -606,6 +600,7 @@ class AppPreferencesService {
   static const _animatedAlbumArtKey = 'album_animated_art';
   static const _folderGridPageSizeKey = 'folder_grid_page_size';
   static const _lastSeenChangelogVersionKey = 'last_seen_changelog_version';
+
   /// UI language. A locale tag such as 'zh_CN', or 'system' to follow the device.
   static const _appLocaleKey = 'app_locale';
   static const _bottomBarAutoCollapseEnabledKey =
@@ -692,8 +687,7 @@ class AppPreferencesService {
       crossfadeCurveIndex: prefs.getInt(_crossfadeCurveKey) ?? 0,
       crossfeedLevel: prefs.getInt(_crossfeedLevelKey) ?? 0,
       swipeActionsEnabled: prefs.getBool(_swipeActionsEnabledKey) ?? true,
-      favoriteRemovalMode:
-          prefs.getString(_favoriteRemovalModeKey) ?? 'swipe',
+      favoriteRemovalMode: prefs.getString(_favoriteRemovalModeKey) ?? 'swipe',
       fastIndexEnabled: prefs.getBool(_fastIndexEnabledKey) ?? true,
       fastIndexTimeoutSeconds: prefs.getInt(_fastIndexTimeoutKey) ?? 3,
       immersiveAutoFullViewSeconds:
@@ -730,21 +724,19 @@ class AppPreferencesService {
       widgetBgOpacity: prefs.getInt(_widgetBgOpacityKey) ?? 3,
       widgetShowAlbumArt: prefs.getBool(_widgetShowAlbumArtKey) ?? true,
       widgetShowArtist: prefs.getBool(_widgetShowArtistKey) ?? true,
-      widgetAccentColor: prefs.getString(_widgetAccentColorKey) ?? 'white',
+      widgetAccentColor: prefs.getString(_widgetAccentColorKey) ?? 'theme',
       widgetFlagshipTheme:
           prefs.getString(_widgetFlagshipThemeKey) ?? 'art_dominant',
       widgetFlagshipAccent:
-          prefs.getString(_widgetFlagshipAccentKey) ?? 'white',
+          prefs.getString(_widgetFlagshipAccentKey) ?? 'theme',
       widgetFlagshipShowArtist:
           prefs.getBool(_widgetFlagshipShowArtistKey) ?? true,
-      widgetCompactBgOpacity:
-          prefs.getInt(_widgetCompactBgOpacityKey) ?? 3,
+      widgetCompactBgOpacity: prefs.getInt(_widgetCompactBgOpacityKey) ?? 3,
       widgetCompactShowAlbumArt:
           prefs.getBool(_widgetCompactShowAlbumArtKey) ?? true,
       widgetCompactShowArtist:
           prefs.getBool(_widgetCompactShowArtistKey) ?? true,
-      widgetCompactAccent:
-          prefs.getString(_widgetCompactAccentKey) ?? 'white',
+      widgetCompactAccent: prefs.getString(_widgetCompactAccentKey) ?? 'theme',
       widgetTextScale: prefs.getDouble(_widgetTextScaleKey) ?? 1.0,
       widgetFlagshipTextScale:
           prefs.getDouble(_widgetFlagshipTextScaleKey) ?? 1.0,
@@ -755,17 +747,14 @@ class AppPreferencesService {
       lyricsAutoFetch: prefs.getBool(_lyricsAutoFetchKey) ?? true,
       leftActionButton: prefs.getString(_leftActionButtonKey) ?? 'lyrics',
       rightActionButton: prefs.getString(_rightActionButtonKey) ?? 'favorites',
-      leftTopActionButton:
-          prefs.getString(_leftTopActionButtonKey) ?? 'none',
-      rightTopActionButton:
-          prefs.getString(_rightTopActionButtonKey) ?? 'none',
+      leftTopActionButton: prefs.getString(_leftTopActionButtonKey) ?? 'none',
+      rightTopActionButton: prefs.getString(_rightTopActionButtonKey) ?? 'none',
       welcomeCardDismissed: prefs.getBool(_welcomeCardDismissedKey) ?? false,
       glanceCardHidden: prefs.getBool(_glanceCardHiddenKey) ?? false,
       glanceCardMinimized: prefs.getBool(_glanceCardMinimizedKey) ?? false,
       replaceAlbumWithBitPerfectCapsule:
           prefs.getBool(_replaceAlbumWithBitPerfectCapsuleKey) ?? false,
-      albumsStretchArtwork:
-          prefs.getBool(_albumsStretchArtworkKey) ?? false,
+      albumsStretchArtwork: prefs.getBool(_albumsStretchArtworkKey) ?? false,
       animatedAlbumArt: prefs.getBool(_animatedAlbumArtKey) ?? true,
       folderGridPageSize: prefs.getInt(_folderGridPageSizeKey) ?? 8,
       lastSeenChangelogVersion: prefs.getString(_lastSeenChangelogVersionKey),
@@ -778,8 +767,7 @@ class AppPreferencesService {
       separateMiniPlayerFromNavBar:
           prefs.getBool(_separateMiniPlayerFromNavBarKey) ?? false,
       keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
-      priorityAnchorEnabled:
-          prefs.getBool(_priorityAnchorEnabledKey) ?? true,
+      priorityAnchorEnabled: prefs.getBool(_priorityAnchorEnabledKey) ?? true,
       motionArtDuringBitPerfect:
           prefs.getBool(_motionArtDuringBitPerfectKey) ?? false,
       pauseOnBluetoothDisconnect:
@@ -790,25 +778,19 @@ class AppPreferencesService {
           prefs.getBool(_pauseOnUsbDacDisconnectKey) ?? true,
       pauseOnBluetoothConnect:
           prefs.getBool(_pauseOnBluetoothConnectKey) ?? false,
-      pauseOnUsbDacConnect:
-          prefs.getBool(_pauseOnUsbDacConnectKey) ?? false,
+      pauseOnUsbDacConnect: prefs.getBool(_pauseOnUsbDacConnectKey) ?? false,
       preferredBluetoothDevice:
           prefs.getString(_preferredBluetoothDeviceKey) ?? '',
       btPreferredCodec: prefs.getInt(_btPreferredCodecKey) ?? -1,
       btLdacBitrate: prefs.getString(_btLdacBitrateKey) ?? 'adaptive',
-      btAbsoluteVolumeSync:
-          prefs.getBool(_btAbsoluteVolumeSyncKey) ?? false,
-      btEnableCodecControl:
-          prefs.getBool(_btEnableCodecControlKey) ?? false,
+      btAbsoluteVolumeSync: prefs.getBool(_btAbsoluteVolumeSyncKey) ?? false,
+      btEnableCodecControl: prefs.getBool(_btEnableCodecControlKey) ?? false,
       btSampleRate: prefs.getInt(_btSampleRateKey) ?? 0,
       btLdacBitsPerSample: prefs.getInt(_btLdacBitsPerSampleKey) ?? 0,
-      floatingPlayerEnabled:
-          prefs.getBool(_floatingPlayerEnabledKey) ?? false,
-      floatingIslandEnabled:
-          prefs.getBool(_floatingIslandEnabledKey) ?? false,
+      floatingPlayerEnabled: prefs.getBool(_floatingPlayerEnabledKey) ?? false,
+      floatingIslandEnabled: prefs.getBool(_floatingIslandEnabledKey) ?? false,
       autoFocusSearch: prefs.getBool(_autoFocusSearchKey) ?? false,
-      searchPlaybackMode:
-          prefs.getString(_searchPlaybackModeKey) ?? 'results',
+      searchPlaybackMode: prefs.getString(_searchPlaybackModeKey) ?? 'results',
       refreshRateMode: await _resolveRefreshRateMode(prefs),
       visualizerEnabled: prefs.getBool(_visualizerEnabledKey) ?? true,
       orbitRadiusRatio: prefs.getDouble(_orbitRadiusRatioKey) ?? 1.0,
@@ -834,8 +816,7 @@ class AppPreferencesService {
           prefs.getBool(_detailHeaderCenteredTitleKey) ?? false,
       songTileThumbnailMode:
           prefs.getString(_songTileThumbnailModeKey) ?? 'artwork',
-      extendedVolumeEnabled:
-          prefs.getBool(_extendedVolumeEnabledKey) ?? false,
+      extendedVolumeEnabled: prefs.getBool(_extendedVolumeEnabledKey) ?? false,
       replayGainMode: prefs.getString(_replayGainModeKey) ?? 'off',
       lyricsTextAlign: prefs.getString(_lyricsTextAlignKey) ?? 'center',
       karaokeEnabled: prefs.getBool(_lyricsKaraokeEnabledKey) ?? true,
@@ -1297,7 +1278,7 @@ class AppPreferencesService {
 
   Future<String> getWidgetFlagshipAccent() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_widgetFlagshipAccentKey) ?? 'white';
+    return prefs.getString(_widgetFlagshipAccentKey) ?? 'theme';
   }
 
   Future<void> setWidgetFlagshipAccent(String value) async {
@@ -1347,7 +1328,7 @@ class AppPreferencesService {
 
   Future<String> getWidgetCompactAccent() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_widgetCompactAccentKey) ?? 'white';
+    return prefs.getString(_widgetCompactAccentKey) ?? 'theme';
   }
 
   Future<void> setWidgetCompactAccent(String value) async {

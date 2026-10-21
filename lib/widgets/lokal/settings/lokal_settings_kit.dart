@@ -1,3 +1,4 @@
+import 'package:flick/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -28,8 +29,9 @@ bool lokalSettingsMatch(String text, String query) {
   return text.toLowerCase().contains(q);
 }
 
-String _searchText(String label, String? description) =>
-    description == null ? label : '$label $description';
+String _searchText(String label, String? description) => description == null
+    ? lokalText(label)
+    : '${lokalText(label)} ${lokalText(description)}';
 
 /// A DM Mono title over a solid card of rows.
 class LokalSettingsSection extends StatelessWidget {
@@ -87,7 +89,7 @@ class LokalSettingsSection extends StatelessWidget {
             child: Semantics(
               header: true,
               child: Text(
-                (heading ?? title).toUpperCase(),
+                lokalText(heading ?? title).toUpperCase(),
                 style: LokalTheme.label(t),
               ),
             ),
@@ -182,7 +184,7 @@ class LokalSettingRow extends StatelessWidget implements LokalSearchable {
   final bool? selected;
 
   @override
-  String get searchText => _searchText(label, description);
+  String get searchText => _searchText(lokalText(label), description);
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +194,7 @@ class LokalSettingRow extends StatelessWidget implements LokalSearchable {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          label,
+          lokalText(label),
           style: TextStyle(
             fontFamily: LokalTheme.sans,
             fontSize: 15,
@@ -204,7 +206,7 @@ class LokalSettingRow extends StatelessWidget implements LokalSearchable {
           Padding(
             padding: const EdgeInsets.only(top: 3),
             child: Text(
-              description!,
+              lokalText(description!),
               style: TextStyle(
                 fontFamily: LokalTheme.sans,
                 fontSize: 12.5,
@@ -291,7 +293,7 @@ class LokalOnOffPill extends StatelessWidget {
         border: Border.all(color: value ? t.accent : t.border2),
       ),
       child: Text(
-        value ? 'ON' : 'OFF',
+        value ? lokalText('ON') : lokalText('OFF'),
         style: LokalTheme.label(
           t,
           size: 11,
@@ -357,7 +359,7 @@ class LokalSegmented<T> extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
-          s.label,
+          lokalText(s.label),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
@@ -442,7 +444,7 @@ class LokalSettingSlider extends StatefulWidget implements LokalSearchable {
   final VoidCallback? onValueTap;
 
   @override
-  String get searchText => _searchText(label, description);
+  String get searchText => _searchText(lokalText(label), description);
 
   @override
   State<LokalSettingSlider> createState() => _LokalSettingSliderState();
@@ -471,7 +473,7 @@ class _LokalSettingSliderState extends State<LokalSettingSlider> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.label,
+                        lokalText(widget.label),
                         style: TextStyle(
                           fontFamily: LokalTheme.sans,
                           fontSize: 15,
@@ -572,7 +574,7 @@ class LokalSettingLink extends StatelessWidget implements LokalSearchable {
   final IconData? icon;
 
   @override
-  String get searchText => _searchText(label, description);
+  String get searchText => _searchText(lokalText(label), description);
 
   @override
   Widget build(BuildContext context) {
@@ -618,7 +620,7 @@ class LokalSettingChoice<T> extends StatelessWidget implements LokalSearchable {
   final bool enabled;
 
   @override
-  String get searchText => _searchText(label, description);
+  String get searchText => _searchText(lokalText(label), description);
 
   Future<void> _pick(BuildContext context) async {
     final picked = await showLokalSettingsSheet<LokalSegment<T>>(
@@ -708,7 +710,7 @@ class LokalSettingButton extends StatelessWidget {
               ),
             ),
             child: Text(
-              label.toUpperCase(),
+              lokalText(label).toUpperCase(),
               style: LokalTheme.label(t, size: 11, color: color),
             ),
           ),
@@ -733,7 +735,7 @@ class LokalSettingCustom extends StatelessWidget implements LokalSearchable {
   final Widget child;
 
   @override
-  String get searchText => _searchText(label, description);
+  String get searchText => _searchText(lokalText(label), description);
 
   @override
   Widget build(BuildContext context) => child;
@@ -784,7 +786,7 @@ class LokalSettingsSearchField extends StatelessWidget {
               suffixIcon: value.text.isEmpty
                   ? null
                   : IconButton(
-                      tooltip: 'Clear search',
+                      tooltip: lokalText('Clear search'),
                       icon: Icon(Icons.close_rounded, color: t.muted),
                       onPressed: () {
                         controller.clear();
@@ -836,7 +838,7 @@ class LokalSettingsHeader extends StatelessWidget {
                 children: [
                   if (canPop)
                     _RoundButton(
-                      semanticLabel: 'Back',
+                      semanticLabel: lokalText('Back'),
                       onPressed: () => Navigator.of(context).maybePop(),
                       child: Icon(Icons.chevron_left_rounded, color: t.text),
                     ),

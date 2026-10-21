@@ -40,6 +40,8 @@ class SecureLokalRemoteCredentialsStore implements LokalRemoteCredentialsStore {
     final raw = await _secureStorage.read(key: secureKey);
     var remoteToken = '';
     var apiKey = '';
+    String? desktopId;
+    String? desktopUserId;
     if (raw != null && raw.isNotEmpty) {
       try {
         final json = jsonDecode(raw);
@@ -48,6 +50,10 @@ class SecureLokalRemoteCredentialsStore implements LokalRemoteCredentialsStore {
             remoteToken = json['remoteToken'] as String;
           }
           if (json['apiKey'] is String) apiKey = json['apiKey'] as String;
+          if (json['desktopId'] is String)
+            desktopId = json['desktopId'] as String;
+          if (json['desktopUserId'] is String)
+            desktopUserId = json['desktopUserId'] as String;
         }
       } catch (_) {
         // A corrupt secret record behaves like an unauthenticated endpoint;
@@ -58,6 +64,8 @@ class SecureLokalRemoteCredentialsStore implements LokalRemoteCredentialsStore {
       origin: normalized,
       remoteToken: remoteToken,
       apiKey: apiKey,
+      desktopId: desktopId,
+      desktopUserId: desktopUserId,
     );
   }
 
@@ -73,6 +81,8 @@ class SecureLokalRemoteCredentialsStore implements LokalRemoteCredentialsStore {
         'version': 1,
         'remoteToken': credentials.remoteToken,
         'apiKey': credentials.apiKey,
+        'desktopId': credentials.desktopId,
+        'desktopUserId': credentials.desktopUserId,
       }),
     );
   }

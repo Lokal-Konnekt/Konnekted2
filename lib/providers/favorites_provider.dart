@@ -1,3 +1,5 @@
+import 'lokal_remote_provider.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/song.dart';
@@ -102,6 +104,13 @@ final isSongFavoriteProvider = Provider.autoDispose.family<bool, String>((
   ref,
   songId,
 ) {
+  if (songId.startsWith('desktop:')) {
+    final snapshot = ref.watch(lokalRemoteControllerProvider).snapshot,
+        id = songId.substring(8);
+    if (snapshot?.currentTrack?.id == id) return snapshot!.currentTrack!.liked;
+    final matches = snapshot?.queue.where((track) => track.id == id);
+    return matches != null && matches.isNotEmpty ? matches.first.liked : false;
+  }
   final favorites = ref.watch(favoritesProvider).value;
   return favorites?.isFavorite(songId) ?? false;
 });

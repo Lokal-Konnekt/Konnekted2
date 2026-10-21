@@ -1,3 +1,5 @@
+import 'package:flick/l10n/l10n.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -77,8 +79,8 @@ class _LokalLicencesPageState extends State<LokalLicencesPage> {
     final t = context.lokal;
     final names = _sorted;
     return LokalSettingsScaffold(
-      title: 'Licences',
-      subtitle: 'The open-source software Lokal is built with.',
+      title: lokalText('Licences'),
+      subtitle: lokalText('The open-source software Lokal is built with.'),
       children: [
         LokalSettingsBlock(
           top: 16,
@@ -93,7 +95,7 @@ class _LokalLicencesPageState extends State<LokalLicencesPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Lokal $kAppVersion',
+                        lokalText("Lokal {arg0}", args: {'arg0': kAppVersion}),
                         style: TextStyle(
                           fontFamily: LokalTheme.sans,
                           fontSize: 16,
@@ -103,8 +105,9 @@ class _LokalLicencesPageState extends State<LokalLicencesPage> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        'Free software under the GNU GPL v3. Lokal grew '
-                        'from Flick, whose MIT notice is kept below.',
+                        lokalText(
+                          "Free software under the GNU GPL v3. Lokal grew from Flick, whose MIT notice is kept below.",
+                        ),
                         style: TextStyle(
                           fontSize: 12.5,
                           height: 1.4,
@@ -123,7 +126,10 @@ class _LokalLicencesPageState extends State<LokalLicencesPage> {
             padding: const EdgeInsets.all(32),
             child: Center(
               child: _done
-                  ? Text('No licences found.', style: TextStyle(color: t.muted))
+                  ? Text(
+                      lokalText('No licences found.'),
+                      style: TextStyle(color: t.muted),
+                    )
                   : SizedBox(
                       width: 22,
                       height: 22,
@@ -136,7 +142,7 @@ class _LokalLicencesPageState extends State<LokalLicencesPage> {
           )
         else
           LokalSettingsSection(
-            title: 'Packages',
+            title: lokalText('Packages'),
             heading: 'Packages · ${names.length}',
             children: [
               for (final name in names)
@@ -171,7 +177,9 @@ class _LicenceDetailPage extends StatelessWidget {
     return LokalSettingsScaffold(
       title: lokalLicencePackageLabel(package),
       subtitle: package == lokalUpstreamPackage
-          ? 'The project Lokal grew from. Its code keeps this notice.'
+          ? lokalText(
+              'The project Lokal grew from. Its code keeps this notice.',
+            )
           : null,
       children: [
         for (final entry in entries)

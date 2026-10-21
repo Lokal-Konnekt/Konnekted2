@@ -229,10 +229,16 @@ class MainActivity: FlutterActivity() {
         return engine
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (LokalDesktopDiscovery.handlePermissionResult(requestCode, grantResults)) return
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         // Idempotent: cached engines skip duplicate GeneratedPluginRegistrant.
         ensurePluginsRegistered(flutterEngine)
         LauncherIcon.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
+        LokalDesktopDiscovery.register(flutterEngine.dartExecutor.binaryMessenger, this)
         YoutubeNativeResolver.initialize(applicationContext)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, YOUTUBE_CHANNEL)
             .setMethodCallHandler { call, result ->

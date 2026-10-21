@@ -1,3 +1,7 @@
+import 'package:flick/l10n/l10n.dart';
+
+import '../../../link/lokal_desktop_link_screen.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -31,20 +35,24 @@ List<LokalSettingsSection> onlineSourcesSettings(
   LokalSettingsSection(
     title: LokalOnlineSections.streaming,
     children: [
-      const LokalSettingCustom(
-        label: 'YouTube Music',
-        description: 'Sign in to load your mixes, likes and history',
+      LokalSettingCustom(
+        label: lokalText('YouTube Music'),
+        description: lokalText('Sign in to load your mixes, likes and history'),
         child: YoutubeMusicSettingsTile(),
       ),
       LokalSettingLink(
-        label: 'Network servers',
-        description: 'Subsonic, Jellyfin, WebDAV and other servers you run.',
+        label: lokalText('Network servers'),
+        description: lokalText(
+          'Subsonic, Jellyfin, WebDAV and other servers you run.',
+        ),
         onTap: () => _push(context, const NetworkSourcesScreen()),
       ),
       LokalSettingLink(
-        label: 'Lokal desktop remote',
-        description: 'Control a Lokal desktop player over your local network.',
-        onTap: () => _push(context, const LokalRemoteSettingsScreen()),
+        label: lokalText('Desktop link'),
+        description: lokalText(
+          'Pair, control playback and merge libraries over Wi-Fi.',
+        ),
+        onTap: () => _push(context, const LokalDesktopLinkScreen()),
       ),
     ],
   ),
@@ -52,9 +60,11 @@ List<LokalSettingsSection> onlineSourcesSettings(
     title: LokalOnlineSections.addons,
     children: [
       const MorneyeAddonsPanel(),
-      const LokalSettingCustom(
-        label: 'HTTP music add-ons',
-        description: 'Add HTTPS music catalogues using their manifest.json link.',
+      LokalSettingCustom(
+        label: lokalText('HTTP music add-ons'),
+        description: lokalText(
+          'Add HTTPS music catalogues using their manifest.json link.',
+        ),
         child: HttpAddonsSettingsPanel(),
       ),
     ],
@@ -67,7 +77,7 @@ List<LokalSettingsSection> onlineSourcesSettings(
     title: LokalOnlineSections.radioVideos,
     children: [
       LokalSettingLink(
-        label: 'Station list',
+        label: lokalText('Station list'),
         description: ref.watch(radioCatalogUrlProvider),
         onTap: () => unawaited(_editCatalogUrl(context, ref)),
       ),
@@ -77,18 +87,20 @@ List<LokalSettingsSection> onlineSourcesSettings(
     title: LokalOnlineSections.accounts,
     children: [
       LokalSettingLink(
-        label: 'Spotify',
-        description: 'Sign in, import playlists and sync Liked Songs.',
+        label: lokalText('Spotify'),
+        description: lokalText(
+          'Sign in, import playlists and sync Liked Songs.',
+        ),
         onTap: () => _push(context, const SpotifyLibraryScreen()),
       ),
-      const LokalSettingCustom(
-        label: 'Last.fm',
-        description: 'Scrobble what you play and power Discovery',
+      LokalSettingCustom(
+        label: lokalText('Last.fm'),
+        description: lokalText('Scrobble what you play and power Discovery'),
         child: LastFmSettingsTile(),
       ),
-      const LokalSettingCustom(
-        label: 'ListenBrainz',
-        description: 'Send your listens to ListenBrainz',
+      LokalSettingCustom(
+        label: lokalText('ListenBrainz'),
+        description: lokalText('Send your listens to ListenBrainz'),
         child: ListenBrainzSettingsTile(),
       ),
     ],
@@ -104,7 +116,7 @@ Future<void> _editCatalogUrl(BuildContext context, WidgetRef ref) async {
   final url = await showDialog<String>(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Station list'),
+      title: Text(lokalText('Station list')),
       content: TextField(
         controller: controller,
         keyboardType: TextInputType.url,
@@ -117,11 +129,11 @@ Future<void> _editCatalogUrl(BuildContext context, WidgetRef ref) async {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(lokalText('Cancel')),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, controller.text),
-          child: const Text('Save'),
+          child: Text(lokalText('Save')),
         ),
       ],
     ),
@@ -132,7 +144,7 @@ Future<void> _editCatalogUrl(BuildContext context, WidgetRef ref) async {
   if (url.trim().isNotEmpty && (uri == null || uri.scheme != 'https')) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Use an https link to a JSON file.')),
+      SnackBar(content: Text(lokalText('Use an https link to a JSON file.'))),
     );
     return;
   }

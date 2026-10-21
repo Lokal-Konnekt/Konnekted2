@@ -1,3 +1,6 @@
+import 'link/link_journal.dart';
+import 'link/link_protocol.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -154,7 +157,7 @@ class PlaylistService {
     if (_playlistNameExists(trimmedName)) return null;
 
     final playlist = Playlist(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: linkUuid(),
       name: trimmedName,
       createdAt: DateTime.now(),
     );
@@ -1082,10 +1085,25 @@ class PlaylistService {
     return File(sourcePath).readAsString();
   }
 
-  Future<void> _savePlaylists() async {
+  /// Materialize a merged link playlist. Never touches files or network mirrors.
+  Future<void> putFromLink(Playlist playlist, {bool deleted = false}) async {
+    await _ensureLoaded();
+    final index = _playlists.indexWhere((item) => item.id == playlist.id);
+    if (deleted) {
+      if (index >= 0) _playlists.removeAt(index);
+    } else if (index >= 0) {
+      _playlists[index] = playlist;
+    } else {
+      _playlists.add(playlist);
+    }
+    await _savePlaylists(captureLink: false);
+  }
+
+  Future<void> _savePlaylists({bool captureLink = true}) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = json.encode(_playlists.map((p) => p.toJson()).toList());
     await prefs.setString(_playlistsKey, jsonString);
+    if (captureLink) await LinkJournal.instance.capturePlaylists(_playlists);
   }
 
   Future<void> clearAll() async {

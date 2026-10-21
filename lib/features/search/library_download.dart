@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:flick/services/link/link_download_outbox.dart';
+
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -232,6 +236,7 @@ class LibraryDownloader {
           // The song is saved; the cover can be added later.
         }
       }
+      unawaited(LinkDownloadOutbox.enqueue(copy.path));
       return LibraryDownloadResult(
         path: copy.path,
         folderName: target.name,

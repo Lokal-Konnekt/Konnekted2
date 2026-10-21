@@ -22,9 +22,9 @@ abstract final class LokalLauncherIcon {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     final name = accentFor(appearance).name.toLowerCase();
     if (name == _last) return;
-    _last = name;
     try {
       await _channel.invokeMethod<void>('setAccent', {'accent': name});
+      _last = name;
     } on PlatformException catch (e) {
       debugPrint('[LauncherIcon] not updated: ${e.message}');
     } on MissingPluginException {

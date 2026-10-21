@@ -1,3 +1,7 @@
+import '../../link/lokal_ghost_availability.dart';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'dart:async';
 
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -33,9 +37,11 @@ Future<void> lokalPlay(
   } catch (_) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'Couldn’t play this song. Check that its file or server is available.',
+          lokalText(
+            'Couldn’t play this song. Check that its file or server is available.',
+          ),
         ),
       ),
     );
@@ -53,11 +59,9 @@ Future<void> lokalQueueAll(
     await player.addToQueue(song);
   }
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(l10n.addedSongsToQueue(songs.length)),
-    ),
-  );
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(l10n.addedSongsToQueue(songs.length))));
 }
 
 /// Pushes a Library page on the navigator the caller lives in.
@@ -146,7 +150,7 @@ class LokalPageBar extends StatelessWidget {
               leading!
             else if (canPop)
               LokalGlassButton(
-                semanticLabel: 'Back',
+                semanticLabel: lokalText('Back'),
                 onPressed: () => Navigator.of(context).maybePop(),
                 child: Icon(
                   Icons.chevron_left_rounded,
@@ -266,7 +270,7 @@ class LokalSectionTitle extends StatelessWidget {
         if (onSeeAll != null)
           TextButton(
             onPressed: onSeeAll,
-            child: Text('See all', semanticsLabel: 'See all $title'),
+            child: Text(lokalText('See all'), semanticsLabel: 'See all $title'),
           ),
       ],
     ),
@@ -292,7 +296,7 @@ class LokalPlayShufflePills extends ConsumerWidget {
           Expanded(
             child: LokalPill(
               icon: Icons.play_arrow_rounded,
-              label: 'Play',
+              label: lokalText('Play'),
               onTap: enabled ? () => lokalPlay(context, ref, songs) : null,
             ),
           ),
@@ -300,7 +304,7 @@ class LokalPlayShufflePills extends ConsumerWidget {
           Expanded(
             child: LokalPill(
               icon: Icons.shuffle_rounded,
-              label: 'Shuffle',
+              label: lokalText('Shuffle'),
               onTap: enabled
                   ? () => lokalPlay(context, ref, songs, shuffle: true)
                   : null,
@@ -371,7 +375,7 @@ class LokalPill extends StatelessWidget {
 
 /// One song: cover (or track number), title, a second line and the more
 /// button. A long press opens the same actions.
-class LokalTrackRow extends StatelessWidget {
+class LokalTrackRow extends ConsumerWidget {
   const LokalTrackRow({
     super.key,
     required this.song,
@@ -396,11 +400,14 @@ class LokalTrackRow extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = context.lokal;
     final second = subtitle ?? song.artist;
+    final available =
+        song.sourceType != 'lokal' ||
+        (ref.watch(lokalSongAvailableProvider(song)).value ?? false);
     return InkWell(
-      onTap: onTap,
+      onTap: available ? onTap : null,
       onLongPress: () => _actions(context),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 6, 4, 6),
@@ -409,7 +416,10 @@ class LokalTrackRow extends StatelessWidget {
             if (number != null)
               SizedBox(
                 width: 30,
-                child: Text('$number', style: LokalTheme.label(t, size: 13)),
+                child: Text(
+                  lokalText("{arg0}", args: {'arg0': number}),
+                  style: LokalTheme.label(t, size: 13),
+                ),
               )
             else
               KonnektedArtwork(song: song, size: 48, radius: 8),
@@ -425,7 +435,7 @@ class LokalTrackRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: t.text,
+                      color: available ? t.text : t.muted2,
                     ),
                   ),
                   if (second.isNotEmpty)
@@ -438,9 +448,21 @@ class LokalTrackRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (song.sourceType == 'lokal')
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  lokalText('PC'),
+                  style: TextStyle(
+                    color: available ? t.accent : t.muted2,
+                    fontSize: 10,
+                    fontFamily: 'DMMono',
+                  ),
+                ),
+              ),
             ?trailing,
             IconButton(
-              tooltip: 'More',
+              tooltip: lokalText('More'),
               onPressed: () => _actions(context),
               icon: Icon(Icons.more_horiz_rounded, color: t.muted),
             ),
@@ -473,7 +495,7 @@ class LokalCoverCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
-    label: '$title, $subtitle',
+    label: lokalText("{arg0}, {arg1}", args: {'arg0': title, 'arg1': subtitle}),
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -598,7 +620,7 @@ class LokalSearchField extends StatelessWidget {
         suffixIcon: controller.text.isEmpty
             ? null
             : IconButton(
-                tooltip: 'Clear',
+                tooltip: lokalText('Clear'),
                 icon: Icon(Icons.cancel_rounded, color: t.muted, size: 18),
                 onPressed: () {
                   controller.clear();

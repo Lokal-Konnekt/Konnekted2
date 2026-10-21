@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
@@ -58,6 +59,9 @@ class MusicNotificationService : Service() {
     private var isShuffleMode: Boolean = false
     private var isFavorite: Boolean = false
     private var currentColor: Int? = null
+    private var currentOutputName: String? = null
+    private var fallbackArt: Bitmap? = null
+    private var fallbackAccent: String? = null
     private var isCasting: Boolean = false
     /** A live stream (internet radio): no next/previous, seek, shuffle or favorite. */
     private var isLive: Boolean = false
@@ -185,6 +189,7 @@ class MusicNotificationService : Service() {
             if (it.hasExtra("title")) currentTitle = it.getStringExtra("title") ?: "Unknown"
             if (it.hasExtra("artist")) currentArtist = it.getStringExtra("artist") ?: "Unknown Artist"
             if (it.hasExtra("albumArtPath")) currentAlbumArtPath = it.getStringExtra("albumArtPath")
+            if (it.hasExtra("outputName")) currentOutputName = it.getStringExtra("outputName")
             if (it.hasExtra("isPlaying")) isPlaying = it.getBooleanExtra("isPlaying", false)
             if (it.hasExtra("duration")) {
                 currentDuration = it.getLongExtra("duration", -1L).takeIf { v -> v != -1L }
@@ -321,16 +326,32 @@ class MusicNotificationService : Service() {
         }
     }
 
+    private fun getFallbackArt(): Bitmap? {
+        val accent = getSharedPreferences("lokal_launcher_icon", MODE_PRIVATE)
+            .getString("wanted", "lime") ?: "lime"
+        if (fallbackArt != null && fallbackAccent == accent) return fallbackArt
+        val id = resources.getIdentifier("ic_lokal_$accent", "mipmap", packageName)
+        val drawable = getDrawable(if (id != 0) id else R.mipmap.ic_lokal_lime) ?: return null
+        val bitmap = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
+        drawable.setBounds(0, 0, 256, 256)
+        drawable.draw(Canvas(bitmap))
+        fallbackArt = bitmap
+        fallbackAccent = accent
+        return bitmap
+    }
+
     private fun getAlbumArtBitmap(): Bitmap? {
         val path = currentAlbumArtPath
         if (path.isNullOrEmpty()) {
             cachedAlbumArt = null
             cachedAlbumArtPath = null
-            return null
+            return getFallbackArt()
         }
         if (path == cachedAlbumArtPath && cachedAlbumArt != null) {
             return cachedAlbumArt
         }
+        cachedAlbumArt = null
+        cachedAlbumArtPath = null
         return try {
             val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(path, options)
@@ -348,10 +369,10 @@ class MusicNotificationService : Service() {
                 cachedAlbumArt = bitmap
                 cachedAlbumArtPath = path
             }
-            bitmap
+            bitmap ?: getFallbackArt()
         } catch (e: Exception) {
             android.util.Log.w("MusicNotification", "Failed to decode album art: ${e.message}")
-            cachedAlbumArt
+            getFallbackArt()
         }
     }
 
@@ -580,10 +601,11 @@ class MusicNotificationService : Service() {
             .setContentTitle(currentTitle)
             .setContentText(currentArtist)
             .setSubText(
-                if (isCasting) "Casting to ${castDeviceName ?: "device"}"
+                if (!currentOutputName.isNullOrBlank()) currentOutputName
+                else if (isCasting) "Casting to ${castDeviceName ?: "device"}"
                 else "${formatTime(currentPosition)} / ${formatTime(currentDuration)}"
             )
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_lokal_fg_mono)
             .setLargeIcon(albumArt)
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

@@ -767,6 +767,7 @@ class MainActivity: FlutterActivity() {
                         putExtra("title", title)
                         putExtra("artist", artist)
                         putExtra("albumArtPath", albumArtPath)
+                        putExtra("outputName", call.argument<String>("outputName"))
                         putExtra("isPlaying", isPlaying)
                         putExtra("duration", duration)
                         putExtra("position", position)
@@ -823,7 +824,8 @@ class MainActivity: FlutterActivity() {
                     val intent = Intent(this, MusicNotificationService::class.java).apply {
                         title?.let { putExtra("title", it) }
                         artist?.let { putExtra("artist", it) }
-                        putExtra("albumArtPath", albumArtPath)
+                        if (call.hasArgument("albumArtPath")) putExtra("albumArtPath", albumArtPath)
+                        if (call.hasArgument("outputName")) putExtra("outputName", call.argument<String>("outputName"))
                         isPlaying?.let { putExtra("isPlaying", it) }
                         duration?.let { putExtra("duration", it) }
                         position?.let { putExtra("position", it) }

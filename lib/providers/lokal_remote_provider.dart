@@ -1,3 +1,5 @@
+import '../data/database.dart';
+import '../services/album_art_service.dart';
 import '../services/link/link_download_outbox.dart';
 import '../services/favorites_service.dart';
 
@@ -69,10 +71,13 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
 
   Timer? _pollTimer;
   Timer? _linkTimer;
+  Timer? _syncDebounce;
+  String? _notificationArtworkKey;
+  String? _notificationArtwork;
   LinkSyncCoordinator? _linkSync;
   final _downloadOutbox = LinkDownloadOutbox();
   bool _socketWanted = false, _openingSocket = false, _receivingTheme = false;
-  int _linkTicks = 0;
+  DateTime _lastLibrarySyncAt = DateTime.fromMillisecondsSinceEpoch(0);
   Map<String, dynamic>? _desktopState;
   DateTime? _desktopStateAt;
   DateTime _lastActivity = DateTime.now(), _lastPhoneStateAt = DateTime.now();
@@ -115,6 +120,18 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
     final link = ref.read(lokalLinkServiceProvider);
     final messages = link.messages.listen(_onLinkMessage);
     final connections = link.connections.listen(_socketConnectionChanged);
+    final journalChanges = LinkJournal.instance.changes.stream.listen((_) {
+      if (_disposed ||
+          !state.socketConnected ||
+          !state.mergeApproved ||
+          _linkSync?.busy == true)
+        return;
+      _syncDebounce?.cancel();
+      _syncDebounce = Timer(
+        const Duration(milliseconds: 400),
+        () => unawaited(_syncLink()),
+      );
+    });
     ref.listen(lokalAppearanceProvider, (_, appearance) {
       if (!_receivingTheme && link.connected) unawaited(_sendTheme(appearance));
     });
@@ -124,6 +141,8 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
         FavoritesService.remoteDelegate = null;
       _pollTimer?.cancel();
       _linkTimer?.cancel();
+      _syncDebounce?.cancel();
+      unawaited(journalChanges.cancel());
       unawaited(messages.cancel());
       unawaited(connections.cancel());
       NotificationService().release(_notificationOwner);
@@ -204,6 +223,9 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
 
   void disconnect() {
     _socketWanted = false;
+    _syncDebounce?.cancel();
+    _notificationArtworkKey = null;
+    _notificationArtwork = null;
     _linkTimer?.cancel();
     _linkSync = null;
     unawaited(ref.read(lokalLinkServiceProvider).disconnect());
@@ -635,11 +657,16 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
     }
     _refreshSocketSnapshot();
     _publishLocalState();
-    if (++_linkTicks % 15 == 0) unawaited(_syncLink());
+    final now = DateTime.now();
+    final interval = now.difference(_lastActivity) < const Duration(seconds: 30)
+        ? const Duration(seconds: 6)
+        : const Duration(seconds: 30);
+    if (now.difference(_lastLibrarySyncAt) >= interval) unawaited(_syncLink());
   }
 
   Future<void> _syncLink() async {
-    if (state.fileCopyProgress.busy) return;
+    if (state.fileCopyProgress.busy || _linkSync?.busy == true) return;
+    _lastLibrarySyncAt = DateTime.now();
     final generation = _generation;
     try {
       final credentials = _credentials;
@@ -879,6 +906,12 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   void _updateRemoteNotification() {
     final snapshot = state.snapshot, track = snapshot?.currentTrack;
     if (snapshot == null || track == null) return;
+    final artworkKey = '$_generation:${track.id}';
+    if (_notificationArtworkKey != artworkKey) {
+      _notificationArtworkKey = artworkKey;
+      _notificationArtwork = null;
+      unawaited(_loadNotificationArtwork(artworkKey, track.id));
+    }
     final position = Duration(milliseconds: (snapshot.progress * 1000).round());
     if (_notificationTrack == track.id &&
         _notificationPlaying == snapshot.isPlaying &&
@@ -899,11 +932,13 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
     unawaited(
       NotificationService().showFor(
         _notificationOwner,
+        outputName: state.desktopName,
         song: Song(
           id: 'desktop:${track.id}',
           title: track.title,
           artist: track.artist,
           album: track.album,
+          albumArt: _notificationArtwork,
           duration: Duration(milliseconds: (snapshot.duration * 1000).round()),
           fileType: track.fileType,
         ),
@@ -914,6 +949,34 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
         position: position,
       ),
     );
+  }
+
+  Future<void> _loadNotificationArtwork(String key, String? trackId) async {
+    final credentials = _credentials;
+    if (credentials == null ||
+        trackId == null ||
+        credentials.desktopId == null ||
+        !Database.isInitialized)
+      return;
+    try {
+      final server = await LokalDesktopSource.instance.ensureServer(
+        credentials,
+      );
+      final path = await AlbumArtService.instance.resolveArtworkPath(
+        existingPath: 'lokal-cover://$trackId',
+        audioSourcePath: 'lokal://${server.id}/$trackId',
+      );
+      if (_disposed ||
+          !state.controlsDesktop ||
+          _notificationArtworkKey != key ||
+          path == null)
+        return;
+      _notificationArtwork = path;
+      _notificationTrack = null; // Publish the local image to Android metadata.
+      _updateRemoteNotification();
+    } catch (_) {
+      // Controls remain usable while an offline/missing cover uses Lokal art.
+    }
   }
 
   Future<void> _sendTheme(LokalAppearance appearance) async {

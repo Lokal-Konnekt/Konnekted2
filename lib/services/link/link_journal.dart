@@ -35,7 +35,8 @@ class LinkJournal {
 
   Future<void> registerTrackAlias(String songId, String key) async {
     await _loadKeys();
-    _trackKeys.putIfAbsent(songId, () => key);
+    if (_trackKeys.containsKey(songId)) return;
+    _trackKeys[songId] = key;
     await (await SharedPreferences.getInstance()).setString(
       'lokal.link.track_keys',
       jsonEncode(_trackKeys),
@@ -69,9 +70,12 @@ class LinkJournal {
         _trackKeys[song.id] ??
         linkTrackKey(song.artist, song.title, song.duration),
   };
-  Future<Song?> match(Map<String, dynamic> track) async {
+  Future<Song?> match(
+    Map<String, dynamic> track, {
+    List<Song>? candidates,
+  }) async {
     await _loadKeys();
-    final songs = await SongRepository().getAllSongs();
+    final songs = candidates ?? await SongRepository().getAllSongs();
     final alias = songs.where(
       (song) => _trackKeys[song.id] == track['track_key'],
     );

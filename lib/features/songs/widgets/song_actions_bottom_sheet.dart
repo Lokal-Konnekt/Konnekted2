@@ -53,6 +53,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
     this.onRemoveFromPlaylist,
     this.extras = const [],
     this.queueActions = true,
+    this.nowPlaying = false,
   });
 
   final Song song;
@@ -66,6 +67,9 @@ class SongActionsBottomSheet extends ConsumerWidget {
   /// Shows Play next and Add to queue (off inside the queue itself).
   final bool queueActions;
 
+  /// Hides browsing actions that have dedicated controls in Now Playing.
+  final bool nowPlaying;
+
   /// Opens the menu for [song].
   static Future<void> show(
     BuildContext context,
@@ -74,6 +78,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
     VoidCallback? onRemoveFromPlaylist,
     List<LokalSongMenuAction> extras = const [],
     bool queueActions = true,
+    bool nowPlaying = false,
   }) {
     final t = context.lokal;
     return showModalBottomSheet<void>(
@@ -95,6 +100,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
         onRemoveFromPlaylist: onRemoveFromPlaylist,
         extras: extras,
         queueActions: queueActions,
+        nowPlaying: nowPlaying,
       ),
     );
   }
@@ -145,7 +151,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
           label: 'Select',
           onTap: close(onSelect!),
         ),
-      if (queueActions && !song.isFromLocker) ...[
+      if (!nowPlaying && queueActions && !song.isFromLocker) ...[
         _MenuRow(
           icon: Icons.playlist_play_rounded,
           label: 'Play next',
@@ -165,11 +171,12 @@ class SongActionsBottomSheet extends ConsumerWidget {
           }),
         ),
       ],
-      _MenuRow(
-        icon: Icons.radio_rounded,
-        label: 'Start radio',
-        onTap: close(() => startLokalRadio(rootContext, seed: song)),
-      ),
+      if (!nowPlaying)
+        _MenuRow(
+          icon: Icons.radio_rounded,
+          label: 'Start radio',
+          onTap: close(() => startLokalRadio(rootContext, seed: song)),
+        ),
       _MenuRow(
         icon: liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
         label: liked ? 'Unlike' : 'Like',
@@ -186,13 +193,13 @@ class SongActionsBottomSheet extends ConsumerWidget {
         label: 'Add to a playlist',
         onTap: close(() => AddToPlaylistSheet.show(rootContext, song)),
       ),
-      if (hasAlbum)
+      if (!nowPlaying && hasAlbum)
         _MenuRow(
           icon: Icons.album_rounded,
           label: 'Go to album',
           onTap: close(() => openLokalAlbumForSong(rootContext, song)),
         ),
-      if (song.artist.trim().isNotEmpty)
+      if (!nowPlaying && song.artist.trim().isNotEmpty)
         _MenuRow(
           icon: Icons.person_rounded,
           label: 'Go to artist',
@@ -227,11 +234,12 @@ class SongActionsBottomSheet extends ConsumerWidget {
           if (changed) container.invalidate(songsProvider);
         }),
       ),
-      _MenuRow(
-        icon: Icons.info_outline_rounded,
-        label: 'Song info',
-        onTap: close(() => SongMetadataSheet.show(rootContext, song)),
-      ),
+      if (!nowPlaying)
+        _MenuRow(
+          icon: Icons.info_outline_rounded,
+          label: 'Song info',
+          onTap: close(() => SongMetadataSheet.show(rootContext, song)),
+        ),
       if (_isLocalFile)
         _MenuRow(
           icon: Icons.ios_share_rounded,
@@ -242,19 +250,20 @@ class SongActionsBottomSheet extends ConsumerWidget {
             ),
           ),
         ),
-      _MenuRow(
-        icon: Icons.style_rounded,
-        label: 'Share as card',
-        onTap: close(
-          () => showModalBottomSheet<void>(
-            useRootNavigator: true,
-            context: rootContext,
-            backgroundColor: Colors.transparent,
-            isScrollControlled: true,
-            builder: (_) => ShareBottomSheet(song: song),
+      if (!nowPlaying)
+        _MenuRow(
+          icon: Icons.style_rounded,
+          label: 'Share as card',
+          onTap: close(
+            () => showModalBottomSheet<void>(
+              useRootNavigator: true,
+              context: rootContext,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              builder: (_) => ShareBottomSheet(song: song),
+            ),
           ),
         ),
-      ),
       for (final extra in extras)
         _MenuRow(
           icon: extra.icon,
@@ -262,7 +271,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
           destructive: extra.destructive,
           onTap: close(extra.onTap),
         ),
-      if (_canDelete) ...[
+      if (!nowPlaying && _canDelete) ...[
         Divider(height: 17, color: t.border, indent: 24, endIndent: 24),
         _MenuRow(
           icon: Icons.delete_outline_rounded,

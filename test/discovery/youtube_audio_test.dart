@@ -138,6 +138,8 @@ void main() {
     ).resolve('dQw4w9WgXcQ');
     expect(asked.last, 'WEB_REMIX');
     expect(audio.url.queryParameters['itag'], '140');
+    expect(audio.headers['Origin'], 'https://music.youtube.com');
+    expect(audio.headers['Referer'], 'https://music.youtube.com/');
     expect(authorization.single, startsWith('SAPISIDHASH '));
     expect(cookies.single, contains('SAPISID=signed-in-cookie'));
   });

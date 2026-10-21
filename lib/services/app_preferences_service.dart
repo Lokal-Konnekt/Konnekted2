@@ -194,7 +194,7 @@ class AppPreferences {
     this.lastSeenChangelogVersion,
     this.bottomBarAutoCollapseEnabled = false,
     this.bottomBarAutoCollapseSeconds = 5,
-    this.miniPlayerSwipeAction = 'visualizer',
+    this.miniPlayerSwipeAction = 'switchSongs',
     this.separateMiniPlayerFromNavBar = false,
     this.keepPlayingOnQuit = false,
     this.priorityAnchorEnabled = true,
@@ -216,7 +216,7 @@ class AppPreferences {
     this.autoFocusSearch = false,
     this.searchPlaybackMode = 'results',
     this.refreshRateMode = 'adaptive',
-    this.visualizerEnabled = true,
+    this.visualizerEnabled = false,
     this.orbitRadiusRatio = 1.0,
     this.orbitCenterOffsetRatio = -0.5,
     this.orbitCenterYRatio = 0.42,
@@ -762,8 +762,7 @@ class AppPreferencesService {
           prefs.getBool(_bottomBarAutoCollapseEnabledKey) ?? false,
       bottomBarAutoCollapseSeconds:
           prefs.getInt(_bottomBarAutoCollapseSecondsKey) ?? 5,
-      miniPlayerSwipeAction:
-          prefs.getString(_miniPlayerSwipeActionKey) ?? 'visualizer',
+      miniPlayerSwipeAction: 'switchSongs',
       separateMiniPlayerFromNavBar:
           prefs.getBool(_separateMiniPlayerFromNavBarKey) ?? false,
       keepPlayingOnQuit: prefs.getBool(_keepPlayingOnQuitKey) ?? false,
@@ -1515,10 +1514,7 @@ class AppPreferencesService {
     await prefs.setInt(_bottomBarAutoCollapseSecondsKey, value);
   }
 
-  Future<String> getMiniPlayerSwipeAction() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_miniPlayerSwipeActionKey) ?? 'visualizer';
-  }
+  Future<String> getMiniPlayerSwipeAction() async => 'switchSongs';
 
   Future<void> setMiniPlayerSwipeAction(String value) async {
     final prefs = await SharedPreferences.getInstance();

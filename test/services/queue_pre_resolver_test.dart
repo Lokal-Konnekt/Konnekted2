@@ -83,6 +83,45 @@ class _Lookups {
 }
 
 void main() {
+  testWidgets('a stalled lookup cancels and ignores its late answer', (
+    tester,
+  ) async {
+    final resolver = QueuePreResolver(
+      lookupIdleTimeout: const Duration(seconds: 1),
+    );
+    final host = _Host();
+    resolver.attach(host);
+    addTearDown(() {
+      resolver.reset();
+      resolver.detach();
+    });
+    final answer = Completer<Song?>();
+    var cancelled = false;
+    final pending = resolver.pending(
+      key: 'stalled',
+      title: 'Stalled',
+      artist: 'A',
+      resolve: ({onStatus, cancel}) {
+        unawaited(cancel?.then((_) => cancelled = true));
+        onStatus?.call('Resolving');
+        return answer.future;
+      },
+    );
+    host.playlist = [pending];
+    final result = expectLater(
+      resolver.resolveNow(pending),
+      throwsA(isA<TimeoutException>()),
+    );
+    await tester.pump(const Duration(seconds: 2));
+    await result;
+    expect(cancelled, isTrue);
+    expect(resolver.status.value, isNull);
+    expect(resolver.running, isEmpty);
+    answer.complete(_ready('stalled'));
+    await tester.pump();
+    expect(host.swaps, isEmpty);
+  });
+
   group('upcomingSongs', () {
     final songs = [for (var i = 0; i < 6; i++) _owned('s$i')];
 
@@ -164,6 +203,17 @@ void main() {
 
     tearDown(() => resolver.reset());
 
+    void testResolver(String name, WidgetTesterCallback body) {
+      testWidgets(name, (tester) async {
+        try {
+          await body(tester);
+        } finally {
+          // Dispose watchdogs before the widget binding checks pending timers.
+          resolver.reset();
+        }
+      });
+    }
+
     test('placeholders are marked pending and carry no file', () {
       final song = pending('k1');
       expect(song.isPending, isTrue);
@@ -173,7 +223,7 @@ void main() {
       expect(_owned('x').isPending, isFalse);
     });
 
-    testWidgets('the first lookup runs at once, the rest 2 s apart', (
+    testResolver('the first lookup runs at once, the rest 2 s apart', (
       tester,
     ) async {
       host.playlist = [
@@ -199,7 +249,7 @@ void main() {
       expect(lookups.asked, hasLength(4), reason: 'only four ahead');
     });
 
-    testWidgets('only placeholders are looked up, owned songs are skipped', (
+    testResolver('only placeholders are looked up, owned songs are skipped', (
       tester,
     ) async {
       host.playlist = [_owned('now'), _owned('a'), pending('k1'), _owned('b')];
@@ -207,7 +257,7 @@ void main() {
       expect(lookups.asked, ['k1']);
     });
 
-    testWidgets('a found song is swapped in place without a new lookup', (
+    testResolver('a found song is swapped in place without a new lookup', (
       tester,
     ) async {
       host.playlist = [_owned('now'), pending('k1'), _owned('b')];
@@ -220,7 +270,7 @@ void main() {
       expect(resolver.running, isEmpty);
     });
 
-    testWidgets('songs looked up lately are not asked for again', (
+    testResolver('songs looked up lately are not asked for again', (
       tester,
     ) async {
       host.playlist = [_owned('now'), pending('k1')];
@@ -241,7 +291,7 @@ void main() {
       expect(lookups.asked, ['k1', 'k1']);
     });
 
-    testWidgets('a song already being looked up is not asked for twice', (
+    testResolver('a song already being looked up is not asked for twice', (
       tester,
     ) async {
       host.playlist = [_owned('now'), pending('k1'), pending('k1')];
@@ -250,7 +300,7 @@ void main() {
       expect(lookups.asked, ['k1']);
     });
 
-    testWidgets('a lookup for a song no longer coming up is cancelled', (
+    testResolver('a lookup for a song no longer coming up is cancelled', (
       tester,
     ) async {
       host.playlist = [_owned('now'), pending('k1'), pending('k2')];
@@ -272,7 +322,7 @@ void main() {
       expect(resolver.resolvedPaths, isEmpty);
     });
 
-    testWidgets('a staggered lookup checks it is still coming up', (
+    testResolver('a staggered lookup checks it is still coming up', (
       tester,
     ) async {
       host.playlist = [_owned('now'), pending('k1'), pending('k2')];
@@ -282,7 +332,7 @@ void main() {
       expect(lookups.asked, ['k1']);
     });
 
-    testWidgets('a song change looks ahead at once, a queue change shortly', (
+    testResolver('a song change looks ahead at once, a queue change shortly', (
       tester,
     ) async {
       final a = _owned('a'), b = _owned('b'), c = _owned('c');
@@ -304,7 +354,7 @@ void main() {
       expect(lookups.cancelled, ['k1']);
     });
 
-    testWidgets('wraps round on repeat-all', (tester) async {
+    testResolver('wraps round on repeat-all', (tester) async {
       host
         ..playlist = [pending('k1'), _owned('a'), _owned('b')]
         ..currentIndex = 2;
@@ -313,7 +363,7 @@ void main() {
       expect(resolver.schedule(), ['pending:k1']);
     });
 
-    testWidgets('playing a placeholder reuses the lookup under way', (
+    testResolver('playing a placeholder reuses the lookup under way', (
       tester,
     ) async {
       host.playlist = [_owned('now'), pending('k1'), _owned('b')];
@@ -329,7 +379,7 @@ void main() {
       expect(lookups.cancelled, isEmpty);
     });
 
-    testWidgets('playing a placeholder looks it up on demand with status', (
+    testResolver('playing a placeholder looks it up on demand with status', (
       tester,
     ) async {
       final song = pending('k9');
@@ -346,7 +396,7 @@ void main() {
       expect(lookups.asked, ['k9']);
     });
 
-    testWidgets('a song that can’t be found resolves to null', (tester) async {
+    testResolver('a song that can’t be found resolves to null', (tester) async {
       final song = pending('gone');
       host.playlist = [song];
       final ready = resolver.resolveNow(song);

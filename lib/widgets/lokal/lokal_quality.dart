@@ -66,7 +66,10 @@ enum LokalQualityTier {
     'WV',
     'WAVPACK',
   };
-  static final _kbps = RegExp(r'(\d+)\s*kbps', caseSensitive: false);
+  static final _kbps = RegExp(
+    r'(\d+(?:\.\d+)?)\s*(?:kbps|kb/s|kbit/s)',
+    caseSensitive: false,
+  );
   static final _opusLike = RegExp(
     r'^(?:opus|ogg|vorbis)',
     caseSensitive: false,
@@ -84,7 +87,9 @@ enum LokalQualityTier {
       return aboveCd ? hiRes : lossless;
     }
     final match = _kbps.firstMatch(song.resolution ?? '');
-    final kbps = match == null ? 0 : int.tryParse(match.group(1)!) ?? 0;
+    final kbps = match == null
+        ? 0
+        : (double.tryParse(match.group(1)!) ?? 0).round();
     if (kbps == 0) return null;
     final threshold = _opusLike.hasMatch(song.fileType) ? 160 : 256;
     return kbps >= threshold ? high : low;

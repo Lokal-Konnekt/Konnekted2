@@ -1,4 +1,7 @@
+import 'package:flick/services/lyrics_sources.dart';
+
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -15,6 +18,7 @@ import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
 import 'package:flick/features/player/widgets/synced_lyrics_view.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/l10n/l10n.dart';
+
 class InlineLyricsPanel extends ConsumerStatefulWidget {
   final PlayerService playerService;
   final LyricsService lyricsService;
@@ -23,7 +27,8 @@ class InlineLyricsPanel extends ConsumerStatefulWidget {
   final ValueNotifier<Duration>? positionNotifier;
   final bool active;
 
-  const InlineLyricsPanel({super.key,
+  const InlineLyricsPanel({
+    super.key,
     required this.playerService,
     required this.lyricsService,
     required this.song,
@@ -40,6 +45,8 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
   final ScrollController _scrollController = ScrollController();
   LyricsData? _lyricsData;
   bool _isLoading = true;
+  String _selectedLyricsSource = 'auto';
+  int _lyricsRequest = 0;
   bool _hasManualLyricsSelection = false;
   bool _isMetaCollapsed = false;
 
@@ -70,14 +77,18 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
       _lyricsData = null;
     });
 
+    final request = ++_lyricsRequest;
     final loaded = await widget.lyricsService.loadLyricsForSong(
       song,
       forceRefresh: true,
+      source: _selectedLyricsSource,
+      stillCurrent: () => mounted && request == _lyricsRequest,
+      fetchOnline: ref.read(appPreferencesProvider).lyricsAutoFetch,
     );
     final manualSource = await widget.lyricsService.getManualLyricsPathForSong(
       song,
     );
-    if (!mounted) return;
+    if (!mounted || request != _lyricsRequest) return;
     if (widget.song.id != song.id) return;
 
     setState(() {
@@ -372,15 +383,37 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Column(
+    children: [
+      Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: PopupMenuButton<String>(
+          tooltip: 'Lyrics source',
+          initialValue: _selectedLyricsSource,
+          icon: const Icon(Icons.tune_rounded),
+          itemBuilder: (_) => [
+            const PopupMenuItem(value: 'auto', child: Text('Automatic')),
+            const PopupMenuItem(value: 'local', child: Text('Local file')),
+            for (final source in lyricsSources.entries)
+              PopupMenuItem(value: source.key, child: Text(source.value)),
+          ],
+          onSelected: (source) {
+            setState(() => _selectedLyricsSource = source);
+            unawaited(_loadLyricsForSong(widget.song));
+          },
+        ),
+      ),
+      Expanded(child: _buildLyricsBody(context)),
+    ],
+  );
+
+  Widget _buildLyricsBody(BuildContext context) {
     return _buildBody(context);
   }
 
   Widget _buildBody(BuildContext context) {
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: AppColors.accent),
-      );
+      return Center(child: CircularProgressIndicator(color: AppColors.accent));
     }
 
     final lyrics = _lyricsData;

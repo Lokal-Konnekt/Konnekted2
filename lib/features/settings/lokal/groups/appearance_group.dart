@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/features/appearance/lokal_appearance_screen.dart';
-import 'package:flick/features/settings/screens/visualizer_settings_screen.dart';
 import 'package:flick/features/settings/screens/widget_settings_screen.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/providers.dart';
@@ -48,7 +47,7 @@ List<LokalSettingsSection> appearanceSettings(
         LokalSettingRow(
           label: lokalText('Accent'),
           description: lokalText(
-            'The theme’s own accent, or one of desktop’s. The app icon follows it.',
+            'The app icon follows your accent after you leave Lokal with playback idle. Some launchers restart the app when updating its icon.',
           ),
           stacked: true,
           trailing: LokalAccentRow(
@@ -91,13 +90,6 @@ List<LokalSettingsSection> appearanceSettings(
           ),
           value: prefs.animatedAlbumArt,
           onChanged: notifier.setAnimatedAlbumArt,
-        ),
-        LokalSettingLink(
-          label: lokalText('MilkDrop presets'),
-          description: lokalText(
-            'Choose which MilkDrop presets rotate in the visualizer.',
-          ),
-          onTap: () => _push(context, const VisualizerSettingsScreen()),
         ),
       ],
     ),

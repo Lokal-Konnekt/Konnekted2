@@ -16,7 +16,6 @@ import 'package:flick/features/player/widgets/bit_perfect_indicator.dart';
 import 'package:flick/features/player/widgets/compact_player_info_layout.dart';
 import 'package:flick/features/player/widgets/inline_lyrics_panel.dart';
 import 'package:flick/features/player/widgets/lyrics_mode_waveform_strip.dart';
-import 'package:flick/features/player/widgets/visualizer_art_box.dart';
 import 'package:flick/features/player/widgets/waveform_layer.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
@@ -682,40 +681,22 @@ class SongStage extends ConsumerWidget {
                                                       child: Transform.scale(
                                                         scaleX: 1.11,
                                                         scaleY: 1.18,
-                                                        child: visualizationMode
-                                                            ? VisualizerArtBox(
-                                                                playerService:
-                                                                    playerService,
-                                                                size:
-                                                                    artworkSize,
-                                                                animationStyle:
-                                                                    visualizerAnimationStyle,
-                                                                frequencyMode:
-                                                                    visualizerFrequencyMode,
-                                                                movementMode:
-                                                                    visualizerMovementMode,
-                                                                albumColor:
-                                                                    albumColor,
-                                                                showFrame:
-                                                                    artworkCardShowFrame,
-                                                              )
-                                                            : AlbumArtBox(
-                                                                song: song,
-                                                                size:
-                                                                    artworkSize,
-                                                                playerService:
-                                                                    playerService,
-                                                                onRotationEnabledChanged:
-                                                                    onRotationEnabledChanged,
-                                                                initialVinyl:
-                                                                    vinylMode,
-                                                                onVinylChanged:
-                                                                    onVinylChanged,
-                                                                showFrame:
-                                                                    artworkCardShowFrame,
-                                                                motionArtEnabled:
-                                                                    motionArtEnabled,
-                                                              ),
+                                                        child: AlbumArtBox(
+                                                          song: song,
+                                                          size: artworkSize,
+                                                          playerService:
+                                                              playerService,
+                                                          onRotationEnabledChanged:
+                                                              onRotationEnabledChanged,
+                                                          initialVinyl:
+                                                              vinylMode,
+                                                          onVinylChanged:
+                                                              onVinylChanged,
+                                                          showFrame:
+                                                              artworkCardShowFrame,
+                                                          motionArtEnabled:
+                                                              motionArtEnabled,
+                                                        ),
                                                       ),
                                                     ),
                                                   ),

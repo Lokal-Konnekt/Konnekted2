@@ -114,3 +114,29 @@ Remaining gaps include unported product features and real-device validation:
 ### Discord Rich Presence
 
 Android integration adapted from Mornye’s official Social SDK bridge is prepared, opt-in under Data → Accounts. Lokal application ID is configured; the verified SDK is encrypted in the repository and staged by signed build workflows using an Actions secret. SDK-enabled native bridge compiles/links for both ARM ABIs. APK/device behavior is not yet validated. See [setup and limitations](DISCORD_PRESENCE.md).
+
+## Mobile library and player follow-up (2026-10-21)
+
+Implemented, pending Android device validation:
+
+- Explicit library jobs for videos, album releases and artist metadata, with global
+  progress messages and cancellation between requests. New artists also queue a
+  bounded, serial portrait lookup through the existing Apple metadata cache.
+- Local recordings take precedence over matching desktop placeholders in visible
+  library/search results; storage, files and existing playlist references remain.
+- Lyrics settings order/enable LRCLIB, BiniLyrics, BetterLyrics, BetterLyrics
+  Portato, LyricsPlus, Unison, KuGou and lyrics.ovh. Both full player variants can
+  choose a source. TTML word timestamps are parsed. These public provider adapters
+  have not all been live-validated; Spicy Lyrics is not implemented.
+- Online queue lookup inactivity has a cancellation watchdog. This does not
+  establish the cause of the reported device playback stall. Xiaomi cleanup and
+  force-stop records are classified as platform events rather than crashes.
+- Exact theme launcher resources, deferred idle/background icon application,
+  compact settings, quality badges beside artist labels and vertical recent-song
+  search covers. Existing explicitly saved performance preferences are preserved.
+- Visualizer screens/renderers, mini-player actions and Android capture bridge
+  are removed. Legacy serialized preference fields remain compatible.
+
+Focused launcher resource tests and Dart analysis validate source changes;
+launcher lifecycle behavior, online providers and hardware playback still need
+validation in the installed Android app. Native PCM/DSD/UAC2 paths are unchanged.

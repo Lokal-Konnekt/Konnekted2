@@ -390,7 +390,7 @@ class LokalSegmented<T> extends StatelessWidget {
       );
     }
 
-    return Container(
+    final control = Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: t.surface2,
@@ -403,6 +403,14 @@ class LokalSegmented<T> extends StatelessWidget {
           for (final s in segments)
             expand ? Expanded(child: segment(s)) : segment(s),
         ],
+      ),
+    );
+    if (expand) return control;
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: control,
       ),
     );
   }

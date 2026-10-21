@@ -1,3 +1,4 @@
+import 'package:flick/services/link/library_song_identity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/utils/string_sort_utils.dart';
 import 'package:flick/data/repositories/song_repository.dart';
@@ -16,7 +17,7 @@ final globalSearchResultsProvider =
   final lower = query.toLowerCase();
 
   final repo = ref.watch(songRepositoryProvider);
-  final allSongs = await repo.getAllSongs();
+  final allSongs = preferLocalLibrarySongs(await repo.getAllSongs());
 
   // Playlists – via service provider.
   List<Playlist> allPlaylists = const [];

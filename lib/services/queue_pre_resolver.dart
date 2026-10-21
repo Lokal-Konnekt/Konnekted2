@@ -68,6 +68,9 @@ class _Lookup {
 
   bool onDemand;
   bool cancelled = false;
+  bool timedOut = false;
+  String? lastStatus;
+  Timer? watchdog;
   Object? error;
   final cancel = Completer<void>();
   final result = Completer<Song?>();
@@ -75,6 +78,7 @@ class _Lookup {
   void stop() {
     if (cancelled) return;
     cancelled = true;
+    watchdog?.cancel();
     cancel.complete();
     if (!result.isCompleted) result.complete(null);
   }
@@ -85,6 +89,7 @@ class QueuePreResolver {
     this.lookahead = defaultLookahead,
     this.stagger = const Duration(seconds: 2),
     this.ttl = const Duration(minutes: 20),
+    this.lookupIdleTimeout = const Duration(seconds: 90),
     this.queueSettle = const Duration(milliseconds: 600),
     DateTime Function()? now,
     bool Function(Song song)? stillUsable,
@@ -100,6 +105,7 @@ class QueuePreResolver {
 
   /// How long a song looked up stays good (desktop: 20 minutes).
   final Duration ttl;
+  final Duration lookupIdleTimeout;
 
   /// Queue edits come in bursts: look ahead once they settle.
   final Duration queueSettle;
@@ -326,7 +332,7 @@ class QueuePreResolver {
   Future<Song?> _foregroundResult(_Lookup lookup) async {
     final song = await lookup.result.future;
     final error = lookup.error;
-    if (!lookup.cancelled && error != null) throw error;
+    if (error != null && (!lookup.cancelled || lookup.timedOut)) throw error;
     return song;
   }
 
@@ -346,16 +352,44 @@ class QueuePreResolver {
     final lookup = _Lookup(onDemand: onDemand);
     _running[id] = lookup;
     if (onDemand) _statusOwner = lookup;
-    unawaited(_run(id, resolve, lookup));
+    void armWatchdog() {
+      lookup.watchdog?.cancel();
+      lookup.watchdog = Timer(lookupIdleTimeout, () {
+        lookup.timedOut = true;
+        lookup.error = TimeoutException(
+          'Online source stopped responding. Try another source or retry.',
+          lookupIdleTimeout,
+        );
+        lookup.stop();
+        if (identical(_running[id], lookup)) _running.remove(id);
+        if (identical(_statusOwner, lookup)) {
+          _statusOwner = null;
+          status.value = null;
+        }
+      });
+    }
+
+    armWatchdog();
+    unawaited(_run(id, resolve, lookup, armWatchdog));
     return lookup;
   }
 
-  Future<void> _run(String id, PendingResolve resolve, _Lookup lookup) async {
+  Future<void> _run(
+    String id,
+    PendingResolve resolve,
+    _Lookup lookup,
+    VoidCallback activity,
+  ) async {
     Song? song;
     try {
       song = await resolve(
         cancel: lookup.cancel.future,
         onStatus: (message) {
+          if (lookup.cancelled) return;
+          if (message != lookup.lastStatus) {
+            lookup.lastStatus = message;
+            activity();
+          }
           if (lookup.onDemand &&
               !lookup.cancelled &&
               identical(_statusOwner, lookup)) {
@@ -364,9 +398,10 @@ class QueuePreResolver {
         },
       );
     } catch (error) {
-      lookup.error = error;
+      if (!lookup.cancelled) lookup.error = error;
       song = null;
     }
+    lookup.watchdog?.cancel();
     if (identical(_running[id], lookup)) _running.remove(id);
     if (lookup.cancelled) song = null;
     if (song != null) {

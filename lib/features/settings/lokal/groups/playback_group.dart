@@ -1,3 +1,4 @@
+import 'package:flick/features/settings/widgets/lyrics_sources_panel.dart';
 import 'package:flick/l10n/l10n.dart';
 
 import 'dart:async';
@@ -194,6 +195,11 @@ List<LokalSettingsSection> playbackSettings(
     LokalSettingsSection(
       title: lokalText('Lyrics'),
       children: [
+        const LokalSettingCustom(
+          label: 'Lyrics sources',
+          description: 'Source priority, enabled providers and word timing',
+          child: LyricsSourcesPanel(),
+        ),
         LokalSettingRow.toggle(
           label: lokalText('Fetch lyrics automatically'),
           description: lokalText(

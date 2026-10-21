@@ -12,8 +12,9 @@ class ProcessExitDiagnosticsService {
   Future<void> reportPreviousExits() async {
     if (!Platform.isAndroid) return;
     try {
-      final exits =
-          await _channel.invokeListMethod<Object?>('getProcessExitInfo');
+      final exits = await _channel.invokeListMethod<Object?>(
+        'getProcessExitInfo',
+      );
       if (exits == null || exits.isEmpty) return;
 
       final preferences = await SharedPreferences.getInstance();
@@ -25,13 +26,13 @@ class ProcessExitDiagnosticsService {
         final info = raw.cast<String, Object?>();
         final timestamp = (info['timestamp'] as num?)?.toInt() ?? 0;
         if (timestamp <= lastSeen) continue;
-        AppLog.instance.add(_describe(info), source: LogSource.crash);
+        final reason = (info['reason'] as num?)?.toInt() ?? 0;
+        final failure = {2, 3, 4, 5, 6, 7, 9, 12}.contains(reason);
+        final source = failure ? LogSource.crash : LogSource.platform;
+        AppLog.instance.add(_describe(info), source: source);
         final trace = info['trace'];
         if (trace is String && trace.isNotEmpty) {
-          AppLog.instance.add(
-            '[native-exit-trace] $trace',
-            source: LogSource.crash,
-          );
+          AppLog.instance.add('[native-exit-trace] $trace', source: source);
         }
         if (timestamp > newest) newest = timestamp;
       }
@@ -65,19 +66,19 @@ class ProcessExitDiagnosticsService {
   }
 
   String _reasonLabel(int reason) => switch (reason) {
-        1 => 'exit self',
-        2 => 'signal',
-        3 => 'low memory',
-        4 => 'crash',
-        5 => 'native crash',
-        6 => 'anr',
-        7 => 'initialization failure',
-        8 => 'permission change',
-        9 => 'excessive resource usage',
-        10 => 'user requested',
-        11 => 'user stopped',
-        12 => 'dependency died',
-        13 => 'other',
-        _ => 'unknown',
-      };
+    1 => 'exit self',
+    2 => 'signal',
+    3 => 'low memory',
+    4 => 'crash',
+    5 => 'native crash',
+    6 => 'anr',
+    7 => 'initialization failure',
+    8 => 'permission change',
+    9 => 'excessive resource usage',
+    10 => 'user requested',
+    11 => 'user stopped',
+    12 => 'dependency died',
+    13 => 'other',
+    _ => 'unknown',
+  };
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
-import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/providers/mini_player_config_provider.dart';
 import 'package:flick/widgets/common/mini_player_bar.dart';
@@ -21,7 +20,6 @@ class EmbeddedMiniPlayer extends ConsumerStatefulWidget {
 }
 
 class _EmbeddedMiniPlayerState extends ConsumerState<EmbeddedMiniPlayer> {
-  bool _showVisualizer = false;
   int _songChangeDirection = 0;
   int _transitionDirection = 0;
   String? _currentSongId;
@@ -29,8 +27,7 @@ class _EmbeddedMiniPlayerState extends ConsumerState<EmbeddedMiniPlayer> {
   void _onHorizontalDragEnd(DragEndDetails details) {
     final velocity = details.primaryVelocity ?? 0;
     if (velocity.abs() <= 300) return;
-    if (ref.read(appPreferencesProvider).miniPlayerSwipeAction ==
-        'switchSongs') {
+    {
       if (velocity < 0) {
         _songChangeDirection = -1;
         ref.read(playerProvider.notifier).next();
@@ -38,8 +35,6 @@ class _EmbeddedMiniPlayerState extends ConsumerState<EmbeddedMiniPlayer> {
         _songChangeDirection = 1;
         ref.read(playerProvider.notifier).previous(allowRestart: false);
       }
-    } else {
-      setState(() => _showVisualizer = !_showVisualizer);
     }
   }
 
@@ -52,7 +47,6 @@ class _EmbeddedMiniPlayerState extends ConsumerState<EmbeddedMiniPlayer> {
       _transitionDirection = _songChangeDirection;
       _songChangeDirection = 0;
     }
-    final prefs = ref.watch(appPreferencesProvider);
     final config = ref.watch(miniPlayerConfigProvider);
     return MiniPlayerBar(
       config: config,
@@ -89,21 +83,6 @@ class _EmbeddedMiniPlayerState extends ConsumerState<EmbeddedMiniPlayer> {
         _songChangeDirection = -1;
         ref.read(playerProvider.notifier).next();
       },
-      visualizer: _showVisualizer
-          ? SizedBox.expand(
-              key: const ValueKey('mini_player_visualizer'),
-              child: AudioVisualizer(
-                playerService: ref.read(playerServiceProvider),
-                animationStyle: prefs.visualizerAnimationStyle,
-                frequencyMode: prefs.visualizerFrequencyMode,
-                movementMode: prefs.visualizerMovementMode,
-                albumColor: ref.watch(albumDominantColorSyncProvider),
-                enabled:
-                    prefs.visualizerEnabled &&
-                    !MediaQuery.disableAnimationsOf(context),
-              ),
-            )
-          : null,
     );
   }
 }

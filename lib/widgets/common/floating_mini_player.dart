@@ -1,10 +1,10 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/features/player/screens/full_player_screen.dart';
-import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
@@ -318,7 +318,6 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const _FloatingMiniVisualizer(),
                             SizedBox(width: t * 10),
                             Expanded(
                               child: Opacity(
@@ -379,28 +378,6 @@ class _FloatingMiniPlayerState extends ConsumerState<FloatingMiniPlayer>
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _FloatingMiniVisualizer extends ConsumerWidget {
-  const _FloatingMiniVisualizer();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final playerService = ref.read(playerServiceProvider);
-    final appPrefs = ref.watch(appPreferencesProvider);
-
-    return SizedBox(
-      height: 18,
-      width: 40,
-      child: AudioVisualizer(
-        playerService: playerService,
-        animationStyle: appPrefs.visualizerAnimationStyle,
-        frequencyMode: appPrefs.visualizerFrequencyMode,
-        movementMode: appPrefs.visualizerMovementMode,
-        enabled: appPrefs.visualizerEnabled,
       ),
     );
   }

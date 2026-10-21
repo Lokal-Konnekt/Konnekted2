@@ -1,0 +1,100 @@
+import 'dart:async';
+import 'dart:collection';
+import 'dart:io';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:isar_community/isar.dart';
+import 'package:flick/data/database.dart';
+import 'package:flick/models/song.dart';
+import 'package:flick/services/apple_music/apple_music_metadata_service.dart';
+
+/// One worker warms new artists and persists their portraits. Rows subscribe
+/// only to their own path, rather than rebuilding the library for every result.
+class ArtistMetadata extends Notifier<Map<String, String>> {
+  final _seen = <String>{};
+  final _queue = Queue<String>();
+  bool _seeded = false;
+  bool _working = false;
+  static String key(String name) => name.trim().toLowerCase();
+  @override
+  Map<String, String> build() => const {};
+
+  void warm(List<Song> songs) {
+    for (final song in songs) {
+      final name = song.albumArtist?.trim().isNotEmpty == true
+          ? song.albumArtist!.trim()
+          : song.artist.trim();
+      if (name.isEmpty || !_seen.add(key(name))) continue;
+      if (_seeded) {
+        _queue.addFirst(name);
+      } else {
+        _queue.addLast(name);
+      }
+    }
+    _seeded = true;
+    unawaited(_drain());
+  }
+
+  Future<void> _drain() async {
+    if (_working) return;
+    _working = true;
+    try {
+      while (_queue.isNotEmpty && ref.mounted) {
+        final name = _queue.removeFirst();
+        try {
+          await refresh(name);
+        } catch (_) {
+          /* Retry unavailable artists next session or manually. */
+        }
+        if (ref.mounted) {
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+        }
+      }
+    } finally {
+      _working = false;
+    }
+  }
+
+  Future<void> refresh(String name, {bool force = false}) async {
+    if (!Database.isInitialized) return;
+    final previous = await Database.artists
+        .filter()
+        .nameEqualTo(name, caseSensitive: false)
+        .findFirst();
+    var path = previous?.artPath;
+    if (!force && path != null && await File(path).exists()) {
+      if (ref.mounted) state = {...state, key(name): path};
+      return;
+    }
+    final api = AppleMusicMetadataService.instance;
+    final artist = await api.resolveArtist(name, refresh: force);
+    if (artist == null || !ref.mounted) return;
+    final info = await api.getArtistInfo(artist.artistId, refresh: force);
+    final image = info?.imageUrl;
+    if (image == null || image.isEmpty || !ref.mounted) return;
+    // Cache a bounded portrait, shared by the list and full artist header.
+    final file = await DefaultCacheManager()
+        .getImageFile(image, maxWidth: 600, maxHeight: 600)
+        .where((event) => event is FileInfo)
+        .cast<FileInfo>()
+        .last;
+    if (!ref.mounted) return;
+    final cachedPath = file.file.path;
+    // Re-read after network I/O: another metadata writer may have created it.
+    await Database.instance.writeTxn(() async {
+      final row =
+          await Database.artists
+              .filter()
+              .nameEqualTo(name, caseSensitive: false)
+              .findFirst() ??
+          (ArtistEntity()..name = name);
+      row.artPath = cachedPath;
+      await Database.artists.put(row);
+    });
+    if (ref.mounted) state = {...state, key(name): cachedPath};
+  }
+}
+
+final artistMetadataProvider =
+    NotifierProvider<ArtistMetadata, Map<String, String>>(ArtistMetadata.new);

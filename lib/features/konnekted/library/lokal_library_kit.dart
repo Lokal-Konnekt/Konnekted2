@@ -1,3 +1,4 @@
+import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/widgets/lokal/lokal_page_geometry.dart';
 
 import '../../link/lokal_ghost_availability.dart';
@@ -442,13 +443,23 @@ class LokalTrackRow extends ConsumerWidget {
                       color: available ? t.text : t.muted2,
                     ),
                   ),
-                  if (second.isNotEmpty)
-                    Text(
-                      second,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: t.muted),
-                    ),
+                  Row(
+                    children: [
+                      if (second.isNotEmpty)
+                        Expanded(
+                          child: Text(
+                            second,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13, color: t.muted),
+                          ),
+                        ),
+                      if (LokalQualityTier.of(song) case final tier?) ...[
+                        const SizedBox(width: 8),
+                        LokalQualityPill(tier: tier),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),

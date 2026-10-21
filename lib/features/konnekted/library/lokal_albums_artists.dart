@@ -1,3 +1,8 @@
+import 'dart:io';
+
+import 'package:flick/features/library_jobs/artist_metadata.dart';
+import 'package:flick/features/library_jobs/library_jobs.dart';
+import 'package:flick/features/library_jobs/library_job_control.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
@@ -52,6 +57,7 @@ class _SearchablePage<T> extends StatefulWidget {
     required this.hint,
     required this.emptyIcon,
     required this.emptyMessage,
+    required this.job,
   });
 
   final String title;
@@ -61,6 +67,7 @@ class _SearchablePage<T> extends StatefulWidget {
   final String hint;
   final IconData emptyIcon;
   final String emptyMessage;
+  final LibraryJob job;
 
   @override
   State<_SearchablePage<T>> createState() => _SearchablePageState<T>();
@@ -97,6 +104,7 @@ class _SearchablePageState<T> extends State<_SearchablePage<T>> {
               args: {'arg0': all.length, 'arg1': widget.title.toLowerCase()},
             ),
       slivers: [
+        SliverToBoxAdapter(child: LibraryJobControl(widget.job)),
         if (all != null && all.isNotEmpty)
           SliverPersistentHeader(
             pinned: true,
@@ -152,6 +160,7 @@ class LokalAlbumsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) =>
       _SearchablePage<AlbumGroup>(
         title: lokalText('Albums'),
+        job: LibraryJob.releases,
         items: ref.watch(lokalAlbumsProvider),
         nameOf: (a) => '${a.albumName}\n${a.albumArtist}',
         hint: 'Search albums',
@@ -180,6 +189,7 @@ class LokalArtistsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) =>
       _SearchablePage<LokalArtist>(
         title: lokalText('Artists'),
+        job: LibraryJob.artists,
         items: ref.watch(lokalArtistsProvider),
         nameOf: (a) => a.name,
         hint: 'Search artists',
@@ -195,40 +205,66 @@ class LokalArtistsPage extends ConsumerWidget {
       );
 }
 
-class _ArtistRow extends StatelessWidget {
+class _ArtistRow extends ConsumerWidget {
   const _ArtistRow({required this.artist});
 
   final LokalArtist artist;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: () => pushLokal(
-      context,
-      LokalArtistPage(name: artist.name, songs: artist.songs),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      child: Row(
-        children: [
-          KonnektedArtwork(song: artist.songs.first, size: 52, radius: 26),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              artist.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          ),
-          Text(
-            lokalSongCount(artist.songs.length),
-            style: TextStyle(fontSize: 13, color: context.lokal.muted),
-          ),
-          Icon(Icons.chevron_right_rounded, color: context.lokal.muted2),
-        ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final portrait = ref.watch(
+      artistMetadataProvider.select(
+        (paths) => paths[ArtistMetadata.key(artist.name)],
       ),
-    ),
-  );
+    );
+    final fallback = KonnektedArtwork(
+      song: artist.songs.first,
+      size: 52,
+      radius: 26,
+    );
+    return InkWell(
+      onTap: () => pushLokal(
+        context,
+        LokalArtistPage(name: artist.name, songs: artist.songs),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+        child: Row(
+          children: [
+            portrait == null
+                ? fallback
+                : ClipOval(
+                    child: Image.file(
+                      File(portrait),
+                      width: 52,
+                      height: 52,
+                      cacheWidth: 156,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => fallback,
+                    ),
+                  ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                artist.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Text(
+              lokalSongCount(artist.songs.length),
+              style: TextStyle(fontSize: 13, color: context.lokal.muted),
+            ),
+            Icon(Icons.chevron_right_rounded, color: context.lokal.muted2),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// An album: cover, name, artist, Play and Shuffle, the tracks, and more by

@@ -123,7 +123,8 @@ const List<ManualSection> kManualSections = [
       ),
       ManualEntry(
         title: 'Folder playback',
-        body: 'Tap a folder to play all tracks inside it, including subfolders.',
+        body:
+            'Tap a folder to play all tracks inside it, including subfolders.',
       ),
     ],
   ),
@@ -154,7 +155,9 @@ const List<ManualSection> kManualSections = [
       ManualEntry(
         title: 'Dedicated Search tab',
         body: 'If Search is in your nav bar, it searches across songs, albums, and artists simultaneously with grouped results.',
-        tips: ['Add the Search tab via long-press on the nav bar \u2192 Bottom Bar Settings.'],
+        tips: [
+          'Add the Search tab via long-press on the nav bar \u2192 Bottom Bar Settings.',
+        ],
       ),
     ],
   ),
@@ -174,11 +177,9 @@ const List<ManualSection> kManualSections = [
       ManualEntry(
         title: 'Swipe to switch',
         body: 'Swipe left/right on the mini player to go to next/previous track (if enabled in settings).',
-        tips: ['Configure swipe behavior in Settings \u2192 Player Layout \u2192 Mini Player Swipe.'],
-      ),
-      ManualEntry(
-        title: 'Visualizer toggle',
-        body: 'A swipe gesture (when configured) toggles an inline visualizer inside the mini player.',
+        tips: [
+          'Configure swipe behavior in Settings \u2192 Player Layout \u2192 Mini Player Swipe.',
+        ],
       ),
     ],
   ),
@@ -220,10 +221,7 @@ const List<ManualSection> kManualSections = [
         title: 'Equalizer',
         body: 'Tap the EQ icon to open the equalizer with presets and manual band control.',
       ),
-      ManualEntry(
-        title: 'Visualizer',
-        body: 'Toggle the audio visualizer on/off and cycle through visualizer styles from the visualizer icon.',
-      ),
+
       ManualEntry(
         title: 'Playback speed',
         body: 'Adjust playback speed (0.5x\u20132x) from the speed control. Pitch is preserved.',
@@ -320,22 +318,6 @@ const List<ManualSection> kManualSections = [
     ],
   ),
   ManualSection(
-    id: 'visualizer',
-    title: 'Visualizer',
-    icon: LucideIcons.activity,
-    entries: [
-      ManualEntry(
-        title: 'Toggling',
-        body: 'In the full player, tap the visualizer icon to turn it on or off.',
-      ),
-      ManualEntry(
-        title: 'Styles',
-        body: 'Long-press or tap again to cycle through visualizer styles (bars, wave, radial, etc.).',
-        tips: ['Configure default style and sensitivity in Settings \u2192 Visualizer.'],
-      ),
-    ],
-  ),
-  ManualSection(
     id: 'settings',
     title: 'Settings',
     icon: LucideIcons.settings,
@@ -405,7 +387,7 @@ const List<ManualSection> kManualSections = [
       ),
       ManualEntry(
         title: 'Swipe horizontally on mini player',
-        body: 'Next / previous track (or toggle visualizer, depending on settings).',
+        body: 'Next / previous track.',
       ),
       ManualEntry(
         title: 'Swipe on a queue item',

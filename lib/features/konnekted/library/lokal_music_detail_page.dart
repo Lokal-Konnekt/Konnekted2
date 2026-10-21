@@ -1,3 +1,5 @@
+import 'package:flick/features/library_jobs/artist_metadata.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -431,12 +433,20 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
         .where((song) => song.albumArt?.isNotEmpty == true)
         .firstOrNull
         ?.albumArt;
+    final cachedPortrait = widget.isArtist
+        ? ref.watch(
+            artistMetadataProvider.select(
+              (paths) => paths[ArtistMetadata.key(widget.artist)],
+            ),
+          )
+        : null;
     final heroImage = widget.isArtist
-        ? (_portrait?.isNotEmpty == true
-              ? _portrait
-              : _online
-              ? _page?.portrait
-              : null)
+        ? (cachedPortrait ??
+              (_portrait?.isNotEmpty == true
+                  ? _portrait
+                  : _online
+                  ? _page?.portrait
+                  : null))
         : (localCover ??
               (_online ? _page?.albums.firstOrNull?.artwork : null) ??
               widget.release?.artwork);

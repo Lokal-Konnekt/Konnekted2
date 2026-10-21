@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/providers/providers.dart';
@@ -16,12 +17,10 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/features/player/widgets/album_color_helpers.dart';
 import 'package:flick/features/player/widgets/ambient_background.dart';
-import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/bit_perfect_capsule.dart';
 import 'package:flick/features/player/widgets/bit_perfect_indicator.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
-import 'package:flick/features/player/widgets/visualizer_art_box.dart';
 import 'package:flick/features/player/widgets/album_art_box.dart';
 import 'package:flick/features/player/widgets/waveform_layer.dart';
 import 'package:flick/features/player/widgets/player_controls.dart';
@@ -267,10 +266,13 @@ class AnimatedSongScene extends ConsumerWidget {
     // lyric text keeps contrast. Follows the album color mode — flat black
     // when off, increasingly album-hued toward vibrant, but always lerped
     // from black so the tint stays dark enough to read text over.
-    final scrimColor =
-        hasAlbumTint
-            ? Color.lerp(Colors.black, albumColor!, (bgBlend * 1.2).clamp(0.0, 0.35))!
-            : Colors.black;
+    final scrimColor = hasAlbumTint
+        ? Color.lerp(
+            Colors.black,
+            albumColor!,
+            (bgBlend * 1.2).clamp(0.0, 0.35),
+          )!
+        : Colors.black;
 
     return Stack(
       children: [
@@ -294,44 +296,6 @@ class AnimatedSongScene extends ConsumerWidget {
   Widget _buildBaseBackground(BuildContext context) {
     final bgBlend = albumColorMode.backgroundBlend;
     final hasAlbumTint = albumColor != null && bgBlend > 0;
-
-    if (visualizationMode && playerScreenMode != PlayerScreenMode.artworkCard) {
-      final overlayColor = hasAlbumTint
-          ? albumSurface(albumColor!, bgBlend * 0.5)
-          : const Color(0xFF0A0A0A);
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: AudioVisualizer(
-              playerService: playerService,
-              animationStyle: visualizerAnimationStyle,
-              frequencyMode: visualizerFrequencyMode,
-              movementMode: visualizerMovementMode,
-              albumColor: albumColor,
-            ),
-          ),
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    overlayColor.withValues(alpha: 0.7),
-                    overlayColor.withValues(alpha: 0.35),
-                    Colors.transparent,
-                    Colors.transparent,
-                    overlayColor.withValues(alpha: 0.3),
-                    overlayColor.withValues(alpha: 0.75),
-                  ],
-                  stops: const [0.0, 0.12, 0.28, 0.62, 0.82, 1.0],
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
 
     if (playerScreenMode == PlayerScreenMode.artworkCard) {
       return Stack(
@@ -733,9 +697,8 @@ class AnimatedSongScene extends ConsumerWidget {
                             final diagnostics = ProviderScope.containerOf(
                               context,
                             ).read(audioOutputDiagnosticsProvider);
-                            final appPrefs = ProviderScope.containerOf(
-                              context,
-                            ).read(appPreferencesProvider);
+                            final appPrefs = ProviderScope.containerOf(context)
+                                .read(appPreferencesProvider);
                             return Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -772,9 +735,8 @@ class AnimatedSongScene extends ConsumerWidget {
                                       ),
                                       onTap: () {
                                         final deviceStatus =
-                                            ProviderScope.containerOf(
-                                              context,
-                                            ).read(uac2DeviceStatusProvider);
+                                            ProviderScope.containerOf(context)
+                                                .read(uac2DeviceStatusProvider);
                                         BitPerfectIndicator.showInfoSheet(
                                           context,
                                           song: song,
@@ -1135,34 +1097,16 @@ class AnimatedSongScene extends ConsumerWidget {
                                           child: OverflowBox(
                                             maxWidth: artworkSize,
                                             maxHeight: artworkSize,
-                                            child: visualizationMode
-                                                ? VisualizerArtBox(
-                                                    playerService:
-                                                        playerService,
-                                                    size: artworkSize,
-                                                    animationStyle:
-                                                        visualizerAnimationStyle,
-                                                    frequencyMode:
-                                                        visualizerFrequencyMode,
-                                                    movementMode:
-                                                        visualizerMovementMode,
-                                                    albumColor: albumColor,
-                                                    showFrame:
-                                                        artworkCardShowFrame,
-                                                  )
-                                                : AlbumArtBox(
-                                                    song: song,
-                                                    size: artworkSize,
-                                                    playerService:
-                                                        playerService,
-                                                    onRotationEnabledChanged:
-                                                        onRotationEnabledChanged,
-                                                    initialVinyl: vinylMode,
-                                                    onVinylChanged:
-                                                        onVinylChanged,
-                                                    showFrame:
-                                                        artworkCardShowFrame,
-                                                  ),
+                                            child: AlbumArtBox(
+                                              song: song,
+                                              size: artworkSize,
+                                              playerService: playerService,
+                                              onRotationEnabledChanged:
+                                                  onRotationEnabledChanged,
+                                              initialVinyl: vinylMode,
+                                              onVinylChanged: onVinylChanged,
+                                              showFrame: artworkCardShowFrame,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -1237,12 +1181,10 @@ class AnimatedSongScene extends ConsumerWidget {
             : context.responsive(11.0, 12.0, 13.0)) *
         artworkCardTextScale;
 
-    final diagnostics = ProviderScope.containerOf(
-      context,
-    ).read(audioOutputDiagnosticsProvider);
-    final appPrefs = ProviderScope.containerOf(
-      context,
-    ).read(appPreferencesProvider);
+    final diagnostics = ProviderScope.containerOf(context)
+        .read(audioOutputDiagnosticsProvider);
+    final appPrefs = ProviderScope.containerOf(context)
+        .read(appPreferencesProvider);
     final isBitPerfectVerified =
         diagnostics?.capabilityFlags.supportsVerifiedBitPerfect == true;
     final showBitPerfectCapsule =
@@ -1330,9 +1272,8 @@ class AnimatedSongScene extends ConsumerWidget {
                   verticalPadding: albumVerticalPadding,
                   fontSize: albumFontSize,
                   onTap: () {
-                    final deviceStatus = ProviderScope.containerOf(
-                      context,
-                    ).read(uac2DeviceStatusProvider);
+                    final deviceStatus = ProviderScope.containerOf(context)
+                        .read(uac2DeviceStatusProvider);
                     BitPerfectIndicator.showInfoSheet(
                       context,
                       song: song,

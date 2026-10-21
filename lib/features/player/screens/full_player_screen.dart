@@ -1,3 +1,5 @@
+import 'package:flick/services/lyrics_sources.dart';
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, lerpDouble;
@@ -11,7 +13,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/player/lokal_lyrics_subline.dart';
 import 'package:flick/features/player/screens/classic_full_player_screen.dart';
-import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/features/player/widgets/player_artwork_image.dart';
 import 'package:flick/features/queue/screens/queue_screen.dart';
@@ -66,6 +67,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   bool _showLyrics = false;
   bool _lyricsLoading = false;
+  String _lyricsSource = 'auto';
+  int _lyricsRequest = 0;
   LyricsData? _lyrics;
   String? _lyricsForSongId;
 
@@ -151,17 +154,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       _lyrics = null;
       _lyricsForSongId = song.id;
     });
+    final request = ++_lyricsRequest;
     LyricsData? data;
     try {
       data = await _lyricsService.loadLyricsForSong(
         song,
         forceRefresh: force,
+        source: _lyricsSource,
+        stillCurrent: () => mounted && request == _lyricsRequest,
         fetchOnline: ref.read(appPreferencesProvider).lyricsAutoFetch,
       );
     } catch (_) {
       data = null;
     }
-    if (!mounted) return;
+    if (!mounted || request != _lyricsRequest) return;
     if (_player.currentSongNotifier.value?.id != song.id) return;
     setState(() {
       _lyrics = data;
@@ -214,12 +220,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     });
     if (!_isFav) _toggleFavorite();
   }
-
-  Future<void> _openVisualizer() => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => _NowPlayingVisualizerScreen(player: _player),
-    ),
-  );
 
   Future<void> _openEqualizer() => Navigator.of(context)
       .push(MaterialPageRoute<void>(builder: (_) => const EqualizerScreen()));
@@ -550,37 +550,41 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   ),
                 ),
                 SizedBox(height: lerpDouble(2, 1, p)),
-                InkWell(
-                  onTap: song.artist.trim().isEmpty
-                      ? null
-                      : () => openLokalArtist(context, song: song),
-                  borderRadius: BorderRadius.circular(4),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 1),
-                    child: Text(
-                      song.artist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: _font,
-                        fontSize: lerpDouble(14, 13, p),
-                        color: Colors.white.withValues(alpha: .72),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: song.artist.trim().isEmpty
+                            ? null
+                            : () => openLokalArtist(context, song: song),
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 1),
+                          child: Text(
+                            song.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: _font,
+                              fontSize: lerpDouble(14, 13, p),
+                              color: Colors.white.withValues(alpha: .72),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    if (LokalQualityTier.of(song) case final tier?) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => SongMetadataSheet.show(context, song),
+                        child: LokalQualityPill(tier: tier),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
           ),
-          // Tapping the quality tier opens the full song metadata sheet.
-          badge: switch (LokalQualityTier.of(song)) {
-            final tier? => GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => SongMetadataSheet.show(context, song),
-              child: LokalQualityPill(tier: tier),
-            ),
-            null => null,
-          },
           queue: const QueueList(embedded: true),
         );
       },
@@ -728,6 +732,25 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   color: Colors.white.withValues(alpha: 0.6),
                 ),
               ),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Lyrics source: ${_lyrics?.source ?? _lyricsSource}',
+              icon: const Icon(
+                Icons.tune_rounded,
+                color: Colors.white70,
+                size: 20,
+              ),
+              initialValue: _lyricsSource,
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'auto', child: Text('Automatic')),
+                const PopupMenuItem(value: 'local', child: Text('Local file')),
+                for (final source in lyricsSources.entries)
+                  PopupMenuItem(value: source.key, child: Text(source.value)),
+              ],
+              onSelected: (source) {
+                setState(() => _lyricsSource = source);
+                unawaited(_loadLyrics(force: true));
+              },
             ),
             // Shown when the lyrics carry their own translation, as desktop.
             if (LokalLyricsSubline.hasTranslation(data))
@@ -1211,161 +1234,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             ),
           ),
           chip(LucideIcons.slidersHorizontal, l10n.equalizer, _openEqualizer),
-          chip(Icons.graphic_eq_rounded, 'Visualizer', _openVisualizer),
-        ],
-      ),
-    );
-  }
-}
-
-/// Focused visualizer view opened from Now Playing.
-class _NowPlayingVisualizerScreen extends StatelessWidget {
-  const _NowPlayingVisualizerScreen({required this.player});
-
-  final PlayerService player;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF07080C),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          AudioVisualizer(playerService: player),
-          const IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0x9907080C),
-                    Colors.transparent,
-                    Colors.transparent,
-                    Color(0xCC07080C),
-                  ],
-                  stops: [0, 0.22, 0.66, 1],
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Back to Now Playing',
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 30,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          'Visualizer',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: _font,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 48),
-                    ],
-                  ),
-                  const Spacer(),
-                  ValueListenableBuilder<Song?>(
-                    valueListenable: player.currentSongNotifier,
-                    builder: (context, song, _) {
-                      if (song == null) return const SizedBox.shrink();
-                      return Column(
-                        children: [
-                          Text(
-                            song.title,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: _font,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            song.artist,
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: _font,
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        tooltip: 'Previous track',
-                        onPressed: () => player.previous(),
-                        icon: const Icon(
-                          Icons.skip_previous_rounded,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: player.isPlayingNotifier,
-                        builder: (context, playing, _) => FilledButton(
-                          onPressed: () => player.togglePlayPause(),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.white.withValues(
-                              alpha: .16,
-                            ),
-                            foregroundColor: Colors.white,
-                            shape: const CircleBorder(),
-                            padding: const EdgeInsets.all(17),
-                          ),
-                          child: Icon(
-                            playing
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            size: 30,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      IconButton(
-                        tooltip: 'Next track',
-                        onPressed: () => player.next(),
-                        icon: const Icon(
-                          Icons.skip_next_rounded,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );

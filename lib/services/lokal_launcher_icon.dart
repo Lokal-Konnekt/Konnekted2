@@ -7,27 +7,50 @@ import 'package:flick/core/theme/lokal_tokens.dart';
 /// Keeps the launcher icon's sticker in the accent colour, like desktop's
 /// Dock and taskbar icon.
 ///
-/// Android only offers the twelve accent presets as icons, so a theme's own
-/// accent maps to the nearest preset. Native code applies the alias immediately
-/// and retries on stop; it does not wait for an OEM launcher to stop the task.
+/// Android uses prebuilt assets for every preset and distinct theme color.
+/// Native code stages the requested alias and applies it only after the
+/// activity is backgrounded and playback is idle.
 abstract final class LokalLauncherIcon {
   static const _channel = MethodChannel('lokal/launcher_icon');
   static String? _last;
   static String? _wanted;
   static Future<void> _tail = Future<void>.value();
 
-  /// The preset whose icon matches [appearance]'s accent.
-  static LokalAccent accentFor(LokalAppearance appearance) =>
-      appearance.accent ?? LokalAccent.nearest(appearance.tokens.accent);
+  /// Theme colors have exact assets, including colors outside accent presets.
+  static String iconNameFor(LokalAppearance appearance) {
+    if (appearance.accent != null) return appearance.accent!.name.toLowerCase();
+    return switch (appearance.theme) {
+      LokalThemeId.dark || LokalThemeId.oled => 'chartreuse',
+      LokalThemeId.light => 'purple',
+      LokalThemeId.midnight => 'midnight',
+      LokalThemeId.warm => 'orange',
+      LokalThemeId.ocean => 'blue',
+      LokalThemeId.forest => 'teal',
+      LokalThemeId.cyberpunk => 'neon',
+      LokalThemeId.rosegold => 'rosegold',
+      LokalThemeId.deepContrast => 'white',
+    };
+  }
 
   static Future<void> sync(LokalAppearance appearance) {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android)
       return Future.value();
-    final name = accentFor(appearance).name.toLowerCase();
+    final name = iconNameFor(appearance);
     _wanted = name;
     final next = _tail.then((_) => _apply(name));
     _tail = next;
     return next;
+  }
+
+  static Future<void> setBusy(bool busy) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      await _channel.invokeMethod<void>('setBusy', {'busy': busy});
+    } on PlatformException {
+      /* Native guard still checks Android music activity. */
+    } on MissingPluginException {
+      /* Unsupported host. */
+    }
   }
 
   static Future<void> _apply(String name) async {

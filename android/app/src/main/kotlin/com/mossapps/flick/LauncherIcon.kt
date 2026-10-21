@@ -2,6 +2,7 @@ package com.mossapps.flick
 
 import android.content.ComponentName
 import android.content.Context
+import android.media.AudioManager
 import android.content.pm.PackageManager
 import android.util.Log
 import android.os.Build
@@ -13,9 +14,8 @@ import io.flutter.plugin.common.MethodChannel
  *
  * Desktop redraws its Dock/taskbar icon live; Android can only pick one of
  * the pre-built `.LauncherIcon<Accent>` aliases in the manifest. Swapping
- * aliases uses DONT_KILL_APP. Apply immediately when Dart sends the saved
- * accent, and retry on registration/onStop to repair launcher state after
- * an upgrade or an interrupted change.
+ * aliases uses DONT_KILL_APP, which some launchers still treat as a restart.
+ * Save changes now and apply only after the activity is backgrounded and idle.
  */
 object LauncherIcon {
     private const val CHANNEL = "lokal/launcher_icon"
@@ -27,16 +27,19 @@ object LauncherIcon {
     val accents = listOf(
         "lime", "purple", "pink", "orange", "blue", "red",
         "teal", "white", "yellow", "cyan", "magenta", "gray",
+        "chartreuse", "midnight", "rosegold", "neon",
     )
     private const val DEFAULT = "lime"
     private var aliases: Map<String, String>? = null
 
+    private var busy = false
+
     fun onStop(context: Context) {
-        applyPending(context)
+        val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        if (!busy && !audio.isMusicActive) applyPending(context)
     }
 
     fun register(messenger: BinaryMessenger, context: Context) {
-        applyPending(context)
         MethodChannel(messenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "setAccent" -> {
@@ -46,12 +49,11 @@ object LauncherIcon {
                     } else {
                         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                             .edit().putString(KEY_WANTED, accent).apply()
-                        // Xiaomi/HyperOS can retain the foreground task for a long
-                        // time. DONT_KILL_APP lets us update the launcher now.
-                        if (applyPending(context)) result.success(null)
-                        else result.error("icon_update_failed", "Launcher rejected the icon update", null)
+                        // An accepted request is queued, not applied in the foreground.
+                        result.success(null)
                     }
                 }
+                "setBusy" -> { busy = call.argument<Boolean>("busy") ?: false; result.success(null) }
                 else -> result.notImplemented()
             }
         }

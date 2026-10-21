@@ -18,7 +18,7 @@ class LokalAppearance {
     this.theme = LokalThemeId.dark,
     this.accent,
     this.textScale = 1.0,
-    this.performanceMode = false,
+    this.performanceMode = true,
   });
 
   final LokalThemeId theme;
@@ -67,7 +67,7 @@ class LokalAppearance {
         minTextScale,
         maxTextScale,
       ),
-      performanceMode: json['performanceMode'] as bool? ?? false,
+      performanceMode: json['performanceMode'] as bool? ?? true,
     );
   }
 

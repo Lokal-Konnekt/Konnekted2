@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:http/http.dart' as http;
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
@@ -82,8 +83,24 @@ class _PlaybackSourcePriorityPanelState
       if (_busy) const LinearProgressIndicator(),
       for (var index = 0; index < _sources.length; index++)
         ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Text('${index + 1}'),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 4,
+          ),
+          minLeadingWidth: 24,
+          horizontalTitleGap: 12,
+          leading: SizedBox(
+            width: 24,
+            child: Text(
+              '${index + 1}',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: context.lokal.muted,
+                fontSize: 13,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
           title: Text(_sources[index].name),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,

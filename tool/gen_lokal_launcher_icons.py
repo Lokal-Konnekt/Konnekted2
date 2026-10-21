@@ -30,6 +30,10 @@ ACCENTS = {
     'cyan': '#57FFEC',
     'magenta': '#FF57EC',
     'gray': '#888888',
+    'chartreuse': '#E8FF57',
+    'midnight': '#58A6FF',
+    'rosegold': '#FFB7C5',
+    'neon': '#FF00FF',
 }
 DEFAULT = 'lime'
 BACKGROUND = '#0A0A0A'  # desktop Dark theme bg

@@ -122,7 +122,6 @@ extension PlayerActionButtonL10n on PlayerActionButton {
     PlayerActionButton.none => l10n.none,
     PlayerActionButton.lyrics => l10n.lyrics,
     PlayerActionButton.favorites => l10n.favorites,
-    PlayerActionButton.visualizer => l10n.visualizer,
     PlayerActionButton.ratings => l10n.rating,
     PlayerActionButton.queue => l10n.queue,
     PlayerActionButton.sleepTimer => l10n.sleepTimer2,

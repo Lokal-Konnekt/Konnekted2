@@ -1,3 +1,10 @@
+import 'package:flick/services/lokal_launcher_icon.dart';
+import 'package:flick/features/library_jobs/artist_metadata.dart';
+
+import 'konnekted_data.dart';
+
+import 'package:flick/features/library_jobs/library_jobs.dart';
+import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/app_build_info_provider.dart';
 
@@ -42,6 +49,9 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   late final PlayerService _player;
   late final WidgetIntentHandler _widgetIntents;
   late final ProviderSubscription<PlayerState> _widgetSync;
+  late final _jobProgress = LokalStatusSnack(
+    () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
+  );
   bool _backgrounded = false;
   bool _showingWhatsNew = false;
 
@@ -49,7 +59,21 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ref.listenManual(libraryJobsProvider, (previous, next) {
+      _updateIconBusy();
+      if (next.running)
+        _jobProgress.update(next.message);
+      else if (previous?.running == true)
+        _jobProgress.fail(next.message);
+    });
+    ref.listenManual(konnektedLibraryProvider, (_, next) {
+      final songs = next.value;
+      if (songs != null) ref.read(artistMetadataProvider.notifier).warm(songs);
+    }, fireImmediately: true);
     _player = ref.read(playerServiceProvider);
+    _player.isPlayingNotifier.addListener(_updateIconBusy);
+    _player.isNetworkLoadingNotifier.addListener(_updateIconBusy);
+    _updateIconBusy();
     _run(
       'Discord presence',
       () => DiscordPresenceService.instance.start(_player),
@@ -120,6 +144,14 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     });
     WidgetsBinding.instance.ensureVisualUpdate();
   }
+
+  void _updateIconBusy() => unawaited(
+    LokalLauncherIcon.setBusy(
+      _player.isPlayingNotifier.value ||
+          _player.isNetworkLoadingNotifier.value ||
+          ref.read(libraryJobsProvider).running,
+    ),
+  );
 
   void _maybeShowWhatsNew() {
     if (!mounted ||
@@ -234,6 +266,9 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     WidgetsBinding.instance.removeObserver(this);
     _player.playbackDesyncedNotifier.removeListener(_onPlaybackDesync);
     _player.onlinePlaybackError.removeListener(_onOnlinePlaybackError);
+    _player.isPlayingNotifier.removeListener(_updateIconBusy);
+    _player.isNetworkLoadingNotifier.removeListener(_updateIconBusy);
+    _jobProgress.dispose();
     _widgetSync.close();
     _run('Widget intent detach', _widgetIntents.detach);
     _run('Discord presence shutdown', DiscordPresenceService.instance.stop);

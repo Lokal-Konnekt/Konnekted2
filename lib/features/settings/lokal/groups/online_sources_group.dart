@@ -12,7 +12,6 @@ import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart'
 import 'package:flick/features/settings/widgets/youtube_music_settings_tile.dart';
 import 'package:flick/features/morneye/morneye_addons_screen.dart';
 import 'package:flick/features/spotify/spotify_library_screen.dart';
-import 'package:flick/providers/opt_in_source_provider.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 import '../lokal_settings_group.dart';
@@ -67,30 +66,10 @@ List<LokalSettingsSection> onlineSourcesSettings(
   LokalSettingsSection(
     title: LokalOnlineSections.radioVideos,
     children: [
-      LokalSettingRow.toggle(
-        label: 'Internet radio',
-        description:
-            'Live stations from a station list online (Library › Radio).',
-        value: ref.watch(internetRadioEnabledProvider),
-        onChanged: (on) {
-          unawaited(ref.read(internetRadioEnabledProvider.notifier).set(on));
-          if (!on) unawaited(ref.read(radioPlayerProvider.notifier).stop());
-        },
-      ),
-      if (ref.watch(internetRadioEnabledProvider))
-        LokalSettingLink(
-          label: 'Station list',
-          description: ref.watch(radioCatalogUrlProvider),
-          onTap: () => unawaited(_editCatalogUrl(context, ref)),
-        ),
-      LokalSettingRow.toggle(
-        label: 'Music videos',
-        description:
-            'Find official videos for your songs on YouTube Music and watch '
-            'them in YouTube’s embedded player (Library › Videos).',
-        value: ref.watch(musicVideosEnabledProvider),
-        onChanged: (on) =>
-            unawaited(ref.read(musicVideosEnabledProvider.notifier).set(on)),
+      LokalSettingLink(
+        label: 'Station list',
+        description: ref.watch(radioCatalogUrlProvider),
+        onTap: () => unawaited(_editCatalogUrl(context, ref)),
       ),
     ],
   ),

@@ -122,8 +122,11 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   }
 
   void _maybeShowWhatsNew() {
-    if (!mounted || _showingWhatsNew || !ref.read(onboardingCompletedProvider))
+    if (!mounted ||
+        _showingWhatsNew ||
+        !ref.read(onboardingCompletedProvider)) {
       return;
+    }
     final notifier = ref.read(whatsNewProvider.notifier);
     notifier.evaluate();
     final entry = ref.read(whatsNewProvider).pendingEntry;

@@ -125,6 +125,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
             context,
             group: destination.settingsGroup,
             section: destination.settingsSection,
+            aboutDataOnly: destination.aboutDataOnly,
           ),
         ),
       );
@@ -158,6 +159,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
         'settings' => lokalSettingsPage(
           group: destination.settingsGroup,
           section: destination.settingsSection,
+          aboutDataOnly: destination.aboutDataOnly,
         ),
         _ => const SizedBox.shrink(),
       };

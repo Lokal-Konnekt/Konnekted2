@@ -10,7 +10,8 @@ import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 final class KonnektedDestination {
   const KonnektedDestination._(this.name)
     : settingsGroup = null,
-      settingsSection = null;
+      settingsSection = null,
+      aboutDataOnly = false;
 
   /// Settings, opened at [group] and scrolled to its [section] (a section
   /// title such as "Lyrics").
@@ -19,12 +20,21 @@ final class KonnektedDestination {
     String? section,
   }) : name = 'settings',
        settingsGroup = group,
-       settingsSection = section;
+       settingsSection = section,
+       aboutDataOnly = false;
+
+  /// Settings opened as a single page with every About and Data section shown.
+  const KonnektedDestination.aboutDataSettings()
+    : name = 'settings',
+      settingsGroup = null,
+      settingsSection = null,
+      aboutDataOnly = true;
 
   /// The route name's last segment.
   final String name;
   final LokalSettingsGroup? settingsGroup;
   final String? settingsSection;
+  final bool aboutDataOnly;
 
   static const flow = KonnektedDestination._('flow');
   static const search = KonnektedDestination._('search');
@@ -71,10 +81,12 @@ final class KonnektedDestination {
       other is KonnektedDestination &&
       other.name == name &&
       other.settingsGroup == settingsGroup &&
-      other.settingsSection == settingsSection;
+      other.settingsSection == settingsSection &&
+      other.aboutDataOnly == aboutDataOnly;
 
   @override
-  int get hashCode => Object.hash(name, settingsGroup, settingsSection);
+  int get hashCode =>
+      Object.hash(name, settingsGroup, settingsSection, aboutDataOnly);
 
   @override
   String toString() => settingsGroup == null

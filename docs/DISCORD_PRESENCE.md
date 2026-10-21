@@ -55,7 +55,7 @@ and continue using the SDK-free configuration.
    requested ABI is missing, rather than shipping a silently broken ABI.
 
 5. Install Discord and sign in on the phone. Enable activity sharing in Discord
-   as needed, then enable **Settings → Online sources → Accounts → Discord Rich
+   as needed, then enable **Settings → Data → Accounts → Discord Rich
    Presence** in Lokal. Play a song and check the account's activity from another
    Discord client. Check track changes, seeks, pause/stop and disabling sharing.
 

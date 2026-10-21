@@ -1,5 +1,13 @@
 import 'package:flick/l10n/l10n.dart';
 
+import '../lokal_settings_group.dart';
+
+import 'package:flick/features/settings/widgets/discord_presence_settings_tile.dart';
+import 'package:flick/features/settings/widgets/youtube_music_settings_tile.dart';
+import 'package:flick/features/settings/widgets/spotify_account_settings_tile.dart';
+import 'package:flick/features/settings/widgets/lastfm_settings_tile.dart';
+import 'package:flick/features/settings/widgets/listenbrainz_settings_tile.dart';
+
 import 'dart:async';
 
 import '../../../link/lokal_desktop_link_screen.dart';
@@ -76,111 +84,142 @@ Future<void> _clear(
   }
 }
 
-/// Data: caches, and clearing the library.
-List<LokalSettingsSection> dataSettings(BuildContext context, WidgetRef ref) =>
-    [
-      LokalSettingsSection(
-        title: lokalText('Desktop link'),
-        children: [
-          LokalSettingLink(
-            label: lokalText('Desktop link'),
-            description: lokalText(
-              'Pair, merge libraries and copy music files over Wi-Fi.',
+/// Data: accounts and connected devices, caches, and clearing the library.
+List<LokalSettingsSection> dataSettings(
+  BuildContext context,
+  WidgetRef ref,
+) => [
+  LokalSettingsSection(
+    title: LokalDataSections.accounts,
+    children: [
+      LokalSettingCustom(
+        label: lokalText('YouTube Music'),
+        description: lokalText('Sign in to load your mixes, likes and history'),
+        child: YoutubeMusicSettingsTile(),
+      ),
+      LokalSettingCustom(
+        label: lokalText('Spotify'),
+        description: lokalText(
+          'Connect your Spotify cookie, import playlists and sync Liked Songs.',
+        ),
+        child: const SpotifyAccountSettingsTile(),
+      ),
+      LokalSettingCustom(
+        label: lokalText('Discord Rich Presence'),
+        description: lokalText(
+          'Show your music on Discord using the Discord app on your phone. Off by default; local cover files stay on your device.',
+        ),
+        child: const DiscordPresenceSettingsTile(),
+      ),
+      LokalSettingLink(
+        label: lokalText('Desktop link'),
+        description: lokalText(
+          'Pair, merge libraries and copy music files over Wi-Fi.',
+        ),
+        onTap: () => unawaited(
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const LokalDesktopLinkScreen(),
             ),
-            onTap: () => unawaited(
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const LokalDesktopLinkScreen(),
-                ),
+          ),
+        ),
+      ),
+      LokalSettingCustom(
+        label: lokalText('Last.fm'),
+        description: lokalText('Scrobble what you play and power Discovery'),
+        child: LastFmSettingsTile(),
+      ),
+      LokalSettingCustom(
+        label: lokalText('ListenBrainz'),
+        description: lokalText('Send your listens to ListenBrainz'),
+        child: ListenBrainzSettingsTile(),
+      ),
+    ],
+  ),
+  LokalSettingsSection(
+    title: lokalText('Cache'),
+    children: [
+      LokalSettingRow(
+        label: lokalText('Artwork cache'),
+        description: lokalText(
+          'Album covers kept on the phone so they open at once.',
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _CacheSize(AlbumArtService.instance.getCacheSize),
+            const SizedBox(width: 10),
+            LokalSettingButton(
+              label: lokalText('Clear'),
+              onPressed: () => _clear(
+                context,
+                what: 'the artwork cache',
+                clear: AlbumArtService.instance.clearCache,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      LokalSettingsSection(
-        title: lokalText('Cache'),
-        children: [
-          LokalSettingRow(
-            label: lokalText('Artwork cache'),
-            description: lokalText(
-              'Album covers kept on the phone so they open at once.',
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CacheSize(AlbumArtService.instance.getCacheSize),
-                const SizedBox(width: 10),
-                LokalSettingButton(
-                  label: lokalText('Clear'),
-                  onPressed: () => _clear(
-                    context,
-                    what: 'the artwork cache',
-                    clear: AlbumArtService.instance.clearCache,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          LokalSettingRow(
-            label: lokalText('Converted songs'),
-            description: lokalText(
-              'Playable copies of songs the phone can’t play as they are, like Apple Lossless.',
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const _CacheSize(AlacConverterService.getCacheSize),
-                const SizedBox(width: 10),
-                LokalSettingButton(
-                  label: lokalText('Clear'),
-                  onPressed: () => _clear(
-                    context,
-                    what: 'converted songs',
-                    clear: AlacConverterService.clearCache,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const _CacheLimit(),
-        ],
-      ),
-      LokalSettingsSection(
-        title: lokalText('Danger zone'),
-        children: [
-          LokalSettingRow(
-            label: lokalText('Clear library'),
-            description: lokalText(
-              'Remove every song from Lokal. Your music files aren’t touched; rescan to bring them back.',
-            ),
-            trailing: LokalSettingButton(
+      LokalSettingRow(
+        label: lokalText('Converted songs'),
+        description: lokalText(
+          'Playable copies of songs the phone can’t play as they are, like Apple Lossless.',
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const _CacheSize(AlacConverterService.getCacheSize),
+            const SizedBox(width: 10),
+            LokalSettingButton(
               label: lokalText('Clear'),
-              destructive: true,
-              onPressed: () async {
-                final ok = await _confirm(
-                  context,
-                  title: lokalText('Clear your library?'),
-                  message: lokalText(
-                    'Every song is removed from Lokal. Files on your phone stay where they are.',
-                  ),
-                  action: 'Clear library',
-                  destructive: true,
-                );
-                if (!ok || !context.mounted) return;
-                try {
-                  await SongRepository().deleteAllSongs();
-                  if (context.mounted) _say(context, 'Library cleared.');
-                } catch (error) {
-                  if (context.mounted) {
-                    _say(context, 'Couldn’t clear the library ($error).');
-                  }
-                }
-              },
+              onPressed: () => _clear(
+                context,
+                what: 'converted songs',
+                clear: AlacConverterService.clearCache,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ];
+      const _CacheLimit(),
+    ],
+  ),
+  LokalSettingsSection(
+    title: lokalText('Danger zone'),
+    children: [
+      LokalSettingRow(
+        label: lokalText('Clear library'),
+        description: lokalText(
+          'Remove every song from Lokal. Your music files aren’t touched; rescan to bring them back.',
+        ),
+        trailing: LokalSettingButton(
+          label: lokalText('Clear'),
+          destructive: true,
+          onPressed: () async {
+            final ok = await _confirm(
+              context,
+              title: lokalText('Clear your library?'),
+              message: lokalText(
+                'Every song is removed from Lokal. Files on your phone stay where they are.',
+              ),
+              action: 'Clear library',
+              destructive: true,
+            );
+            if (!ok || !context.mounted) return;
+            try {
+              await SongRepository().deleteAllSongs();
+              if (context.mounted) _say(context, 'Library cleared.');
+            } catch (error) {
+              if (context.mounted) {
+                _say(context, 'Couldn’t clear the library ($error).');
+              }
+            }
+          },
+        ),
+      ),
+    ],
+  ),
+];
 
 /// A cache's size in DM Mono, measured again after a clear.
 class _CacheSize extends StatefulWidget {

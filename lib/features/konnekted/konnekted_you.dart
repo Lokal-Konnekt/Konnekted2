@@ -114,12 +114,12 @@ final youAccountsProvider = Provider.autoDispose<YouAccounts>(
 );
 
 const _accountsSection = KonnektedDestination.settingsAt(
-  LokalSettingsGroup.integrations,
-  section: 'Accounts',
+  LokalSettingsGroup.data,
+  section: LokalDataSections.accounts,
 );
 const _scrobblingSection = KonnektedDestination.settingsAt(
-  LokalSettingsGroup.integrations,
-  section: 'Scrobbling',
+  LokalSettingsGroup.data,
+  section: LokalDataSections.accounts,
 );
 
 String _periodLabel(ListeningRecapPeriod period) => switch (period) {

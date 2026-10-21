@@ -239,6 +239,12 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         // Idempotent: cached engines skip duplicate GeneratedPluginRegistrant.
         ensurePluginsRegistered(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "lokal/app_info")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "get") {
+                    result.success(mapOf("version" to BuildConfig.VERSION_NAME, "build" to BuildConfig.VERSION_CODE))
+                } else result.notImplemented()
+            }
         LokalSystemVolume.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LauncherIcon.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LokalLibrarySyncNotification.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)

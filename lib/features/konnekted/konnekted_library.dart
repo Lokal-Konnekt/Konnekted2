@@ -32,10 +32,10 @@ const _librarySettings = KonnektedDestination.settingsAt(
   LokalSettingsGroup.library,
 );
 
-/// Settings › Online sources › Accounts & scrobbling, where Spotify is.
+/// Settings › Data › Accounts, where Spotify is.
 const _accounts = KonnektedDestination.settingsAt(
-  LokalSettingsGroup.integrations,
-  section: LokalOnlineSections.accounts,
+  LokalSettingsGroup.data,
+  section: LokalDataSections.accounts,
 );
 
 /// The Library tab, as Apple Music's: six tiles, Recently added, compact

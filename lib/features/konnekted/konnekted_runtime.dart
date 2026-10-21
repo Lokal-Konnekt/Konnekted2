@@ -1,4 +1,5 @@
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/providers/app_build_info_provider.dart';
 
 import 'dart:async';
 
@@ -42,6 +43,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   late final WidgetIntentHandler _widgetIntents;
   late final ProviderSubscription<PlayerState> _widgetSync;
   bool _backgrounded = false;
+  bool _showingWhatsNew = false;
 
   @override
   void initState() {
@@ -66,6 +68,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _player.onlinePlaybackError.addListener(_onOnlinePlaybackError);
 
     ref.listenManual(appPreferencesProvider, (_, _) => _maybeShowWhatsNew());
+    ref.listenManual(appBuildInfoProvider, (_, _) => _maybeShowWhatsNew());
 
     ref.listenManual(currentSongProvider, (_, _) => _maybeOpenExternalPlayer());
     ref.listenManual(isPlayingProvider, (_, _) => _maybeOpenExternalPlayer());
@@ -119,14 +122,23 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   }
 
   void _maybeShowWhatsNew() {
-    if (!mounted || !ref.read(onboardingCompletedProvider)) return;
+    if (!mounted ||
+        _showingWhatsNew ||
+        !ref.read(onboardingCompletedProvider)) {
+      return;
+    }
     final notifier = ref.read(whatsNewProvider.notifier);
     notifier.evaluate();
     final entry = ref.read(whatsNewProvider).pendingEntry;
     if (entry == null) return;
+    _showingWhatsNew = true;
     _run('What’s new', () async {
-      await notifier.markCurrentVersionSeen();
-      if (mounted) await WhatsNewBottomSheet.show(context, entry: entry);
+      try {
+        await notifier.markCurrentVersionSeen();
+        if (mounted) await WhatsNewBottomSheet.show(context, entry: entry);
+      } finally {
+        _showingWhatsNew = false;
+      }
     });
   }
 

@@ -1,6 +1,6 @@
 /// Structured changelog data shown to the user in the "What's New" bottom
-/// sheet. Entries are keyed by version string and must match `kAppVersion`
-/// exactly to be considered "new".
+/// sheet. Current Lokal notes are labeled with installed APK metadata; the
+/// historical upstream entries below remain available for reference.
 class ChangelogEntry {
   const ChangelogEntry({
     required this.version,
@@ -34,14 +34,38 @@ class ChangelogSubsection {
   final List<String> bullets;
 }
 
-/// All changelog data known to the app, in reverse chronological order.
-///
-/// When a new release ships:
-///   1. Bump `kAppVersion` in `core/constants/app_constants.dart`.
-///   2. Prepend a new [ChangelogEntry] matching that version here.
-///
-/// The "What's New" bottom sheet on first launch after an update will
-/// automatically surface the entry whose `version` equals `kAppVersion`.
+/// Current Lokal notes. The displayed version/build comes from the installed APK.
+const kLokalReleaseNotes = ChangelogEntry(
+  version: 'Lokal',
+  date: '2026-10-21',
+  sections: [
+    ChangelogSection(
+      title: 'Accounts in one place',
+      bullets: [
+        'Find YouTube Music sign-in, Spotify cookies, Discord Rich Presence, Desktop link, Last.fm and ListenBrainz in Settings → Data → Accounts.',
+        'About and What’s New now show the installed app version and build number.',
+      ],
+    ),
+    ChangelogSection(
+      title: 'Playback and appearance',
+      bullets: [
+        'Player volume bars follow Android media volume and the phone’s volume buttons.',
+        'Launcher icons use pre-colored accent artwork to match your selected theme.',
+        'Optional Discord Rich Presence shares your current song through the Discord app on your phone.',
+      ],
+    ),
+    ChangelogSection(
+      title: 'Desktop library sync',
+      bullets: [
+        'Follow library sync progress in an Android notification.',
+        'Home updates stay steadier during library merges.',
+      ],
+    ),
+  ],
+);
+
+/// Historical Flick changelog, retained for reference. Current UI uses
+/// [kLokalReleaseNotes] and the installed APK version/build instead.
 const List<ChangelogEntry> kChangelogEntries = [
   ChangelogEntry(
     version: '0.22.2-beta.4',

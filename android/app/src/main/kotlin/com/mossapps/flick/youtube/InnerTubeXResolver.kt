@@ -266,12 +266,16 @@ object InnerTubeXResolver {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                failure = e
-                return@repeat
+                // InnerTubeX performs its own client/cipher walk. Repeating an
+                // extraction-level failure would repeat the same work without
+                // giving us a profile id to exclude; only retry a rejected URL.
+                throw IOException(
+                    "YouTube's advanced resolver could not extract this recording.",
+                    e,
+                )
             }
             if (candidate == null) {
-                failure = IOException("YouTube returned no stream for this client.")
-                return@repeat
+                throw IOException("YouTube's advanced resolver found no playable stream.")
             }
             val refusal = probeMedia(candidate)
             if (refusal == null) return candidate

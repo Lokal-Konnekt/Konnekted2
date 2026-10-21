@@ -1,3 +1,9 @@
+import 'dart:async';
+import 'dart:io' as io;
+
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as net;
+
 import 'discovery_http.dart';
 import 'discovery_models.dart';
 import 'discovery_sources.dart';
@@ -10,7 +16,7 @@ import 'youtube_music_store.dart';
 /// so it asks as the apps YouTube serves plain links to: visionOS first (no
 /// proof-of-origin token needed), then the Quest app.
 class YoutubeAudio {
-  YoutubeAudio(this.http, {this.session});
+  YoutubeAudio(this.http, {this.session, this.nativeFallback});
 
   final DiscoveryHttp http;
 
@@ -18,9 +24,48 @@ class YoutubeAudio {
   /// still tries the public clients, and cookie material is only sent to
   /// YouTube Music itself.
   final YoutubeMusicSession? session;
+
+  /// Injectable seam for tests; production Android calls the native
+  /// InnerTubeX resolver when the quick public-client walk cannot play a URL.
+  final Future<ResolvedDiscoveryAudio?> Function(
+    String videoId,
+    YoutubeMusicSession? session,
+  )? nativeFallback;
+
+  static const MethodChannel _nativeChannel =
+      MethodChannel('com.mossapps.flick/youtube_stream');
+
   Future<YoutubeMusicSession?>? _sessionFuture;
+  Future<String?>? _webRemixVersionFuture;
 
   Future<YoutubeMusicSession?> _loadSession() => _sessionFuture ??= _readSession();
+
+  /// YouTube rotates WEB_REMIX versions; use the version from the live shell
+  /// rather than relying on the stale version shipped in this app.
+  Future<String?> _liveWebRemixVersion() =>
+      _webRemixVersionFuture ??= _readLiveWebRemixVersion();
+
+  Future<String?> _readLiveWebRemixVersion() async {
+    try {
+      final response = await http.client
+          .get(
+            Uri.https('music.youtube.com', '/'),
+            headers: {
+              'User-Agent': clients.last.userAgent,
+              'Accept-Language': 'en-US,en;q=0.9',
+            },
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode != 200) return null;
+      return RegExp(r'"INNERTUBE_CLIENT_VERSION"\s*:\s*"([^"]+)"')
+          .firstMatch(response.body)
+          ?.group(1);
+    } catch (_) {
+      // The live version is an optimization. Keep the last known working
+      // client version when YouTube's landing page cannot be reached.
+      return null;
+    }
+  }
 
   Future<YoutubeMusicSession?> _readSession() async {
     final provided = session;
@@ -122,15 +167,39 @@ class YoutubeAudio {
       try {
         final useSignedInMusicClient =
             client.name == 'WEB_REMIX' && signedInHeaders != null;
-        final version = useSignedInMusicClient
-            ? signedInSession!.clientVersion ?? client.version
-            : client.version;
+        final liveVersion = client.name == 'WEB_REMIX'
+            ? await _liveWebRemixVersion()
+            : null;
+        final version = liveVersion ??
+            (useSignedInMusicClient
+                ? signedInSession!.clientVersion
+                : null) ??
+            client.version;
+        final requestClient = useSignedInMusicClient
+            ? YoutubeClient(
+                name: client.name,
+                id: client.id,
+                version: version,
+                userAgent: signedInSession!.userAgent,
+                extra: client.extra,
+                host: client.host,
+                embedUrl: client.embedUrl,
+              )
+            : YoutubeClient(
+                name: client.name,
+                id: client.id,
+                version: version,
+                userAgent: client.userAgent,
+                extra: client.extra,
+                host: client.host,
+                embedUrl: client.embedUrl,
+              );
         final response = await http.json(
           Uri.https(client.host, '/youtubei/v1/player', {
             'prettyPrint': 'false',
           }),
           headers: {
-            'User-Agent': client.userAgent,
+            'User-Agent': requestClient.userAgent,
             'Origin': 'https://${client.host}',
             'X-YouTube-Client-Name': '${client.id}',
             'X-YouTube-Client-Version': version,
@@ -141,9 +210,7 @@ class YoutubeAudio {
               'client': {
                 'clientName': client.name,
                 'clientVersion': version,
-                'userAgent': useSignedInMusicClient
-                    ? signedInSession!.userAgent
-                    : client.userAgent,
+                'userAgent': requestClient.userAgent,
                 ...client.extra,
                 'hl': 'en',
                 if (useSignedInMusicClient &&
@@ -159,14 +226,204 @@ class YoutubeAudio {
           },
           cancel: cancel,
         );
-        return pick(response, client);
+        final audio = pick(response, requestClient);
+        // A player response can say OK while its URL is already dead or is
+        // bound to a different client identity. Verify actual media access
+        // before handing the link to the downloader; a 403 from one client
+        // must not prevent the next client from being tried.
+        await _probeMedia(audio, cancel: cancel);
+        return audio;
       } on DiscoveryException catch (error) {
         if (error.message == 'Request cancelled.') rethrow;
         failure = error;
       }
     }
+    try {
+      final advanced = await _resolveWithNativeFallback(
+        videoId,
+        signedInSession,
+        cancel: cancel,
+      );
+      if (advanced != null) return advanced;
+    } on DiscoveryException catch (error) {
+      if (error.message == 'Request cancelled.') rethrow;
+      failure = error;
+    }
     throw failure ??
         const DiscoveryException('YouTube didn’t give this song’s audio.');
+  }
+
+  Future<ResolvedDiscoveryAudio?> _resolveWithNativeFallback(
+    String videoId,
+    YoutubeMusicSession? signedInSession, {
+    Future<void>? cancel,
+  }) async {
+    final injected = nativeFallback;
+    if (injected != null) return injected(videoId, signedInSession);
+    if (!io.Platform.isAndroid) return null;
+
+    final cookies = signedInSession?.cookies;
+    final cookie = cookies == null || cookies.isEmpty
+        ? null
+        : cookies.entries.map((entry) => '${entry.key}=${entry.value}').join('; ');
+    final request = _nativeChannel.invokeMapMethod<String, Object?>(
+      'resolveStream',
+      {
+        'videoId': videoId,
+        if (cookie != null) 'cookie': cookie,
+        if (signedInSession?.visitorData case final visitorData?)
+          'visitorData': visitorData,
+      },
+    ).timeout(const Duration(seconds: 95));
+    final Map<String, Object?>? response;
+    try {
+      response = cancel == null
+          ? await request
+          : await Future.any([
+              request,
+              cancel.then<Map<String, Object?>?>(
+                (_) => throw const DiscoveryException('Request cancelled.'),
+              ),
+            ]);
+    } on DiscoveryException {
+      rethrow;
+    } on PlatformException catch (_) {
+      throw const DiscoveryException(
+        'YouTube could not resolve a playable stream with its advanced resolver.',
+      );
+    } on MissingPluginException {
+      return null;
+    } on TimeoutException {
+      throw const DiscoveryException(
+        'YouTube advanced stream resolution timed out. Try again.',
+      );
+    }
+    if (response == null) return null;
+    final urlText = response['url'];
+    if (urlText is! String) return null;
+    final url = Uri.tryParse(urlText);
+    if (url == null ||
+        url.scheme != 'https' ||
+        !url.host.toLowerCase().endsWith('.googlevideo.com')) {
+      throw const DiscoveryException(
+        'YouTube returned an invalid media URL from its advanced resolver.',
+      );
+    }
+    final rawHeaders = response['headers'];
+    final headers = <String, String>{};
+    if (rawHeaders is Map) {
+      for (final entry in rawHeaders.entries) {
+        if (entry.key is String && entry.value is String) {
+          headers[entry.key as String] = entry.value as String;
+        }
+      }
+    }
+    final rawLength = response['length'];
+    return ResolvedDiscoveryAudio(
+      url,
+      length: rawLength is num && rawLength > 0 ? rawLength.toInt() : null,
+      headers: headers,
+    );
+  }
+
+  Future<void> _probeMedia(
+    ResolvedDiscoveryAudio audio, {
+    Future<void>? cancel,
+  }) async {
+    final abort = Completer<void>();
+    var timedOut = false;
+    var cancelled = false;
+    final timer = Timer(const Duration(seconds: 7), () {
+      timedOut = true;
+      if (!abort.isCompleted) abort.complete();
+    });
+    if (cancel != null) {
+      unawaited(
+        cancel.then((_) {
+          cancelled = true;
+          if (!abort.isCompleted) abort.complete();
+        }),
+      );
+    }
+    final request = net.AbortableRequest(
+      'GET',
+      audio.url,
+      abortTrigger: abort.future,
+    )
+      ..followRedirects = true
+      ..headers.addAll({
+        'Accept': '*/*',
+        'Range': 'bytes=0-16383',
+        ...audio.headers,
+      });
+    StreamIterator<List<int>>? chunks;
+    try {
+      if (abort.isCompleted) {
+        throw const DiscoveryException('Request cancelled.');
+      }
+      final pending = http.client.send(request).then((response) {
+        if (abort.isCompleted) {
+          unawaited(response.stream.listen(null).cancel());
+          throw const DiscoveryException('Request cancelled.');
+        }
+        return response;
+      });
+      final response = await Future.any([
+        pending,
+        abort.future.then<net.StreamedResponse>(
+          (_) => throw const DiscoveryException('Request cancelled.'),
+        ),
+      ]);
+      if (response.statusCode != 200 && response.statusCode != 206) {
+        unawaited(response.stream.listen(null).cancel());
+        throw DiscoveryException(
+          'YouTube refused the media URL (HTTP ${response.statusCode}).',
+        );
+      }
+      final contentType = response.headers['content-type']?.toLowerCase();
+      if (contentType != null &&
+          contentType.isNotEmpty &&
+          !contentType.startsWith('audio/') &&
+          !contentType.startsWith('video/') &&
+          !contentType.contains('octet-stream')) {
+        unawaited(response.stream.listen(null).cancel());
+        throw const DiscoveryException(
+          'YouTube returned a non-audio response for this recording.',
+        );
+      }
+      chunks = StreamIterator(response.stream);
+      final hasChunk = await Future.any([
+        chunks.moveNext().timeout(const Duration(seconds: 5)),
+        abort.future.then<bool>(
+          (_) => throw const DiscoveryException('Request cancelled.'),
+        ),
+      ]);
+      if (!hasChunk || chunks.current.isEmpty || _looksLikeHtml(chunks.current)) {
+        throw const DiscoveryException(
+          'YouTube returned no playable audio bytes for this recording.',
+        );
+      }
+    } catch (error) {
+      if (timedOut) {
+        throw const DiscoveryException('YouTube media verification timed out.');
+      }
+      if (cancelled) throw const DiscoveryException('Request cancelled.');
+      if (error is DiscoveryException) rethrow;
+      throw const DiscoveryException(
+        'Could not verify the YouTube media URL. Trying another player client.',
+      );
+    } finally {
+      timer.cancel();
+      if (!abort.isCompleted) abort.complete();
+      await chunks?.cancel();
+    }
+  }
+
+  static bool _looksLikeHtml(List<int> bytes) {
+    final prefix = String.fromCharCodes(bytes.take(96)).trimLeft().toLowerCase();
+    return prefix.startsWith('<!doctype html') ||
+        prefix.startsWith('<html') ||
+        prefix.startsWith('<?xml');
   }
 
   /// The best AAC audio in a player [response]: the player plays MP4 audio,
@@ -212,7 +469,15 @@ class YoutubeAudio {
     return ResolvedDiscoveryAudio(
       best.url,
       length: best.length,
-      headers: {'User-Agent': client.userAgent},
+      headers: {
+        'User-Agent': client.userAgent,
+        // Web playback URLs are tied to the requesting origin as well as
+        // the client version; mirror BitChord's media headers.
+        if (client.name == 'WEB_REMIX' || client.name == 'WEB_EMBEDDED_PLAYER')
+          'Origin': 'https://${client.host}',
+        if (client.name == 'WEB_REMIX' || client.name == 'WEB_EMBEDDED_PLAYER')
+          'Referer': client.embedUrl ?? 'https://${client.host}/',
+      },
     );
   }
 }

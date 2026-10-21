@@ -47,6 +47,7 @@ class DiscoveryHttp {
     required Duration deadline,
     required FutureOr<void> Function(List<int>) onChunk,
     Future<void>? cancel,
+    bool allowPartial = false,
   }) async {
     requireHttps(url.toString());
     final abort = Completer<void>();
@@ -97,7 +98,8 @@ class DiscoveryHttp {
         ),
       ]);
       chunks = StreamIterator(response.stream);
-      if (response.statusCode != 200) {
+      if (response.statusCode != 200 &&
+          !(allowPartial && response.statusCode == 206)) {
         throw DiscoveryException(switch (response.statusCode) {
           401 ||
           403 => 'The source refused access. Check its configuration or token.',

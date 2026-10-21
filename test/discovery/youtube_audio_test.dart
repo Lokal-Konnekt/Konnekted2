@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flick/features/discovery/discovery_http.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
+import 'package:flick/features/discovery/discovery_sources.dart';
 import 'package:flick/features/discovery/youtube_audio.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,6 +90,20 @@ void main() {
     final authorization = <String>[];
     final cookies = <String>[];
     final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET' && request.url.host == 'music.youtube.com') {
+        return http.Response(
+          '<script>var ytcfg = {"INNERTUBE_CLIENT_VERSION":"1.20261001.01.00"};</script>',
+          200,
+          headers: {'content-type': 'text/html'},
+        );
+      }
+      if (request.method == 'GET') {
+        return http.Response.bytes(
+          [0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32, 32],
+          206,
+          headers: {'content-type': 'audio/mp4'},
+        );
+      }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       final client = body['context']['client'] as Map<String, dynamic>;
       final name = '${client['clientName']}';
@@ -124,6 +139,8 @@ void main() {
     ).resolve('dQw4w9WgXcQ');
     expect(asked.last, 'WEB_REMIX');
     expect(audio.url.queryParameters['itag'], '140');
+    expect(audio.headers['Origin'], 'https://music.youtube.com');
+    expect(audio.headers['Referer'], 'https://music.youtube.com/');
     expect(authorization.single, startsWith('SAPISIDHASH '));
     expect(cookies.single, contains('SAPISID=signed-in-cookie'));
   });
@@ -148,6 +165,13 @@ void main() {
   test('falls back to the current Android client when older clients are refused', () async {
     final asked = <String>[];
     final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response.bytes(
+          [0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32, 32],
+          206,
+          headers: {'content-type': 'audio/mp4'},
+        );
+      }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       final name = body['context']['client']['clientName'] as String;
       asked.add(name);
@@ -176,9 +200,115 @@ void main() {
     expect(audio.headers['User-Agent'], contains('com.google.android.youtube'));
   });
 
+  test('tries another client when a valid player response has a denied media URL', () async {
+    final asked = <String>[];
+    const deniedHost = 'rr1---sn-abc.googlevideo.com';
+    const allowedHost = 'rr2---sn-abc.googlevideo.com';
+    final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET') {
+        if (request.url.host == deniedHost) return http.Response('', 403);
+        expect(request.headers['range'], 'bytes=0-16383');
+        return http.Response.bytes(
+          [0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32, 32],
+          206,
+          headers: {'content-type': 'audio/mp4'},
+        );
+      }
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final name = body['context']['client']['clientName'] as String;
+      asked.add(name);
+      if (name == 'VISIONOS') {
+        return http.Response(
+          jsonEncode(_player([
+            _format(140, 'audio/mp4; codecs="mp4a.40.2"', 130000, host: deniedHost),
+          ])),
+          200,
+        );
+      }
+      if (name == 'ANDROID_VR') {
+        return http.Response(
+          jsonEncode(_player([
+            _format(140, 'audio/mp4; codecs="mp4a.40.2"', 130000, host: allowedHost),
+          ])),
+          200,
+        );
+      }
+      return http.Response(
+        jsonEncode({
+          'playabilityStatus': {'status': 'UNPLAYABLE'},
+        }),
+        200,
+      );
+    });
+    addTearDown(fake.close);
+
+    final audio = await YoutubeAudio(DiscoveryHttp(fake)).resolve('dQw4w9WgXcQ');
+    expect(asked, ['VISIONOS', 'ANDROID_VR']);
+    expect(audio.url.host, allowedHost);
+  });
+
+  test('uses the native InnerTubeX fallback when public clients are refused', () async {
+    final asked = <String>[];
+    final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET' && request.url.host == 'music.youtube.com') {
+        return http.Response(
+          '<script>var ytcfg = {"INNERTUBE_CLIENT_VERSION":"1.20261001.01.00"};</script>',
+          200,
+          headers: {'content-type': 'text/html'},
+        );
+      }
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final name = body['context']['client']['clientName'] as String;
+      asked.add(name);
+      return http.Response(
+        jsonEncode({
+          'playabilityStatus': {
+            'status': 'UNPLAYABLE',
+            'reason': 'This client cannot play this recording',
+          },
+        }),
+        200,
+      );
+    });
+    addTearDown(fake.close);
+    var fallbackCalls = 0;
+    final audio = await YoutubeAudio(
+      DiscoveryHttp(fake),
+      nativeFallback: (id, session) async {
+        fallbackCalls++;
+        expect(id, 'dQw4w9WgXcQ');
+        expect(session, isNull);
+        return ResolvedDiscoveryAudio(
+          Uri.parse('https://rr1---sn-abc.googlevideo.com/videoplayback?clen=16384'),
+          length: 16384,
+          headers: const {'User-Agent': 'InnerTubeX client'},
+        );
+      },
+    ).resolve('dQw4w9WgXcQ');
+
+    expect(asked, [
+      'VISIONOS',
+      'ANDROID_VR',
+      'ANDROID',
+      'IOS',
+      'WEB_EMBEDDED_PLAYER',
+      'WEB_REMIX',
+    ]);
+    expect(fallbackCalls, 1);
+    expect(audio.url.host, 'rr1---sn-abc.googlevideo.com');
+    expect(audio.headers['User-Agent'], 'InnerTubeX client');
+  });
+
   test('asks as visionOS first, then the Quest app', () async {
     final asked = <String>[];
     final http.Client fake = MockClient((request) async {
+      if (request.method == 'GET') {
+        return http.Response.bytes(
+          [0, 0, 0, 24, 102, 116, 121, 112, 77, 52, 65, 32, 32],
+          206,
+          headers: {'content-type': 'audio/mp4'},
+        );
+      }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       final name = body['context']['client']['clientName'] as String;
       asked.add(name);
@@ -200,7 +330,7 @@ void main() {
     final audio = await YoutubeAudio(DiscoveryHttp(fake))
         .resolve('dQw4w9WgXcQ');
     expect(asked, ['VISIONOS', 'ANDROID_VR']);
-    expect(audio.headers['User-Agent'], YoutubeAudio.clients.last.userAgent);
+    expect(audio.headers['User-Agent'], YoutubeAudio.clients[1].userAgent);
     expect(
       () => YoutubeAudio(DiscoveryHttp(fake)).resolve('not a video id'),
       throwsA(isA<DiscoveryException>()),

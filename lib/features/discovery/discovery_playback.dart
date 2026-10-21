@@ -119,17 +119,26 @@ class DiscoveryPlaybackCache {
           if (left <= Duration.zero) {
             throw const DiscoveryException('The source timed out. Try again.');
           }
+          // Googlevideo links are signed/client-bound: keep the exact URL
+          // and use the Range header the media endpoint expects.
+          final googleVideo = audio.url.host.toLowerCase().endsWith('.googlevideo.com');
           await http.transfer(
-            audio.url.replace(
-              queryParameters: {
-                ...audio.url.queryParameters,
-                'range': '$start-$end',
-              },
-            ),
-            headers: audio.headers,
+            googleVideo
+                ? audio.url
+                : audio.url.replace(
+                    queryParameters: {
+                      ...audio.url.queryParameters,
+                      'range': '$start-$end',
+                    },
+                  ),
+            headers: {
+              ...audio.headers,
+              if (googleVideo) 'Range': 'bytes=$start-$end',
+            },
             maxBytes: end - start + 1,
             deadline: left,
             cancel: cancel,
+            allowPartial: googleVideo,
             onChunk: write,
           );
         }

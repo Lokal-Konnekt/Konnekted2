@@ -87,7 +87,7 @@ class LokalPlayerRoute<T> extends PageRoute<T> {
     this.reduceMotion,
     this.initialProgress,
     super.settings,
-  }) : _heroes = ValueNotifier(initialProgress == null);
+  }) : _heroes = ValueNotifier(true);
 
   final WidgetBuilder builder;
 
@@ -100,8 +100,9 @@ class LokalPlayerRoute<T> extends PageRoute<T> {
   final bool Function()? reduceMotion;
 
   /// Opens from here rather than from the mini player: where a finger let
-  /// go of [LokalPlayerPull]. The artwork doesn't fly then (it is already
-  /// on its way up with the sheet); it does again once open.
+  /// go of [LokalPlayerPull]. Keep the matching Hero active at handoff so the
+  /// cover can settle into the full-player artwork and reverse into the footer
+  /// when Now Playing is dismissed.
   final double? initialProgress;
 
   final ValueNotifier<bool> _heroes;

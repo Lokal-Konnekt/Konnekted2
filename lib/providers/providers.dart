@@ -27,7 +27,6 @@ export 'connectivity_provider.dart';
 export 'lokal_remote_provider.dart';
 export 'update_check_provider.dart';
 export 'milestone_provider.dart';
-export 'tutorial_provider.dart';
 export 'whats_new_provider.dart';
 export 'cast_provider.dart';
 export 'detail_description_provider.dart';

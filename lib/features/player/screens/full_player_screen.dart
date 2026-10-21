@@ -10,6 +10,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/player/lokal_lyrics_subline.dart';
+import 'package:flick/features/player/screens/classic_full_player_screen.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/features/queue/screens/queue_screen.dart';

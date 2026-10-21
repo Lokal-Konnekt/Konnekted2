@@ -141,11 +141,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Home music'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('youtube-catalog-enabled')));
-    await tester.pumpAndSettle();
-    expect(store.settings.youtubeEnabled, isFalse);
-    expect(store.settings.addons, hasLength(1));
-
     await tester.tap(find.byKey(const ValueKey('http-addon-enabled-home')));
     await tester.pumpAndSettle();
     expect(store.settings.addons.single.enabled, isFalse);

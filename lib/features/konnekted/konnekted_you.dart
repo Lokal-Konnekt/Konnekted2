@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'konnekted_data.dart';
 import 'konnekted_destination.dart';
+import 'konnekted_style.dart';
 
 /// The recaps You shows: this week, this month and this year, rebuilt as
 /// plays are recorded.
@@ -335,7 +336,7 @@ class _YouHeader extends StatelessWidget {
     final t = context.lokal;
     final initial = name.characters.first.toUpperCase();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
+      padding: konnektedTopBarPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

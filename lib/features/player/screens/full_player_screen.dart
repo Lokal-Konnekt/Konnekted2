@@ -13,8 +13,10 @@ import 'package:flick/features/player/lokal_lyrics_subline.dart';
 import 'package:flick/features/player/screens/classic_full_player_screen.dart';
 import 'package:flick/features/player/widgets/audio_visualizer.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
+import 'package:flick/features/player/widgets/player_artwork_image.dart';
 import 'package:flick/features/queue/screens/queue_screen.dart';
 import 'package:flick/widgets/lokal/lokal_like_burst.dart';
+import 'package:flick/widgets/lokal/lokal_player_artwork.dart';
 import 'package:flick/widgets/lokal/lokal_pull_to_dismiss.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/widgets/lokal/lokal_queue_reveal.dart';
@@ -75,6 +77,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   bool _draggingVolume = false;
 
   bool _carouselDragging = false;
+  final _carouselKey = GlobalKey<SongStageCarouselState>();
 
   /// The queue opens in place: the cover shrinks into a header row and the
   /// list rises under it, all off this one value (0 = player, 1 = queue).
@@ -310,7 +313,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           return Stack(
             fit: StackFit.expand,
             children: [
-              _FluidBackdrop(colors: colors),
+              _FluidBackdrop(colors: colors, song: song),
               Container(color: Colors.black.withValues(alpha: 0.24)),
               SafeArea(
                 child: Padding(
@@ -485,6 +488,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               builder: (context, _, __) => ValueListenableBuilder<int>(
                 valueListenable: _player.currentIndexNotifier,
                 builder: (context, _, __) => SongStageCarousel(
+                  key: _carouselKey,
                   currentSong: song,
                   nextSong: _player.peekNext,
                   prevSong: _player.peekPrevious,
@@ -505,93 +509,53 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               ),
             );
           },
-          info: (context, p) {
-            final hasAlbum = (song.album ?? '').trim().isNotEmpty;
-            final title = Text(
-              song.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: _font,
-                fontSize: lerpDouble(titleSize, 18, p),
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
-            );
-            return Column(
+          info: (context, p) => AnimatedSwitcher(
+            duration: _animate
+                ? const Duration(milliseconds: 420)
+                : Duration.zero,
+            layoutBuilder: (current, previous) => Stack(
+              alignment: Alignment.topLeft,
+              children: [...previous, if (current != null) current],
+            ),
+            child: Column(
+              key: ValueKey(song.id),
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (hasAlbum)
-                  Tooltip(
-                    message: 'Open album',
-                    child: InkWell(
-                      onTap: () => openLokalAlbumForSong(context, song),
-                      borderRadius: BorderRadius.circular(5),
-                      child: title,
-                    ),
-                  )
-                else
-                  title,
+                Text(
+                  song.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: _font,
+                    fontSize: lerpDouble(titleSize, 18, p),
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
                 SizedBox(height: lerpDouble(2, 1, p)),
-                Row(
-                  children: [
-                    Flexible(
-                      flex: 3,
-                      child: InkWell(
-                        onTap: song.artist.trim().isEmpty
-                            ? null
-                            : () => openLokalArtist(context, song: song),
-                        borderRadius: BorderRadius.circular(4),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 1),
-                          child: Text(
-                            song.artist,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: _font,
-                              fontSize: lerpDouble(14, 13, p),
-                              color: Colors.white.withValues(alpha: 0.72),
-                            ),
-                          ),
-                        ),
+                InkWell(
+                  onTap: song.artist.trim().isEmpty
+                      ? null
+                      : () => openLokalArtist(context, song: song),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 1),
+                    child: Text(
+                      song.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: _font,
+                        fontSize: lerpDouble(14, 13, p),
+                        color: Colors.white.withValues(alpha: .72),
                       ),
                     ),
-                    if (hasAlbum || (song.year != null && song.year! > 0)) ...[
-                      const SizedBox(width: 5),
-                      Text(
-                        '·',
-                        style: TextStyle(
-                          fontFamily: _font,
-                          fontSize: lerpDouble(14, 13, p),
-                          color: Colors.white.withValues(alpha: 0.72),
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        flex: 2,
-                        child: Text(
-                          [
-                            if (hasAlbum) song.album!.trim(),
-                            if (song.year != null && song.year! > 0)
-                              '${song.year}',
-                          ].join(' · '),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: _font,
-                            fontSize: lerpDouble(14, 13, p),
-                            color: Colors.white.withValues(alpha: 0.72),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
           // Tapping the quality tier opens the full song metadata sheet.
           badge: switch (LokalQualityTier.of(song)) {
             final tier? => GestureDetector(
@@ -613,75 +577,77 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     required bool current,
     double progress = 0,
   }) {
-    final art = ClipRRect(
-      borderRadius: BorderRadius.circular(lerpDouble(28, 12, progress)!),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 280),
-        child: CachedImageWidget(
-          key: ValueKey('${song.id}|${song.albumArt}'),
-          imagePath: song.albumArt,
-          audioSourcePath: song.filePath,
-          fit: BoxFit.cover,
-          placeholder: const FlickArtworkPlaceholder(),
-          errorWidget: const FlickArtworkPlaceholder(),
-        ),
-      ),
+    final art = PlayerArtworkImage(
+      song: song,
+      radius: lerpDouble(28, 12, progress)!,
     );
     final shown = _burst;
     return GestureDetector(
       onDoubleTap: current && progress == 0 ? _likeFromArtwork : null,
-      child: SizedBox(
-        width: side,
-        height: side,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned.fill(
-              child: current
-                ? Hero(
-                    tag: widget.heroTag,
-                    createRectTween: (begin, end) => RectTween(
-                      begin: begin,
-                      end: end,
-                    ),
-                    flightShuttleBuilder:
-                        (flightContext, animation, direction, fromContext, toContext) =>
-                            AnimatedBuilder(
-                      animation: animation,
-                      builder: (context, child) => ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          lerpDouble(
-                            21,
-                            28,
-                            Curves.easeInOutCubic.transform(animation.value),
-                          )!,
-                        ),
-                        child: child,
-                      ),
-                      child: CachedImageWidget(
-                        imagePath: song.albumArt,
-                        audioSourcePath: song.filePath,
-                        fit: BoxFit.cover,
-                        placeholder: ColoredBox(color: flightContext.lokal.surface3),
-                        errorWidget: ColoredBox(color: flightContext.lokal.surface3),
-                      ),
-                    ),
-                    child: art,
-                  )
-                : art,
-            ),
-            if (current && _burstVisible)
-              LokalLikeBurst(
-                key: ValueKey(_burst),
-                color: context.lokal.accent,
-                size: side * .28,
-                onDone: () {
-                  if (mounted && shown == _burst) {
-                    setState(() => _burstVisible = false);
-                  }
-                },
+      child: LokalPlayerArtwork(
+        enabled: current,
+        child: SizedBox(
+          width: side,
+          height: side,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: current
+                    ? Hero(
+                        tag: widget.heroTag,
+                        createRectTween: (begin, end) =>
+                            RectTween(begin: begin, end: end),
+                        flightShuttleBuilder:
+                            (
+                              flightContext,
+                              animation,
+                              direction,
+                              fromContext,
+                              toContext,
+                            ) => AnimatedBuilder(
+                              animation: animation,
+                              builder: (context, child) => ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  lerpDouble(
+                                    21,
+                                    28,
+                                    Curves.easeInOutCubic.transform(
+                                      animation.value,
+                                    ),
+                                  )!,
+                                ),
+                                child: child,
+                              ),
+                              child: CachedImageWidget(
+                                imagePath: song.albumArt,
+                                audioSourcePath: song.filePath,
+                                fit: BoxFit.cover,
+                                placeholder: ColoredBox(
+                                  color: flightContext.lokal.surface3,
+                                ),
+                                errorWidget: ColoredBox(
+                                  color: flightContext.lokal.surface3,
+                                ),
+                              ),
+                            ),
+                        child: art,
+                      )
+                    : art,
               ),
-          ],
+              if (current && _burstVisible)
+                LokalLikeBurst(
+                  key: ValueKey(_burst),
+                  color: context.lokal.accent,
+                  size: side * .28,
+                  onDone: () {
+                    if (mounted && shown == _burst) {
+                      setState(() => _burstVisible = false);
+                    }
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1001,7 +967,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           big(
             flex: 10,
             color: glass,
-            onTap: () => _player.previous(),
+            onTap: () =>
+                _carouselKey.currentState?.animateToPrevious() ??
+                _player.previous(),
             child: const Icon(
               Icons.skip_previous_rounded,
               size: 32,
@@ -1030,7 +998,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           big(
             flex: 10,
             color: glass,
-            onTap: () => _player.next(),
+            onTap: () =>
+                _carouselKey.currentState?.animateToNext() ?? _player.next(),
             child: const Icon(
               Icons.skip_next_rounded,
               size: 32,
@@ -1224,7 +1193,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   }
 }
 
-
 /// Focused visualizer view opened from Now Playing.
 class _NowPlayingVisualizerScreen extends StatelessWidget {
   const _NowPlayingVisualizerScreen({required this.player});
@@ -1341,7 +1309,9 @@ class _NowPlayingVisualizerScreen extends StatelessWidget {
                         builder: (context, playing, _) => FilledButton(
                           onPressed: () => player.togglePlayPause(),
                           style: FilledButton.styleFrom(
-                            backgroundColor: Colors.white.withValues(alpha: .16),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: .16,
+                            ),
                             foregroundColor: Colors.white,
                             shape: const CircleBorder(),
                             padding: const EdgeInsets.all(17),
@@ -1379,85 +1349,87 @@ class _NowPlayingVisualizerScreen extends StatelessWidget {
 
 // ═════════════════════════════ backdrop ═════════════════════════════
 
-/// Slowly drifting, heavily blurred colour blobs taken from the artwork palette.
+/// A continuous ping-pong drift of the actual artwork. The controller belongs
+/// to this unkeyed background, so track and palette changes never reset phase.
 class _FluidBackdrop extends StatefulWidget {
+  const _FluidBackdrop({required this.colors, required this.song});
   final List<Color> colors;
-  const _FluidBackdrop({required this.colors});
-
+  final Song song;
   @override
   State<_FluidBackdrop> createState() => _FluidBackdropState();
 }
 
 class _FluidBackdropState extends State<_FluidBackdrop>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
+  late final _motion = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 20),
-  )..repeat();
+    duration: const Duration(seconds: 18),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _motion.stop();
+    } else if (!_motion.isAnimating) {
+      _motion.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
-    _c.dispose();
+    _motion.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final colors = widget.colors;
-    final base = colors.first;
-    return RepaintBoundary(
-      child: TweenAnimationBuilder<Color?>(
-        tween: ColorTween(end: base),
-        duration: const Duration(milliseconds: 700),
-        builder: (context, animatedBase, _) {
-          return AnimatedBuilder(
-            animation: _c,
-            builder: (context, _) {
-              final size = MediaQuery.of(context).size;
-              final a = _c.value * 2 * math.pi;
-              Widget blob(Color color, double phase, double r) {
-                return Positioned(
-                  left: size.width * (0.5 + 0.42 * math.cos(a + phase)) - r,
-                  top:
-                      size.height *
-                          (0.5 + 0.38 * math.sin(a * 0.8 + phase * 1.7)) -
-                      r,
-                  child: Container(
-                    width: r * 2,
-                    height: r * 2,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: color.withValues(alpha: 0.85),
-                    ),
-                  ),
-                );
-              }
-
-              return ColoredBox(
-                color: (animatedBase ?? base).withValues(alpha: 1),
-                child: ClipRect(
-                  child: ImageFiltered(
-                    imageFilter: ImageFilter.blur(
-                      sigmaX: 80,
-                      sigmaY: 80,
-                      tileMode: TileMode.decal,
-                    ),
-                    child: Stack(
-                      children: [
-                        blob(colors[0], 0, size.width * 0.75),
-                        blob(colors[1 % colors.length], 2.1, size.width * 0.65),
-                        blob(colors[2 % colors.length], 4.2, size.width * 0.6),
-                      ],
-                    ),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: ClipRect(
+      child: AnimatedBuilder(
+        animation: _motion,
+        child: RepaintBoundary(
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(
+              sigmaX: 48,
+              sigmaY: 48,
+              tileMode: TileMode.clamp,
+            ),
+            child: PlayerArtworkImage(
+              song: widget.song,
+              radius: 0,
+              decodeWidth: 256,
+              placeholder: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [widget.colors.first, widget.colors.last],
                   ),
                 ),
-              );
-            },
+              ),
+            ),
+          ),
+        ),
+        builder: (context, child) {
+          final t = Curves.easeInOutSine.transform(_motion.value);
+          final size = MediaQuery.sizeOf(context);
+          return Transform.translate(
+            offset: Offset(
+              lerpDouble(-.08, .08, t)! * size.width,
+              lerpDouble(.06, -.06, t)! * size.height,
+            ),
+            child: Transform.rotate(
+              angle: lerpDouble(-.08, .08, t)!,
+              child: Transform.scale(
+                scale: lerpDouble(1.35, 1.5, t),
+                child: child,
+              ),
+            ),
           );
         },
       ),
-    );
-  }
+    ),
+  );
 }
 
 // ═════════════════════════════ flowing lyrics ═════════════════════════════

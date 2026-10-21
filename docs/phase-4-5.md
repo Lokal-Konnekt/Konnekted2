@@ -19,3 +19,15 @@ The language picker includes English, French, German, Spanish, Italian, Brazilia
 ## Implementation status
 
 Changes span this repository and the companion `CHEYCKIT/lokal` desktop checkout. See its `docs/desktop-link.md` for the wire protocol and desktop persistence. No CI, tests, analysis or builds were run for these feature changes at the user's request. Physical discovery, handoff, Android background playback, camera permission, launcher and widget behavior remain unverified. No hardware playback claims are made.
+
+## Follow-up interface fixes
+
+The Library header uses the same 20/12/16/0 padding, 44-pixel buttons and 24-pixel icons as Home and You. The footer now follows the first user scroll delta, including direction reversals and overscroll; horizontal shelves do not change its mode.
+
+The mini-player cover and player sheet follow one progress value during tap, drag, settle and close. A released pull settles before transferring the existing player state into the route, retaining decoded covers and backdrop phase. Covers share a clip around both images during replacement; neighbouring covers are decoded in the carousel before entry. Transport buttons use the cover carousel, metadata dissolves between tracks, and album names are omitted from the full player.
+
+The full-player backdrop now moves the actual artwork on an eased, reversing 18-second motion. Track changes retain the motion phase and dissolve decoded images instead of resetting a non-periodic palette animation.
+
+Share cards use one fixed 360×450 canvas for preview and 1080×1350 PNG export, with current Konnekted branding and self-contained image filtering. Template selection, editable lyric text, gallery save and native sharing all use the selected canvas. Artwork decoding finishes before export; a busy export freezes template controls. Filenames do not include unsanitized song IDs. Old backdrop sampling and Flick watermarks have been removed from card templates.
+
+These follow-up changes were source-reviewed and formatted only; no builds, analysis, tests, simulator or physical-device checks were run, as requested. The visual result still needs device review.

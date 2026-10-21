@@ -101,18 +101,23 @@ class _KonnektedDockState extends State<KonnektedDock>
   void didUpdateWidget(KonnektedDock old) {
     super.didUpdateWidget(old);
     final target = _wantsCollapse ? 1.0 : 0.0;
-    if (target == _collapse.value) return;
+    if (old.collapsed == widget.collapsed &&
+        old.hasMiniPlayer == widget.hasMiniPlayer)
+      return;
+    if (target == _collapse.value && !_collapse.isAnimating) return;
     if (MediaQuery.disableAnimationsOf(context)) {
       _collapse.value = target;
     } else {
-      // A critically damped spring, so a flick that reverses mid-fold carries
-      // its speed into the new direction instead of restarting a curve.
+      // Start the reverse on this frame rather than carrying momentum away
+      // from the user's new direction. Continuing folds keep their velocity.
       _collapse.animateWith(
         SpringSimulation(
           _spring,
           _collapse.value,
           target,
-          _collapse.velocity,
+          _collapse.velocity * (target - _collapse.value) > 0
+              ? _collapse.velocity
+              : 0,
           // Without this the spring rests a hair short of 0 and the folded
           // layer stays on top of the tabs, swallowing their taps.
           snapToEnd: true,
@@ -564,8 +569,10 @@ class KonnektedMiniPlayer extends ConsumerWidget {
     this.onPullUpStart,
     this.onPullUpUpdate,
     this.onPullUpEnd,
+    this.artworkKey,
   });
 
+  final Key? artworkKey;
   final VoidCallback onOpen;
   final VoidCallback onQueue;
 
@@ -581,6 +588,7 @@ class KonnektedMiniPlayer extends ConsumerWidget {
     if (song == null) return const SizedBox.shrink();
     return KonnektedMiniPlayerContent(
       song: song,
+      artworkKey: artworkKey,
       isPlaying: ref.watch(isPlayingProvider),
       onOpen: onOpen,
       onQueue: onQueue,
@@ -646,10 +654,12 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
     this.onPullUpStart,
     this.onPullUpUpdate,
     this.onPullUpEnd,
+    this.artworkKey,
   });
 
   final Song song;
   final bool isPlaying;
+  final Key? artworkKey;
   final VoidCallback onOpen;
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
@@ -719,6 +729,7 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                                     RectTween(begin: begin, end: end),
                                 flightShuttleBuilder: _flight,
                                 child: KonnektedArtwork(
+                                  key: artworkKey,
                                   song: song,
                                   size: 42,
                                   radius: 21,

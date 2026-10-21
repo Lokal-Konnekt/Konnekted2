@@ -39,11 +39,11 @@ class _MilkDropVisualizerState extends State<MilkDropVisualizer> {
       return _document
           .replaceFirst(
             '<!-- BUTTERCHURN_ENGINE -->',
-            '<script>\\n${assets[0]}\\n</script>',
+            '<script>\n${assets[0]}\n</script>',
           )
           .replaceFirst(
             '<!-- BUTTERCHURN_PRESETS -->',
-            '<script>\\n${assets[1]}\\n</script>',
+            '<script>\n${assets[1]}\n</script>',
           );
     } catch (_) {
       if (mounted) {

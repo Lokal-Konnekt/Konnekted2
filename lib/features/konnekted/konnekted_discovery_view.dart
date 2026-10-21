@@ -659,11 +659,15 @@ class _KonnektedDiscoveryViewState
             ),
           )
         else if (value == null || !value.enabled)
-          const KonnektedMessage(
+          KonnektedMessage(
             title: 'Spotify Discovery is off',
             message:
-                'Enable Spotify Discovery in the Spotify library settings to add personal shelves to Home.',
+                'Connect your Spotify session to enable personal shelves.',
             icon: Icons.auto_awesome_rounded,
+            actionLabel: 'Connect Spotify',
+            onAction: () => unawaited(
+              _selectDiscoverySource(KonnektedDiscoverySource.spotify),
+            ),
           )
         else if (!value.connected)
           KonnektedMessage(

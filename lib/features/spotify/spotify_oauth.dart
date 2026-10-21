@@ -146,7 +146,7 @@ class SpotifyOAuthService {
   static String _extractSpDc(String input) {
     final value = input.trim();
     if (value.isEmpty) return '';
-    final named = RegExp(r'(?:^|;\s*)sp_dc=([^;]+)').firstMatch(value);
+    final named = RegExp(r'(?:^|[;\s])sp_dc=([^;\s]+)').firstMatch(value);
     if (named != null) return named.group(1)?.trim() ?? '';
     if (value.toLowerCase().startsWith('sp_dc=')) {
       return value.substring('sp_dc='.length).split(';').first.trim();

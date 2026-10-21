@@ -339,27 +339,27 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell> {
                         right: 0,
                         bottom: 0,
                         child: ListenableBuilder(
-                            listenable: Listenable.merge([
-                              _tab,
-                              _dockCollapsed,
-                            ]),
-                            builder: (_, _) => KonnektedDock(
-                              selected: _tab.value,
-                              onSelect: _select,
-                              hasMiniPlayer: hasSong,
-                              collapsed: _dockCollapsed.value,
-                              onExpand: () => _dockCollapsed.value = false,
-                              miniPlayer: KonnektedMiniPlayer(
-                                  key: _miniPlayerKey,
-                                  onOpen: _openPlayer,
-                                  onPullUpStart: _pullPlayerStart,
-                                  onPullUpUpdate: (dy) => _pull?.dragBy(dy),
-                                  onPullUpEnd: _pullPlayerEnd,
-                                  onQueue: () =>
-                                      _navigate(KonnektedDestination.queue),
-                                ),
+                          listenable: Listenable.merge([
+                            _tab,
+                            _dockCollapsed,
+                          ]),
+                          builder: (_, _) => KonnektedDock(
+                            selected: _tab.value,
+                            onSelect: _select,
+                            hasMiniPlayer: hasSong,
+                            collapsed: _dockCollapsed.value,
+                            onExpand: () => _dockCollapsed.value = false,
+                            miniPlayer: KonnektedMiniPlayer(
+                              key: _miniPlayerKey,
+                              onOpen: _openPlayer,
+                              onPullUpStart: _pullPlayerStart,
+                              onPullUpUpdate: (dy) => _pull?.dragBy(dy),
+                              onPullUpEnd: _pullPlayerEnd,
+                              onQueue: () =>
+                                  _navigate(KonnektedDestination.queue),
                             ),
                           ),
+                        ),
                       ),
                     ],
                   );

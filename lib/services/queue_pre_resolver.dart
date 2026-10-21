@@ -254,8 +254,9 @@ class QueuePreResolver {
     if (host == null) return const [];
     // The foreground request gets the add-on runtime and bandwidth first.
     // Queue notifications during its download must not start competing work.
-    if (_running.values.any((lookup) => lookup.onDemand && !lookup.cancelled))
+    if (_running.values.any((lookup) => lookup.onDemand && !lookup.cancelled)) {
       return const [];
+    }
     _pruneRecent();
     for (final timer in _timers) {
       timer.cancel();
@@ -349,8 +350,9 @@ class QueuePreResolver {
         onStatus: (message) {
           if (lookup.onDemand &&
               !lookup.cancelled &&
-              identical(_statusOwner, lookup))
+              identical(_statusOwner, lookup)) {
             status.value = message;
+          }
         },
       );
     } catch (_) {

@@ -46,14 +46,36 @@ class LinkFileCopy {
     await source.requireOriginalFileSupport(credentials);
     final server = await source.ensureServer(credentials);
     final songs = await SongRepository().getAllSongs();
+    final entities = await Database.songs.getAll([
+      for (final song in songs)
+        if (int.tryParse(song.id) case final id?) id,
+    ]);
+    final mediaUris = {
+      for (final row in entities)
+        if (row?.mediaStoreUri case final uri?) row!.id.toString(): uri,
+    };
     final local = <Song>[];
     for (final song in songs) {
       if (song.isNetworkSource || song.filePath == null) continue;
       final uri = Uri.tryParse(song.filePath!);
-      if (uri?.scheme == 'content' ||
-          await File(uri?.scheme == 'file' ? uri!.toFilePath() : song.filePath!)
-              .exists())
+      if (uri?.scheme == 'content') {
         local.add(song);
+        continue;
+      }
+      var exists = false;
+      try {
+        exists = await File(
+          uri?.scheme == 'file' ? uri!.toFilePath() : song.filePath!,
+        ).exists();
+      } on FileSystemException {
+        /* The media URI may still be accessible. */
+      }
+      final mediaUri = mediaUris[song.id];
+      if (exists) {
+        local.add(song);
+      } else if (mediaUri != null && mediaUri.startsWith('content://')) {
+        local.add(song.copyWith(filePath: mediaUri));
+      }
     }
     final missing = <Song>[];
     for (var offset = 0; offset < local.length; offset += 250) {
@@ -145,8 +167,13 @@ class LinkFileCopy {
         try {
           await LokalDesktopSource.instance.uploadToDesktop(song, credentials);
           sent++;
-        } catch (_) {
-          failures.add(song.title);
+        } catch (error) {
+          final reason = error is StateError
+              ? error.message
+              : error is HttpException
+              ? error.message
+              : 'Could not read or send the audio file. Reconnect and retry.';
+          failures.add('${song.title} — $reason');
         }
         processed++;
         report(LinkCopyPhase.copying);

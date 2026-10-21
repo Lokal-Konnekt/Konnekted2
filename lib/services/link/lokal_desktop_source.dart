@@ -418,24 +418,87 @@ class LokalDesktopSource extends NetworkSourceService {
     Song song,
     LokalRemoteCredentials credentials,
   ) async {
-    if (song.filePath == null || song.isNetworkSource) return;
-    var extension = song.fileType.toLowerCase();
-    extension =
-        const {'mpeg': 'mp3', 'mp4': 'm4a', 'wave': 'wav'}[extension] ??
-        extension;
-    if (!RegExp(r'^[a-z0-9]{1,8}$').hasMatch(extension))
-      throw StateError('This file format cannot be sent.');
-    var temporary = false;
+    if (song.filePath == null || song.isNetworkSource) {
+      throw StateError('This song has no local audio file to send.');
+    }
+    const formats = {
+      'flac',
+      'mp3',
+      'm4a',
+      'aac',
+      'ogg',
+      'opus',
+      'wav',
+      'aiff',
+      'aif',
+      'alac',
+      'ape',
+      'wv',
+      'dsf',
+      'dff',
+      'webm',
+    };
+    String normalize(String value) {
+      final raw = value.trim().toLowerCase().replaceFirst(RegExp(r'^\.'), '');
+      return const {
+            'mpeg': 'mp3',
+            'mp4': 'm4a',
+            'wave': 'wav',
+            'wavpack': 'wv',
+            'wv-dsd': 'wv',
+          }[raw] ??
+          raw;
+    }
+
     var path = song.filePath!;
     if (path.startsWith('file://')) path = Uri.parse(path).toFilePath();
+    final pathExtension = normalize(
+      Uri.tryParse(path)?.path.split('.').last ?? '',
+    );
+    final extension = formats.contains(pathExtension)
+        ? pathExtension
+        : normalize(song.fileType);
+    if (!formats.contains(extension)) {
+      throw StateError('This audio format cannot be sent to the desktop.');
+    }
+    var temporary = false;
+    Future<String> stage(String uri) async {
+      try {
+        final staged = await const MethodChannel('lokal/desktop_link')
+            .invokeMethod<String>('stageAudio', {
+              'uri': uri,
+              'extension': extension,
+            });
+        if (staged == null || staged.isEmpty)
+          throw StateError('The audio document could not be read.');
+        temporary = true;
+        return staged;
+      } on PlatformException {
+        throw StateError(
+          'Android denied access to this audio file. Re-select its music folder and retry.',
+        );
+      }
+    }
+
     if (path.startsWith('content://')) {
-      path =
-          await const MethodChannel('lokal/desktop_link').invokeMethod<String>(
-            'stageAudio',
-            {'uri': path, 'extension': extension},
-          ) ??
-          '';
-      temporary = true;
+      path = await stage(path);
+    } else {
+      // MediaStore may permit URI reads even when scoped storage denies a
+      // direct filesystem path. Use the grant already saved by the scanner.
+      try {
+        final handle = await File(path).open();
+        await handle.close();
+      } on FileSystemException {
+        final id = int.tryParse(song.id);
+        final row = id == null || !Database.isInitialized
+            ? null
+            : await Database.songs.get(id);
+        final uri = row?.mediaStoreUri;
+        if (uri == null || !uri.startsWith('content://')) {
+          throw StateError('This song is not stored as a readable local file.');
+        }
+        path = await stage(uri);
+      }
     }
     final file = File(path);
     try {
@@ -464,15 +527,62 @@ class LokalDesktopSource extends NetworkSourceService {
       request.contentLength = await file.length();
       final client = http.Client();
       try {
-        final responseFuture = client.send(request);
-        await request.sink.addStream(file.openRead());
-        await request.sink.close();
-        final response = await responseFuture.timeout(
+        // Bound the upload itself as well as the response: a desktop refusal
+        // must not leave the streamed request waiting indefinitely for a sink.
+        await (() async {
+          final results = await Future.wait<http.StreamedResponse?>([
+            client.send(request),
+            (() async {
+              await request.sink.addStream(file.openRead());
+              await request.sink.close();
+              return null;
+            })(),
+          ], eagerError: true);
+          final response = results.first!;
+          final bytes = <int>[];
+          await for (final chunk in response.stream) {
+            bytes.addAll(chunk);
+            if (bytes.length > 64 * 1024)
+              throw StateError(
+                'The desktop returned an invalid upload response.',
+              );
+          }
+          Map? body;
+          try {
+            body = jsonDecode(utf8.decode(bytes)) as Map;
+          } on Object {
+            /* Handle by status below. */
+          }
+          if (response.statusCode == 401 || response.statusCode == 403) {
+            throw StateError(
+              'The desktop rejected this pairing. Reconnect and retry.',
+            );
+          }
+          if (response.statusCode == 413)
+            throw StateError('The file exceeds the desktop upload size limit.');
+          if (response.statusCode != 200 ||
+              body?['ok'] != true ||
+              body?['trackId'] is! String) {
+            final unsupported =
+                body?['error']?.toString().toLowerCase().contains(
+                  'unsupported audio format',
+                ) ==
+                true;
+            throw StateError(
+              unsupported
+                  ? 'Update Lokal desktop to accept this audio format ($extension).'
+                  : 'The desktop could not save this file (HTTP ${response.statusCode}).',
+            );
+          }
+        })().timeout(
           const Duration(minutes: 3),
+          onTimeout: () {
+            client.close();
+            throw StateError(
+              'Sending the file timed out. Reconnect and retry.',
+            );
+          },
         );
-        await response.stream.drain<void>();
-        if (response.statusCode != 200)
-          throw const HttpException('The desktop could not save this song.');
       } finally {
         client.close();
       }

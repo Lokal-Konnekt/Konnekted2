@@ -76,6 +76,11 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: python3 tool/ci_release.py check-signing
+      - name: Prepare pinned Discord Social SDK
+        env:
+          LOKAL_DISCORD_SDK_PASSPHRASE: ${{ secrets.LOKAL_DISCORD_SDK_PASSPHRASE }}
+        run: python3 tool/prepare_discord_sdk.py
+
       - uses: ./.github/actions/android-toolchain
       - name: Build and verify signed source-native APK
         env:

@@ -46,6 +46,11 @@ jobs:
           # run number. Re-running the same beta keeps its versionCode.
         run: python3 tool/ci_release.py metadata
 
+      - name: Prepare pinned Discord Social SDK
+        env:
+          LOKAL_DISCORD_SDK_PASSPHRASE: ${{ secrets.LOKAL_DISCORD_SDK_PASSPHRASE }}
+        run: python3 tool/prepare_discord_sdk.py
+
       - uses: ./.github/actions/android-toolchain
         with:
           cache: 'true'

@@ -1,7 +1,7 @@
 """Stage Discord Social SDK 1.10.19337 downloaded from the Developer Portal.
 
 Usage: python3 tool/setup_discord_sdk.py /path/to/extracted/discord_social_sdk
-No SDK binaries, secrets or local SDK paths are committed.
+Unencrypted SDK binaries, secrets and local SDK paths are never committed.
 """
 from hashlib import sha256
 from pathlib import Path

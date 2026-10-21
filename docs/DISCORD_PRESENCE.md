@@ -6,7 +6,21 @@ installed Discord app's signed-in session. No client secret, bot token, user
 token or public verification key is required. Attribution and the MIT license
 are in `third_party/mornye_discord` and `THIRD_PARTY_NOTICES.md`.
 
-## Configure a Discord-enabled build
+## Repository beta/release builds
+
+The verified SDK 1.10.19337 is stored as an AES-256 encrypted archive under
+`third_party/discord`. One repository Actions secret is required:
+**`LOKAL_DISCORD_SDK_PASSPHRASE`**. Set its value to the separately delivered
+archive key in GitHub **Settings → Secrets and variables → Actions → New
+repository secret**. Never commit the key.
+
+Both signed beta and release workflows decrypt and hash-check the SDK before
+building. Missing/wrong keys fail early. APK packaging also requires the native
+Discord bridge, vendor library for both ARM ABIs, and both license notices, so a
+published build cannot silently omit Discord. Pull-request checks receive no key
+and continue using the SDK-free configuration.
+
+## Manual local setup
 
 1. At <https://discord.com/developers/applications>, create/select **Lokal**.
    Create a [Developer Team](https://discord.com/developers/teams) and assign
@@ -34,9 +48,9 @@ are in `third_party/mornye_discord` and `THIRD_PARTY_NOTICES.md`.
    Forks can override the public ID with
    `--dart-define=LOKAL_DISCORD_APPLICATION_ID=<their application ID>`.
    Release signing and the existing Android/Rust build prerequisites still apply.
-   For release automation, provision the official SDK in the build workspace and
-   run the staging command before Flutter builds; do not commit SDK archives or
-   local paths. The staging script verifies the pinned SDK file hashes and
+   Release automation uses the encrypted archive and Actions secret above.
+   Local builds can stage the extracted files as shown; never commit unencrypted
+   SDK files or local paths. The staging script verifies the pinned SDK file hashes and
    packages Discord's required license notices. Enabled SDK builds fail if a
    requested ABI is missing, rather than shipping a silently broken ABI.
 
@@ -58,8 +72,8 @@ are shared. Local covers and desktop/private-server artwork are never uploaded.
 They may therefore appear without artwork on Discord.
 
 Clean builds without the SDK or application ID still work, but the setting
-explains that Discord is unavailable in that build. The native bridge and Dart
-integration are prepared; an SDK-enabled APK and real Discord device session
-have **not** been validated in this environment. Android activity privacy,
+explains that Discord is unavailable in that build. The supplied SDK files match the pinned hashes, and the SDK-enabled native
+bridge has been compiled and linked for ARM64 and ARMv7. A full SDK-enabled APK
+and real Discord device session have **not** been validated in this environment. Android activity privacy,
 connectivity and background restrictions can affect availability. iOS support
 is not included in this Android integration.

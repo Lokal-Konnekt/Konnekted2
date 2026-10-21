@@ -7,8 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 const milkDropPresetNames = <String>[
   "_Aderrasi - Wanderer in Curved Space - mash0000 - faclempt kibitzing meshuggana schmaltz (Geiss color mix)",
   "_Mig_085",
-  "$$$ Royal - Mashup (197)",
-  "$$$ Royal - Mashup (431)",
+  '\$\$\$ Royal - Mashup (197)',
+  '\$\$\$ Royal - Mashup (431)',
   "An AdamFX n Martin Infusion 2 flexi - Why The Sky Looks Diffrent Today - AdamFx n Martin Infusion - Tack Tile Disfunction B",
   "Flexi - alien fish pond",
   "flexi - bouncing balls [double mindblob neon mix]",

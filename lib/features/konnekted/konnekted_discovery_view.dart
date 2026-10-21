@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/discovery/discovery_artwork.dart';

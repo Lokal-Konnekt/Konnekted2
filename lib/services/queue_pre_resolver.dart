@@ -68,6 +68,7 @@ class _Lookup {
 
   bool onDemand;
   bool cancelled = false;
+  Object? error;
   final cancel = Completer<void>();
   final result = Completer<Song?>();
 
@@ -316,10 +317,17 @@ class QueuePreResolver {
     if (running != null) {
       running.onDemand = true;
       _statusOwner = running;
-      return running.result.future;
+      return _foregroundResult(running);
     }
     final lookup = _start(id, onDemand: true);
-    return lookup?.result.future ?? Future.value(null);
+    return lookup == null ? Future.value(null) : _foregroundResult(lookup);
+  }
+
+  Future<Song?> _foregroundResult(_Lookup lookup) async {
+    final song = await lookup.result.future;
+    final error = lookup.error;
+    if (!lookup.cancelled && error != null) throw error;
+    return song;
   }
 
   /// A new playback request preempts the old foreground download immediately,
@@ -355,7 +363,8 @@ class QueuePreResolver {
           }
         },
       );
-    } catch (_) {
+    } catch (error) {
+      lookup.error = error;
       song = null;
     }
     if (identical(_running[id], lookup)) _running.remove(id);

@@ -1,3 +1,5 @@
+import '../lokal_page_geometry.dart';
+
 import 'package:flick/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -826,57 +828,61 @@ class LokalSettingsHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.lokal;
     final canPop = Navigator.maybeOf(context)?.canPop() ?? false;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (canPop || actions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: Row(
-                children: [
-                  if (canPop)
-                    _RoundButton(
-                      semanticLabel: lokalText('Back'),
-                      onPressed: () => Navigator.of(context).maybePop(),
-                      child: Icon(Icons.chevron_left_rounded, color: t.text),
-                    ),
-                  const Spacer(),
-                  for (final (i, action) in actions.indexed) ...[
-                    if (i > 0) const SizedBox(width: 8),
-                    action,
-                  ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: LokalPageGeometry.barPadding,
+          child: SizedBox(
+            height: LokalPageGeometry.barHeight,
+            child: Row(
+              children: [
+                if (canPop)
+                  _RoundButton(
+                    semanticLabel: lokalText('Back'),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    child: Icon(Icons.chevron_left_rounded, color: t.text),
+                  ),
+                const Spacer(),
+                for (final (i, action) in actions.indexed) ...[
+                  if (i > 0) const SizedBox(width: 10),
+                  action,
                 ],
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.only(left: 4),
-            child: Semantics(
-              header: true,
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontFamily: LokalTheme.sans,
-                  fontSize: 34,
-                  height: 1.1,
-                  letterSpacing: -1.2,
-                  fontWeight: FontWeight.w800,
-                  color: t.text,
-                ),
-              ),
+              ],
             ),
           ),
-          if (subtitle != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 6, 0, 0),
-              child: Text(
-                subtitle!,
-                style: TextStyle(fontSize: 13, color: t.muted, height: 1.4),
+        ),
+        Padding(
+          padding: LokalPageGeometry.titlePadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontFamily: LokalTheme.sans,
+                    fontSize: 34,
+                    height: 1.1,
+                    letterSpacing: -1,
+                    fontWeight: FontWeight.w800,
+                    color: t.text,
+                  ),
+                ),
               ),
-            ),
-        ],
-      ),
+              if (subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    subtitle!,
+                    style: TextStyle(fontSize: 13, color: t.muted, height: 1.4),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -965,7 +971,10 @@ class _RoundButton extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onPressed,
-          child: SizedBox.square(dimension: 40, child: Center(child: child)),
+          child: SizedBox.square(
+            dimension: LokalPageGeometry.barHeight,
+            child: Center(child: child),
+          ),
         ),
       ),
     );

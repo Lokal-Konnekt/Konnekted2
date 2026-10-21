@@ -46,6 +46,7 @@ class ColorExtractionService {
         targetHeight: 32,
       );
       final ui.FrameInfo frameInfo = await codec.getNextFrame();
+      codec.dispose();
       final ui.Image image = frameInfo.image;
 
       // Get pixel data
@@ -54,12 +55,16 @@ class ColorExtractionService {
       );
 
       if (byteData == null) {
+        image.dispose();
         return null;
       }
 
       final color = _calculateAverageColor(byteData, image.width, image.height);
 
+      image.dispose();
+
       // Cache the result
+      if (_colorCache.length >= 128) _colorCache.remove(_colorCache.keys.first);
       _colorCache[imagePath] = color;
 
       return color;
@@ -92,6 +97,7 @@ class ColorExtractionService {
         targetHeight: 32,
       );
       final frame = await codec.getNextFrame();
+      codec.dispose();
       final image = frame.image;
       final byteData = await image.toByteData(
         format: ui.ImageByteFormat.rawRgba,
@@ -178,6 +184,9 @@ class ColorExtractionService {
               );
             });
 
+      if (_paletteCache.length >= 128) {
+        _paletteCache.remove(_paletteCache.keys.first);
+      }
       _paletteCache[cacheKey] = palette;
       return palette;
     } catch (e) {

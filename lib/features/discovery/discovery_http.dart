@@ -6,7 +6,8 @@ import 'package:http/http.dart' as http;
 
 import 'discovery_models.dart';
 
-/// Bounded, redirect-free transport. The client is owned by the caller.
+/// Bounded transport. Only media redirects within HTTPS googlevideo are allowed.
+/// The client is owned by the caller.
 class DiscoveryHttp {
   DiscoveryHttp(this.client, {this.timeout = const Duration(seconds: 15)});
 
@@ -39,7 +40,7 @@ class DiscoveryHttp {
     throw const DiscoveryException('The source returned invalid JSON.');
   }
 
-  Future<void> transfer(
+  Future<int> transfer(
     Uri url, {
     Map<String, String> headers = const {},
     Map<String, Object?>? body,
@@ -48,6 +49,8 @@ class DiscoveryHttp {
     required FutureOr<void> Function(List<int>) onChunk,
     Future<void>? cancel,
     bool allowPartial = false,
+    bool followMediaRedirects = false,
+    int? rangeStart,
   }) async {
     requireHttps(url.toString());
     final abort = Completer<void>();
@@ -84,13 +87,39 @@ class DiscoveryHttp {
         throw const DiscoveryException('Request cancelled.');
       }
       // Future.any also bounds injected clients that do not implement abort.
-      final pending = client.send(request).then((response) {
-        if (abort.isCompleted) {
-          unawaited(response.stream.listen(null).cancel());
-          throw const DiscoveryException('Request cancelled.');
+      Future<http.StreamedResponse> send() async {
+        var next = request;
+        for (var redirects = 0; ; redirects++) {
+          final response = await client.send(next);
+          if (abort.isCompleted) {
+            unawaited(response.stream.listen(null).cancel());
+            throw const DiscoveryException('Request cancelled.');
+          }
+          final location = response.headers['location'];
+          if (!followMediaRedirects ||
+              location == null ||
+              !{301, 302, 303, 307, 308}.contains(response.statusCode))
+            return response;
+          final target = next.url.resolve(location);
+          await response.stream.listen(null).cancel();
+          if (redirects >= 3 ||
+              body != null ||
+              !url.host.endsWith('.googlevideo.com') ||
+              target.scheme != 'https' ||
+              target.userInfo.isNotEmpty ||
+              !target.host.endsWith('.googlevideo.com')) {
+            throw const DiscoveryException(
+              'The source returned an unsupported media redirect.',
+            );
+          }
+          next =
+              http.AbortableRequest('GET', target, abortTrigger: abort.future)
+                ..followRedirects = false
+                ..headers.addAll(headers);
         }
-        return response;
-      });
+      }
+
+      final pending = send();
       final response = await Future.any([
         pending,
         abort.future.then<http.StreamedResponse>(
@@ -98,15 +127,24 @@ class DiscoveryHttp {
         ),
       ]);
       chunks = StreamIterator(response.stream);
+      if (rangeStart != null &&
+          (response.statusCode == 200 || response.statusCode == 206)) {
+        final contentRange = RegExp(r'^bytes (\d+)-(\d+)/(\d+|\*)$')
+            .firstMatch(response.headers['content-range'] ?? '');
+        if (contentRange == null || int.parse(contentRange[1]!) != rangeStart) {
+          throw const DiscoveryException(
+            'The source returned an invalid media range.',
+          );
+        }
+      }
       if (response.statusCode != 200 &&
           !(allowPartial && response.statusCode == 206)) {
         throw DiscoveryException(switch (response.statusCode) {
-          401 ||
-          403 => 'The source refused access. Check its configuration or token.',
+          401 || 403 =>
+            'The source refused access (HTTP ${response.statusCode}). Check its configuration or token.',
           404 => 'This source or recording is unavailable (HTTP 404).',
           429 => 'The source is rate limiting requests. Try again later.',
-          >= 300 && < 400 =>
-            'The source redirected the request. Configure its final HTTPS address.',
+          >= 300 && < 400 => 'The source redirected the request. Configure its final HTTPS address.',
           _ =>
             'The source returned HTTP ${response.statusCode}. Try again later.',
         });
@@ -139,6 +177,7 @@ class DiscoveryHttp {
           'The source returned an empty or incomplete response.',
         );
       }
+      return received;
     } catch (error) {
       if (timedOut) {
         throw const DiscoveryException('The source timed out. Try again.');

@@ -12,11 +12,9 @@ import 'youtube_music_store.dart';
 import 'discovery_playback.dart';
 import '../../models/song.dart';
 
-/// A YouTube recording's audio, looked up with one request to YouTube's own
-/// player API, as desktop Lokal does before it falls back to yt-dlp
-/// (`electron/online/youtubeFast.js`). The phone has no player script to run,
-/// so it asks as the apps YouTube serves plain links to: visionOS first (no
-/// proof-of-origin token needed), then the Quest app.
+/// YouTube audio through the maintained native InnerTubeX/cipher/PoToken path
+/// on Android. The direct-client walk is only a fallback for other hosts or
+/// an older native build without the channel.
 class YoutubeAudio {
   YoutubeAudio(this.http, {this.session, this.nativeFallback});
 
@@ -61,8 +59,12 @@ class YoutubeAudio {
         if (!reason.contains('refused') &&
             !reason.contains('incomplete') &&
             !reason.contains('non-audio') &&
-            !reason.contains('http 403'))
+            !reason.contains('http 403') &&
+            !reason.contains('http 401') &&
+            !reason.contains('invalid media range') &&
+            !reason.contains('download size limit')) {
           rethrow;
+        }
         final client = audio.url.queryParameters['c'];
         if (client != null) _refusedClients.add(client.toUpperCase());
         if (io.Platform.isAndroid) {
@@ -216,9 +218,10 @@ class YoutubeAudio {
           cancel: cancel,
         );
         if (audio != null) return audio;
-      } on DiscoveryException catch (error) {
-        if (error.message == 'Request cancelled.') rethrow;
-        failure = error;
+      } on DiscoveryException {
+        // Do not hide a maintained resolver failure behind minutes of stale
+        // client retries and a second identical native walk.
+        rethrow;
       }
     }
     for (final client in clients) {
@@ -349,7 +352,7 @@ class YoutubeAudio {
           if (signedInSession?.visitorData case final visitorData?)
             'visitorData': visitorData,
         })
-        .timeout(const Duration(seconds: 95));
+        .timeout(const Duration(seconds: 50));
     final Map<String, Object?>? response;
     try {
       response = cancel == null
@@ -362,9 +365,11 @@ class YoutubeAudio {
             ]);
     } on DiscoveryException {
       rethrow;
-    } on PlatformException catch (_) {
-      throw const DiscoveryException(
-        'YouTube could not resolve a playable stream with its advanced resolver.',
+    } on PlatformException catch (error) {
+      throw DiscoveryException(
+        error.code == 'RESOLVE_TIMEOUT'
+            ? 'YouTube stream resolution timed out. Try again.'
+            : 'YouTube could not resolve playable audio. Try again or choose another source.',
       );
     } on MissingPluginException {
       return null;

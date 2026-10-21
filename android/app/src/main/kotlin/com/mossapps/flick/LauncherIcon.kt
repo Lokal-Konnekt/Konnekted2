@@ -13,9 +13,9 @@ import io.flutter.plugin.common.MethodChannel
  *
  * Desktop redraws its Dock/taskbar icon live; Android can only pick one of
  * the pre-built `.LauncherIcon<Accent>` aliases in the manifest. Swapping
- * aliases can make some launchers close the app, so Dart only records the
- * wanted accent and the swap happens in [applyPending], called from
- * `onStop`, when the app is already in the background.
+ * aliases uses DONT_KILL_APP. Apply immediately when Dart sends the saved
+ * accent, and retry on registration/onStop to repair launcher state after
+ * an upgrade or an interrupted change.
  */
 object LauncherIcon {
     private const val CHANNEL = "lokal/launcher_icon"
@@ -29,17 +29,14 @@ object LauncherIcon {
         "teal", "white", "yellow", "cyan", "magenta", "gray",
     )
     private const val DEFAULT = "lime"
-    private var backgrounded = false
     private var aliases: Map<String, String>? = null
 
-    fun onStart() { backgrounded = false }
-
     fun onStop(context: Context) {
-        backgrounded = true
         applyPending(context)
     }
 
     fun register(messenger: BinaryMessenger, context: Context) {
+        applyPending(context)
         MethodChannel(messenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "setAccent" -> {
@@ -49,8 +46,9 @@ object LauncherIcon {
                     } else {
                         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                             .edit().putString(KEY_WANTED, accent).apply()
-                        // Dart can deliver the final theme update after onStop.
-                        if (backgrounded) applyPending(context)
+                        // Xiaomi/HyperOS can retain the foreground task for a long
+                        // time. DONT_KILL_APP lets us update the launcher now.
+                        applyPending(context)
                         result.success(null)
                     }
                 }

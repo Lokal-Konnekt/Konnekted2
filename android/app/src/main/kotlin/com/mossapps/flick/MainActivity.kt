@@ -266,6 +266,8 @@ class MainActivity: FlutterActivity() {
                                     YoutubeNativeResolver.resolveStream(videoId, cookie, visitorData)
                                 }
                                 result.success(stream)
+                            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                                result.error("RESOLVE_TIMEOUT", "YouTube stream resolution timed out. Try again.", null)
                             } catch (e: kotlinx.coroutines.CancellationException) {
                                 result.error("CANCELLED", "YouTube resolution was cancelled.", null)
                             } catch (e: Exception) {
@@ -5505,11 +5507,6 @@ class MainActivity: FlutterActivity() {
         } catch (e: Exception) {
             Log.w("AudioDevice", "AudioDeviceCallback registration failed: ${e.message}")
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        LauncherIcon.onStart()
     }
 
     override fun onStop() {

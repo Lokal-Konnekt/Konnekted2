@@ -139,8 +139,8 @@ class AppPreferences {
     this.crossfadeDurationSecs = 3.0,
     this.crossfadeCurveIndex = 0,
     this.crossfeedLevel = 0,
-    this.swipeActionsEnabled = false,
-    this.favoriteRemovalMode = 'longpress',
+    this.swipeActionsEnabled = true,
+    this.favoriteRemovalMode = 'swipe',
     this.fastIndexEnabled = true,
     this.fastIndexTimeoutSeconds = 3,
     this.immersiveAutoFullViewSeconds = 0,
@@ -691,9 +691,9 @@ class AppPreferencesService {
       crossfadeDurationSecs: prefs.getDouble(_crossfadeDurationKey) ?? 3.0,
       crossfadeCurveIndex: prefs.getInt(_crossfadeCurveKey) ?? 0,
       crossfeedLevel: prefs.getInt(_crossfeedLevelKey) ?? 0,
-      swipeActionsEnabled: prefs.getBool(_swipeActionsEnabledKey) ?? false,
+      swipeActionsEnabled: prefs.getBool(_swipeActionsEnabledKey) ?? true,
       favoriteRemovalMode:
-          prefs.getString(_favoriteRemovalModeKey) ?? 'longpress',
+          prefs.getString(_favoriteRemovalModeKey) ?? 'swipe',
       fastIndexEnabled: prefs.getBool(_fastIndexEnabledKey) ?? true,
       fastIndexTimeoutSeconds: prefs.getInt(_fastIndexTimeoutKey) ?? 3,
       immersiveAutoFullViewSeconds:
@@ -1062,7 +1062,7 @@ class AppPreferencesService {
 
   Future<bool> getSwipeActionsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_swipeActionsEnabledKey) ?? false;
+    return prefs.getBool(_swipeActionsEnabledKey) ?? true;
   }
 
   Future<void> setSwipeActionsEnabled(bool value) async {
@@ -1072,7 +1072,7 @@ class AppPreferencesService {
 
   Future<String> getFavoriteRemovalMode() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_favoriteRemovalModeKey) ?? 'longpress';
+    return prefs.getString(_favoriteRemovalModeKey) ?? 'swipe';
   }
 
   Future<void> setFavoriteRemovalMode(String value) async {

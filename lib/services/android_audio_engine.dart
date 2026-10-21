@@ -9,14 +9,15 @@ import 'package:flick/models/song.dart';
 import 'package:flick/services/audio_engine.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
-typedef AndroidAudioSourcesBuilder =
-    Future<just_audio.AudioSource> Function();
-typedef AndroidAudioSourceBuilder =
-    Future<just_audio.AudioSource> Function(Song track);
+typedef AndroidAudioSourcesBuilder = Future<just_audio.AudioSource> Function();
+typedef AndroidAudioSourceBuilder = Future<just_audio.AudioSource> Function(
+  Song track,
+);
 typedef AndroidPlaylistProvider = List<Song> Function();
 typedef AndroidPlayerProvider = Future<just_audio.AudioPlayer> Function();
-typedef AndroidPlayerConfigurator =
-    Future<void> Function(just_audio.AudioPlayer player);
+typedef AndroidPlayerConfigurator = Future<void> Function(
+  just_audio.AudioPlayer player,
+);
 typedef AndroidEngineDisposer = Future<void> Function();
 typedef AndroidTrackSyncBlocker = bool Function();
 typedef AndroidTrackIgnorePredicate = bool Function(Song track);
@@ -27,12 +28,7 @@ typedef AndroidTrackAdvancedCallback = void Function(Song track);
 typedef AndroidTrackErrorCallback = void Function(Song track);
 
 /// Crossfade curve applied to the outgoing/incoming volume ramps.
-enum AndroidCrossfadeCurve {
-  equalPower,
-  linear,
-  squareRoot,
-  sCurve,
-}
+enum AndroidCrossfadeCurve { equalPower, linear, squareRoot, sCurve }
 
 /// Live snapshot of crossfade settings consumed by [AndroidAudioEngine].
 class AndroidCrossfadeConfig {
@@ -134,8 +130,8 @@ class AndroidAudioEngine implements AudioEngine {
        _shouldSuppressTrackSync = shouldSuppressTrackSync,
        _shouldIgnoreTrack = shouldIgnoreTrack,
        _shouldFastStartCurrentTrackOnly = shouldFastStartCurrentTrackOnly,
-       _crossfadeConfigProvider = crossfadeConfigProvider ??
-           (() => AndroidCrossfadeConfig.disabled),
+       _crossfadeConfigProvider =
+           crossfadeConfigProvider ?? (() => AndroidCrossfadeConfig.disabled),
        _onNextSong = onNextSong,
        _onTrackAdvanced = onTrackAdvanced,
        _onTrackError = onTrackError;
@@ -347,6 +343,28 @@ class AndroidAudioEngine implements AudioEngine {
     _controller.add(next);
   }
 
+  Future<void> _loadSource(
+    just_audio.AudioPlayer player,
+    just_audio.AudioSource source, {
+    int? initialIndex,
+  }) async {
+    try {
+      await player
+          .setAudioSource(source, initialIndex: initialIndex, preload: true)
+          .timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      // stop() cancels ExoPlayer's pending prepare before the next queued tap.
+      try {
+        await player.stop().timeout(const Duration(seconds: 3));
+      } catch (_) {}
+      _playlistSignature = const [];
+      _loadedSingleTrackOnly = false;
+      throw TimeoutException(
+        'Audio source did not become ready. Retry or choose another source.',
+      );
+    }
+  }
+
   @override
   Future<void> load(Song track) async {
     await _cancelCrossfade();
@@ -371,13 +389,12 @@ class AndroidAudioEngine implements AudioEngine {
     if (cfg.enabled) {
       // Crossfade needs a single-track source so the engine can intercept the
       // tail; a ConcatenatingAudioSource would auto-advance with a hard cut.
-      devLog(
-        '[Playback] Android load(${track.id}) single-track (crossfade)',
-      );
+      devLog('[Playback] Android load(${track.id}) single-track (crossfade)');
       _awaitingInitialSeek = true;
       try {
-        final source = await _sourceBuilder(track);
-        await player.setAudioSource(source, preload: true);
+        final source = await _sourceBuilder(track)
+            .timeout(const Duration(seconds: 30));
+        await _loadSource(player, source);
         await player.seek(Duration.zero);
       } finally {
         _awaitingInitialSeek = false;
@@ -406,9 +423,7 @@ class AndroidAudioEngine implements AudioEngine {
     if (canReusePlaylist &&
         player.sequence.isNotEmpty &&
         !_loadedSingleTrackOnly) {
-      devLog(
-        '[Playback] Android load(${track.id}) using existing playlist',
-      );
+      devLog('[Playback] Android load(${track.id}) using existing playlist');
       await player.seek(Duration.zero, index: index);
     } else if (shouldFastStartCurrentTrackOnly) {
       devLog(
@@ -416,8 +431,9 @@ class AndroidAudioEngine implements AudioEngine {
       );
       _awaitingInitialSeek = true;
       try {
-        final source = await _sourceBuilder(track);
-        await player.setAudioSource(source, preload: true);
+        final source = await _sourceBuilder(track)
+            .timeout(const Duration(seconds: 30));
+        await _loadSource(player, source);
         await player.seek(Duration.zero);
       } finally {
         _awaitingInitialSeek = false;
@@ -428,17 +444,15 @@ class AndroidAudioEngine implements AudioEngine {
       devLog('[Playback] Android load(${track.id}) rebuilding playlist');
       _awaitingInitialSeek = true;
       try {
-        final source = await _sourcesBuilder();
+        final source = await _sourcesBuilder().timeout(
+          const Duration(seconds: 30),
+        );
         // ignore: deprecated_member_use
         if (source is just_audio.ConcatenatingAudioSource &&
             source.children.isEmpty) {
           throw StateError('No audio sources available for playback');
         }
-        await player.setAudioSource(
-          source,
-          initialIndex: index,
-          preload: true,
-        );
+        await _loadSource(player, source, initialIndex: index);
         await player.seek(Duration.zero, index: index);
       } finally {
         _awaitingInitialSeek = false;
@@ -481,7 +495,11 @@ class AndroidAudioEngine implements AudioEngine {
       final outgoing = _secondary;
       if (outgoing != null) {
         try {
-          await outgoing.play();
+          unawaited(
+            outgoing.play().catchError((Object error) {
+              devLog('[crossfade] resume failed: $error');
+            }),
+          );
         } catch (_) {}
         _startRampTimer(outgoing, player);
       }
@@ -633,8 +651,8 @@ class AndroidAudioEngine implements AudioEngine {
       final p = _rampTotal.inMilliseconds <= 0
           ? 1.0
           : (_rampElapsed.inMilliseconds / _rampTotal.inMilliseconds)
-              .clamp(0.0, 1.0)
-              .toDouble();
+                .clamp(0.0, 1.0)
+                .toDouble();
       final inVol = _rampUserVolume * crossfadeInVolume(_rampCurve, p);
       final outVol = _rampUserVolume * crossfadeInVolume(_rampCurve, 1 - p);
       incoming.setVolume(inVol);

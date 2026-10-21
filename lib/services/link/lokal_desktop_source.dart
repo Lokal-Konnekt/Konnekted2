@@ -1,3 +1,6 @@
+import '../graceful_http_client.dart';
+import '../local_metadata_repair.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -94,7 +97,7 @@ class LokalDesktopSource extends NetworkSourceService {
     await directory.create(recursive: true);
     final file = File('${directory.path}/${linkUuid()}.$extension');
     final part = File('${file.path}.part');
-    final client = http.Client();
+    final client = GracefulHttpClient();
     var committed = false;
     try {
       final request =
@@ -155,7 +158,13 @@ class LokalDesktopSource extends NetworkSourceService {
       entity.remoteId = id;
       entity.remoteServerId = server.id;
       entity.albumArtPath = artwork;
-      entity.metadataComplete = true;
+      entity.sampleRate =
+          (track['sample_rate'] as num?)?.toInt() ?? entity.sampleRate;
+      entity.bitDepth =
+          (track['bit_depth'] as num?)?.toInt() ?? entity.bitDepth;
+      entity.bitrate = (track['bitrate'] as num?)?.toInt() ?? entity.bitrate;
+      entity.genre = _genre(track) ?? entity.genre;
+      await LocalMetadataRepair.probe(entity, persist: false);
       final saved = entity;
       await Database.instance.writeTxn(() => Database.songs.put(saved));
       committed = true;
@@ -180,6 +189,20 @@ class LokalDesktopSource extends NetworkSourceService {
         value.origin.toString() != server.baseUrl)
       throw StateError('Reconnect to this Lokal desktop to stream its songs.');
     return value;
+  }
+
+  String? _genre(Map<String, dynamic> track) {
+    final tag = track['genre']?.toString().trim();
+    if (tag != null && tag.isNotEmpty) return tag;
+    var genres = track['genres'];
+    if (genres is String) {
+      try {
+        genres = jsonDecode(genres);
+      } catch (_) {
+        return genres;
+      }
+    }
+    return genres is List ? genres.whereType<String>().join('; ') : null;
   }
 
   Map<String, String> _headers(LokalRemoteCredentials credentials) => {
@@ -213,7 +236,7 @@ class LokalDesktopSource extends NetworkSourceService {
     String marker,
   ) async {
     final credentials = await _credentials(server);
-    final client = http.Client();
+    final client = GracefulHttpClient();
     try {
       final request =
           http.Request(
@@ -305,7 +328,8 @@ class LokalDesktopSource extends NetworkSourceService {
     String? extension,
     void Function(double)? onProgress,
   ) async {
-    final credentials = await _credentials(server), client = http.Client();
+    final credentials = await _credentials(server),
+        client = GracefulHttpClient();
     final ext = RegExp(r'^[a-zA-Z0-9]{1,8}$').hasMatch(extension ?? '')
         ? extension
         : 'bin';
@@ -385,7 +409,18 @@ class LokalDesktopSource extends NetworkSourceService {
         track['track_key'] ??
         '${track['artist']?.toString().trim().toLowerCase()}|${track['title']?.toString().trim().toLowerCase()}|${(track['duration'] as num? ?? 0).round()}';
     final local = await journal.match({...track, 'track_key': key});
-    if (local != null && local.sourceType != 'lokal') return local;
+    if (local != null && local.sourceType != 'lokal') {
+      final row = await Database.songs.get(int.parse(local.id));
+      final genre = _genre(track);
+      if (row != null &&
+          row.genre?.trim().isNotEmpty != true &&
+          genre?.isNotEmpty == true) {
+        row.genre = genre;
+        await Database.instance.writeTxn(() => Database.songs.put(row));
+        return SongRepository().songFromEntity(row);
+      }
+      return local;
+    }
     final remoteId = track['id']?.toString();
     if (remoteId == null || remoteId.isEmpty)
       throw const FormatException('Desktop song is missing its identifier.');
@@ -400,6 +435,7 @@ class LokalDesktopSource extends NetworkSourceService {
     entity.title = track['title']?.toString() ?? 'Unknown track';
     entity.artist = track['artist']?.toString() ?? 'Unknown artist';
     entity.album = track['album']?.toString();
+    entity.genre = _genre(track) ?? entity.genre;
     entity.durationMs = ((track['duration'] as num? ?? 0) * 1000).round();
     entity.fileType = track['fileType']?.toString() ?? entity.fileType ?? 'bin';
     int? number(String camel, String snake) =>
@@ -408,6 +444,7 @@ class LokalDesktopSource extends NetworkSourceService {
         number('sampleRate', 'sample_rate') ?? entity.sampleRate;
     entity.bitDepth = number('bitDepth', 'bit_depth') ?? entity.bitDepth;
     entity.bitrate = (track['bitrate'] as num?)?.toInt() ?? entity.bitrate;
+    entity.filePath = 'lokal://${server.id}/$remoteId';
     entity.sourceType = 'lokal';
     entity.remoteId = remoteId;
     entity.remoteServerId = server.id;
@@ -531,7 +568,7 @@ class LokalDesktopSource extends NetworkSourceService {
         ),
       });
       request.contentLength = await file.length();
-      final client = http.Client();
+      final client = GracefulHttpClient();
       try {
         // Bound the upload itself as well as the response: a desktop refusal
         // must not leave the streamed request waiting indefinitely for a sink.
@@ -619,6 +656,7 @@ class LokalDesktopSource extends NetworkSourceService {
     entity.filePath = path;
     entity.sourceType = null;
     entity.folderUri = directory.path;
+    await LocalMetadataRepair.probe(entity, persist: false);
     await Database.instance.writeTxn(() => Database.songs.put(entity));
   }
 
@@ -626,6 +664,7 @@ class LokalDesktopSource extends NetworkSourceService {
   Stream<ScanProgress> syncLibrary(NetworkServerEntity server) async* {
     final credentials = await _credentials(server);
     var offset = 0, imported = 0, total = 0;
+    final owned = <String>{};
     do {
       final response = await http
           .get(
@@ -642,7 +681,9 @@ class LokalDesktopSource extends NetworkSourceService {
           items = body['items'] as List;
       total = (body['total'] as num? ?? 0).toInt();
       for (final raw in items) {
-        await importTrack(server, Map<String, dynamic>.from(raw as Map));
+        final track = Map<String, dynamic>.from(raw as Map);
+        owned.add(track['id'].toString());
+        await importTrack(server, track);
         imported++;
       }
       offset += items.length;
@@ -654,7 +695,20 @@ class LokalDesktopSource extends NetworkSourceService {
       );
       if (body['hasMore'] != true || items.isEmpty) break;
     } while (offset < total);
-    // Missing desktop rows never delete local songs or downloaded files.
+    // Archive history-only/removed placeholders, never local downloaded files.
+    final remoteRows = await Database.songs
+        .filter()
+        .remoteServerIdEqualTo(server.id)
+        .sourceTypeEqualTo('lokal')
+        .findAll();
+    await Database.instance.writeTxn(() async {
+      for (final row in remoteRows) {
+        if (!owned.contains(row.remoteId)) {
+          row.filePath = 'ghost://desktop/${server.id}/${row.remoteId}';
+          await Database.songs.put(row);
+        }
+      }
+    });
     server.lastSyncedAt = DateTime.now();
     await Database.instance.writeTxn(() => Database.networkServers.put(server));
   }

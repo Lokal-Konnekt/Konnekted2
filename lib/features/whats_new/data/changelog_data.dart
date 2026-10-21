@@ -40,6 +40,24 @@ const kLokalReleaseNotes = ChangelogEntry(
   date: '2026-10-21',
   sections: [
     ChangelogSection(
+      title: 'Player and lyrics follow-up',
+      bullets: [
+        'The full player uses soft artwork-colored gradients instead of a live background blur. Performance mode keeps the background still.',
+        'Player sliders use vertical Material-style handles.',
+        'Lyrics use real word timing, soft sweeps and held-note motion, with better catalogue matching and parallel source lookup.',
+        'Translate and Romanize icons replace Lyrics Studio. Translation requests happen only when you tap a toggle.',
+      ],
+    ),
+    ChangelogSection(
+      title: 'Sync repairs',
+      bullets: [
+        'Sync repairs audio details for music already copied to your phone; transferring the files again is not required.',
+        'History-only desktop songs no longer become library files. Listening history remains available to milestones.',
+        'Listening hours include synced events without counting this phone’s plays twice, and lower artist milestones unlock correctly.',
+        'Missing quality details and genres are read from local files. Home settings opens the combined Data and About page.',
+      ],
+    ),
+    ChangelogSection(
       title: 'Library and discovery',
       bullets: [
         'Run music-video discovery, album-release refresh and artist-info refresh from their library sections, with progress and stop controls.',

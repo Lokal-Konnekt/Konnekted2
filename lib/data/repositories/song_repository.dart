@@ -35,7 +35,10 @@ class SongRepository {
   /// Get all songs ordered by title.
   Future<List<Song>> getAllSongs() async {
     final entities = await _isar.songEntitys.where().sortByTitle().findAll();
-    final songs = entities.map(_entityToSong).toList();
+    final songs = entities
+        .where((row) => !row.filePath.startsWith('ghost://'))
+        .map(_entityToSong)
+        .toList();
     songs.sort((a, b) => compareCaseInsensitive(a.title, b.title));
     return songs;
   }
@@ -97,7 +100,11 @@ class SongRepository {
 
   /// Get song count.
   Future<int> getSongCount() async {
-    return await _isar.songEntitys.count();
+    return await _isar.songEntitys
+        .filter()
+        .not()
+        .filePathStartsWith('ghost://')
+        .count();
   }
 
   /// Get a paginated slice of songs ordered by most recently added.

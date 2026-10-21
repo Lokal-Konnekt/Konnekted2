@@ -7,6 +7,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('a shown artist tier covers its lower tiers', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = MilestoneService(
+      playCountOverride: () async => 0,
+      uniqueArtistsOverride: () async => 100,
+    );
+    await service.markMilestoneShown(MilestoneType.artists100);
+    expect(await service.isMilestoneShown(MilestoneType.artists25), isTrue);
+  });
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
@@ -138,17 +148,17 @@ void main() {
       expect(await service.checkMilestones(), MilestoneType.songs100);
     });
 
-    test('prefers songs1000 over songs500 over songs100', () async {
+    test('a shown higher tier covers lower tiers without old popups', () async {
       var service = buildService(playCount: 1000);
       expect(await service.checkMilestones(), MilestoneType.songs1000);
       await service.markMilestoneShown(MilestoneType.songs1000);
 
       service = buildService(playCount: 500);
-      expect(await service.checkMilestones(), MilestoneType.songs500);
+      expect(await service.checkMilestones(), isNull);
       await service.markMilestoneShown(MilestoneType.songs500);
 
       service = buildService(playCount: 100);
-      expect(await service.checkMilestones(), MilestoneType.songs100);
+      expect(await service.checkMilestones(), isNull);
     });
 
     test('returns hours10 at 10 hours of accumulated listening', () async {
@@ -218,11 +228,14 @@ void main() {
   });
 
   group('MilestoneService day streak', () {
-    test('recordActivityDay starts at 1 and increments on consecutive days', () async {
-      final service = buildService();
-      expect(await service.recordActivityDay(), 1);
-      expect(await service.getCurrentDayStreak(), 1);
-    });
+    test(
+      'recordActivityDay starts at 1 and increments on consecutive days',
+      () async {
+        final service = buildService();
+        expect(await service.recordActivityDay(), 1);
+        expect(await service.getCurrentDayStreak(), 1);
+      },
+    );
 
     test('runs the self-check property', () async {
       final service = buildService(dayStreak: 30);

@@ -1,3 +1,5 @@
+import 'lyric_motion_line.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flick/services/lyrics_service.dart';
@@ -99,11 +101,7 @@ class _KaraokeLyricLineState extends State<KaraokeLyricLine>
   }
 
   void _resolveWords() {
-    _segments = [
-      for (final word
-          in widget.lyricsService.resolveWords(widget.lyrics, widget.lineIndex))
-        ...LyricsService.splitKaraokeWord(word),
-    ];
+    _segments = widget.lyrics.lines[widget.lineIndex].words ?? const [];
     _builtForLineIndex = widget.lineIndex;
     _builtForLyrics = widget.lyrics;
     _lastFills = const [];
@@ -143,7 +141,13 @@ class _KaraokeLyricLineState extends State<KaraokeLyricLine>
     if (!_isPlaying) return _basePosition;
     final ahead = _tickerElapsed - _baseTickerElapsed;
     if (ahead < Duration.zero) return _basePosition;
-    return _basePosition + ahead;
+    return _basePosition +
+        Duration(
+          microseconds:
+              (ahead.inMicroseconds.clamp(0, 600000) *
+                      widget.playerService.playbackSpeedNotifier.value)
+                  .round(),
+        );
   }
 
   void _onFrame(Duration elapsed) {
@@ -170,40 +174,15 @@ class _KaraokeLyricLineState extends State<KaraokeLyricLine>
         }
       }
     }
-    if (!changed) return;
+    if (!changed &&
+        !_segments.any(
+          (w) =>
+              position >= w.start &&
+              position < w.end + const Duration(milliseconds: 700),
+        ))
+      return;
 
     setState(() => _lastFills = nextFills);
-  }
-
-  WrapAlignment get _wrapAlignment {
-    switch (widget.textAlign) {
-      case TextAlign.left:
-        return WrapAlignment.start;
-      case TextAlign.right:
-        return WrapAlignment.end;
-      default:
-        return WrapAlignment.center;
-    }
-  }
-
-  Widget _buildWord(LyricsWord word, double fill) {
-    final clamped = fill.clamp(0.0, 1.0);
-    final durationMs = word.end.inMilliseconds - word.start.inMilliseconds;
-    final edgeStart = clamped >= 1.0 || durationMs <= 0
-        ? clamped
-        : (clamped - 80 / durationMs).clamp(0.0, 1.0);
-
-    return ShaderMask(
-      shaderCallback: (rect) {
-        return LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [widget.sungColor, widget.unsungColor],
-          stops: [edgeStart, clamped],
-        ).createShader(rect);
-      },
-      child: Text(word.text, style: widget.style),
-    );
   }
 
   @override
@@ -229,20 +208,13 @@ class _KaraokeLyricLineState extends State<KaraokeLyricLine>
       );
     }
 
-    final fills = _lastFills.isEmpty
-        ? List<double>.filled(_segments.length, 0.0)
-        : _lastFills;
-
-    return SizedBox(
-      width: double.infinity,
-      child: Wrap(
-        alignment: _wrapAlignment,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          for (var i = 0; i < _segments.length; i++)
-            _buildWord(_segments[i], i < fills.length ? fills[i] : 0.0),
-        ],
-      ),
+    return LyricMotionLine(
+      line: widget.lyrics.lines[widget.lineIndex],
+      position: _predictedPosition(),
+      style: widget.style,
+      sung: widget.sungColor,
+      unsung: widget.unsungColor,
+      textAlign: widget.textAlign,
     );
   }
 }

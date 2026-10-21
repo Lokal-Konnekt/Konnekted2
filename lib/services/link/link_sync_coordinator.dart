@@ -1,3 +1,5 @@
+import '../milestone_service.dart';
+import '../local_metadata_repair.dart';
 import '../../models/song.dart';
 
 import 'dart:convert';
@@ -175,7 +177,9 @@ class LinkSyncCoordinator {
     final prefs = await SharedPreferences.getInstance();
     final source = LokalDesktopSource.instance,
         server = await LokalDesktopSource.instance.ensureServer(credentials);
-    if (importCatalog || prefs.getBool('$_prefix.catalog') != true) {
+    if (importCatalog ||
+        prefs.getBool('$_prefix.catalog') != true ||
+        prefs.getBool('$_prefix.owned_catalog_v2') != true) {
       _report(LinkSyncPhase.catalog);
       await for (final progress in source.syncLibrary(server)) {
         _requireReady();
@@ -187,8 +191,14 @@ class LinkSyncCoordinator {
         );
       }
       await prefs.setBool('$_prefix.catalog', true);
+      await prefs.setBool('$_prefix.owned_catalog_v2', true);
       onChanged?.call();
     }
+    await LocalMetadataRepair.instance.repairDesktopCopies(
+      onProgress: (done, total) {
+        _report(LinkSyncPhase.metadata, processed: done, total: total);
+      },
+    );
     _matchCandidates = List<Song>.of(await SongRepository().getAllSongs());
     for (final kind in ['library', 'history']) {
       if (kind == 'history') await _backfillHistory();
@@ -224,18 +234,8 @@ class LinkSyncCoordinator {
           final added = await LinkJournal.instance.mergeHistory(items);
           for (final item in added) {
             var song = await _match(item);
-            final raw =
-                item['track'] ??
-                jsonDecode(item['track_json'] as String? ?? '{}');
-            if (song == null && raw is Map && raw['id'] != null) {
-              song = await source.importTrack(
-                server,
-                Map<String, dynamic>.from(raw),
-              );
-              _matchCandidates?.add(song);
-              final key = item['track_key']?.toString();
-              if (key != null) _matchCache[key] = song;
-            }
+            // History is not ownership: retain the play event in the journal,
+            // but never create a library song just because it was streamed.
             if (song != null)
               await RecentlyPlayedRepository().recordPlay(
                 song.id,
@@ -263,6 +263,7 @@ class LinkSyncCoordinator {
     _report(LinkSyncPhase.finalizing);
     await LinkProfileService.sync(credentials);
     onProfileChanged?.call();
+    MilestoneService.changes.add(null);
   }
 
   Future<void> _materializeLibraryPage(List<Map<String, dynamic>> items) async {

@@ -2746,9 +2746,25 @@ class LibraryScannerService {
     required bool hasMetadata,
     required bool hasSampleRate,
     required bool hasDuration,
+    bool hasBitDepth = true,
+    bool hasBitrate = true,
   }) {
     if (_rustFallbackExtensions.contains(extension)) return true;
-    return !hasMetadata || !hasSampleRate || !hasDuration;
+    const lossless = {
+      'flac',
+      'wav',
+      'wave',
+      'alac',
+      'aif',
+      'aiff',
+      'ape',
+      'wv',
+    };
+    return !hasMetadata ||
+        !hasSampleRate ||
+        !hasDuration ||
+        !hasBitrate ||
+        (lossless.contains(extension.toLowerCase()) && !hasBitDepth);
   }
 
   /// Upper bound for staging a SAF document just to read its tags (256 MB).
@@ -2806,6 +2822,8 @@ class LibraryScannerService {
         hasMetadata: meta != null,
         hasSampleRate: meta?.sampleRate != null,
         hasDuration: meta?.duration != null,
+        hasBitDepth: (meta?.bitDepth ?? 0) > 0,
+        hasBitrate: (int.tryParse(meta?.bitrate ?? '') ?? 0) > 0,
       )) {
         continue;
       }
@@ -2888,8 +2906,10 @@ class LibraryScannerService {
       duration: base?.duration ?? rust.durationMs?.toInt(),
       albumArtPath: base?.albumArtPath,
       // Call sites parse this as bits-per-second (retriever convention);
-      // the Rust parsers report bits-per-second too.
-      bitrate: base?.bitrate ?? rust.bitrate?.toString(),
+      // Lofty reports kbps, so convert to the retriever convention here.
+      bitrate:
+          base?.bitrate ??
+          (rust.bitrate == null ? null : (rust.bitrate! * 1000).toString()),
       // Lofty reports plain-u32 rates for MP4, where a failed ALAC cookie
       // parse yields 0 — treat that as unsolved rather than "0 kHz".
       bitDepth:

@@ -5152,6 +5152,12 @@ class PlayerService {
       if (rustRecovered) {
         return;
       }
+      AppLog.instance.add(
+        '[Playback] Failed to start ${song.title} on ${currentEngineType.logLabel}: $e',
+      );
+      if (e is TimeoutException)
+        onlinePlaybackError.value =
+            e.message ?? 'Playback timed out. Retry this song.';
       _debugLog(
         '[Playback] play() failed for ${song.title} '
         'on ${currentEngineType.logLabel}: $e',

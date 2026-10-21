@@ -45,7 +45,8 @@ void main() {
       LokalQualityTier.of(_song('opus', resolution: '160 kbps')),
       LokalQualityTier.high,
     );
-    expect(LokalQualityTier.of(_song('MP3')), isNull);
+    expect(LokalQualityTier.of(_song('MP3')), LokalQualityTier.unknown);
+    expect(LokalQualityTier.of(_song('FLAC')), LokalQualityTier.unknown);
   });
 
   test('pill colours are desktop Tailwind shades on every theme', () {

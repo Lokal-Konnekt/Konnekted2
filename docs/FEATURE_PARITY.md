@@ -140,3 +140,40 @@ Implemented, pending Android device validation:
 Focused launcher resource tests and Dart analysis validate source changes;
 launcher lifecycle behavior, online providers and hardware playback still need
 validation in the installed Android app. Native PCM/DSD/UAC2 paths are unchanged.
+
+## Playback, metadata and sync repair follow-up (2026-10-21)
+
+Implemented; Android profiling/device validation remains outstanding:
+
+- Full-player backdrop paints artwork palette gradients directly, with no artwork
+  blur pass or duplicate background image. Performance mode stops continuous
+  drift; route/interactive-pull handling pauses decoration and reuses a repaint
+  boundary. This removes known rendering work; no measured FPS claim is made.
+- Shared lyric sweep/lift/held-note renderer follows desktop timing. Mobile uses
+  actual word timestamps and leaves line-synced sources line-synced. LRCLIB adds
+  cleaned-title and duration-constrained search fallback; enabled providers start
+  concurrently and results retain priority, with plain lyrics last. This is not
+  full desktop parity for all duet/background/TTML document features.
+- Lyrics Studio is removed; picker import remains. On-demand translate/romanize
+  icons use desktop's public Google batch protocol, cache exact text/language,
+  preserve timings/source selection, and ignore stale responses. Source-provided
+  translations take precedence. Live endpoint availability is not guaranteed.
+- Local metadata repair reads audio headers through existing Rust parsers, stores
+  sample rate/bit depth/kbps/actual codec, fills missing file genres, and repairs
+  already-copied desktop files during sync without re-downloading. One bounded
+  worker performs the initial repair; inaccessible files need their folder grant.
+  No new database schema or hardware audio route is introduced.
+- Rust-to-Android metadata fallback converts Lofty's kbps to retriever bps before
+  existing storage conversion, and retries missing lossless depth/bitrate.
+  Unknown quality displays Not read instead of guessing Lossless from extension.
+- Desktop history never imports library placeholders. A catalogue reconciliation
+  archives old non-owned remote rows without deleting downloaded files, playlist
+  references or journal events. Sync counters count the owned catalogue only.
+- Milestone hours add other devices' uniquely keyed events to the local live
+  counter, excluding this device to avoid double counting. Unique artists include
+  journal history even for streamed-only tracks. Reached/lower tiers no longer
+  depend on individual popup acknowledgements.
+- Log-driven fixes cover Cover Flow teardown ancestor access, add-on HTTP pool
+  closing, Android preparation timeouts and a crossfade resume future that could
+  hold the playback command queue. The ANR trace does not by itself prove a
+  single root cause; native hardware paths remain unchanged.

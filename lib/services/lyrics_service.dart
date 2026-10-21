@@ -1,3 +1,5 @@
+import 'lyrics_matching.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -29,7 +31,7 @@ class LyricsWord {
 
 /// A single lyric line, optionally timestamped for synchronized display.
 /// [words] carries per-word timings when the source was enhanced LRC;
-/// otherwise it is null and word timings are interpolated at render time.
+/// otherwise it is null and the renderer keeps whole-line timing.
 class LyricsLine {
   final Duration timestamp;
   final String text;
@@ -125,52 +127,90 @@ class LyricsService {
     bool Function()? stillCurrent,
   }) async {
     if (song.title.trim().isEmpty || song.artist.trim().isEmpty) return null;
-    final settings = await LyricsSourcesState.load();
+    final settings = online == null
+        ? await LyricsSourcesState.load()
+        : const LyricsSourcesState();
     final sources = source == 'auto'
         ? (online != null
               ? ['lrclib']
               : settings.order.where((id) => !settings.disabled.contains(id)))
         : [source];
-    LyricsData? fallback;
-    for (final id in sources) {
-      if (stillCurrent != null && !stillCurrent()) return null;
+    var active = true;
+    bool current() => active && (stillCurrent?.call() ?? true);
+    final query = song.copyWith(
+      title: lyricsSearchTitle(song.title),
+      artist: lyricsSearchArtist(song.artist),
+    );
+    Future<LyricsData?> fetch(String id) async {
+      if (!current()) return null;
       try {
         String? text;
         if (id == 'lrclib') {
-          final result = await (online ?? OnlineLyricsService()).fetchExact(
-            artist: song.artist,
-            title: song.title,
-            album: song.album,
-            duration: song.duration,
-          );
+          final result = online != null
+              ? await online!.fetchExact(
+                  artist: song.artist,
+                  title: song.title,
+                  album: song.album,
+                  duration: song.duration,
+                )
+              : await OnlineLyricsService().fetchBest(
+                  artist: song.artist,
+                  title: song.title,
+                  album: song.album,
+                  duration: song.duration,
+                );
           if (result != null && !result.instrumental) text = result.bestLyrics;
         } else {
           text = await AdditionalLyricsSources.fetch(
             id,
-            song,
-            stillCurrent: stillCurrent,
+            query,
+            stillCurrent: current,
           );
         }
-        if (stillCurrent != null && !stillCurrent()) return null;
-        if (text == null || text.trim().isEmpty) continue;
+        if (!current() || text == null || text.trim().isEmpty) return null;
         if (text.trimLeft().startsWith('<') &&
             !text.contains('<tt') &&
             !text.contains('<line'))
-          continue;
+          return null;
         final parsed = _parseLyrics(text, source: lyricsSources[id] ?? id);
-        if (parsed.lines.isEmpty) continue;
-        if (source != 'auto' ||
-            !settings.preferWords ||
-            parsed.lines.any((line) => line.words?.isNotEmpty == true))
-          return parsed;
-        if (fallback == null ||
-            (!fallback.isSynchronized && parsed.isSynchronized))
-          fallback = parsed;
+        if (parsed.lines.isEmpty) return null;
+        return parsed;
       } catch (_) {
-        /* A provider miss must not prevent other sources. */
+        return null;
       }
     }
-    return fallback;
+
+    // Start together, consume in saved priority order. Plain-only lyrics.ovh
+    // is lazy, and plain text can never preempt a synchronized result.
+    final jobs = {
+      for (final id in sources)
+        if (id != 'lyricsovh')
+          id: fetch(id)
+              .timeout(const Duration(seconds: 18), onTimeout: () => null),
+    };
+    LyricsData? lineFallback, plainFallback;
+    try {
+      for (final id in sources) {
+        if (!current()) return null;
+        if (id == 'lyricsovh' &&
+            (lineFallback != null || plainFallback != null))
+          continue;
+        final parsed = await (jobs[id] ?? fetch(id));
+        if (parsed == null) continue;
+        if (source != 'auto') return parsed;
+        if (parsed.lines.any((line) => line.words?.isNotEmpty == true))
+          return parsed;
+        if (parsed.isSynchronized) {
+          if (!settings.preferWords) return parsed;
+          lineFallback ??= parsed;
+        } else {
+          plainFallback ??= parsed;
+        }
+      }
+      return lineFallback ?? plainFallback;
+    } finally {
+      active = false;
+    }
   }
 
   Future<LyricsData?> _loadOwnLyrics(
@@ -869,7 +909,17 @@ class LyricsService {
             (child) => child.getAttribute('begin') != null,
           ))
             continue;
-          words.add(LyricsWord(start: begin, end: end, text: span.innerText));
+          final tail = span.nextSibling;
+          final separator = tail is XmlText && tail.value.trim().isEmpty
+              ? tail.value
+              : '';
+          words.add(
+            LyricsWord(
+              start: begin,
+              end: end,
+              text: span.innerText + separator,
+            ),
+          );
         }
         lines.add(
           LyricsLine(

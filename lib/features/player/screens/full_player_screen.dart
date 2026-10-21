@@ -1,3 +1,7 @@
+import '../widgets/artwork_gradient_backdrop.dart';
+import '../widgets/lyric_motion_line.dart';
+import '../widgets/material_player_thumb.dart';
+
 import 'package:flick/services/lyrics_sources.dart';
 
 import 'dart:async';
@@ -11,7 +15,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
-import 'package:flick/features/player/lokal_lyrics_subline.dart';
 import 'package:flick/features/player/screens/classic_full_player_screen.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/features/player/widgets/player_artwork_image.dart';
@@ -23,7 +26,9 @@ import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/widgets/lokal/lokal_queue_reveal.dart';
 import 'package:flick/features/player/widgets/loop_mode_sheet.dart';
 import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
-import 'package:flick/features/player/screens/lyrics_sync_screen.dart';
+
+import '../widgets/lyrics_subline_buttons.dart';
+
 import 'package:flick/features/player/widgets/shuffle_mode_sheet.dart';
 import 'package:flick/features/player/widgets/sleep_timer_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/pitch_bottom_sheet.dart';
@@ -70,6 +75,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   String _lyricsSource = 'auto';
   int _lyricsRequest = 0;
   LyricsData? _lyrics;
+  LyricsData? _sublineLyrics;
   String? _lyricsForSongId;
 
   bool _isFav = false;
@@ -104,7 +110,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     _player.currentSongNotifier.addListener(_onSongChanged);
     _player.favoriteNotificationToggleNotifier.addListener(_refreshFavorite);
     _refreshFavorite();
-    unawaited(LokalLyricsSubline.load());
   }
 
   @override
@@ -155,6 +160,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       _lyricsForSongId = song.id;
     });
     final request = ++_lyricsRequest;
+    _sublineLyrics = null;
     LyricsData? data;
     try {
       data = await _lyricsService.loadLyricsForSong(
@@ -329,7 +335,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           return Stack(
             fit: StackFit.expand,
             children: [
-              _FluidBackdrop(colors: colors, song: song),
+              ArtworkGradientBackdrop(colors: colors),
               Container(color: Colors.black.withValues(alpha: 0.24)),
               SafeArea(
                 child: Padding(
@@ -677,6 +683,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   Widget _lyricsArea(Song song) {
     final data = _lyrics;
+    final display = _sublineLyrics ?? data;
     Widget body;
     if (_lyricsLoading) {
       body = const Center(
@@ -695,7 +702,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       body = SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(0, 24, 0, 40),
         child: Text(
-          data.lines.map((l) => l.text).join('\n'),
+          display!.lines
+              .map(
+                (l) =>
+                    _sublineLyrics != null && l.translation?.isNotEmpty == true
+                    ? '${l.text}\n${l.translation}'
+                    : l.text,
+              )
+              .join('\n'),
           style: const TextStyle(
             fontFamily: _font,
             fontSize: 26,
@@ -706,14 +720,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         ),
       );
     } else {
-      body = ValueListenableBuilder<bool>(
-        valueListenable: LokalLyricsSubline.showTranslation,
-        builder: (context, translate, _) => _FlowingLyrics(
-          key: ValueKey('${song.id}|${data.lines.length}|$translate'),
-          player: _player,
-          lyrics: data,
-          showTranslation: translate,
-        ),
+      body = _FlowingLyrics(
+        key: ValueKey('${song.id}|${identityHashCode(display)}'),
+        player: _player,
+        lyrics: display!,
+        showTranslation: _sublineLyrics != null,
       );
     }
 
@@ -752,23 +763,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 unawaited(_loadLyrics(force: true));
               },
             ),
-            // Shown when the lyrics carry their own translation, as desktop.
-            if (LokalLyricsSubline.hasTranslation(data))
-              ValueListenableBuilder<bool>(
-                valueListenable: LokalLyricsSubline.showTranslation,
-                builder: (context, translate, _) => IconButton(
-                  tooltip: translate ? 'Hide translation' : 'Show translation',
-                  isSelected: translate,
-                  icon: Icon(
-                    LucideIcons.languages,
-                    size: 20,
-                    color: translate ? context.lokal.accent : Colors.white70,
-                  ),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    LokalLyricsSubline.toggle();
-                  },
-                ),
+            if (data != null)
+              LyricsSublineButtons(
+                lyrics: data,
+                onChanged: (value) => setState(() => _sublineLyrics = value),
               ),
             IconButton(
               tooltip: 'Search online',
@@ -778,15 +776,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 color: Colors.white70,
               ),
               onPressed: () => _searchOnline(song),
-            ),
-            IconButton(
-              tooltip: 'Edit lyrics',
-              icon: const Icon(
-                LucideIcons.pencil,
-                size: 20,
-                color: Colors.white70,
-              ),
-              onPressed: () => _editLyrics(song),
             ),
           ],
         ),
@@ -895,24 +884,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     if (result == true && mounted) await _loadLyrics(force: true);
   }
 
-  Future<void> _editLyrics(Song song) async {
-    final result = await LyricsSyncScreen.open(
-      context: context,
-      song: song,
-      playerService: _player,
-      lyricsService: _lyricsService,
-      initialLyrics: _lyrics,
-    );
-    if (result != null && mounted) await _loadLyrics(force: true);
-  }
-
-  // ───────────────────────────── seek / transport ─────────────────────────────
-
   String _clock(Duration d) {
     final h = d.inHours;
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return h > 0 ? '$h:$m:$s' : '$m:$s';
+    final sec = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$sec' : '$m:$sec';
   }
 
   Widget _seekRow() {
@@ -934,10 +910,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               children: [
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    trackHeight: 3.5,
-                    thumbShape: const RoundSliderThumbShape(
-                      enabledThumbRadius: 6,
-                    ),
+                    trackHeight: 4,
+                    trackShape: const GappedSliderTrackShape(),
+                    trackGap: 5,
+                    thumbShape: const MaterialPlayerThumb(),
                     overlayShape: SliderComponentShape.noOverlay,
                     activeTrackColor: context.lokal.accent,
                     inactiveTrackColor: Colors.white24,
@@ -1079,8 +1055,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
-                trackHeight: 3.5,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                trackHeight: 4,
+                trackShape: const GappedSliderTrackShape(),
+                trackGap: 5,
+                thumbShape: const MaterialPlayerThumb(),
                 overlayShape: SliderComponentShape.noOverlay,
                 activeTrackColor: Colors.white,
                 inactiveTrackColor: Colors.white24,
@@ -1242,106 +1220,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
 // ═════════════════════════════ backdrop ═════════════════════════════
 
-/// A continuous ping-pong drift of the actual artwork. The controller belongs
-/// to this unkeyed background, so track and palette changes never reset phase.
-class _FluidBackdrop extends StatefulWidget {
-  const _FluidBackdrop({required this.colors, required this.song});
-  final List<Color> colors;
-  final Song song;
-  @override
-  State<_FluidBackdrop> createState() => _FluidBackdropState();
-}
-
-class _FluidBackdropState extends State<_FluidBackdrop>
-    with SingleTickerProviderStateMixin {
-  late final _motion = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 18),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _motion.stop();
-    } else if (!_motion.isAnimating) {
-      _motion.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _motion.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => RepaintBoundary(
-    child: ClipRect(
-      child: AnimatedBuilder(
-        animation: _motion,
-        child: RepaintBoundary(
-          // Blur a bounded square before fitting it to the screen. Filtering
-          // a screen-sized surface and then rotating/scaling it creates large
-          // offscreen textures and exposes filter edges on Android GPUs.
-          child: FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox.square(
-              dimension: 256,
-              child: ImageFiltered(
-                imageFilter: ImageFilter.blur(
-                  sigmaX: 18,
-                  sigmaY: 18,
-                  tileMode: TileMode.clamp,
-                ),
-                child: PlayerArtworkImage(
-                  song: widget.song,
-                  radius: 0,
-                  decodeWidth: 256,
-                  placeholder: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [widget.colors.first, widget.colors.last],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        builder: (context, child) {
-          final t = Curves.easeInOutSine.transform(_motion.value);
-          final size = MediaQuery.sizeOf(context);
-          return Transform.translate(
-            offset: Offset(
-              lerpDouble(-.08, .08, t)! * size.width,
-              lerpDouble(.06, -.06, t)! * size.height,
-            ),
-            child: Transform.rotate(
-              angle: lerpDouble(-.08, .08, t)!,
-              child: Transform.scale(
-                scale: lerpDouble(1.35, 1.5, t),
-                child: child,
-              ),
-            ),
-          );
-        },
-      ),
-    ),
-  );
-}
-
 // ═════════════════════════════ flowing lyrics ═════════════════════════════
-
-class _Word {
-  final String text;
-  final int startMs;
-  final int endMs;
-  const _Word(this.text, this.startMs, this.endMs);
-}
 
 /// Continuously flowing synced lyrics.
 ///
@@ -1352,7 +1231,7 @@ class _Word {
 /// * A second smoothed "focus" value drives per-line scale, opacity and blur,
 ///   so emphasis flows from line to line.
 /// * The active line sweeps word by word (real word timing when the lyrics
-///   have it, otherwise synthesised from the line's time window).
+///   have it, untimed sources keep line-level focus).
 /// * Drag to browse (auto-follow resumes after 3 s), tap a line to seek.
 class _FlowingLyrics extends StatefulWidget {
   final PlayerService player;
@@ -1398,15 +1277,13 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
 
   Duration _anchorPos = Duration.zero;
   DateTime _anchorAt = DateTime.now();
+  bool _clockPlaying = false;
+  double _clockSpeed = 1;
 
   late final List<LyricsLine> _lines = widget.lyrics.lines;
   late final List<int> _ts = [
     for (final l in widget.lyrics.lines) l.timestamp.inMilliseconds,
   ];
-  late final List<List<_Word>?> _wordCache = List<List<_Word>?>.filled(
-    _lines.length,
-    null,
-  );
 
   List<double> _heights = const [];
   List<double> _tops = const [];
@@ -1425,6 +1302,10 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   void initState() {
     super.initState();
     _anchorPos = widget.player.positionNotifier.value;
+    _clockPlaying = widget.player.isPlayingNotifier.value;
+    _clockSpeed = widget.player.playbackSpeedNotifier.value;
+    widget.player.isPlayingNotifier.addListener(_onClockState);
+    widget.player.playbackSpeedNotifier.addListener(_onClockState);
     widget.player.positionNotifier.addListener(_onPosition);
     _ticker = createTicker(_onTick)..start();
   }
@@ -1434,6 +1315,8 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     _ticker.dispose();
     _resume?.cancel();
     widget.player.positionNotifier.removeListener(_onPosition);
+    widget.player.isPlayingNotifier.removeListener(_onClockState);
+    widget.player.playbackSpeedNotifier.removeListener(_onClockState);
     _frame.dispose();
     super.dispose();
   }
@@ -1445,10 +1328,16 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     _anchorAt = DateTime.now();
   }
 
+  void _onClockState() {
+    _anchorPos = Duration(milliseconds: _posNowMs());
+    _anchorAt = DateTime.now();
+    _clockPlaying = widget.player.isPlayingNotifier.value;
+    _clockSpeed = widget.player.playbackSpeedNotifier.value;
+  }
+
   int _posNowMs() {
-    final p = widget.player;
-    if (!p.isPlayingNotifier.value) return _anchorPos.inMilliseconds;
-    final speed = p.playbackSpeedNotifier.value;
+    if (!_clockPlaying) return _anchorPos.inMilliseconds;
+    final speed = _clockSpeed;
     final elapsed = DateTime.now()
         .difference(_anchorAt)
         .inMilliseconds
@@ -1519,7 +1408,7 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
 
     final ms = _posNowMs();
     final a = _indexAt(ms);
-    final aScroll = _indexAt(ms + 280);
+    final aScroll = _indexAt(ms + 300);
     final target = _following ? _centerFor(aScroll) : _offset;
     final playing = widget.player.isPlayingNotifier.value;
 
@@ -1545,49 +1434,10 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   void _pauseFollow() {
     _following = false;
     _resume?.cancel();
-    _resume = Timer(const Duration(seconds: 3), () => _following = true);
-  }
-
-  List<_Word> _wordsFor(int i) {
-    final cached = _wordCache[i];
-    if (cached != null) return cached;
-    final l = _lines[i];
-    List<_Word> out;
-    final real = l.words;
-    if (real != null && real.isNotEmpty) {
-      out = [
-        for (final w in real)
-          _Word(w.text, w.start.inMilliseconds, w.end.inMilliseconds),
-      ];
-    } else {
-      final start = _ts[i];
-      final nextTs = i + 1 < _ts.length ? _ts[i + 1] : start + 4000;
-      var window = (nextTs - start).clamp(600, 6000);
-      window = (window * 0.92).round();
-      final matches = RegExp(r'\S+\s*').allMatches(l.text).toList();
-      final weights = [for (final m in matches) m.group(0)!.length + 2];
-      final sum = weights.fold<int>(0, (a, b) => a + b);
-      var used = 0;
-      out = [];
-      for (var k = 0; k < matches.length; k++) {
-        final s = start + (window * used / math.max(sum, 1)).round();
-        used += weights[k];
-        final e = start + (window * used / math.max(sum, 1)).round();
-        out.add(_Word(matches[k].group(0)!, s, e));
-      }
-    }
-    _wordCache[i] = out;
-    return out;
-  }
-
-  double _wordAlpha(_Word w, int ms) {
-    if (ms >= w.endMs) return 1.0;
-    if (ms <= w.startMs) return 0.42;
-    final t = ((ms - w.startMs) / math.max(w.endMs - w.startMs, 1)).clamp(
-      0.0,
-      1.0,
+    _resume = Timer(
+      const Duration(milliseconds: 3200),
+      () => _following = true,
     );
-    return 0.42 + 0.58 * Curves.easeOut.transform(t);
   }
 
   Widget _line(int i) {
@@ -1600,37 +1450,31 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     final scale = 1 - 0.1 * math.min(d, 1.0);
     final blur = d < 1.0 ? 0.0 : math.min((d - 1) * 0.9, 2.8);
 
-    final TextSpan span;
-    if (i == _active) {
-      span = TextSpan(
-        style: _base,
-        children: [
-          for (final w in _wordsFor(i))
-            TextSpan(
-              text: w.text,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: _wordAlpha(w, _posMs)),
-              ),
-            ),
-        ],
-      );
-    } else {
-      span = TextSpan(
-        text: l.text,
-        style: _base.copyWith(color: Colors.white.withValues(alpha: op)),
-      );
-    }
+    final end = l.words?.lastOrNull?.end;
+    final singing =
+        i == _active ||
+        (end != null && end.inMilliseconds > _posMs && _ts[i] <= _posMs);
+    final text = singing
+        ? LyricMotionLine(
+            line: l,
+            position: Duration(milliseconds: _posMs),
+            style: _base,
+          )
+        : Text(
+            l.text,
+            style: _base.copyWith(color: Colors.white.withValues(alpha: op)),
+          );
 
     final sub = _translationOf(l);
     Widget child = Transform.scale(
       alignment: Alignment.centerLeft,
       scale: scale,
       child: sub == null
-          ? Text.rich(span)
+          ? text
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text.rich(span),
+                text,
                 const SizedBox(height: _subGap),
                 Text(
                   sub,

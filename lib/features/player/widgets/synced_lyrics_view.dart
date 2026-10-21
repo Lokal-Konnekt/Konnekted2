@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart'
-    show ScrollCacheExtent, ScrollDirection;
+import 'package:flutter/rendering.dart' show ScrollCacheExtent, ScrollDirection;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/core/theme/app_theme.dart';
@@ -51,7 +50,7 @@ class SyncedLyricsView extends ConsumerStatefulWidget {
 
 class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
   static const double _anchorFraction = 0.32;
-  static const int _followResumeMs = 4000;
+  static const int _followResumeMs = 3200;
   static const int _seekBackThresholdMs = 1200;
   static const int _seekForwardThresholdMs = 3000;
   static const double _measureEpsilonPx = 0.5;
@@ -170,9 +169,7 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
     final inactive = <double>[];
     final active = <double>[];
     for (final line in lines) {
-      inactive.add(
-        32 + _estimateTextHeight(line.text, 17, 1.24, 2, textWidth),
-      );
+      inactive.add(32 + _estimateTextHeight(line.text, 17, 1.24, 2, textWidth));
       active.add(28 + _estimateTextHeight(line.text, 22, 1.18, 3, textWidth));
     }
     _inactiveEstimates = inactive;
@@ -245,8 +242,7 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
     if (_following && _scrollController.hasClients) {
       final target = _targetFor(_activeLineIndex);
       if (target != null &&
-          (target - _scrollController.offset).abs() >
-              _correctionMinDeltaPx) {
+          (target - _scrollController.offset).abs() > _correctionMinDeltaPx) {
         _animateToActiveLine();
       }
     }
@@ -305,11 +301,14 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
 
   void _suspendFollow() {
     _followResumeTimer?.cancel();
-    _followResumeTimer = Timer(const Duration(milliseconds: _followResumeMs), () {
-      if (!mounted) return;
-      _following = true;
-      _animateToActiveLine();
-    });
+    _followResumeTimer = Timer(
+      const Duration(milliseconds: _followResumeMs),
+      () {
+        if (!mounted) return;
+        _following = true;
+        _animateToActiveLine();
+      },
+    );
     _following = false;
   }
 
@@ -377,8 +376,12 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
     return Colors.white;
   }
 
-  Widget _buildLine(BuildContext context, int index, LyricsAlignment alignment,
-      {required bool karaokeEnabled}) {
+  Widget _buildLine(
+    BuildContext context,
+    int index,
+    LyricsAlignment alignment, {
+    required bool karaokeEnabled,
+  }) {
     final line = widget.lyrics.lines[index];
     final isActive = index == _activeLineIndex;
 
@@ -400,14 +403,18 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
           )
         : Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: isActive ? 8 : 10),
+              horizontal: 12,
+              vertical: isActive ? 8 : 10,
+            ),
             child: Text(
               line.text,
               maxLines: 2,
               overflow: TextOverflow.fade,
               textAlign: alignment.textAlign,
-              style: _textStyle(isActive, isActive ? 1 : _opacityForIndex(index)),
+              style: _textStyle(
+                isActive,
+                isActive ? 1 : _opacityForIndex(index),
+              ),
               strutStyle: _strutStyle(isActive),
             ),
           );
@@ -422,7 +429,27 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
           child: InkWell(
             borderRadius: BorderRadius.circular(22),
             onTap: () => unawaited(_seekToLine(index)),
-            child: content,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                content,
+                if (line.translation?.isNotEmpty == true)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                    child: Text(
+                      line.translation!,
+                      textAlign: alignment.textAlign,
+                      style: TextStyle(
+                        fontSize: 15,
+                        height: 1.3,
+                        color: Colors.white.withValues(
+                          alpha: isActive ? .72 : .35,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -434,8 +461,7 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
     final alignment = resolveLyricsAlignment(
       ref.watch(appPreferencesProvider).lyricsTextAlign,
     );
-    final karaokeEnabled =
-        ref.watch(appPreferencesProvider).karaokeEnabled;
+    final karaokeEnabled = ref.watch(appPreferencesProvider).karaokeEnabled;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -461,11 +487,11 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> {
             ),
             itemCount: widget.lyrics.lines.length,
             itemBuilder: (context, index) => _buildLine(
-                context,
-                index,
-                alignment,
-                karaokeEnabled: karaokeEnabled,
-              ),
+              context,
+              index,
+              alignment,
+              karaokeEnabled: karaokeEnabled,
+            ),
           ),
         );
       },
@@ -503,8 +529,7 @@ class _MeasuredLineState extends State<_MeasuredLine> {
     if (!mounted) return;
     final size = context.size;
     if (size == null) return;
-    if (_reported != null &&
-        (_reported! - size.height).abs() <= 0.5) {
+    if (_reported != null && (_reported! - size.height).abs() <= 0.5) {
       return;
     }
     _reported = size.height;

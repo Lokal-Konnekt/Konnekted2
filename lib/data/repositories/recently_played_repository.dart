@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:isar_community/isar.dart';
 
 import '../../core/utils/audio_metadata_utils.dart';
@@ -436,8 +438,6 @@ class RecentlyPlayedRepository {
   /// Count distinct, non-empty artist names across the entire play history.
   Future<int> getDistinctArtistCount() async {
     final entries = await _isar.recentlyPlayedEntitys.where().findAll();
-    if (entries.isEmpty) return 0;
-
     final allSongEntities = await _songRepository.getAllSongEntities();
     final songMap = {for (final e in allSongEntities) e.id: e};
 
@@ -446,7 +446,17 @@ class RecentlyPlayedRepository {
       final entity = songMap[entry.songId];
       if (entity == null) continue;
       final name = entity.artist.trim();
-      if (name.isNotEmpty) artists.add(name);
+      if (name.isNotEmpty) artists.add(name.toLowerCase());
+    }
+    // A streamed recording can count as listening without being a library file.
+    for (final event in await _isar.playEventEntitys.where().findAll()) {
+      try {
+        final track = jsonDecode(event.trackJson);
+        final artist = (track['artist'] ?? '').toString().trim().toLowerCase();
+        if (artist.isNotEmpty && event.msPlayed >= 30000) artists.add(artist);
+      } catch (_) {
+        /* Legacy events may lack track metadata. */
+      }
     }
     return artists.length;
   }

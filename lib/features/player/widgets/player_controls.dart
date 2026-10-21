@@ -1,3 +1,5 @@
+import 'material_player_thumb.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -457,7 +459,7 @@ class _TargetPlayerControlsState extends State<_TargetPlayerControls> {
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 3,
-                thumbShape: const _TargetVolumeThumbShape(),
+                thumbShape: const MaterialPlayerThumb(),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
                 activeTrackColor: Colors.white.withValues(alpha: .78),
                 inactiveTrackColor: Colors.white.withValues(alpha: .22),
@@ -573,38 +575,6 @@ class _TargetPlayerControlsState extends State<_TargetPlayerControls> {
           label: 'Favorite',
         );
       },
-    );
-  }
-}
-
-class _TargetVolumeThumbShape extends SliderComponentShape {
-  const _TargetVolumeThumbShape();
-
-  @override
-  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size(5, 20);
-
-  @override
-  void paint(
-    PaintingContext context,
-    Offset center, {
-    required Animation<double> activationAnimation,
-    required Animation<double> enableAnimation,
-    required bool isDiscrete,
-    required TextPainter? labelPainter,
-    required RenderBox parentBox,
-    required SliderThemeData sliderTheme,
-    required TextDirection textDirection,
-    required double value,
-    required double textScaleFactor,
-    required Size sizeWithOverflow,
-  }) {
-    final paint = Paint()..color = sliderTheme.thumbColor ?? Colors.white;
-    context.canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: center, width: 5, height: 20),
-        const Radius.circular(3),
-      ),
-      paint,
     );
   }
 }

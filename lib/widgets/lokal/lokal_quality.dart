@@ -8,6 +8,13 @@ import 'package:flick/models/song.dart';
 /// Desktop Lokal's audio quality tiers (`src/quality.js`), with its exact
 /// colours. They stay the same on every theme, as on desktop.
 enum LokalQualityTier {
+  unknown(
+    'Not read',
+    'Audio details have not been read yet',
+    Color(0xFF777777),
+    Color(0xFFBBBBBB),
+    Color(0xFF999999),
+  ),
   hiRes(
     'Hi-res',
     'Lossless, more than 16-bit or 48 kHz',
@@ -78,19 +85,23 @@ enum LokalQualityTier {
   /// The tier desktop would show for [song], or null when there is nothing to
   /// tell (a lossy file whose bitrate was never read).
   static LokalQualityTier? of(Song song) {
+    if (song.isPending) return null;
     final type = song.fileType.toUpperCase();
     if (song.isDsd || _lossless.contains(type)) {
       final aboveCd =
           song.isDsd ||
           (song.bitDepth ?? 0) > 16 ||
           (song.sampleRate ?? 0) > 48000;
-      return aboveCd ? hiRes : lossless;
+      if (aboveCd) return hiRes;
+      if ((song.bitDepth ?? 0) <= 0 || (song.sampleRate ?? 0) <= 0)
+        return unknown;
+      return lossless;
     }
     final match = _kbps.firstMatch(song.resolution ?? '');
     final kbps = match == null
         ? 0
         : (double.tryParse(match.group(1)!) ?? 0).round();
-    if (kbps == 0) return null;
+    if (kbps == 0) return unknown;
     final threshold = _opusLike.hasMatch(song.fileType) ? 160 : 256;
     return kbps >= threshold ? high : low;
   }

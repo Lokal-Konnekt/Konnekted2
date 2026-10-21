@@ -22,8 +22,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// One extra row in a song's menu, for actions only one place has (the
-/// queue's "Remove from queue", Now Playing's "Lyrics").
+/// One extra row in a song's menu for an action specific to its caller,
+/// such as removing a queued song or opening the Now Playing pitch control.
 @immutable
 class LokalSongMenuAction {
   const LokalSongMenuAction({

@@ -406,14 +406,21 @@ class LinkSyncCoordinator {
         ])
           if (fields.containsKey(field) && await journal.wins(item, field))
             winning[field] = fields[field];
+        // The matching snapshot identifies rows; edits earlier in this sync
+        // may already have changed their metadata, so compare the current row.
+        final currentRow = await Database.songs
+            .filter()
+            .filePathEqualTo(song.filePath!)
+            .findFirst();
+        if (currentRow == null) return;
         final current = <String, dynamic>{
-          'title': song.title,
-          'artist': song.artist,
-          'album': song.album,
-          'album_artist': song.albumArtist,
-          'genre': song.genre,
-          'year': song.year,
-          'track_num': song.trackNumber,
+          'title': currentRow.title,
+          'artist': currentRow.artist,
+          'album': currentRow.album,
+          'album_artist': currentRow.albumArtist,
+          'genre': currentRow.genre,
+          'year': currentRow.year,
+          'track_num': currentRow.trackNumber,
         };
         winning.removeWhere(
           (field, value) => value == null || value == current[field],

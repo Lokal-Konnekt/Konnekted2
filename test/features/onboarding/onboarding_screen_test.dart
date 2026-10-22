@@ -34,8 +34,9 @@ void main() {
       channels.setMockMethodCallHandler(storage, (call) async {
         expect(call.method, 'openDocumentTree');
         pickerCalls++;
-        if (pickerCalls == 1)
+        if (pickerCalls == 1) {
           throw PlatformException(code: 'PICKER_UNAVAILABLE');
+        }
         return null; // User cancels the second picker.
       });
       addTearDown(() {

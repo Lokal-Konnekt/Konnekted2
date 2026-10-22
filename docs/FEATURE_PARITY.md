@@ -524,3 +524,18 @@ Validation: 30 focused player/mix/onboarding/settings checks and 23 packaging
 checks pass. Settings search's stale account-location expectation was updated.
 Targeted analysis has no errors/warnings; existing style notices remain. No
 APK/CI build, live paired-device sync or physical background-playback test ran.
+
+### Unified settings navigation
+
+Home, Library and You header gears all open the same searchable Settings main
+page. Home's logo shortcut opens only Theme & accent; the complete Appearance
+page remains a main Settings category. You › More no longer duplicates Online
+sources. About remains in You and is omitted from main Settings categories,
+while help/licence search results and existing direct links remain available.
+The quick appearance page shares the full page's controls and is omitted from
+search indexing to avoid duplicate results.
+
+Validation: 39 existing navigation/settings widget checks pass after updating
+route/category expectations. Targeted analysis has no errors; an existing
+unnecessary-null-assertion warning in the appearance language selector remains.
+No APK or CI build was run.

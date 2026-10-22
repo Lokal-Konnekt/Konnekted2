@@ -188,16 +188,16 @@ void main() {
     semantics.dispose();
 
     const scrobbling = KonnektedDestination.settingsAt(
-      LokalSettingsGroup.integrations,
-      section: 'Scrobbling',
+      LokalSettingsGroup.data,
+      section: LokalDataSections.accounts,
     );
     expect(opened, [
-      const KonnektedDestination.aboutDataSettings(),
+      KonnektedDestination.settings,
       scrobbling,
       scrobbling,
       const KonnektedDestination.settingsAt(
-        LokalSettingsGroup.integrations,
-        section: 'Accounts',
+        LokalSettingsGroup.data,
+        section: LokalDataSections.accounts,
       ),
       KonnektedDestination.recentlyPlayed,
       const KonnektedDestination.settingsAt(

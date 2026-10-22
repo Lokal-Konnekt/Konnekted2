@@ -182,8 +182,8 @@ void main() {
       expect(find.byTooltip('Settings'), findsOneWidget);
       await tester.tap(find.bySemanticsLabel('Open Flow'));
       expect(opened, [
-        const KonnektedDestination.settingsAt(LokalSettingsGroup.playback),
-        const KonnektedDestination.settingsAt(LokalSettingsGroup.appearance),
+        KonnektedDestination.settings,
+        const KonnektedDestination.settingsAt(LokalSettingsGroup.themeAccent),
         KonnektedDestination.flow,
       ]);
       await tester.scrollUntilVisible(find.text('Add your music'), 180);
@@ -250,10 +250,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Library settings'));
-    expect(opened, [
-      const KonnektedDestination.settingsAt(LokalSettingsGroup.library),
-    ]);
+    await tester.tap(find.byTooltip('Settings'));
+    expect(opened, [KonnektedDestination.settings]);
     for (final gone in ['Classipod', 'Listening hub', 'Manage library']) {
       expect(find.text(gone), findsNothing);
     }

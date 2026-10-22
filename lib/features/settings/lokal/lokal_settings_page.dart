@@ -39,6 +39,7 @@ List<LokalSettingsSection> lokalSettingsSections(
   // Add-ons is a section of Online sources, found there.
   LokalSettingsGroup.addons => const [],
   LokalSettingsGroup.appearance => appearanceSettings(context, ref),
+  LokalSettingsGroup.themeAccent => themeAccentSettings(context, ref),
   LokalSettingsGroup.data => dataSettings(context, ref),
   LokalSettingsGroup.about => aboutSettings(context, ref),
 };
@@ -142,6 +143,7 @@ class _LokalSettingsPageState extends ConsumerState<LokalSettingsPage> {
   List<Widget> _results(BuildContext context) {
     final results = <Widget>[];
     for (final group in LokalSettingsGroup.values) {
+      if (group == LokalSettingsGroup.themeAccent) continue;
       final build = widget.sectionsBuilder ?? lokalSettingsSections;
       for (final section in build(group, context, ref)) {
         final heading = section.title == group.label
@@ -153,7 +155,7 @@ class _LokalSettingsPageState extends ConsumerState<LokalSettingsPage> {
     }
     // A group's own name finds the group, as a link.
     final groups = [
-      for (final group in LokalSettingsGroup.values)
+      for (final group in LokalSettingsGroup.listed)
         if (lokalSettingsMatch('${group.label} ${group.description}', _query))
           _GroupLink(group: group),
     ];

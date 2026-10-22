@@ -52,7 +52,7 @@ final class KonnektedDestination {
   static const downloads = KonnektedDestination._('downloads');
   static const recap = KonnektedDestination._('recap');
 
-  /// The Settings page with its seven groups.
+  /// The searchable main Settings page.
   static const settings = KonnektedDestination._('settings');
 
   static const values = <KonnektedDestination>[

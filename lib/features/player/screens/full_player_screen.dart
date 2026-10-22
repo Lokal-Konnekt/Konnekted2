@@ -547,7 +547,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                               opacity: 1 - l,
                                               child: Padding(
                                                 padding: EdgeInsets.only(
-                                                  top: compact ? 7 : 10,
+                                                  top: compact ? 13 : 17,
                                                 ),
                                                 child: _optionsStrip(),
                                               ),
@@ -849,7 +849,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               ),
             );
           },
-          info: (context, p) => AnimatedSwitcher(
+          info: (context, p) => SizedBox(
+            width: double.infinity,
+            child: AnimatedSwitcher(
             duration: _animate
                 ? const Duration(milliseconds: 420)
                 : Duration.zero,
@@ -887,7 +889,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 // available file metadata; keep audio quality accessible.
                 Row(
                   children: [
-                    Flexible(
+                    Expanded(
                       child: ArtistCreditLinks(
                         credit: song.artist,
                         onArtistTap: (name) =>
@@ -912,8 +914,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       ),
                     ],
                     if (LokalQualityTier.of(song) case final tier?) ...[
-                      const Spacer(),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       InkWell(
                         onTap: () => SongMetadataSheet.show(context, song),
                         borderRadius: BorderRadius.circular(6),
@@ -943,7 +944,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 ),
               ],
             ),
-          ),
+          )),
           queue: const QueueList(embedded: true),
           lyrics: _lyricsArea(song),
         );

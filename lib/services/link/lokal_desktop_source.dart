@@ -1,4 +1,8 @@
 import '../lyrics_service.dart';
+import 'desktop_music_storage.dart';
+
+import 'package:path/path.dart' as p;
+
 import '../graceful_http_client.dart';
 import '../local_metadata_repair.dart';
 
@@ -30,6 +34,8 @@ import '../album_art_service.dart';
 class LokalDesktopSource extends NetworkSourceService {
   static final instance = LokalDesktopSource();
   final _cache = NetworkCacheService();
+  final _musicStorage = DesktopMusicStorage();
+  Future<String>? _legacyDirectory;
   final Map<String, Future<String>> _downloads = {};
 
   Future<void> requireOriginalFileSupport(
@@ -85,6 +91,7 @@ class LokalDesktopSource extends NetworkSourceService {
     Map<String, dynamic> track, {
     Song? existing,
   }) async {
+    await _musicStorage.requireFolder();
     final credentials = await _credentials(server);
     final id = track['id']?.toString();
     if (id == null || id.isEmpty)
@@ -93,13 +100,12 @@ class LokalDesktopSource extends NetworkSourceService {
     if (!RegExp(r'^[a-z0-9]{1,8}$').hasMatch(extension))
       throw const FormatException('Invalid audio format.');
     final directory = Directory(
-      '${(await getApplicationDocumentsDirectory()).path}/desktop_music',
+      '${(await getTemporaryDirectory()).path}/desktop_transfers',
     );
     await directory.create(recursive: true);
     final file = File('${directory.path}/${linkUuid()}.$extension');
     final part = File('${file.path}.part');
     final client = GracefulHttpClient();
-    var committed = false;
     try {
       final request =
           http.Request(
@@ -155,7 +161,7 @@ class LokalDesktopSource extends NetworkSourceService {
       entity.durationMs = ((track['duration'] as num? ?? 0) * 1000).round();
       entity.fileType = extension;
       entity.sourceType = null;
-      entity.folderUri = directory.path;
+
       entity.remoteId = id;
       entity.remoteServerId = server.id;
       entity.albumArtPath = artwork;
@@ -167,13 +173,17 @@ class LokalDesktopSource extends NetworkSourceService {
       entity.genre = _genre(track) ?? entity.genre;
       await LocalMetadataRepair.probe(entity, persist: false);
       final saved = entity;
-      await Database.instance.writeTxn(() => Database.songs.put(saved));
-      committed = true;
+      await _musicStorage.saveEntity(
+        saved,
+        persist: (row) async {
+          await Database.instance.writeTxn(() => Database.songs.put(row));
+        },
+      );
       await syncCopiedLyrics(server, copies: [saved]);
     } finally {
       client.close();
       if (await part.exists()) await part.delete();
-      if (!committed && await file.exists()) await file.delete();
+      if (await file.exists()) await file.delete();
     }
   }
 
@@ -702,27 +712,43 @@ class LokalDesktopSource extends NetworkSourceService {
   Future<void> downloadToPhone(Song song) async {
     final server = await Database.networkServers.get(song.remoteServerId!);
     if (server == null) throw StateError('Reconnect to this desktop first.');
-    final cached = await stream(
-      server,
-      song.remoteId!,
-      extension: song.fileType,
-    );
-    final directory = Directory(
-      '${(await getApplicationDocumentsDirectory()).path}/desktop_music',
-    );
-    await directory.create(recursive: true);
-    final extension = RegExp(r'^[a-zA-Z0-9]{1,8}$').hasMatch(song.fileType)
-        ? song.fileType
-        : 'bin';
-    final path = '${directory.path}/${song.id}.$extension';
-    if (!await File(path).exists()) await File(cached).copy(path);
+    await copyOriginalToPhone(server, {
+      'id': song.remoteId,
+      'title': song.title,
+      'artist': song.artist,
+      'album': song.album,
+      'duration': song.duration.inMilliseconds / 1000,
+      'fileType': song.fileType,
+      'sample_rate': song.sampleRate,
+      'bit_depth': song.bitDepth,
+      'genre': song.genre,
+    }, existing: song);
+  }
+
+  Future<bool> isPrivateDesktopCopy(Song song) async {
+    final path = song.filePath;
+    if (path == null ||
+        !path.contains('/desktop_music/') ||
+        Uri.tryParse(path)?.hasScheme == true)
+      return false;
+    final root = await (_legacyDirectory ??= getApplicationDocumentsDirectory()
+        .then((directory) => p.join(directory.path, 'desktop_music')));
+    return p.isWithin(root, path);
+  }
+
+  /// Recover existing app-private copies locally: no network download and the
+  /// database ID stays stable so playlists, favorites and listening history do.
+  Future<void> recoverPrivateCopy(Song song) async {
+    if (!await isPrivateDesktopCopy(song)) return;
     final entity = await Database.songs.get(int.parse(song.id));
-    if (entity == null) return;
-    entity.filePath = path;
-    entity.sourceType = null;
-    entity.folderUri = directory.path;
-    await LocalMetadataRepair.probe(entity, persist: false);
-    await Database.instance.writeTxn(() => Database.songs.put(entity));
+    if (entity == null)
+      throw StateError('The library song is no longer available.');
+    await _musicStorage.saveEntity(
+      entity,
+      persist: (row) async {
+        await Database.instance.writeTxn(() => Database.songs.put(row));
+      },
+    );
   }
 
   @override

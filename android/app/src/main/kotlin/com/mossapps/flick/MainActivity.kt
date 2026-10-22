@@ -667,6 +667,32 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "folderTreeUri, filePath, and tempFilePath are required", null)
                     }
                 }
+                "copyMusicToFolder" -> {
+                    val tree = call.argument<String>("folderTreeUri")
+                    val source = call.argument<String>("sourcePath")
+                    val directory = call.argument<String>("directoryName")
+                    val name = call.argument<String>("fileName")
+                    if (tree == null || source == null || directory == null || name == null) {
+                        result.error("INVALID_ARGUMENT", "Folder and file details are required", null)
+                    } else mainScope.launch {
+                        try {
+                            val saved = withContext(Dispatchers.IO) { copyMusicToFolder(tree, source, directory, name) }
+                            result.success(saved)
+                        } catch (_: Exception) {
+                            result.error("MUSIC_COPY_FAILED", "Cannot write to the selected music folder. Re-select it and retry.", null)
+                        }
+                    }
+                }
+                "removeCopiedMusicDocument" -> {
+                    val uri = call.argument<String>("uri")
+                    mainScope.launch {
+                        val removed = withContext(Dispatchers.IO) {
+                            try { uri != null && DocumentsContract.deleteDocument(contentResolver, Uri.parse(uri)) }
+                            catch (_: Exception) { false }
+                        }
+                        result.success(removed)
+                    }
+                }
                 "scanMediaFiles" -> {
                     val paths = call.argument<List<String>>("paths") ?: emptyList()
                     healMediaStoreIndex(paths)
@@ -1859,6 +1885,40 @@ class MainActivity: FlutterActivity() {
         } catch (e: Exception) {
             Log.w("MainActivity", "removeFromMediaStore failed: ${e.message}", e)
             false
+        }
+    }
+
+    // Stream through the persisted folder grant when scoped storage denies
+    // raw writes. Partial files are not audio and the input survives failures.
+    private fun copyMusicToFolder(tree: String, source: String, directory: String, name: String): Map<String, String> {
+        fun safe(part: String) = part.isNotBlank() && part != "." && part != ".." &&
+            part.none { it == '/' || it == '\\' || it.code < 32 }
+        require(safe(directory) && safe(name))
+        val root = DocumentFile.fromTreeUri(this, Uri.parse(tree)) ?: error("Folder unavailable")
+        val folder = root.findFile(directory)?.also { require(it.isDirectory) }
+            ?: root.createDirectory(directory) ?: error("Cannot create music directory")
+        val input = File(source)
+        require(input.isFile && input.length() > 0)
+        require(folder.findFile(name) == null)
+        val part = folder.createFile("application/octet-stream", "$name.part") ?: error("Cannot create file")
+        try {
+            val bytes = contentResolver.openOutputStream(part.uri, "wt")?.use { output ->
+                input.inputStream().use { stream -> stream.copyTo(output, 1024 * 1024).also { output.flush() } }
+            } ?: error("Cannot open destination")
+            require(bytes == input.length() && part.length() == bytes)
+            require(part.renameTo(name))
+            val result = mutableMapOf("uri" to part.uri.toString())
+            if (part.uri.authority == "com.android.externalstorage.documents") {
+                val id = DocumentsContract.getDocumentId(part.uri).split(":", limit = 2)
+                val base = if (id[0].equals("primary", true)) Environment.getExternalStorageDirectory().absolutePath
+                    else "/storage/${id[0]}"
+                val path = File(base, id.getOrElse(1) { "" })
+                if (path.isFile && path.canRead()) result["path"] = path.absolutePath
+            }
+            return result
+        } catch (e: Exception) {
+            part.delete()
+            throw e
         }
     }
 

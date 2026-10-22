@@ -589,6 +589,40 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         : diagnostics?.routeLabel.trim().isNotEmpty == true
         ? diagnostics!.routeLabel.trim()
         : l10n.thisDevice;
+    final route = diagnostics?.routeType.toLowerCase() ?? '';
+    // Android reports 'bluetooth' for multiple physical device classes.
+    // Prefer the output's actual product name instead of a connection icon.
+    final deviceName = [
+      diagnostics?.outputDeviceLabel ?? '',
+      diagnostics?.routeLabel ?? '',
+    ].join(' ').toLowerCase();
+    final isSpeaker = RegExp(
+      r'speaker|soundbar|boombox|homepod|soundlink|flip |charge |boom ',
+    ).hasMatch(deviceName);
+    final isHeadset = RegExp(
+      r'earbud|earphone|airpod|buds|headphone|headset|freebuds|tws|'
+      r'wh-|wf-|quietcomfort|momentum|tour pro|fokus',
+    ).hasMatch(deviceName);
+    final outputIcon = isCasting
+        ? LucideIcons.cast
+        : route == 'internal' || route == 'speaker'
+            ? LucideIcons.speaker
+            : route == 'bluetooth'
+                ? isSpeaker
+                    ? LucideIcons.speaker
+                    : isHeadset
+                        ? LucideIcons.headphones
+                        : LucideIcons.bluetooth
+                : route == 'usb' || route == 'dock'
+                    ? LucideIcons.usb
+                    : LucideIcons.headphones;
+    final displayLabel = isCasting
+        ? label
+        : route == 'internal' || route == 'speaker'
+            ? lokalText('Speaker')
+            : label == 'Device DAC'
+                ? lokalText('Speaker')
+                : label;
     return SizedBox(
       height: 58,
       child: Stack(
@@ -604,10 +638,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(LucideIcons.headphones, size: 17,
+                    Icon(outputIcon, size: 17,
                         color: FullPlayerVisuals.primaryText),
                     const SizedBox(width: 8),
-                    Flexible(child: Text(label,
+                    Flexible(child: Text(displayLabel,
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontFamily: _font, fontSize: 13,
                           color: FullPlayerVisuals.primaryText))),

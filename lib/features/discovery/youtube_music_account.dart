@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 import 'lastfm_discovery.dart';
+import '../../core/utils/app_log.dart';
 
 const _origin = 'https://music.youtube.com';
 const _fallbackClientVersion = '1.20250901.03.00';
@@ -274,11 +275,11 @@ Duration? _duration(Object? raw) {
 void _walk(
   Object? root,
   void Function(Map node) visit, {
-  int maxNodes = 40000,
+  int maxNodes = 200000,
 }) {
-  var count = 0;
+  var count = 0, total = 0;
   void walk(Object? value, int depth) {
-    if (++count > maxNodes || depth > 45) return;
+    if (++count > maxNodes || ++total > maxNodes * 20 || depth > 45) return;
     if (value is Map) {
       visit(value);
       for (final child in value.values) {
@@ -291,7 +292,17 @@ void _walk(
     }
   }
 
-  walk(root, 0);
+  if (root is List) {
+    // Callers pass independently bounded response pages. Spending one shared
+    // budget on the first page made all later continuation pages invisible.
+    for (final page in root) {
+      if (total > maxNodes * 20) break;
+      count = 0;
+      walk(page, 0);
+    }
+  } else {
+    walk(root, 0);
+  }
 }
 
 typedef _Metadata = ({
@@ -619,7 +630,10 @@ bool _hasPersonalMixShelf(Object? root) {
   _walk(root, (node) {
     final shelf =
         node['musicCarouselShelfRenderer'] ?? node['musicShelfRenderer'];
-    if (shelf is Map && _isPersonalMixShelf(shelf)) found = true;
+    if (shelf is Map &&
+        _isPersonalMixShelf(shelf) &&
+        parseYoutubeMusicPlaylists(shelf['contents']).isNotEmpty)
+      found = true;
   });
   return found;
 }
@@ -656,6 +670,11 @@ List<LokalDiscoveryMix> parseYoutubeMusicMixes(Object? root) {
       }
     }
   });
+  // Native radio cards may be returned in a grid or flat continuation without
+  // the carousel wrapper. Only provider-owned mix IDs qualify here.
+  for (final mix in parseYoutubeMusicPlaylists(root, limit: 500)) {
+    if (mix.id.startsWith('RDTMAK')) mixes.putIfAbsent(mix.id, () => mix);
+  }
   return mixes.values.toList();
 }
 
@@ -690,6 +709,23 @@ List<({String browseId, String? params})> _mixShelfBrowseEndpoints(
         );
       }
     });
+  });
+  _walk(root, (node) {
+    final chip =
+        node['chipCloudChipRenderer'] ?? node['musicNavigationButtonRenderer'];
+    if (chip is! Map ||
+        !_mixTitle.hasMatch(_text(chip['text'] ?? chip['buttonText']).trim()))
+      return;
+    final endpoint = _at(
+      chip['navigationEndpoint'] ?? chip['onTap'] ?? chip['clickCommand'],
+      ['browseEndpoint'],
+    );
+    if (endpoint is! Map || endpoint['browseId'] is! String) return;
+    final id = endpoint['browseId'] as String;
+    final params = endpoint['params'] is String
+        ? endpoint['params'] as String
+        : null;
+    endpoints['$id\u0000${params ?? ''}'] = (browseId: id, params: params);
   });
   return endpoints.values.toList();
 }
@@ -861,7 +897,15 @@ class YoutubeMusicAccount {
     Map<String, Object?> body, {
     String? continuation,
     Duration? timeout,
+    DateTime? deadline,
   }) async {
+    var allowedTime = timeout ?? this.timeout;
+    if (deadline != null) {
+      final remaining = deadline.difference(DateTime.now());
+      if (remaining <= Duration.zero)
+        throw TimeoutException('YouTube Music loading deadline reached.');
+      if (remaining < allowedTime) allowedTime = remaining;
+    }
     final headers = youtubeMusicHeaders(session);
     if (headers == null) {
       throw const YoutubeMusicSignedOut(
@@ -897,7 +941,7 @@ class YoutubeMusicAccount {
             if (continuation != null) 'continuation': continuation,
           }),
         )
-        .timeout(timeout ?? this.timeout);
+        .timeout(allowedTime);
     _keepCookies(response.headers['set-cookie']);
     if (response.statusCode == 401 || response.statusCode == 403) {
       throw const YoutubeMusicSignedOut();
@@ -931,15 +975,23 @@ class YoutubeMusicAccount {
     String? params,
     String? continuation,
     Duration? timeout,
+    DateTime? deadline,
   }) => request(
     'browse',
     {'browseId': browseId, if (params != null) 'params': params},
     continuation: continuation,
     timeout: timeout,
+    deadline: deadline,
   );
 
-  Future<Map<String, dynamic>> _firstPage(String browseId) =>
-      browse(browseId, timeout: const Duration(seconds: 10));
+  Future<Map<String, dynamic>> _firstPage(
+    String browseId, {
+    DateTime? deadline,
+  }) => browse(
+    browseId,
+    timeout: const Duration(seconds: 10),
+    deadline: deadline,
+  );
 
   void _keepCookies(String? header) {
     if (header == null || header.isEmpty) return;
@@ -967,16 +1019,20 @@ class YoutubeMusicAccount {
     bool stopAtMixShelf = false,
     String? params,
     Set<String> types = _mixContinuationTypes,
+    DateTime? deadline,
   }) async {
     final pages = <Object?>[first];
     final seen = <String>{};
     final pending = _continuations(first, types: types);
-    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    final pageDeadline = DateTime.now().add(const Duration(seconds: 10));
+    final stopAt = deadline != null && deadline.isBefore(pageDeadline)
+        ? deadline
+        : pageDeadline;
     while (pending.isNotEmpty && seen.length < 20) {
       if (stopAtMixShelf && _hasPersonalMixShelf(pages)) break;
       final token = pending.removeAt(0);
       if (!seen.add(token)) continue;
-      final left = deadline.difference(DateTime.now());
+      final left = stopAt.difference(DateTime.now());
       if (left <= Duration.zero) {
         return (
           pages: pages,
@@ -1023,7 +1079,12 @@ class YoutubeMusicAccount {
       if (headers == null) return null;
       final response = await client
           .get(
-            Uri.parse('$_origin/'),
+            Uri.parse('$_origin/').replace(
+              queryParameters: {
+                if (session.sessionIndex != null)
+                  'authuser': session.sessionIndex!,
+              },
+            ),
             headers: {
               'Cookie': headers['Cookie']!,
               'User-Agent': _fallbackUserAgent,
@@ -1065,12 +1126,16 @@ class YoutubeMusicAccount {
     } // API browsing can still work without HTML.
   }
 
-  Future<YoutubeMusicAccountData> fetch({int limit = 100}) async {
+  Future<YoutubeMusicAccountData> fetch({
+    int limit = 100,
+    Duration budget = const Duration(seconds: 30),
+  }) async {
+    final deadline = DateTime.now().add(budget);
     final initialPage = await _refreshPage();
     final errors = <Object>[];
     Future<Map<String, dynamic>?> attempt(String id) async {
       try {
-        return await _firstPage(id);
+        return await _firstPage(id, deadline: deadline);
       } catch (error) {
         errors.add(error);
         return null;
@@ -1081,10 +1146,12 @@ class YoutubeMusicAccount {
       attempt('VLLM'),
       attempt('FEmusic_home'),
       attempt('FEmusic_history'),
+      attempt('FEmusic_liked_playlists'),
     ]);
     final liked = results[0];
     final home = results[1];
     final history = results[2];
+    final playlistsPage = results[3];
     final answered = results.whereType<Map<String, dynamic>>().toList();
     if (!answered.any(_confirmsSignedIn)) {
       final signedOut = errors.whereType<YoutubeMusicSignedOut>().firstOrNull;
@@ -1098,7 +1165,7 @@ class YoutubeMusicAccount {
       );
     }
 
-    var homePages = <Object?>[if (initialPage != null) initialPage];
+    final homePages = <Object?>[if (initialPage != null) initialPage];
     String? mixError;
     if (home != null) {
       final result = await _pages(
@@ -1106,12 +1173,15 @@ class YoutubeMusicAccount {
         home,
         stopAtMixShelf: true,
         types: _homeContinuationTypes,
+        deadline: deadline,
       );
       homePages.addAll(result.pages);
       mixError = result.error;
     }
     final mixes = <String, LokalDiscoveryMix>{
       for (final mix in parseYoutubeMusicMixes(homePages)) mix.id: mix,
+      for (final mix in parseYoutubeMusicPlaylists(playlistsPage))
+        if (mix.id.startsWith('RDTMAK')) mix.id: mix,
     };
     // Home may contain only a header/seed card. Follow that shelf's own
     // continuation, whose response omits its parent title and shelf renderer.
@@ -1132,7 +1202,7 @@ class YoutubeMusicAccount {
           named: context.named,
           result: await _pages('FEmusic_home', {
             'musicCarouselShelfRenderer': context.shelf,
-          }),
+          }, deadline: deadline),
         ),
       ),
     );
@@ -1142,11 +1212,13 @@ class YoutubeMusicAccount {
           final first = await browse(
             endpoint.browseId,
             params: endpoint.params,
+            deadline: deadline,
           );
           return await _pages(
             endpoint.browseId,
             first,
             params: endpoint.params,
+            deadline: deadline,
           );
         } on YoutubeMusicSignedOut {
           rethrow;
@@ -1174,6 +1246,18 @@ class YoutubeMusicAccount {
         mixes.putIfAbsent(mix.id, () => mix);
       }
     }
+    if (mixes.isEmpty) {
+      mixError ??= home == null
+          ? 'YouTube Music could not load your home page. Refresh or reconnect your account in Data.'
+          : 'YouTube Music returned no personal mix cards for this profile. Refresh, or check the selected account in Data.';
+    }
+    // Counts and status only: never write account cookies, IDs, tokens or pages.
+    AppLog.instance.add(
+      '[YouTube discovery] home=${home != null} embedded=${initialPage != null} '
+      'pages=${homePages.length} shelves=${_personalMixShelves(homePages).length} '
+      'mixRoutes=${_mixShelfBrowseEndpoints(homePages).length} '
+      'library=${playlistsPage != null} mixes=${mixes.length} partial=${mixError != null}',
+    );
     final likedTracks = liked == null
         ? null
         : parseYoutubeMusicTracks(liked, limit: limit);

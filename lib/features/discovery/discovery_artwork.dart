@@ -240,23 +240,28 @@ class DiscoveryArtworkResolver {
       }
     }
 
-    final itunes = await _rows(
-      Uri.https('itunes.apple.com', '/search', {
-        'term': '${request.artist} ${request.title}',
-        'entity': album ? 'album' : 'song',
-        'limit': '15',
-      }),
-      'results',
-    );
-    for (final row in itunes) {
-      final small = row['artworkUrl100'];
-      final cover = allowed(
-        small is String ? small.replaceFirst('100x100bb', '600x600bb') : null,
+    // Storefront availability differs even for well-known original recordings.
+    // US can return only covers (e.g. Plastic Love); GB has the original.
+    for (final country in ['us', 'gb']) {
+      final itunes = await _rows(
+        Uri.https('itunes.apple.com', '/search', {
+          'term': '${request.artist} ${request.title}',
+          'country': country,
+          'entity': album ? 'album' : 'song',
+          'limit': '15',
+        }),
+        'results',
       );
-      if (matchingTitle(album ? row['collectionName'] : row['trackName']) &&
-          matchingArtist(row['artistName']) &&
-          cover.isNotEmpty) {
-        return cover;
+      for (final row in itunes) {
+        final small = row['artworkUrl100'];
+        final cover = allowed(
+          small is String ? small.replaceFirst('100x100bb', '600x600bb') : null,
+        );
+        if (matchingTitle(album ? row['collectionName'] : row['trackName']) &&
+            matchingArtist(row['artistName']) &&
+            cover.isNotEmpty) {
+          return cover;
+        }
       }
     }
     // Desktop's final fallback: YouTube Music song thumbnails. Only a

@@ -643,6 +643,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     required Widget child,
     VoidCallback? onTap,
     bool selected = false,
+    bool compact = false,
   }) {
     return Material(
       color: Colors.transparent,
@@ -656,7 +657,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 12, vertical: 9),
           child: child,
         ),
       ),
@@ -911,6 +912,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       ),
                     ],
                     if (LokalQualityTier.of(song) case final tier?) ...[
+                      const Spacer(),
                       const SizedBox(width: 8),
                       InkWell(
                         onTap: () => SongMetadataSheet.show(context, song),
@@ -1342,6 +1344,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               ),
             ),
           ),
+          const SizedBox(width: 13),
           Icon(
             sliderValue <= 0.001 ? LucideIcons.volumeX : LucideIcons.volume2,
             size: 18,
@@ -1429,13 +1432,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           width: width,
           child: _pill(
           selected: active,
+          compact: true,
           onTap: onTap,
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 icon,
-                size: 18,
+                size: 19,
                 color: active
                     ? FullPlayerVisuals.primaryText
                     : FullPlayerVisuals.secondaryText,
@@ -1445,7 +1450,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 label, maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontFamily: _font,
-                  fontSize: 10.5,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: FullPlayerVisuals.primaryText,
                 ),

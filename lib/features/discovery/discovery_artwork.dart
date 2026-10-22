@@ -340,13 +340,10 @@ class DiscoveryLocalArtwork {
   }
 }
 
-/// One resolver for the app's lifetime, so its cache survives Home rebuilds.
-final discoveryArtworkResolverProvider = Provider<DiscoveryArtworkResolver>((
-  ref,
-) {
-  final client = http.Client();
-  ref.onDispose(client.close);
-  final web = DiscoveryHttp(client, timeout: const Duration(seconds: 4));
+/// Shared remote artwork pipeline for Last.fm/Discovery and Discord presence.
+/// Exact track/artist matching plus Deezer, US/GB Apple Music storefronts,
+/// and verified YouTube Music fallbacks stay identical across both features.
+DiscoveryArtworkResolver createDiscoveryArtworkResolver(DiscoveryHttp web) {
   final youtube = YoutubeMusicCatalog(web, refreshClientContext: true);
   return DiscoveryArtworkResolver(
     web,
@@ -357,6 +354,17 @@ final discoveryArtworkResolverProvider = Provider<DiscoveryArtworkResolver>((
       if (artist == null) return null;
       return (await api.getArtistInfo(artist.artistId))?.imageUrl;
     },
+  );
+}
+
+/// One resolver for the app's lifetime, so its cache survives Home rebuilds.
+final discoveryArtworkResolverProvider = Provider<DiscoveryArtworkResolver>((
+  ref,
+) {
+  final client = http.Client();
+  ref.onDispose(client.close);
+  return createDiscoveryArtworkResolver(
+    DiscoveryHttp(client, timeout: const Duration(seconds: 4)),
   );
 });
 

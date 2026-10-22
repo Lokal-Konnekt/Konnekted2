@@ -101,5 +101,25 @@ void main() {
       ),
       isNotEmpty,
     );
+    // The Last.fm resolver may return a different regional Apple CDN;
+    // Discord must not silently discard the identical valid cover.
+    expect(
+      DiscordPresenceService.publicArtwork(
+        'https://is7-ssl.mzstatic.com/image/thumb/Music/cover/600x600bb.jpg',
+      ),
+      isNotEmpty,
+    );
+    expect(
+      DiscordPresenceService.publicArtwork(
+        'https://is10-ssl.mzstatic.com/image/thumb/Music/cover/600x600bb.jpg',
+      ),
+      isNotEmpty,
+    );
+    expect(
+      DiscordPresenceService.publicArtwork(
+        'https://is7-ssl.mzstatic.com.evil.example/cover.jpg',
+      ),
+      isEmpty,
+    );
   });
 }

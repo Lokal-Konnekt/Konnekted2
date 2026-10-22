@@ -138,6 +138,10 @@ class LokalThemeGrid extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: padding,
     child: GridView.count(
+      // Nested settings already reserve the system/dock insets. A null grid
+      // padding inherits that bottom inset again and leaves a large blank gap.
+      padding: EdgeInsets.zero,
+      primary: false,
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),

@@ -102,6 +102,14 @@ List<LokalSettingsSection> appearanceSettings(
       title: lokalText('Now Playing'),
       children: [
         LokalSettingRow.toggle(
+          label: lokalText('Fullscreen cover'),
+          description: lokalText(
+            'Fill the full player with edge-to-edge artwork behind the controls. Covers crop to fit the screen.',
+          ),
+          value: appearance.fullscreenCover,
+          onChanged: look.setFullscreenCover,
+        ),
+        LokalSettingRow.toggle(
           label: lokalText('Moving covers'),
           description: lokalText(
             'Play an animated cover or Canvas in either player, when one is available.',

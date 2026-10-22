@@ -1,3 +1,5 @@
+import 'package:flick/core/utils/artist_credits.dart';
+
 import 'dart:collection';
 
 import 'package:flick/services/queue_pre_resolver.dart';
@@ -52,19 +54,13 @@ enum LokalReleaseKind { album, ep, single, compilation, live, feature, unknown }
 /// "Ann" must not claim "Joanne" releases as Features).
 bool catalogueArtistCredit(String credit, String artist) {
   if (recommendationKey(credit) == recommendationKey(artist)) return true;
-  return credit
-      .split(
-        RegExp(
-          r'\s*(?:;|,|\s&\s|\sfeat\.?\s|\sfeaturing\s|\swith\s|\sx\s)\s*',
-          caseSensitive: false,
-        ),
-      )
+  return splitArtistCredits(credit)
       .any((name) => recommendationKey(name) == recommendationKey(artist));
 }
 
 bool cataloguePrimaryArtist(String credit, String artist) =>
     recommendationKey(credit) == recommendationKey(artist) ||
-    recommendationKey(leadArtist(credit).split(RegExp(r'\s&\s|\sx\s')).first) ==
+    recommendationKey(splitArtistCredits(credit).firstOrNull) ==
         recommendationKey(artist);
 
 class LokalCatalogueAlbum {

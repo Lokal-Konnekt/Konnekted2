@@ -25,6 +25,9 @@ object LokalLibrarySyncNotification {
                 result.notImplemented()
                 return@setMethodCallHandler
             }
+            val libraryJob = call.argument<String>("kind") == "library_job"
+            val channel = if (libraryJob) "lokal_library_jobs" else CHANNEL
+            val notificationId = if (libraryJob) 1043 else ID
             val manager = NotificationManagerCompat.from(context)
             if (!manager.areNotificationsEnabled() || (Build.VERSION.SDK_INT >= 33 &&
                     ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)) {
@@ -37,9 +40,9 @@ object LokalLibrarySyncNotification {
                 return@setMethodCallHandler
             }
             channels.createNotificationChannel(NotificationChannel(
-                CHANNEL, "Library sync", NotificationManager.IMPORTANCE_LOW,
+                channel, if (libraryJob) "Library jobs" else "Library sync", NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "Desktop library sync progress and completion"
+                description = if (libraryJob) "Music video search and library metadata progress" else "Desktop library sync progress and completion"
                 setShowBadge(false)
                 setSound(null, null)
                 enableVibration(false)
@@ -48,11 +51,11 @@ object LokalLibrarySyncNotification {
             val processed = (call.argument<Number>("processed")?.toLong() ?: 0L).coerceAtLeast(0L)
             val total = call.argument<Number>("total")?.toLong()
             val message = call.argument<String>("message").orEmpty()
-            val open = PendingIntent.getActivity(context, ID,
+            val open = PendingIntent.getActivity(context, notificationId,
                 Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            val builder = NotificationCompat.Builder(context, CHANNEL)
+            val builder = NotificationCompat.Builder(context, channel)
                 .setSmallIcon(R.drawable.ic_lokal_fg_mono)
                 .setContentTitle(call.argument<String>("title") ?: "Library sync")
                 .setContentText(message)
@@ -76,7 +79,7 @@ object LokalLibrarySyncNotification {
                 }
             }
             try {
-                manager.notify(ID, builder.build())
+                manager.notify(notificationId, builder.build())
                 result.success(true)
             } catch (_: SecurityException) {
                 result.success(false)

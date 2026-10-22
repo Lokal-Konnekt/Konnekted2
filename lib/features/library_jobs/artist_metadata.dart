@@ -1,3 +1,5 @@
+import 'package:flick/core/utils/artist_credits.dart';
+
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
@@ -22,14 +24,13 @@ class ArtistMetadata extends Notifier<Map<String, String>> {
 
   void warm(List<Song> songs) {
     for (final song in songs) {
-      final name = song.albumArtist?.trim().isNotEmpty == true
-          ? song.albumArtist!.trim()
-          : song.artist.trim();
-      if (name.isEmpty || !_seen.add(key(name))) continue;
-      if (_seeded) {
-        _queue.addFirst(name);
-      } else {
-        _queue.addLast(name);
+      for (final name in songArtistNames(song)) {
+        if (!_seen.add(key(name))) continue;
+        if (_seeded) {
+          _queue.addFirst(name);
+        } else {
+          _queue.addLast(name);
+        }
       }
     }
     _seeded = true;

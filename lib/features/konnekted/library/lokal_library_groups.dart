@@ -1,3 +1,4 @@
+import 'package:flick/core/utils/artist_credits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/data/repositories/song_repository.dart';
@@ -50,17 +51,15 @@ class LokalArtist {
   final List<Song> songs;
 }
 
-/// The library's artists, A to Z (by album artist, or artist).
+/// The library's credited performers, A to Z; collaborations share songs.
 List<LokalArtist> lokalArtists(Iterable<Song> library) {
   final names = <String, String>{};
   final songs = <String, List<Song>>{};
   for (final song in library) {
-    final name = song.albumArtist?.trim().isNotEmpty == true
-        ? song.albumArtist!.trim()
-        : song.artist.trim();
-    if (name.isEmpty) continue;
-    names.putIfAbsent(_key(name), () => name);
-    (songs[_key(name)] ??= []).add(song);
+    for (final name in songArtistNames(song)) {
+      names.putIfAbsent(_key(name), () => name);
+      (songs[_key(name)] ??= []).add(song);
+    }
   }
   return [
     for (final entry in songs.entries)

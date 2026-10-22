@@ -2,6 +2,7 @@
 import argparse
 import datetime as dt
 import os
+import math
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -43,18 +44,19 @@ def render(version, channel, output, hero=False):
         if sep: d.text((73,243),suffix,font=font(25,mono=True),fill=accent)
         date=dt.date.today().isoformat()
         d.text((74,335),f'ANDROID  /  ARM64 + ARMv7  /  {date}',font=font(18,mono=True),fill='#9bb1ba')
-    # A mobile silhouette and record distinguish this from desktop's equalizer.
-    px,py,pw,ph=(1180,145,240,400) if hero else (1305,125,160,230)
-    d.rounded_rectangle((px,py,px+pw,py+ph),radius=36,fill='#0c171c',outline='#54747d',width=2)
-    d.rounded_rectangle((px+pw*.34,py+13,px+pw*.66,py+22),radius=5,fill='#425a63')
-    cx,cy=px+pw/2,py+ph*.43
-    r=pw*.35
-    for ring in range(int(r),10,-8): d.ellipse((cx-ring,cy-ring,cx+ring,cy+ring),outline='#24434b',width=2)
-    d.ellipse((cx-r*.35,cy-r*.35,cx+r*.35,cy+r*.35),fill=accent)
-    d.ellipse((cx-4,cy-4,cx+4,cy+4),fill='#0c171c')
-    d.rounded_rectangle((px+22,py+ph*.79,px+pw-22,py+ph*.81),radius=3,fill=accent)
-    tx,ty=px+pw*.46,py+ph*.88
-    d.polygon([(tx-5,ty-8),(tx-5,ty+8),(tx+8,ty)],fill=accent)
+    # Audio waveform shared by README and release art; mobile keeps teal/coral.
+    left, right = (1130, 1515) if hero else (960, 1515)
+    center = 350 if hero else 240
+    amplitude = 150 if hero else 85
+    count = 43
+    for i in range(count):
+        phase = i / (count - 1)
+        envelope = math.sin(math.pi * phase) ** .7
+        pulse = .24 + .76 * abs(math.sin(i * .71) * math.cos(i * .23))
+        height = 8 + amplitude * envelope * pulse
+        x = left + (right - left) * phase
+        d.rounded_rectangle((x, center - height, x + 5, center + height),
+                            radius=3, fill=accent)
     Path(output).parent.mkdir(parents=True,exist_ok=True)
     image.save(output,optimize=True)
 

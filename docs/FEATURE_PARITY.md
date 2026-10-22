@@ -564,3 +564,58 @@ Validation: 39 existing navigation/settings widget checks pass after updating
 route/category expectations. Targeted analysis has no errors; an existing
 unnecessary-null-assertion warning in the appearance language selector remains.
 No APK or CI build was run.
+
+### Spotify mix cards and optional fullscreen artwork
+
+Spotify Discovery retains the native Home playlists already fetched through the
+saved-cookie WebPlayer/Pathfinder flow. Mixed for you renders first as horizontal
+cover cards, using desktop's personal-first ordering and first-occurrence dedupe.
+Tapping a card fetches that playlist's metadata with the same cookie session,
+then matches phone songs and queues unresolved entries through existing playback
+sources. Cards remain usable when optional song recommendation shelves fail.
+Desktop reference: `electron/artwork/spotify.js` (`homeMixes`, `madeForYou`,
+`playlistTracks`) and `scripts/spotify-discovery.test.mjs` on sipbuu/lokal main.
+
+Appearance › Now Playing › Fullscreen cover is an opt-in, persisted setting for
+the standard full player. Artwork fills the viewport with a contrast gradient
+under safe-area controls. It uses the existing carousel, one active artwork Hero
+and shared moving-cover/Canvas decoder. Lyrics and queue reveal their compact
+cover while the poster recedes. The default layout and classic player are kept;
+no new blur pass is introduced. Theme/accent changes preserve the option.
+
+Validation: 30 focused Spotify API/discovery/widget, appearance persistence,
+settings and lyrics-panel checks pass. Tests cover card order/layout and tapping
+a mix into local-plus-pending queue entries, and retaining cards after optional
+track requests fail. Targeted analysis has no errors; pre-existing unused-field,
+unused-parameter and unnecessary-null-assertion warnings remain. No APK/CI build,
+live Spotify account or on-device fullscreen/Hero/decoder validation was run.
+
+### Player actions, session-stable Discovery and artist credits
+
+Both full-player headers now open Android's system output chooser directly.
+The now-playing song menu includes Start radio, and artist/album song rows use
+Library's shared action sheet for long-press and overflow (with download retained
+for online entries). Music-video and metadata jobs publish silent, throttled
+Android progress notifications on a separate channel/ID from desktop sync;
+notification denial does not interrupt work. This reports jobs, not a new
+background execution guarantee.
+
+Discovery retains loaded shelves for the app session across tab navigation.
+Changing provider or explicitly refreshing reloads them; selecting the active
+provider does not. Spotify account changes still invalidate cached account data.
+
+Artist grouping, lookups, metadata warmup and player links use desktop's built-in
+credit splitting rules, including protected names such as Tyler, The Creator.
+Each artist in the standard and classic player can be opened independently.
+Original tags are retained; desktop custom separator settings are not added.
+The Videos page groups existing associations by actual video ID, preferring a
+local song representative, without deleting songs or per-song video matches.
+
+The shared Theme grid disables inherited scroll padding, removing the repeated
+bottom inset between Theme and Accent in both full and quick Appearance.
+Validation: 18 focused checks pass, covering desktop parser fixtures, individual
+artist taps, video dedupe, Discovery cache lifetime, job notification completion,
+and theme grid sizing with a large inherited bottom inset. Targeted analysis has
+no errors; existing unused-field/parameter warnings and style notices remain.
+No APK/CI build, native compilation or physical Android output/notification test
+was run.

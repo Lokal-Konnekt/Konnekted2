@@ -1,3 +1,5 @@
+import 'package:flick/core/utils/artist_credits.dart';
+
 import '../../services/link/link_journal.dart';
 import '../../services/link/link_protocol.dart';
 
@@ -522,8 +524,12 @@ class SongRepository {
   Future<Map<String, List<Song>>> getSongsByArtist() async {
     final songs = await getAllSongs();
     final artistMap = <String, List<Song>>{};
+    final names = <String, String>{};
     for (final song in songs) {
-      artistMap.putIfAbsent(song.artist, () => []).add(song);
+      for (final name in songArtistNames(song)) {
+        final key = names.putIfAbsent(name.toLowerCase(), () => name);
+        artistMap.putIfAbsent(key, () => []).add(song);
+      }
     }
     for (final entry in artistMap.entries) {
       artistMap[entry.key] = SongRepository.sortSongsByAlbum(entry.value);

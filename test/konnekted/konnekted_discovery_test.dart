@@ -1,3 +1,4 @@
+import 'package:flick/features/discovery/spotify_discovery.dart';
 import 'package:flick/features/konnekted/lokal_home_greeting.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -137,12 +138,96 @@ class _ReadyYoutube extends KonnektedDiscoveryNotifier {
   Future<void> load({bool refresh = false}) async {}
 }
 
+class _ReadySpotify extends KonnektedDiscoveryNotifier {
+  @override
+  KonnektedDiscoveryState build() =>
+      const KonnektedDiscoveryState(source: KonnektedDiscoverySource.spotify);
+  @override
+  Future<void> load({bool refresh = false}) async {}
+}
+
 void main() {
   setUp(() {
     forgetLastfmSeeds();
     // Discovery remembers the chosen source in preferences.
     SharedPreferences.setMockInitialValues({});
   });
+
+  testWidgets(
+    'Spotify cookie mixes appear first as horizontal cards and load the tapped native playlist',
+    (tester) async {
+      tester.view
+        ..physicalSize = const Size(412, 1800)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final played = <(Song, List<Song>)>[];
+      final loaded = <String>[];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            konnektedDiscoveryProvider.overrideWith(_ReadySpotify.new),
+            konnektedSpotifyDiscoveryProvider.overrideWith(
+              (ref) async => const SpotifyDiscoverySnapshot(
+                enabled: true,
+                connected: true,
+                data: SpotifyDiscoveryData(
+                  account: 'Spotify',
+                  quickPicks: [],
+                  recentlyPlayed: [],
+                  likedSongs: [
+                    LokalDiscoveryTrack(title: 'Like', artist: 'Artist'),
+                  ],
+                  artists: [],
+                  albums: [],
+                  freshFinds: [],
+                  mixes: [
+                    LokalDiscoveryMix(
+                      id: '37i9dQZF1E000000000001',
+                      title: 'Daily Mix 1',
+                      author: 'Spotify',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            konnektedSpotifyMixLoaderProvider.overrideWithValue((id) async {
+              loaded.add(id);
+              return const [
+                LokalDiscoveryTrack(title: 'American Boy', artist: 'Estelle'),
+                LokalDiscoveryTrack(title: 'New song', artist: 'Artist'),
+              ];
+            }),
+          ],
+          child: _app(
+            SingleChildScrollView(
+              child: KonnektedDiscoveryView(
+                onNavigate: (_) {},
+                onPlay: (song, queue) => played.add((song, queue)),
+                pendingSong: (track) =>
+                    _song('pending:${track.key}', track.artist, track.title),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.text('Mixed for you')).dy,
+        lessThan(tester.getTopLeft(find.text('Liked Songs')).dy),
+      );
+      expect(
+        tester
+            .widget<ListView>(find.byKey(const PageStorageKey('spotify-mixes')))
+            .scrollDirection,
+        Axis.horizontal,
+      );
+      await tester.tap(find.text('Daily Mix 1'));
+      await tester.pumpAndSettle();
+      expect(loaded, ['37i9dQZF1E000000000001']);
+      expect(played.single.$1.id, '1');
+      expect(played.single.$2.last.id, startsWith('pending:'));
+    },
+  );
 
   testWidgets(
     'YouTube personal mixes are first and use horizontal cover cards',

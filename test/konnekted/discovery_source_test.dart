@@ -1,3 +1,5 @@
+import 'package:flick/features/discovery/spotify_discovery.dart';
+
 import 'dart:async';
 
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
@@ -8,6 +10,41 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  test('Spotify shelves survive losing Home listeners and same-source selection, but change-source refreshes', () async {
+    var calls = 0;
+    final container = ProviderContainer(
+      overrides: [
+        konnektedSpotifyDiscoveryProvider.overrideWith((ref) async {
+          calls++;
+          return const SpotifyDiscoverySnapshot(enabled: true, connected: true);
+        }),
+        konnektedLastfmAccountProvider.overrideWith((ref) async => null),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(konnektedDiscoveryProvider.notifier);
+    await notifier.setSource(KonnektedDiscoverySource.spotify);
+    final first = container.listen(
+      konnektedSpotifyDiscoveryProvider,
+      (_, __) {},
+    );
+    await container.read(konnektedSpotifyDiscoveryProvider.future);
+    first.close();
+    await pumpEventQueue();
+    final second = container.listen(
+      konnektedSpotifyDiscoveryProvider,
+      (_, __) {},
+    );
+    addTearDown(second.close);
+    await container.read(konnektedSpotifyDiscoveryProvider.future);
+    await notifier.setSource(KonnektedDiscoverySource.spotify);
+    expect(calls, 1);
+    await notifier.setSource(KonnektedDiscoverySource.lastfm);
+    await notifier.setSource(KonnektedDiscoverySource.spotify);
+    await container.read(konnektedSpotifyDiscoveryProvider.future);
+    expect(calls, 2);
+  });
+
   test(
     'manual Spotify selection and refresh never load or select Last.fm',
     () async {

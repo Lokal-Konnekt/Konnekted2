@@ -605,7 +605,7 @@ class MusicNotificationService : Service() {
                 else if (isCasting) "Casting to ${castDeviceName ?: "device"}"
                 else "${formatTime(currentPosition)} / ${formatTime(currentDuration)}"
             )
-            .setSmallIcon(R.drawable.ic_lokal_fg_mono)
+            .setSmallIcon(R.drawable.ic_notification)
             .setLargeIcon(albumArt)
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

@@ -1511,7 +1511,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           chip(LucideIcons.slidersHorizontal, l10n.equalizer, _openEqualizer),
         ],
       ),
-    );
+    ));
   }
 }
 

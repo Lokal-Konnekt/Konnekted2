@@ -1283,6 +1283,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         valueListenable: _player.isPlayingNotifier,
         builder: (context, playing, _) => PlayerTransportControls(
           compact: compact,
+          tallerButtons: true,
           lyricsProgress: lyricsProgress,
           playing: playing,
           accent: FullPlayerVisuals.fromPalette(

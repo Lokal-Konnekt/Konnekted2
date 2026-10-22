@@ -11,6 +11,7 @@ class PlayerTransportControls extends StatefulWidget {
     super.key,
     required this.playing,
     required this.compact,
+    this.tallerButtons = false,
     required this.lyricsProgress,
     required this.accent,
     required this.onAccent,
@@ -19,6 +20,8 @@ class PlayerTransportControls extends StatefulWidget {
     required this.onPlayPause,
   });
   final bool playing, compact;
+  /// Taller pads for the modern full player; lyrics pose stays compact.
+  final bool tallerButtons;
   final double lyricsProgress;
   final Color accent, onAccent;
   final VoidCallback onPrevious, onNext, onPlayPause;
@@ -58,7 +61,9 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
     builder: (context, _) {
       final l = widget.lyricsProgress.clamp(0.0, 1.0);
       final height = lerpDouble(
-        widget.compact ? 66 : 82,
+        widget.tallerButtons
+            ? (widget.compact ? 74.0 : 94.0)
+            : (widget.compact ? 66.0 : 82.0),
         widget.compact ? 48 : 52,
         l,
       )!;

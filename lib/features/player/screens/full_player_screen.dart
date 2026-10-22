@@ -1,5 +1,10 @@
 import '../widgets/lyrics_source_button.dart';
-import '../widgets/player_lyrics_transition.dart';
+import '../widgets/player_panel_stage.dart';
+import '../widgets/motion_art_widget.dart';
+
+import 'package:flick/services/motion_art/moving_cover_settings.dart';
+
+import '../widgets/player_transport_controls.dart';
 import '../widgets/artwork_gradient_backdrop.dart';
 import '../widgets/lyric_motion_line.dart';
 import '../widgets/material_player_thumb.dart';
@@ -48,7 +53,6 @@ import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/player_volume_control.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
-import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/widgets/common/flick_dialog.dart';
 
 const String _font = 'GoogleSansFlex';
@@ -65,7 +69,7 @@ class FullPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final PlayerService _player = PlayerService();
   final FavoritesService _favorites = FavoritesService();
   final LyricsService _lyricsService = LyricsService();
@@ -99,6 +103,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     _queueProgress,
   )..addListener(_onQueueTargetChanged);
 
+  late final AnimationController _lyricsProgress = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
+  );
+
   int _burst = 0;
   bool _burstVisible = false;
 
@@ -117,6 +126,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     _volumeControl.dispose();
     _queue.dispose();
     _queueProgress.dispose();
+    _lyricsProgress.dispose();
     _player.currentSongNotifier.removeListener(_onSongChanged);
     _player.favoriteNotificationToggleNotifier.removeListener(_refreshFavorite);
     super.dispose();
@@ -187,14 +197,29 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     });
   }
 
-  void _toggleLyrics() {
-    // Lyrics take the queue's place outright rather than animating over it.
-    if (!_showLyrics && _queue.isOpen) _queue.setOpen(false, animate: false);
-    setState(() => _showLyrics = !_showLyrics);
-    if (_showLyrics) _loadLyrics();
+  void _moveLyrics(bool open) {
+    setState(() => _showLyrics = open);
+    final target = open ? 1.0 : 0.0;
+    if (!_animate) {
+      _lyricsProgress.value = target;
+    } else {
+      _lyricsProgress.animateTo(target, curve: Curves.easeInOutCubicEmphasized);
+    }
+    if (open) unawaited(_loadLyrics());
   }
 
-  // ───────────────────────────── queue reveal ─────────────────────────────
+  void _toggleLyrics() {
+    HapticFeedback.selectionClick();
+    if (_showLyrics) {
+      // At the lyric pose the hidden queue can reset without moving artwork.
+      // Mid-flight, animate it instead so a rapid reversal stays continuous.
+      _queue.setOpen(false, animate: _animate && _lyricsProgress.value < .999);
+      _moveLyrics(false);
+    } else {
+      _queueProgress.stop();
+      _moveLyrics(true);
+    }
+  }
 
   void _onQueueTargetChanged() {
     if (mounted) setState(() {});
@@ -203,13 +228,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   bool get _animate => !MediaQuery.disableAnimationsOf(context);
 
   void _setQueueOpen(bool open) {
-    if (open == _queue.isOpen) return;
+    if (open == _queue.isOpen && !_showLyrics) return;
     HapticFeedback.selectionClick();
-    if (open && _showLyrics) setState(() => _showLyrics = false);
-    _queue.setOpen(open, animate: _animate);
+    _queue.setOpen(open, animate: _animate && _lyricsProgress.value < .999);
+    if (_showLyrics) _moveLyrics(false);
   }
 
-  void _toggleQueue() => _setQueueOpen(!_queue.isOpen);
+  void _toggleQueue() => _setQueueOpen(_showLyrics || !_queue.isOpen);
 
   void _releaseQueue(double upVelocity) {
     final was = _queue.isOpen;
@@ -307,10 +332,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       canPop: !_showLyrics && !_queue.isOpen,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        if (_queue.isOpen) {
-          _setQueueOpen(false);
-        } else if (_showLyrics) {
+        if (_showLyrics) {
           _toggleLyrics();
+        } else if (_queue.isOpen) {
+          _setQueueOpen(false);
         }
       },
       child: LokalPullToDismiss(
@@ -354,24 +379,58 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   child: LayoutBuilder(
                     builder: (context, c) {
                       final compact = c.maxHeight < 640;
-                      return Column(
-                        children: [
-                          _topBar(song, isCasting, diagnostics),
-                          Expanded(
-                            child: PlayerLyricsTransition(
-                              showLyrics: _showLyrics,
-                              cover: _artArea(song, compact),
-                              lyrics: _lyricsArea(song),
-                            ),
-                          ),
-                          _seekRow(),
-                          SizedBox(height: compact ? 6 : 10),
-                          _transport(compact),
-                          SizedBox(height: compact ? 8 : 12),
-                          _optionsStrip(),
-                          SizedBox(height: compact ? 8 : 12),
-                          _chipRow(),
-                        ],
+                      return AnimatedBuilder(
+                        animation: _lyricsProgress,
+                        builder: (context, _) {
+                          final l = _lyricsProgress.value;
+                          return Column(
+                            children: [
+                              ClipRect(
+                                child: Align(
+                                  heightFactor: 1 - l,
+                                  alignment: Alignment.topCenter,
+                                  child: IgnorePointer(
+                                    ignoring: _showLyrics,
+                                    child: Opacity(
+                                      opacity: 1 - l,
+                                      child: _topBar(
+                                        song,
+                                        isCasting,
+                                        diagnostics,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(child: _panelStage(song, compact)),
+                              _seekRow(),
+                              SizedBox(
+                                height: lerpDouble(compact ? 6 : 10, 6, l),
+                              ),
+                              _transport(compact, l),
+                              ClipRect(
+                                child: Align(
+                                  heightFactor: 1 - l,
+                                  alignment: Alignment.topCenter,
+                                  child: IgnorePointer(
+                                    ignoring: _showLyrics,
+                                    child: Opacity(
+                                      opacity: 1 - l,
+                                      child: Padding(
+                                        padding: EdgeInsets.only(
+                                          top: compact ? 8 : 12,
+                                        ),
+                                        child: _optionsStrip(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: compact ? 8 : 12),
+                              _chipRow(),
+                            ],
+                          );
+                        },
                       );
                     },
                   ),
@@ -491,23 +550,22 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   // ───────────────────────────── artwork / lyrics ─────────────────────────────
 
-  Widget _artArea(Song song, bool compact) {
+  Widget _panelStage(Song song, bool compact) {
     final titleSize = compact ? 26.0 : 32.0;
     return LayoutBuilder(
-      key: const ValueKey('art'),
       builder: (context, c) {
-        // A finger travels about the cover's height for the whole reveal.
         _queue.travel = math.max(math.min(c.maxWidth, c.maxHeight) * .8, 200);
-        return LokalQueueReveal(
-          progress: _queueProgress,
-          open: _queue.isOpen,
+        return PlayerPanelStage(
+          queueProgress: _queueProgress,
+          lyricsProgress: _lyricsProgress,
+          queueOpen: _queue.isOpen,
+          lyricsOpen: _showLyrics,
           artGap: compact ? 8 : 16,
-          onHeaderTap: () => _setQueueOpen(false),
-          onHeaderDragUpdate: _queue.dragBy,
-          onHeaderDragEnd: _releaseQueue,
+          onQueueHeaderTap: () => _setQueueOpen(false),
+          onQueueHeaderDrag: _queue.dragBy,
+          onQueueHeaderRelease: _releaseQueue,
           artwork: (context, size, p) {
-            final atRest = p == 0 && !_queue.isOpen;
-            // Follows the finger; neighbours slide in beside the cover.
+            final atRest = p == 0 && !_queue.isOpen && !_showLyrics;
             return ValueListenableBuilder<List<Song>>(
               valueListenable: _player.upNextNotifier,
               builder: (context, _, __) => ValueListenableBuilder<int>(
@@ -522,7 +580,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   onNext: _player.next,
                   onPrevious: _player.previousBySwipe,
                   stageBuilder: (s) => Align(
-                    alignment: LokalQueueReveal.coverAlignment(p),
+                    alignment: Alignment.center,
                     child: _artwork(
                       s,
                       size,
@@ -595,6 +653,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             ),
           ),
           queue: const QueueList(embedded: true),
+          lyrics: _lyricsArea(song),
         );
       },
     );
@@ -606,10 +665,35 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     required bool current,
     double progress = 0,
   }) {
-    final art = PlayerArtworkImage(
+    final prefs = ref.watch(appPreferencesProvider);
+    final radius = BorderRadius.circular(lerpDouble(28, 12, progress)!);
+    final still = PlayerArtworkImage(
       song: song,
-      radius: lerpDouble(28, 12, progress)!,
+      radius: radius.topLeft.x,
       crossfade: false,
+    );
+    final art = ClipRRect(
+      borderRadius: radius,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _player.isPlayingNotifier,
+        builder: (context, playing, _) => MotionArtView(
+          title: song.title,
+          artist: song.artist,
+          album: song.album,
+          duration: song.duration,
+          enabled:
+              current &&
+              prefs.animatedAlbumArt &&
+              prefs.animationsEnabled &&
+              !ref
+                  .watch(movingCoverSettingsProvider)
+                  .disabledSongs
+                  .contains(movingCoverSongKey(song)),
+          playbackActive: current && progress < .999 && playing,
+          borderRadius: radius,
+          fallback: still,
+        ),
+      ),
     );
     final shown = _burst;
     return GestureDetector(
@@ -791,56 +875,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             child: body,
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: CachedImageWidget(
-                    imagePath: song.albumArt,
-                    audioSourcePath: song.filePath,
-                    fit: BoxFit.cover,
-                    placeholder: const FlickArtworkPlaceholder(),
-                    errorWidget: const FlickArtworkPlaceholder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      song.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: _font,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      song.artist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: _font,
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.65),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -959,79 +993,23 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     );
   }
 
-  Widget _transport(bool compact) {
-    Widget big({
-      required int flex,
-      required Color color,
-      required VoidCallback onTap,
-      required Widget child,
-    }) {
-      return Expanded(
-        flex: flex,
-        child: Material(
-          color: color,
-          borderRadius: BorderRadius.circular(28),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(28),
-            onTap: onTap,
-            child: Center(child: child),
-          ),
+  Widget _transport(bool compact, double lyricsProgress) =>
+      ValueListenableBuilder<bool>(
+        valueListenable: _player.isPlayingNotifier,
+        builder: (context, playing, _) => PlayerTransportControls(
+          compact: compact,
+          lyricsProgress: lyricsProgress,
+          playing: playing,
+          accent: context.lokal.accent,
+          onAccent: context.lokal.onAccent,
+          onPrevious: () =>
+              _carouselKey.currentState?.animateToPrevious() ??
+              _player.previous(),
+          onNext: () =>
+              _carouselKey.currentState?.animateToNext() ?? _player.next(),
+          onPlayPause: () => _player.togglePlayPause(),
         ),
       );
-    }
-
-    final glass = Colors.white.withValues(alpha: 0.13);
-    final tokens = context.lokal;
-    return SizedBox(
-      height: compact ? 66 : 82,
-      child: Row(
-        children: [
-          big(
-            flex: 10,
-            color: glass,
-            onTap: () =>
-                _carouselKey.currentState?.animateToPrevious() ??
-                _player.previous(),
-            child: const Icon(
-              Icons.skip_previous_rounded,
-              size: 32,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 10),
-          big(
-            flex: 17,
-            color: tokens.accent,
-            onTap: () => _player.togglePlayPause(),
-            child: ValueListenableBuilder<bool>(
-              valueListenable: _player.isPlayingNotifier,
-              builder: (_, playing, __) => AnimatedSwitcher(
-                duration: const Duration(milliseconds: 160),
-                child: Icon(
-                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  key: ValueKey(playing),
-                  size: 40,
-                  color: tokens.onAccent,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          big(
-            flex: 10,
-            color: glass,
-            onTap: () =>
-                _carouselKey.currentState?.animateToNext() ?? _player.next(),
-            child: const Icon(
-              Icons.skip_next_rounded,
-              size: 32,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _optionsStrip() => ListenableBuilder(
     listenable: _volumeControl,
@@ -1188,7 +1166,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             LucideIcons.listMusic,
             l10n.queue,
             _toggleQueue,
-            active: _queue.isOpen,
+            active: _queue.isOpen && !_showLyrics,
           ),
           chip(
             LucideIcons.messageSquareQuote,
@@ -1196,6 +1174,24 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             _toggleLyrics,
             active: _showLyrics,
           ),
+          if (_player.currentSongNotifier.value case final song?)
+            chip(
+              Icons.motion_photos_on_rounded,
+              'Moving cover',
+              () => ref
+                  .read(movingCoverSettingsProvider.notifier)
+                  .setSongEnabled(
+                    movingCoverSongKey(song),
+                    ref
+                        .read(movingCoverSettingsProvider)
+                        .disabledSongs
+                        .contains(movingCoverSongKey(song)),
+                  ),
+              active: !ref
+                  .watch(movingCoverSettingsProvider)
+                  .disabledSongs
+                  .contains(movingCoverSongKey(song)),
+            ),
           ValueListenableBuilder<Duration?>(
             valueListenable: _player.sleepTimerRemainingNotifier,
             builder: (_, remaining, __) => chip(
@@ -1381,8 +1377,10 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
       a < 0 ? -(_introHeight + _gap) : _tops[a.clamp(0, _tops.length - 1)];
 
   void _ensureLayout(double w, double h) {
+    // A panel transition changes the viewport height every frame, not the
+    // shaping width. Keep measured paragraphs and only move their anchor.
+    _h = h;
     if ((w - _w).abs() < 0.5 &&
-        (h - _h).abs() < 0.5 &&
         _heights.length == _lines.length &&
         identical(_layoutLyrics, widget.lyrics) &&
         _layoutScaler == MediaQuery.textScalerOf(context) &&
@@ -1454,6 +1452,7 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
     _lastElapsed = elapsed;
     if (_heights.isEmpty || _heights.length != _lines.length) return;
 
+    final previousReveal = _sublineReveal;
     final targetReveal = widget.showTranslation ? 1.0 : 0.0;
     final subMoving = (_sublineReveal - targetReveal).abs() > .002;
     _sublineReveal = MediaQuery.disableAnimationsOf(context)
@@ -1461,7 +1460,7 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
         : _sublineReveal +
               (targetReveal - _sublineReveal) * (1 - math.exp(-dt * 10));
     if (!subMoving) _sublineReveal = targetReveal;
-    _geometry();
+    if (previousReveal != _sublineReveal) _geometry();
     final ms = _posNowMs();
     final a = _indexAt(ms);
     final aScroll = _indexAt(ms + 300);

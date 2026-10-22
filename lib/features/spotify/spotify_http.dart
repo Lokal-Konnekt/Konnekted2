@@ -12,7 +12,8 @@ class SpotifyFailure implements Exception {
 }
 
 class SpotifyCancelled extends SpotifyFailure {
-  const SpotifyCancelled() : super('Cancelled. Completed local additions are kept; retrying is safe.');
+  const SpotifyCancelled()
+    : super('Cancelled. Completed local additions are kept; retrying is safe.');
 }
 
 class SpotifyCancellation {
@@ -22,6 +23,7 @@ class SpotifyCancellation {
   void cancel() {
     if (!_done.isCompleted) _done.complete();
   }
+
   void check() {
     if (isCancelled) throw const SpotifyCancelled();
   }
@@ -35,21 +37,29 @@ class SpotifyHttp {
   final Duration timeout;
   static const maxBytes = 4 * 1024 * 1024;
 
-  Future<http.Response> send(Uri uri, {
+  Future<http.Response> send(
+    Uri uri, {
     Map<String, String> headers = const {},
     Map<String, String>? form,
+    String? jsonBody,
     SpotifyCancellation? cancellation,
   }) async {
     cancellation?.check();
     final abort = Completer<void>();
-    void stop() { if (!abort.isCompleted) abort.complete(); }
+    void stop() {
+      if (!abort.isCompleted) abort.complete();
+    }
+
     final timer = Timer(timeout, stop);
     unawaited(cancellation?.whenCancelled.then((_) => stop()));
     final request = http.AbortableRequest(
-      form == null ? 'GET' : 'POST', uri, abortTrigger: abort.future,
+      form == null && jsonBody == null ? 'GET' : 'POST',
+      uri,
+      abortTrigger: abort.future,
     )..followRedirects = false;
     request.headers.addAll(headers);
     if (form != null) request.bodyFields = form;
+    if (jsonBody != null) request.body = jsonBody;
     StreamIterator<List<int>>? chunks;
     Future<T> bounded<T>(Future<T> future) => Future.any([
       future,
@@ -59,13 +69,15 @@ class SpotifyHttp {
       }),
     ]);
     try {
-      final response = await bounded(client.send(request).then((response) {
-        if (abort.isCompleted) {
-          unawaited(response.stream.listen(null).cancel());
-          throw const SpotifyFailure('Spotify request ended.');
-        }
-        return response;
-      }));
+      final response = await bounded(
+        client.send(request).then((response) {
+          if (abort.isCompleted) {
+            unawaited(response.stream.listen(null).cancel());
+            throw const SpotifyFailure('Spotify request ended.');
+          }
+          return response;
+        }),
+      );
       chunks = StreamIterator(response.stream);
       final bytes = BytesBuilder(copy: false);
       while (await bounded(chunks.moveNext())) {
@@ -76,11 +88,17 @@ class SpotifyHttp {
         }
       }
       cancellation?.check();
-      return http.Response.bytes(bytes.takeBytes(), response.statusCode, headers: response.headers);
+      return http.Response.bytes(
+        bytes.takeBytes(),
+        response.statusCode,
+        headers: response.headers,
+      );
     } catch (error) {
       cancellation?.check();
       if (error is SpotifyFailure) rethrow;
-      throw const SpotifyFailure('Could not reach Spotify securely. Check your connection and retry.');
+      throw const SpotifyFailure(
+        'Could not reach Spotify securely. Check your connection and retry.',
+      );
     } finally {
       timer.cancel();
       stop();
@@ -92,7 +110,9 @@ class SpotifyHttp {
     try {
       final value = jsonDecode(utf8.decode(response.bodyBytes));
       if (value is Map<String, dynamic>) return value;
-    } catch (_) { /* Never expose a response body in an error. */ }
+    } catch (_) {
+      /* Never expose a response body in an error. */
+    }
     throw const SpotifyFailure('Spotify returned invalid JSON.');
   }
 }

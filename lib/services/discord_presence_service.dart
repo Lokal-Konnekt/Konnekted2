@@ -1,3 +1,8 @@
+import 'package:flick/models/song.dart';
+import 'package:flick/features/discovery/discovery_artwork.dart';
+import 'package:flick/features/discovery/discovery_http.dart';
+import 'package:flick/services/graceful_http_client.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -10,13 +15,38 @@ import 'package:flick/services/player_service.dart';
 /// Opt-in Listening activity using Mornye's official Discord Social SDK bridge.
 /// Android uses the installed Discord app's session; no Discord tokens enter Dart.
 class DiscordPresenceService extends ChangeNotifier {
-  DiscordPresenceService._();
+  DiscordPresenceService._({
+    MethodChannel? channel,
+    bool? android,
+    Future<String?> Function(Song)? artworkResolver,
+  }) : _channel = channel ?? const MethodChannel('com.zarz.mornye/discord'),
+       _android = android ?? Platform.isAndroid,
+       _artworkResolver = artworkResolver;
+  @visibleForTesting
+  static DiscordPresenceService create({
+    required MethodChannel channel,
+    required bool android,
+    Future<String?> Function(Song)? artworkResolver,
+  }) => DiscordPresenceService._(
+    channel: channel,
+    android: android,
+    artworkResolver: artworkResolver,
+  );
   static final instance = DiscordPresenceService._();
   static const applicationId = String.fromEnvironment(
     'LOKAL_DISCORD_APPLICATION_ID',
     defaultValue: '1562522741817479302',
   );
-  static const _channel = MethodChannel('com.zarz.mornye/discord');
+  final MethodChannel _channel;
+  final bool _android;
+  final Future<String?> Function(Song)? _artworkResolver;
+  late final _artwork = DiscoveryArtworkResolver(
+    DiscoveryHttp(GracefulHttpClient()),
+  );
+  final _covers = <String, String>{};
+  final _coverJobs = <String>{};
+  String? _lastPublishedKey;
+  String _songKey(Song song) => '${song.id}|${song.title}|${song.artist}';
   static const _preference = 'lokal_discord_presence_enabled';
   static const _interval = Duration(seconds: 15);
 
@@ -32,9 +62,7 @@ class DiscordPresenceService extends ChangeNotifier {
   String _status = 'Checking availability…';
   bool get enabled => _enabled;
   bool get configured =>
-      Platform.isAndroid &&
-      (int.tryParse(applicationId) ?? 0) > 0 &&
-      _sdkAvailable;
+      _android && (int.tryParse(applicationId) ?? 0) > 0 && _sdkAvailable;
   String get status => _status;
 
   Future<void> start(PlayerService player) => _starting ??= _start(player);
@@ -51,7 +79,7 @@ class DiscordPresenceService extends ChangeNotifier {
       }
     });
     try {
-      if (Platform.isAndroid) {
+      if (_android) {
         _sdkAvailable = await _channel.invokeMethod<bool>('available') ?? false;
       }
       _enabled =
@@ -117,20 +145,22 @@ class DiscordPresenceService extends ChangeNotifier {
       ); // Pause/stop/disable clear immediately, without rate limiting.
       return;
     }
+    final key = _songKey(_player!.currentSongNotifier.value!);
+    final interval = key != _lastPublishedKey
+        ? const Duration(seconds: 2)
+        : _interval;
     final elapsed = _lastSent == null
-        ? _interval
+        ? interval
         : DateTime.now().difference(_lastSent!);
-    final delay = elapsed >= _interval ? Duration.zero : _interval - elapsed;
+    final delay = elapsed >= interval ? Duration.zero : interval - elapsed;
     _pending = Timer(delay, () => _enqueue(_publish));
   }
 
   void _enqueue(Future<void> Function() action) {
-    _tail = _tail.then((_) async {
+    _tail = _tail.catchError((Object _) {}).then((_) async {
       try {
         await action();
-      } on PlatformException {
-        await _failed();
-      } on MissingPluginException {
+      } catch (_) {
         await _failed();
       }
     });
@@ -139,7 +169,9 @@ class DiscordPresenceService extends ChangeNotifier {
   Future<void> _failed() async {
     _running = false;
     try {
-      await _channel.invokeMethod<void>('shutdown');
+      await _channel
+          .invokeMethod<void>('shutdown')
+          .timeout(const Duration(seconds: 4));
     } catch (_) {
       /* SDK already unavailable. */
     }
@@ -155,9 +187,11 @@ class DiscordPresenceService extends ChangeNotifier {
     if (!_running) {
       _setStatus('Connecting to Discord…');
       _running =
-          await _channel.invokeMethod<bool>('initialize', {
-            'applicationId': applicationId,
-          }) ??
+          await _channel
+              .invokeMethod<bool>('initialize', {
+                'applicationId': applicationId,
+              })
+              .timeout(const Duration(seconds: 8)) ??
           false;
       if (!_running) {
         _setStatus(
@@ -183,14 +217,65 @@ class DiscordPresenceService extends ChangeNotifier {
     final end = duration > Duration.zero
         ? now + ((duration.inMilliseconds - position) / 1000 / rate).round()
         : 0;
-    await _channel.invokeMethod<void>('update', {
-      'title': String.fromCharCodes(song.title.runes.take(128)),
-      'state': String.fromCharCodes(song.artist.runes.take(128)),
-      'artwork': publicArtwork(song.albumArt),
-      'start': start,
-      'end': end,
-    });
+    final key = _songKey(song);
+    final image = publicArtwork(song.albumArt);
+    if (image.isEmpty && !_covers.containsKey(key) && _coverJobs.add(key)) {
+      unawaited(_resolveCover(song, key));
+    }
+    await _channel
+        .invokeMethod<void>('update', {
+          'title': String.fromCharCodes(song.title.runes.take(128)),
+          'state': String.fromCharCodes(song.artist.runes.take(128)),
+          'artwork': image.isNotEmpty ? image : _covers[key] ?? '',
+          'album': String.fromCharCodes((song.album ?? '').runes.take(128)),
+          'start': start,
+          'end': end,
+        })
+        .timeout(const Duration(seconds: 8));
     _lastSent = DateTime.now();
+    _lastPublishedKey = key;
+  }
+
+  Future<void> _resolveCover(Song song, String key) async {
+    try {
+      String? url;
+      if (_artworkResolver != null) {
+        url = await _artworkResolver(song);
+      } else {
+        url = await _artwork.resolve(
+          DiscoveryArtworkRequest(
+            kind: DiscoveryArtworkKind.track,
+            title: song.title,
+            artist: song.artist,
+          ),
+        );
+        if (publicArtwork(url).isEmpty &&
+            song.album?.trim().isNotEmpty == true) {
+          url = await _artwork.resolve(
+            DiscoveryArtworkRequest(
+              kind: DiscoveryArtworkKind.album,
+              title: song.album!,
+              artist: song.albumArtist ?? song.artist,
+            ),
+          );
+        }
+      }
+      final safe = publicArtwork(url);
+      _covers[key] = safe;
+      while (_covers.length > 100) {
+        _covers.remove(_covers.keys.first);
+      }
+      if (safe.isNotEmpty &&
+          _canPublish &&
+          _songKey(_player!.currentSongNotifier.value!) == key) {
+        _lastPublishedKey = null;
+        _schedule();
+      }
+    } catch (_) {
+      /* Keep the current activity; never upload a local cover. */
+    } finally {
+      _coverJobs.remove(key);
+    }
   }
 
   /// Send only recognized public image URLs. Never upload local covers or expose
@@ -211,6 +296,8 @@ class DiscordPresenceService extends ChangeNotifier {
       'i.ytimg.com',
       'lh3.googleusercontent.com',
       'coverartarchive.org',
+      'e-cdns-images.dzcdn.net',
+      'cdn-images.dzcdn.net',
       'is1-ssl.mzstatic.com',
       'is2-ssl.mzstatic.com',
       'is3-ssl.mzstatic.com',
@@ -221,11 +308,17 @@ class DiscordPresenceService extends ChangeNotifier {
   }
 
   Future<void> _stop() async {
+    if (_canPublish)
+      return; // A queued transient stop must not clear a newer song.
     if (_running) {
-      await _channel.invokeMethod<void>('shutdown');
+      // Keep the SDK alive across pause/track-load gaps; only disable shuts down.
+      await _channel
+          .invokeMethod<void>(_enabled ? 'clear' : 'shutdown')
+          .timeout(const Duration(seconds: 4));
     }
-    _running = false;
+    if (!_enabled) _running = false;
     _lastSent = null;
+    _lastPublishedKey = null;
     if (configured) _setStatus(_enabled ? 'Ready when you play music' : 'Off');
   }
 
@@ -242,7 +335,11 @@ class DiscordPresenceService extends ChangeNotifier {
     }
     _player = null;
     await _tail;
-    await _stop();
+    if (_running)
+      await _channel
+          .invokeMethod<void>('shutdown')
+          .timeout(const Duration(seconds: 4));
+    _running = false;
     _starting = null;
   }
 }

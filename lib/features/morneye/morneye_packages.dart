@@ -85,10 +85,7 @@ Map<String, Object?> morneyeValidateManifest(Object? json) {
       'Only download-capable or playlist-link Morneye addons can be installed',
     );
   }
-  if (morneyeCompareVersions(
-        manifest['minAppVersion'],
-        morneyeCompatVersion,
-      ) >
+  if (morneyeCompareVersions(manifest['minAppVersion'], morneyeCompatVersion) >
       0) {
     throw MorneyePackageError(
       'This addon requires Morneye compatibility ${manifest['minAppVersion']}',
@@ -502,6 +499,7 @@ class MorneyePackages {
     this._fetch,
     this.isrcLookup,
     this.audioConverter,
+    this.audioDecryptor,
     this.appVersion = '1.0.0',
   });
 
@@ -512,6 +510,7 @@ class MorneyePackages {
   final MorneyeDocumentFetch? _fetch;
   final MorneyeIsrcLookup? isrcLookup;
   final MorneyeAudioConverter? audioConverter;
+  final MorneyeAudioConverter? audioDecryptor;
   final String appVersion;
 
   final _repos = <MorneyeRepository>[];
@@ -546,7 +545,8 @@ class MorneyePackages {
         // An unreadable index starts empty rather than failing every screen.
       }
     }
-    const legacyRegistryUrl = 'https://raw.githubusercontent.com/spotiflacapp/SpotiFLAC-Extension/main/registry.json';
+    const legacyRegistryUrl =
+        'https://raw.githubusercontent.com/spotiflacapp/SpotiFLAC-Extension/main/registry.json';
     String? oldDefaultId;
     String? currentDefaultId;
     for (final repository in _repos) {
@@ -558,11 +558,14 @@ class MorneyePackages {
     }
     if (currentDefaultId == null) {
       currentDefaultId = _sha256(utf8.encode(morneyeRegistry)).substring(0, 16);
-      _repos.insert(0, MorneyeRepository(
-        id: currentDefaultId,
-        url: morneyeRegistry,
-        name: 'Morneye official',
-      ));
+      _repos.insert(
+        0,
+        MorneyeRepository(
+          id: currentDefaultId,
+          url: morneyeRegistry,
+          name: 'Morneye official',
+        ),
+      );
     }
     var migratedAddonRepositoryIds = false;
     if (oldDefaultId != null) {
@@ -933,9 +936,7 @@ class MorneyePackages {
           .firstOrNull
           ?.entry;
       if (entry == null) {
-        throw const MorneyePackageError(
-          'Package not found in this repository',
-        );
+        throw const MorneyePackageError('Package not found in this repository');
       }
       url = '${entry['download_url']}';
     }
@@ -974,9 +975,7 @@ class MorneyePackages {
       }
       if (existing != null &&
           morneyeCompareVersions(manifest['version'], existing.version) < 0) {
-        throw const MorneyePackageError(
-          'Cannot downgrade an installed addon',
-        );
+        throw const MorneyePackageError('Cannot downgrade an installed addon');
       }
       final staged = Directory(
         p.join(
@@ -1615,10 +1614,37 @@ class MorneyePackages {
       if (!File(file).existsSync() || File(file).lengthSync() == 0) {
         throw const MorneyePackageError('Addon produced an empty file');
       }
-      if (result['decryption'] != null || result['decryption_key'] != null) {
-        throw const MorneyePackageError(
-          'This add-on sends encrypted audio that the phone cannot decrypt.',
-        );
+      final decryption =
+          result['decryption'] ??
+          (result['decryption_key'] != null
+              ? {'strategy': 'ffmpeg.mov_key', 'key': result['decryption_key']}
+              : null);
+      if (decryption != null) {
+        if (decryption is! Map ||
+            decryption['strategy'] != 'ffmpeg.mov_key' ||
+            !RegExp(r'^[a-fA-F0-9]{32}$')
+                .hasMatch('${decryption['key'] ?? ''}')) {
+          throw const MorneyePackageError(
+            'Unsupported audio decryption descriptor',
+          );
+        }
+        final ext =
+            '${result['output_extension'] ?? decryption['output_extension'] ?? '.flac'}';
+        if (!{'.flac', '.m4a', '.mp4', '.ogg', '.opus'}.contains(ext))
+          throw const MorneyePackageError('Invalid decrypted audio container');
+        final target = p.join(staged.path, 'decrypted$ext');
+        onProgress?.call(message: 'Decrypting audio…');
+        if (audioDecryptor case final decrypt?) {
+          await decrypt(file, target, '${decryption['key']}');
+        } else {
+          await morneyeConvertAudio(
+            inputPath: file,
+            outputPath: target,
+            decryptionKey: '${decryption['key']}',
+            cancel: cancel,
+          );
+        }
+        file = target;
       }
       final requiresContainerConversion =
           result['requires_container_conversion'] == true ||

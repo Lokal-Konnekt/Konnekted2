@@ -183,9 +183,17 @@ Implemented; Android profiling/device validation remains outstanding:
 
 Implemented; Android device confirmation remains outstanding:
 
-- Artwork/lyrics use a reversible fade with a small vertical transition, with no
-  cover flip. Both views retain state; the hidden view's tickers are disabled.
-  Transport and options remain in place. Seek drag state is held until handoff.
+- One cover and title move between full artwork, the queue header and a compact
+  row beneath lyrics. Queue/lyrics switches retain compact artwork and both
+  scroll positions. The header/options collapse and transport buttons shorten
+  on the same lyric progress. Play/pause morphs continuously, with press feedback
+  and animated button widths. Hidden panel tickers are disabled; measured lyric
+  paragraphs are reused when only the viewport height changes.
+- Manual lyric search follows desktop's title/artist → Search → tap-result flow.
+  It remembers the last edits/results for up to 20 songs in memory, drops stale
+  answers and reports search/save failures. No exact-match banner, filters,
+  preview or second confirmation is required. Explicit search bypasses cached
+  misses. Seek drag state is held until handoff.
 - Timed lyrics are shaped and measured as one TextPainter paragraph, including
   CJK wrapping, text scaling and RTL runs. Word sweep/lift and held notes reuse
   cached paragraph geometry. This does not add desktop's full duet/bg-word model.
@@ -201,8 +209,8 @@ Implemented; Android device confirmation remains outstanding:
   online requests. Mobile copies normalized words/timestamps/language, retains
   better cached timing and repairs already copied songs on the next merge.
   This requires the companion desktop update; older desktops still copy audio.
-- Home wheel opens Data with Accounts first. You → More has dedicated Playback,
-  Online sources and About rows. Cover Flow fills newly available mixes rather
+- Home wheel opens Playback; You wheel opens Data with Accounts first.
+  You → More has dedicated Online sources and About rows. Cover Flow fills newly available mixes rather
   than freezing the first partial set, keeping valid picks stable.
 - The supplied log ends in two Android Source errors for Tearz. Failed prepares,
   async source errors and seek failures invalidate source/playlist/resume reuse.
@@ -215,3 +223,41 @@ Validation: focused Dart lyric/parser/matching/layout/mix and failed-source test
 Dart analysis (no errors), and desktop export/quality tests. No APK or CI build
 was run for this follow-up. Public-provider availability and device frame pacing
 remain unverified.
+
+## Moving covers, accounts and source readiness (2026-10-22)
+
+Implemented in source; authenticated/device confirmation remains outstanding:
+
+- Both player styles use moving artwork. Added direct Apple editorial video,
+  Tidal video covers, the desktop community list, m8tec and Spotify Canvas
+  (Pathfinder with protobuf fallback). Added providers are opt-in in Appearance;
+  Apple remains the existing default. Spotify priority is configurable. Per-song
+  disables persist by normalized artist/title and apply to saved/local copies.
+  Lookups are deduplicated with bounded caches; HLS chooses a modest AVC rendition
+  when available. Decoders pause offscreen/in the background/compact lyrics row,
+  and motion stays suppressed for exclusive/bit-perfect output.
+- Home computes desktop's paired headline/subheader rules, including the latest
+  eight-play repeat window. Flow track circles show artwork.
+- Installed, enabled playable add-ons stay visible in Search and source priority
+  when verification expires. Selecting one opens verification; automatic lookup
+  skips it until renewed. Source ordering is retained. Search and pending playback
+  publish a single updating progress message.
+- Amazon's validated `ffmpeg.mov_key` descriptor follows desktop's decrypt → probe
+  flow. Only 32-digit hexadecimal keys and allowed output containers are accepted;
+  supplied-key processing is cancellable and bounded. Tests exercise the descriptor
+  and output validation through an injected decryptor; Android FFmpeg was not run.
+- Data shows saved-cookie state, update/remove actions and an opt-in Spotify likes
+  sync toggle; the redundant Spotify library connection page is removed. Discovery
+  uses desktop Pathfinder Home mixes/playlist tracks/liked songs rather than
+  OAuth-only REST shelves. Like sync adds strict matches to local Favorites and
+  retains its cursor; it does not download files or add streamed-only placeholders.
+  Pathfinder/Canvas fixtures pass, but no real account was used here.
+- Discord retains its SDK session across track loading, updates track changes
+  promptly and resolves public artwork for local covers. No local artwork is
+  uploaded and LAN/private/signed image URLs are rejected. Method-channel tests
+  cover next/previous, loading and public-art updates; live Discord rendering
+  remains an Android check.
+
+Validation: 131 focused Dart/widget tests passed, with no Dart analysis errors.
+No APK/CI build was run. Provider credentials, Android FFmpeg decoding, device
+frame pacing and live Discord rendering remain device/account checks.

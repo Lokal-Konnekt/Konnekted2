@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'package:flick/features/konnekted/lokal_home_greeting.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -110,7 +110,9 @@ Widget _app(Widget child, {String? account = 'me'}) => ProviderScope(
     konnektedLibraryProvider.overrideWithValue(AsyncData(_library)),
     konnektedFavoritesProvider.overrideWithValue(const AsyncData([])),
     konnektedRecentSongsProvider.overrideWith((ref) => Stream.value([])),
-    konnektedGreetingProvider.overrideWith((ref) => Stream.value('Hello.')),
+    konnektedGreetingProvider.overrideWith(
+      (ref) => Stream.value(const LokalHomeMessages('Good morning', 'Hello.')),
+    ),
     konnektedLastfmAccountProvider.overrideWith((ref) async => account),
     konnektedLastfmCallProvider.overrideWithValue(_lastfm),
   ],
@@ -169,9 +171,9 @@ void main() {
           child: KonnektedDiscoveryView(
             onNavigate: (_) {},
             onPlay: (song, queue) => played.add((song, queue)),
-            findSong: (track, {onStatus, additionalProtectedPaths}) async {
+            pendingSong: (track) {
               asked.add(track.title);
-              return null;
+              return _song('pending:${track.key}', track.artist, track.title);
             },
           ),
         ),
@@ -192,127 +194,66 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('Play Not Here by Nobody'));
     await tester.pumpAndSettle();
-    expect(asked, ['Not Here']);
-    expect(find.textContaining('Couldn’t find Not Here'), findsOneWidget);
+    expect(asked, contains('Not Here'));
+    expect(played.last.$1.title, 'Not Here');
 
-    await tester.tap(find.bySemanticsLabel('Play Shine by Estelle'));
-    expect(played.last.$2.map((s) => s.id), ['2', '1']);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a song you don’t have plays with the shelf queued after it', (
-    tester,
-  ) async {
-    tester.view
-      ..physicalSize = const Size(412, 2400)
-      ..devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final played = <(Song, List<Song>)>[];
-    final asked = <String>[];
-    Song placeholder(LokalDiscoveryTrack track) => Song(
-      id: 'pending:${track.key}',
-      title: track.title,
-      artist: track.artist,
-      duration: Duration.zero,
-      fileType: 'ONLINE',
-      sourcePackage: Song.pendingSourcePackage,
-    );
-    await tester.pumpWidget(
-      _app(
-        SingleChildScrollView(
-          child: KonnektedDiscoveryView(
-            onNavigate: (_) {},
-            onPlay: (song, queue) => played.add((song, queue)),
-            findSong: (track, {onStatus, additionalProtectedPaths}) async {
-              asked.add(track.title);
-              return Song(
-                id: 'discovery:${track.title}',
-                title: track.title,
-                artist: track.artist,
-                duration: Duration.zero,
-                fileType: 'M4A',
-                filePath: '/cache/${track.title}.m4a',
-              );
-            },
-            pendingSong: placeholder,
+  testWidgets(
+    'an online tap enters the queue immediately without a page download',
+    (tester) async {
+      tester.view
+        ..physicalSize = const Size(412, 2400)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final played = <(Song, List<Song>)>[];
+      final asked = <String>[];
+      Song placeholder(LokalDiscoveryTrack track) => Song(
+        id: 'pending:${track.key}',
+        title: track.title,
+        artist: track.artist,
+        duration: Duration.zero,
+        fileType: 'ONLINE',
+        sourcePackage: Song.pendingSourcePackage,
+      );
+      await tester.pumpWidget(
+        _app(
+          SingleChildScrollView(
+            child: KonnektedDiscoveryView(
+              onNavigate: (_) {},
+              onPlay: (song, queue) => played.add((song, queue)),
+              findSong: (track, {onStatus, additionalProtectedPaths}) async {
+                asked.add(track.title);
+                return Song(
+                  id: 'discovery:${track.title}',
+                  title: track.title,
+                  artist: track.artist,
+                  duration: Duration.zero,
+                  fileType: 'M4A',
+                  filePath: '/cache/${track.title}.m4a',
+                );
+              },
+              pendingSong: placeholder,
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.bySemanticsLabel('Play Not Here by Nobody'));
-    await tester.pumpAndSettle();
-    // Only the tapped song is fetched now; the others wait in the queue.
-    expect(asked, ['Not Here']);
-    final (song, queue) = played.single;
-    expect(song.id, 'discovery:Not Here');
-    expect(queue.map((s) => s.id), contains('1'));
-    expect(queue.map((s) => s.id), contains('discovery:Not Here'));
-    final waiting = queue.where((s) => s.isPending).map((s) => s.title);
-    expect(waiting, ['Elsewhere']);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('download progress updates one line in place, then clears', (
-    tester,
-  ) async {
-    tester.view
-      ..physicalSize = const Size(412, 2400)
-      ..devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final done = Completer<Song?>();
-    void Function(String)? say;
-    await tester.pumpWidget(
-      _app(
-        SingleChildScrollView(
-          child: KonnektedDiscoveryView(
-            onNavigate: (_) {},
-            onPlay: (song, queue) {},
-            pendingSong: (track) => _song(track.key, track.artist, track.title),
-            findSong: (track, {onStatus, additionalProtectedPaths}) {
-              say = onStatus;
-              return done.future;
-            },
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.bySemanticsLabel('Play Not Here by Nobody'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-    say!('Getting Not Here from Qobuz… 10%');
-    await tester.pump();
-    say!('Getting Not Here from Qobuz… 40%');
-    await tester.pump();
-    expect(find.byType(SnackBar), findsOneWidget);
-    expect(find.text('Getting Not Here from Qobuz… 40%'), findsOneWidget);
-    expect(find.textContaining('10%'), findsNothing);
-
-    done.complete(_song('9', 'Nobody', 'Not Here'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    // A late report from the finished download says nothing.
-    say!('Getting Not Here from Qobuz… 90%');
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.byType(SnackBar), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  test('add-on progress is said once per change', () {
-    final text = MorneyeProgressText('Song', 'Qobuz');
-    expect(text.update(percent: 10), 'Getting Song from Qobuz… 10%');
-    expect(text.update(percent: 10.2), isNull);
-    expect(
-      text.update(message: 'Qobuz loading 10%'),
-      'Getting Song from Qobuz… Qobuz loading 10%',
-    );
-    expect(text.update(message: 'Qobuz loading 10%'), isNull);
-    expect(
-      text.update(percent: 55, message: 'Decrypting'),
-      'Getting Song from Qobuz… Decrypting 55%',
-    );
-  });
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Play Not Here by Nobody'));
+      await tester.pumpAndSettle();
+      // The player owns resolution for the tapped song and the rest of the shelf.
+      expect(asked, isEmpty);
+      final (song, queue) = played.single;
+      expect(song.id, startsWith('pending:'));
+      expect(song.title, 'Not Here');
+      expect(queue.map((s) => s.id), contains('1'));
+      expect(queue, contains(song));
+      final waiting = queue.where((s) => s.isPending).map((s) => s.title);
+      expect(waiting, ['Not Here', 'Elsewhere']);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Discovery fits a narrow screen with large text', (tester) async {
     tester.view
@@ -340,7 +281,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('without Last.fm, Discovery leads to Online sources', (
+  testWidgets('without Last.fm, Discovery leads to Data Accounts', (
     tester,
   ) async {
     final opened = <KonnektedDestination>[];
@@ -356,11 +297,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open Online sources'));
+    await tester.tap(find.text('Open Accounts'));
     expect(opened, [
       const KonnektedDestination.settingsAt(
-        LokalSettingsGroup.integrations,
-        section: LokalOnlineSections.accounts,
+        LokalSettingsGroup.data,
+        section: LokalDataSections.accounts,
       ),
     ]);
   });

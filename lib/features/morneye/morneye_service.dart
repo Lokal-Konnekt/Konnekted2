@@ -44,16 +44,12 @@ class MorneyeService extends ChangeNotifier {
   /// Tells screens showing add-ons that something changed.
   void changed() => notifyListeners();
 
-  /// Add-ons that can find and download songs right now, in install order.
+  /// Enabled installed sources stay listed even while their session needs renewal.
   Future<List<MorneyeAddon>> playable() async {
     final packages = await this.packages;
     return [
       for (final addon in packages.addons)
-        if (addon.enabled &&
-            addon.downloads &&
-            addon.searches &&
-            packages.access(addon).ready)
-          addon,
+        if (addon.enabled && addon.downloads && addon.searches) addon,
     ];
   }
 }

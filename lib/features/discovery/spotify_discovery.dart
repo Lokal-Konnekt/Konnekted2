@@ -1,3 +1,5 @@
+import 'package:flick/features/spotify/spotify_web_api.dart';
+import 'package:flick/features/spotify/spotify_models.dart';
 import 'package:flick/features/discovery/lastfm_discovery.dart';
 import 'package:flick/features/spotify/spotify_api.dart';
 import 'package:flick/features/spotify/spotify_http.dart';
@@ -66,11 +68,12 @@ Future<SpotifyDiscoverySnapshot> loadSpotifyDiscoverySnapshot({
   if (!connected) {
     return const SpotifyDiscoverySnapshot(enabled: true, connected: false);
   }
+  final web = SpotifyWebApi(store: settings.tokenStore, oauth: oauth);
   try {
     return SpotifyDiscoverySnapshot(
       enabled: true,
       connected: true,
-      data: await loadSpotifyDiscovery(api: api),
+      data: await loadSpotifyWebDiscovery(web),
     );
   } catch (error) {
     return SpotifyDiscoverySnapshot(
@@ -78,6 +81,8 @@ Future<SpotifyDiscoverySnapshot> loadSpotifyDiscoverySnapshot({
       connected: true,
       error: spotifyDiscoveryError(error),
     );
+  } finally {
+    web.close();
   }
 }
 
@@ -103,7 +108,10 @@ Future<SpotifyDiscoveryData> loadSpotifyDiscovery({
   }
 
   final account = await optional('Profile', () async {
-    final json = await api.getJson(_endpoint('/v1/me'), cancellation: cancellation);
+    final json = await api.getJson(
+      _endpoint('/v1/me'),
+      cancellation: cancellation,
+    );
     return _text(json['display_name']) ?? _text(json['id']) ?? 'Spotify';
   });
   final topTracks = await optional('Quick Picks', () async {
@@ -175,14 +183,12 @@ Future<SpotifyDiscoveryData> loadSpotifyDiscovery({
       cancellation: cancellation,
     );
     final heard = {
-      for (final track in [
-        ...?topTracks,
-        ...?recentlyPlayed,
-        ...?likedSongs,
-      ])
+      for (final track in [...?topTracks, ...?recentlyPlayed, ...?likedSongs])
         track.key,
     };
-    return _tracks(json['tracks']).where((track) => !heard.contains(track.key)).toList();
+    return _tracks(json['tracks'])
+        .where((track) => !heard.contains(track.key))
+        .toList();
   });
 
   final data = SpotifyDiscoveryData(
@@ -225,7 +231,9 @@ LokalDiscoveryTrack? _track(Map raw, {required bool playedAt}) {
   final album = value['album'];
   final albumName = album is Map ? _text(album['name']) ?? '' : '';
   final image = album is Map ? _image(album['images']) : '';
-  final played = playedAt ? DateTime.tryParse('${raw['played_at'] ?? ''}') : null;
+  final played = playedAt
+      ? DateTime.tryParse('${raw['played_at'] ?? ''}')
+      : null;
   return LokalDiscoveryTrack(
     title: title,
     artist: artist,
@@ -278,7 +286,8 @@ List<LokalDiscoveryAlbum> _albums(Object? raw) {
   return result;
 }
 
-String _artistName(Object? value) => value is Map ? _text(value['name']) ?? '' : '';
+String _artistName(Object? value) =>
+    value is Map ? _text(value['name']) ?? '' : '';
 
 String? _text(Object? value) =>
     value is String && value.trim().isNotEmpty ? value.trim() : null;
@@ -296,4 +305,76 @@ String _image(Object? raw) {
 
 String? _idFromSpotifyUrl(String value) {
   return RegExp(r'^spotify:artist:(.+)$').firstMatch(value)?.group(1);
+}
+
+/// Uses desktop's cookie-backed Home mixes and Liked Songs operations.
+Future<SpotifyDiscoveryData> loadSpotifyWebDiscovery(SpotifyWebApi api) async {
+  final warnings = <String>[];
+  var mixes = <SpotifyPlaylist>[];
+  try {
+    mixes = await api.getPlaylists();
+  } catch (_) {
+    warnings.add('Could not load your Spotify mixes.');
+  }
+  final quick = <LokalDiscoveryTrack>[];
+  final liked = <LokalDiscoveryTrack>[];
+  LokalDiscoveryTrack convert(SpotifyTrack t) => LokalDiscoveryTrack(
+    title: t.title,
+    artist: t.artist,
+    album: t.album ?? '',
+    artworkUrl: t.imageUrl ?? '',
+    duration: Duration(milliseconds: t.durationMs),
+    url: 'https://open.spotify.com/track/${t.id}',
+  );
+  for (var i = 0; i < mixes.take(6).length; i += 2) {
+    final group = mixes.take(6).skip(i).take(2);
+    final batches = await Future.wait(
+      group.map((mix) async {
+        try {
+          return (await api.getPlaylistTracks(
+            mix.id,
+            max: 30,
+          )).map(convert).toList();
+        } catch (_) {
+          warnings.add('Could not load ${mix.name}.');
+          return <LokalDiscoveryTrack>[];
+        }
+      }),
+    );
+    quick.addAll(batches.expand((v) => v));
+  }
+  try {
+    liked.addAll((await api.getLikedSongs(max: 30)).map(convert));
+  } catch (_) {
+    warnings.add('Could not load Spotify Liked Songs.');
+  }
+  final unique = <String, LokalDiscoveryTrack>{for (final t in quick) t.key: t};
+  final albums = <String, LokalDiscoveryAlbum>{};
+  final artists = <String, LokalDiscoveryArtist>{};
+  for (final t in unique.values) {
+    artists.putIfAbsent(t.artist, () => LokalDiscoveryArtist(name: t.artist));
+    if (t.album.isNotEmpty)
+      albums.putIfAbsent(
+        '${t.artist}|${t.album}',
+        () => LokalDiscoveryAlbum(
+          title: t.album,
+          artist: t.artist,
+          artworkUrl: t.artworkUrl,
+        ),
+      );
+  }
+  if (unique.isEmpty && liked.isEmpty && warnings.isNotEmpty)
+    throw const SpotifyApiException(
+      'Spotify could not load your mixes. Refresh or update your cookie in Data → Accounts.',
+    );
+  return SpotifyDiscoveryData(
+    account: 'Spotify',
+    quickPicks: unique.values.toList(),
+    likedSongs: liked,
+    recentlyPlayed: const [],
+    artists: artists.values.take(20).toList(),
+    albums: albums.values.take(20).toList(),
+    freshFinds: const [],
+    warnings: warnings,
+  );
 }

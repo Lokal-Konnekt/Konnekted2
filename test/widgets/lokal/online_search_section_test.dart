@@ -51,6 +51,14 @@ class _FakePlayer extends PlayerNotifier {
 
   final Song? current;
   final queued = <Song>[];
+  final played = <Song>[];
+
+  @override
+  Future<void> play(
+    Song song, {
+    List<Song>? playlist,
+    PlaybackContext? context,
+  }) async => played.add(song);
   final movedToNext = <int>[];
 
   @override
@@ -123,8 +131,13 @@ void main() {
   testWidgets('add-ons appear as sources and their results play on tap', (
     tester,
   ) async {
+    final player = _FakePlayer();
+    final resolver = QueuePreResolver();
     await _pump(
       tester,
+      player: player,
+      pendingSong: (source, track) =>
+          onlinePendingSong(source.id, track, resolver: resolver),
       sources: [
         _source('yt', 'YouTube Music', ['From YouTube']),
         _source('a-tidal', 'Tidal', ['From Tidal']),
@@ -139,8 +152,45 @@ void main() {
 
     await tester.tap(find.text('From Tidal'));
     await tester.pumpAndSettle();
-    expect(find.text('No stream'), findsOneWidget);
+    expect(player.played.single.title, 'From Tidal');
+    expect(player.played.single.isPending, isTrue);
   });
+
+  testWidgets(
+    'a downloaded source awaiting verification stays visible and verifies when selected',
+    (tester) async {
+      var locked = true;
+      var verified = 0, searched = 0;
+      final source = OnlineSource(
+        id: 'locked-addon',
+        name: 'Locked source',
+        addon: true,
+        needsVerification: () => locked,
+        verify: (_) async {
+          verified++;
+          locked = false;
+          return true;
+        },
+        results: (_) async {
+          searched++;
+          return [];
+        },
+        play: (_) async => throw StateError('not used'),
+      );
+      await _pump(
+        tester,
+        sources: [source, _source('yt', 'YouTube Music', [])],
+      );
+      expect(find.text('Locked source'), findsOneWidget);
+      expect(find.text('Verify Locked source to search'), findsOneWidget);
+      expect(searched, 0);
+      await tester.tap(find.text('Locked source'));
+      await tester.pumpAndSettle();
+      expect(verified, 1);
+      expect(searched, 1);
+      expect(find.text('Verify Locked source to search'), findsNothing);
+    },
+  );
 
   testWidgets('a long press offers play, queue and download actions', (
     tester,

@@ -76,6 +76,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   String? _searched;
   final _saving = <String>{};
   int _inactiveAddons = 0;
+  int _searchGeneration = 0;
 
   @override
   void initState() {
@@ -125,18 +126,43 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     return sources.where((s) => s.id == wanted).firstOrNull ?? sources.first;
   }
 
-  void _choose(OnlineSource source) {
+  Future<void> _choose(OnlineSource source) async {
     HapticFeedback.selectionClick();
+    if (!await _verify(source)) return;
     setState(() {
       _chosen = _remembered = source.id;
       _searched = null;
     });
   }
 
+  Future<bool> _verify(OnlineSource source) async {
+    try {
+      if (source.verify != null && !await source.verify!(context)) return false;
+      return mounted;
+    } catch (_) {
+      _say('Could not verify ${source.name}. Tap it to retry.');
+      return false;
+    }
+  }
+
+  Future<List<OnlineResult>> _search(OnlineSource source, String query) async {
+    final generation = ++_searchGeneration;
+    // Search is scheduled by build; touch the messenger after this frame.
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted || generation != _searchGeneration) return const [];
+    _progress.update('Searching ${source.name}…');
+    try {
+      return await source.results(query);
+    } finally {
+      if (mounted && generation == _searchGeneration && _saving.isEmpty)
+        _progress.clear();
+    }
+  }
+
   /// Download progress: one line, updated in place, only while a song is
   /// being got ready.
   void _status(String message) {
-    if (!mounted || _saving.isEmpty) return;
+    if (!mounted) return;
     _progress.update(message);
   }
 
@@ -147,6 +173,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   }
 
   Future<void> _play(OnlineSource source, OnlineResult result) async {
+    if (!await _verify(source)) return;
     unawaited(
       ref
           .read(recentSearchTracksProvider.notifier)
@@ -174,6 +201,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     OnlineResult result, {
     required bool next,
   }) async {
+    if (!await _verify(source)) return;
     final track = result.track;
     if (ref.read(playerProvider).currentSong == null) {
       return _play(source, result);
@@ -219,6 +247,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   /// Desktop's "Save to library": downloads the song through the same
   /// source, then copies it into your music folder and library.
   Future<void> _download(OnlineSource source, OnlineResult result) async {
+    if (!await _verify(source)) return;
     final track = result.track;
     final key = '${source.id}:${track.id}';
     if (!_saving.add(key)) return;
@@ -294,7 +323,9 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
       final key = '${source.id}\n$query';
       if (_searched != key) {
         _searched = key;
-        _results = source.results(query);
+        _results = source.needsVerification?.call() == true
+            ? Future.value(const <OnlineResult>[])
+            : _search(source, query);
       }
     }
     return SliverToBoxAdapter(
@@ -339,6 +370,12 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
                 ),
               ),
             ],
+            if (source != null && source.needsVerification?.call() == true)
+              TextButton.icon(
+                onPressed: () => _choose(source),
+                icon: const Icon(Icons.verified_user_outlined),
+                label: Text('Verify ${source.name} to search'),
+              ),
             if (_inactiveAddons > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 8),

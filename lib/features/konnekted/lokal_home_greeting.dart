@@ -38,12 +38,37 @@ bool _matches(List<String> genres, List<String> hints) =>
 
 /// One short line from the latest 40 plays in [history], newest first or
 /// not. Falls back to a time-of-day line when there is too little to go on.
+class LokalHomeMessages {
+  const LokalHomeMessages(this.headline, this.subheader);
+  final String headline, subheader;
+}
+
+LokalHomeMessages lokalHomeMessages(
+  List<RecentlyPlayedEntry> history, {
+  DateTime? now,
+}) {
+  final at = now ?? DateTime.now();
+  final subheader = lokalHomeGreeting(history, now: at);
+  final headline = switch (subheader) {
+    'The repeat button has been getting a workout.' => 'On repeat',
+    'Your mellow side has been getting more play.' => 'Taking it easy',
+    'High-energy listening has been winning lately.' => 'High energy',
+    'Your after-dark listening rhythm is holding steady.' => 'Night owl',
+    'You have a soundtrack for the early hours.' => 'Early bird',
+    'Your listening streak has some momentum.' => 'In a groove',
+    'Lots of different sounds in your rotation lately.' => 'Wide rotation',
+    _ => lokalHomeSalutation(at.hour),
+  };
+  return LokalHomeMessages(headline, subheader);
+}
+
 String lokalHomeGreeting(List<RecentlyPlayedEntry> history, {DateTime? now}) {
   final at = now ?? DateTime.now();
   final recent =
       history
           .where(
             (entry) =>
+                entry.playedAt.millisecondsSinceEpoch > 0 &&
                 !entry.playedAt.isAfter(at.add(const Duration(minutes: 5))),
           )
           .toList()
@@ -53,7 +78,7 @@ String lokalHomeGreeting(List<RecentlyPlayedEntry> history, {DateTime? now}) {
   if (recent.length < 5) return _timeOfDay(at.hour);
 
   final counts = <String, int>{};
-  for (final entry in recent.take(25)) {
+  for (final entry in recent.take(8)) {
     counts.update(entry.song.id, (n) => n + 1, ifAbsent: () => 1);
   }
   if (counts.values.any((n) => n >= 3)) {

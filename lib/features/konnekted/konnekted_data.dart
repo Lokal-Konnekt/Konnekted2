@@ -67,11 +67,11 @@ final konnektedRecentSongsProvider = StreamProvider<List<Song>>((ref) {
 });
 
 /// Home's personal greeting line, from the latest plays (desktop's rules).
-final konnektedGreetingProvider = StreamProvider<String>((ref) {
+final konnektedGreetingProvider = StreamProvider<LokalHomeMessages>((ref) {
   final repository = ref.watch(konnektedHistoryRepositoryProvider);
   return _homeHistoryChanges(ref, repository).asyncMap(
     (_) async =>
-        lokalHomeGreeting(await repository.getRecentHistory(limit: 40)),
+        lokalHomeMessages(await repository.getRecentHistory(limit: 40)),
   );
 });
 

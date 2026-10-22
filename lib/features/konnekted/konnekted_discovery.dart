@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+import 'package:flick/features/morneye/morneye_auth_sheet.dart';
+
 import 'dart:async';
 
 import 'package:flick/features/discovery/discovery_artwork.dart'
@@ -442,11 +445,15 @@ class OnlineSource {
     required this.results,
     required this.play,
     this.addon = false,
+    this.needsVerification,
+    this.verify,
   });
 
   final String id;
   final String name;
   final bool addon;
+  final bool Function()? needsVerification;
+  final Future<bool> Function(BuildContext)? verify;
 
   /// Songs matching a query, with covers.
   final Future<List<OnlineResult>> Function(String query) results;
@@ -482,6 +489,21 @@ Future<List<_PlaybackSource>> _morneyeSources(
         id: 'a-${addon.key}',
         name: addon.displayName,
         addon: true,
+        needsVerification: () => !packages.access(addon).ready,
+        verify: (context) async {
+          if (packages.access(addon).ready) return true;
+          final url = await packages.verify(addon.key);
+          if (url == null) return packages.access(addon).ready;
+          if (!context.mounted) return false;
+          final verified = await MorneyeAuthSheet.show(
+            context,
+            packages: packages,
+            addon: addon,
+            url: url,
+          );
+          if (verified) service.changed();
+          return verified;
+        },
         results: (query) async => [
           for (final song in await packages.search(addon.key, query))
             OnlineResult(
@@ -771,6 +793,13 @@ Future<Song?> findDiscoverySong(
     final candidate = discoveryCandidate(track);
     final queries = recommendationQueries(candidate).take(3).toList();
     for (final source in sources) {
+      check();
+      if (source.needsVerification?.call() == true) {
+        onStatus?.call(
+          '${source.name} needs verification. Continuing with another source…',
+        );
+        continue;
+      }
       if (source.id == 'yt' && track.videoId != null) {
         final videoId = track.videoId!;
         onStatus?.call('Getting ${track.title} directly from YouTube Music…');

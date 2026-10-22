@@ -37,17 +37,28 @@ class ChangelogSubsection {
 /// Current Lokal notes. The displayed version/build comes from the installed APK.
 const kLokalReleaseNotes = ChangelogEntry(
   version: 'Lokal',
-  date: '2026-10-21',
+  date: '2026-10-22',
   sections: [
+    ChangelogSection(
+      title: 'Moving covers, accounts and streaming',
+      bullets: [
+        'Moving covers work in both players, with Apple Music, Tidal, community, m8tec and Spotify Canvas sources. Choose sources and Canvas priority in Appearance; save individual song overrides from the song menu.',
+        'Home headlines and subheaders follow desktop listening patterns. Flow track circles show cover art.',
+        'Search and add-on preparation show progress. Installed sources awaiting verification remain visible and retain their priority.',
+        'Amazon add-on downloads support the validated decryption descriptor used on desktop.',
+        'Spotify shows when its cookie is saved. Discovery uses web-player mixes and liked songs; Data has an optional matching-library likes sync toggle.',
+        'Discord updates promptly between songs and resolves public cover art for local tracks.',
+      ],
+    ),
     ChangelogSection(
       title: 'Lyrics and seamless player transitions',
       bullets: [
-        'Lyrics and artwork blend smoothly while keeping playback controls in place. Returning to lyrics keeps your scroll position.',
+        'One cover and title move between full artwork, the queue header and the compact lyrics row. Playback buttons resize and the play/pause icon morphs.',
         'Japanese lyric lookup uses desktop matching, and timed words wrap without overlapping the next line.',
-        'The lyrics source sheet shows timing type and lets you refresh the search. Translate and Romanize sublines animate in and out.',
+        'Manual lyrics search matches desktop: title, artist, Search and tap to use a result. Source timing and refresh remain available; translated and romanized sublines animate in and out.',
         'Translation is unavailable when lyrics already match your system language.',
         'Updated paired desktops can sync saved syllable lyrics to music already copied to your phone.',
-        'Home settings opens Data with Accounts first. Playback, Online sources and About each have a row in You → More.',
+        'Home settings opens Playback. You settings opens Data with Accounts first; Online sources and About have their own rows in You → More.',
         'Cover Flow fills two songs from each of the first six mixes as your library loads.',
         'Failed Android sources reload on retry; stalled seeks time out rather than blocking later commands.',
       ],

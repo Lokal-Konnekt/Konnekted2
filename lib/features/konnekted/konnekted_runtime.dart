@@ -1,3 +1,5 @@
+import 'package:flick/features/spotify/spotify_likes_sync_service.dart';
+import 'package:flick/services/queue_pre_resolver.dart';
 import 'package:flick/services/local_metadata_repair.dart';
 import 'package:flick/services/lokal_launcher_icon.dart';
 import 'package:flick/features/library_jobs/artist_metadata.dart';
@@ -53,6 +55,19 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   late final _jobProgress = LokalStatusSnack(
     () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
   );
+  late final _playbackProgress = LokalStatusSnack(
+    () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
+  );
+  void _onPreparationStatus() {
+    if (!mounted) return;
+    final message = QueuePreResolver.shared.status.value;
+    if (message == null) {
+      _playbackProgress.clear();
+    } else {
+      _playbackProgress.update(message);
+    }
+  }
+
   bool _backgrounded = false;
   bool _showingWhatsNew = false;
 
@@ -60,6 +75,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    SpotifyLikesSyncService.instance.resume();
     ref.listenManual(libraryJobsProvider, (previous, next) {
       _updateIconBusy();
       if (next.running)
@@ -94,6 +110,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _run('Widget intent attachment', _widgetIntents.attach);
     _player.playbackDesyncedNotifier.addListener(_onPlaybackDesync);
     _player.onlinePlaybackError.addListener(_onOnlinePlaybackError);
+    QueuePreResolver.shared.status.addListener(_onPreparationStatus);
 
     ref.listenManual(appPreferencesProvider, (_, _) => _maybeShowWhatsNew());
     ref.listenManual(appBuildInfoProvider, (_, _) => _maybeShowWhatsNew());
@@ -213,6 +230,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
         state == AppLifecycleState.paused) {
       if (_backgrounded) return;
       _backgrounded = true;
+      SpotifyLikesSyncService.instance.pause();
       ref.read(autoLibrarySyncServiceProvider).notifyPaused();
       _run('Persist playback', _player.persistLastPlayed);
       _run('Widget background sync', WidgetSyncService.instance.pushPaused);
@@ -220,6 +238,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
       _run('Flush app log', AppLog.instance.flushToDisk);
       _finishPausedScrobble();
     } else if (state == AppLifecycleState.resumed) {
+      SpotifyLikesSyncService.instance.resume();
       _backgrounded = false;
       _run('Resume app lifecycle', _player.onAppResumed);
       ref.read(updateCheckProvider.notifier).refreshIfOnline();
@@ -268,8 +287,11 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    SpotifyLikesSyncService.instance.pause();
     _player.playbackDesyncedNotifier.removeListener(_onPlaybackDesync);
     _player.onlinePlaybackError.removeListener(_onOnlinePlaybackError);
+    QueuePreResolver.shared.status.removeListener(_onPreparationStatus);
+    _playbackProgress.dispose();
     _player.isPlayingNotifier.removeListener(_updateIconBusy);
     _player.isNetworkLoadingNotifier.removeListener(_updateIconBusy);
     _jobProgress.dispose();

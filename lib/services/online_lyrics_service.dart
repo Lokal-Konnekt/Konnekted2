@@ -43,7 +43,7 @@ class OnlineLyricsResult {
   bool get hasPlainLyrics =>
       plainLyrics != null && plainLyrics!.trim().isNotEmpty;
 
-  String get bestLyrics => syncedLyrics ?? plainLyrics ?? '';
+  String get bestLyrics => hasSyncedLyrics ? syncedLyrics! : plainLyrics ?? '';
 
   int get lineCount {
     final text = bestLyrics;
@@ -245,6 +245,8 @@ class OnlineLyricsService {
     String? artist,
     String? title,
     String? album,
+    bool refresh = false,
+    bool reportErrors = false,
   }) async {
     final cacheKey = _searchCacheKey(
       query: query,
@@ -252,7 +254,8 @@ class OnlineLyricsService {
       title: title,
       album: album,
     );
-    if (_searchCache.containsKey(cacheKey)) return _searchCache[cacheKey]!;
+    if (!refresh && _searchCache.containsKey(cacheKey))
+      return _searchCache[cacheKey]!;
 
     final queryParams = <String, String>{};
     if (query != null && query.isNotEmpty) {
@@ -280,10 +283,13 @@ class OnlineLyricsService {
         _put(_searchCache, cacheKey, results);
         return results;
       }
+      if (reportErrors)
+        throw Exception('Lyrics search HTTP ${response.statusCode}');
       if (response.statusCode < 500) {
         _put(_searchCache, cacheKey, const []);
       }
     } catch (_) {
+      if (reportErrors) rethrow;
       // Network/timeout error — do not cache.
     }
     return [];

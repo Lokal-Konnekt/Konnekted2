@@ -1512,7 +1512,10 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   bool _clockPlaying = false;
   double _clockSpeed = 1;
 
-  List<LyricsLine> get _lines => widget.lyrics.lines;
+  // The parser keeps start-only enhanced-LRC words for lossless editing.
+  // Resolve their end windows once for painting; never do it on each tick.
+  late List<LyricsLine> _playbackLines;
+  List<LyricsLine> get _lines => _playbackLines;
   late List<int> _ts = [
     for (final l in widget.lyrics.lines) l.timestamp.inMilliseconds,
   ];
@@ -1540,6 +1543,7 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   @override
   void initState() {
     super.initState();
+    _playbackLines = LyricsService().playbackLines(widget.lyrics);
     _anchorPos = widget.player.positionNotifier.value;
     _clockPlaying = widget.player.isPlayingNotifier.value;
     _clockSpeed = widget.player.playbackSpeedNotifier.value;
@@ -1557,6 +1561,7 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
         if (line.translation?.isNotEmpty == true)
           _subText[line.timestamp.inMilliseconds] = line.translation!;
       }
+      _playbackLines = LyricsService().playbackLines(widget.lyrics);
       _ts = [for (final line in _lines) line.timestamp.inMilliseconds];
       _layoutLyrics = null;
     }

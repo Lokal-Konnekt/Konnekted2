@@ -1490,7 +1490,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             valueListenable: _player.sleepTimerRemainingNotifier,
             builder: (_, remaining, __) => chip(
               LucideIcons.moonStar,
-              remaining == null ? l10n.sleepTimer : _clock(remaining),
+              remaining == null ? lokalText('Sleep') : _clock(remaining),
               () => SleepTimerBottomSheet.show(context, _player),
               active: remaining != null,
               width: (constraints.maxWidth - 8) / 4,
@@ -1499,7 +1499,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           if (_player.currentSongNotifier.value case final song?)
             chip(
               Icons.motion_photos_on_rounded,
-              'Moving cover',
+              lokalText('Cover'),
               () => ref
                   .read(movingCoverSettingsProvider.notifier)
                   .setSongEnabled(

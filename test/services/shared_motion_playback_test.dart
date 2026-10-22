@@ -1,0 +1,55 @@
+import 'package:flick/services/motion_art/shared_motion_playback.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+class Clip {
+  int frame = 42;
+  bool playing = false;
+  bool disposed = false;
+}
+
+void main() {
+  test('full player and thumbnail share one decoder and the same frame across handoff', () async {
+    var created = 0, disposed = 0;
+    final pool = SharedMotionPlayback<Clip>(
+      create: (_) async {
+        created++;
+        return Clip();
+      },
+      activate: (clip, active) async => clip.playing = active,
+      dispose: (clip) async {
+        clip.disposed = true;
+        disposed++;
+      },
+    );
+    final full = await pool.acquire('player:42', 'https://video.test/loop.mp4');
+    await full.setActive(true);
+    full.resource.frame = 128;
+    await full.release();
+    final mini = await pool.acquire('player:42', 'https://video.test/loop.mp4');
+    await mini.setActive(true);
+    expect(created, 1);
+    expect(mini.resource, same(full.resource));
+    expect(mini.resource.frame, 128);
+    expect(mini.resource.playing, isTrue);
+    await mini.release(immediate: true);
+    expect(disposed, 1);
+  });
+  test('a hidden view cannot pause a visible view and suppression disposes the shared decoder', () async {
+    final pool = SharedMotionPlayback<Clip>(
+      create: (_) async => Clip(),
+      activate: (clip, active) async => clip.playing = active,
+      dispose: (clip) async => clip.disposed = true,
+    );
+    final mini = await pool.acquire('song', 'https://video.test/canvas.mp4');
+    final full = await pool.acquire('song', 'https://video.test/canvas.mp4');
+    await full.setActive(true);
+    await mini.setActive(false);
+    expect(full.resource.playing, isTrue);
+    await full.setActive(false);
+    expect(full.resource.playing, isFalse);
+    await mini.release(immediate: true);
+    expect(full.resource.disposed, isFalse);
+    await full.release(immediate: true);
+    expect(full.resource.disposed, isTrue);
+  });
+}

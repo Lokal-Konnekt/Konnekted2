@@ -159,12 +159,14 @@ class _LokalDesktopLinkScreenState
               const SizedBox(height: 8),
               if (progress.currentTitle case final name?)
                 Text(
-                  lokalText(
-                    progress.toDesktop
-                        ? 'Sending to PC: {song}'
-                        : 'Saving on phone: {song}',
-                    args: {'song': name},
-                  ),
+                  progress.phase == LinkCopyPhase.checking
+                      ? name
+                      : lokalText(
+                          progress.toDesktop
+                              ? 'Sending to PC: {song}'
+                              : 'Saving on phone: {song}',
+                          args: {'song': name},
+                        ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -192,6 +194,14 @@ class _LokalDesktopLinkScreenState
               style: TextStyle(color: t.muted),
             ),
             const SizedBox(height: 12),
+            if (progress.phase == LinkCopyPhase.checking)
+              TextButton.icon(
+                onPressed: () => ref
+                    .read(lokalRemoteControllerProvider.notifier)
+                    .cancelFileCopyPlan(),
+                icon: const Icon(Icons.close_rounded),
+                label: Text(lokalText('Cancel check')),
+              ),
             FilledButton.tonal(
               onPressed:
                   _busy ||

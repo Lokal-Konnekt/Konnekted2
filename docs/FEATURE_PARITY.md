@@ -417,3 +417,61 @@ Validation: 28 focused Dart tests pass (including filter menu interactions,
 file fingerprints, uploads, identity and organizer/folder regressions). Targeted
 analysis has no errors/warnings; existing style infos remain. No APK/CI build,
 physical phone transfer, live account or launcher test was run.
+
+### Bounded missing-file preview
+
+Missing-file checking now reports its current stage and counts, offers Cancel
+check, and has a 90-second overall limit. Cancel/timeout invalidate late work
+before further progress is published. Catalogue pages fetch up to 500 rows;
+reverse-copy matching uses an ID index instead of rescanning the whole song list
+for each desktop track. A capable desktop provides a size preflight, so phone
+files without any same-size PC candidate are not read in full for SHA-256.
+Exact-content comparison remains required before treating a candidate as a copy;
+a shared size alone never hides a missing song. Older desktop versions retain
+the previous comparison path within the same cancellation/time bounds.
+
+Focused guard cancellation/timeout, fingerprint and identity tests pass. No APK
+build or physical large-library/background-storage test was run.
+
+### Discovery artwork, YouTube refresh and player output action
+
+Discovery uses cached library artist portraits and can fall back to the existing
+Apple Music artist portrait service when Deezer has no matching picture. It no
+longer substitutes an album cover for an artist portrait. Track artwork accepts
+same-recording remaster/featured-credit differences while keeping remixes/live
+versions distinct. These lookups change images only, not recommended recordings.
+
+Selecting/reselecting a Discovery source forces refresh. YouTube refresh clears
+playlist cache entries, refreshes browser client/visitor context, reads personal
+mix cards from the signed-in page's initial home data as well as API shelves,
+and does not cache incomplete/missing-mix responses for five minutes. Independent
+mix expansion runs concurrently. Account fetching and optional playlist picks
+have time bounds. Fixtures cover current page context/embedded mixes and repeat
+refresh; real account-specific mixes still need device verification.
+
+The player output popup's previous device row only dismissed the dialog. Its
+Choose output action now opens Android's system media output chooser (API 34+),
+with inline failure feedback. USB/DSD engines are unchanged. Older Android
+versions direct users to Quick Settings; no physical route-switch or native APK
+build has been validated. Routine provider searches use inline loading without
+searching-source snackbars; selected-song preparation/download feedback remains.
+
+Validation: 24 focused discovery artwork/account/parser/source tests and 10 copy
+preview guard/fingerprint/identity tests pass. Targeted Dart analysis has no
+errors/warnings. Android API availability was checked against the SDK; native
+compilation, live source accounts and physical audio routing remain unverified.
+
+### Motion artwork in the minimized player
+
+The dock thumbnail now uses the same moving-cover/Canvas settings and per-song
+opt-out as full player. Both views share a muted looping decoder keyed by song
+and clip URL, retaining its playback position across the minimize/open handoff.
+One hidden view cannot pause another active view. App backgrounding pauses
+motion, and exclusive-output suppression releases it immediately when unused.
+Reduced-motion/settings fallbacks remain static.
+
+Validation: 26 focused shared-playback, motion gating/suppression/loading and
+dock/component tests pass, including same-resource/frame handoff and active-view
+ownership. No physical video-decoder/performance test or APK build was run.
+Targeted analysis has no errors; the full-player's pre-existing unused
+`_favForSongId` field warning remains.

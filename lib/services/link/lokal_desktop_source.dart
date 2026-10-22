@@ -46,6 +46,8 @@ class LokalDesktopSource extends NetworkSourceService {
   Future<String>? _legacyDirectory;
   final Map<String, Future<String>> _downloads = {};
 
+  bool supportsSizeMatching = false;
+
   Future<bool> requireOriginalFileSupport(
     LokalRemoteCredentials credentials,
   ) async {
@@ -61,12 +63,17 @@ class LokalDesktopSource extends NetworkSourceService {
         'Update Lokal on your PC to copy missing song files both ways.',
       );
     }
-    return (jsonDecode(response.body) as Map)['contentMatching'] == true;
+    final capabilities = jsonDecode(response.body) as Map;
+    supportsSizeMatching = capabilities['sizeMatching'] == true;
+    return capabilities['contentMatching'] == true;
   }
 
   /// Run only for metadata misses. Content URIs are staged with the same grant
   /// as uploads; a filesystem path/filename is never used as a fingerprint.
-  Future<Map<String, dynamic>?> originalFingerprint(Song song) async {
+  Future<Map<String, dynamic>?> originalFingerprint(
+    Song song, {
+    void Function()? check,
+  }) async {
     var path = song.filePath;
     if (path == null) return null;
     String? staged;
@@ -85,7 +92,15 @@ class LokalDesktopSource extends NetworkSourceService {
       final file = File(path);
       final before = await file.stat();
       if (before.size <= 0 || before.size > 1024 * 1024 * 1024) return null;
-      final digest = await sha256.bind(file.openRead()).first;
+      check?.call();
+      final digest = await sha256
+          .bind(
+            file.openRead().map((bytes) {
+              check?.call();
+              return bytes;
+            }),
+          )
+          .first;
       final after = await file.stat();
       if (before.size != after.size || before.modified != after.modified)
         return null;
@@ -100,6 +115,52 @@ class LokalDesktopSource extends NetworkSourceService {
           /* Already cleaned. */
         }
       }
+    }
+  }
+
+  Future<int?> originalFileSize(Song song) async {
+    final raw = song.filePath;
+    if (raw == null || raw.startsWith('content://')) return null;
+    try {
+      final path = raw.startsWith('file://')
+          ? Uri.parse(raw).toFilePath()
+          : raw;
+      final stat = await File(path).stat();
+      return stat.type == FileSystemEntityType.file && stat.size > 0
+          ? stat.size
+          : null;
+    } on FileSystemException {
+      return null;
+    }
+  }
+
+  Future<Set<int>> matchOriginalSizes(
+    LokalRemoteCredentials credentials,
+    List<int> sizes,
+  ) async {
+    final client = _originalClientFactory();
+    try {
+      final response = await client
+          .post(
+            credentials.origin.replace(path: '/api/remote/files/sizes'),
+            headers: {
+              ..._headers(credentials),
+              'content-type': 'application/json',
+            },
+            body: jsonEncode({'sizes': sizes}),
+          )
+          .timeout(const Duration(seconds: 20));
+      if (response.statusCode != 200)
+        throw StateError(
+          'Desktop file-size check failed. Reconnect and retry.',
+        );
+      final values = (jsonDecode(response.body) as Map)['sizes'] as List;
+      if (values.any((value) => value is! int || !sizes.contains(value))) {
+        throw const FormatException('Invalid desktop size comparison.');
+      }
+      return values.cast<int>().toSet();
+    } finally {
+      client.close();
     }
   }
 
@@ -118,7 +179,7 @@ class LokalDesktopSource extends NetworkSourceService {
             },
             body: jsonEncode({'items': fingerprints}),
           )
-          .timeout(const Duration(minutes: 2));
+          .timeout(const Duration(seconds: 30));
       if (response.statusCode != 200) {
         throw StateError(
           'Could not compare desktop originals (HTTP ${response.statusCode}). Retry before copying.',
@@ -187,8 +248,9 @@ class LokalDesktopSource extends NetworkSourceService {
   }
 
   Future<List<Map<String, dynamic>>> readCatalogue(
-    LokalRemoteCredentials credentials,
-  ) async {
+    LokalRemoteCredentials credentials, {
+    void Function(int)? onPage,
+  }) async {
     final tracks = <Map<String, dynamic>>[];
     var offset = 0;
     while (true) {
@@ -196,7 +258,7 @@ class LokalDesktopSource extends NetworkSourceService {
           .get(
             credentials.origin.replace(
               path: '/api/remote/library/tracks',
-              queryParameters: {'offset': '$offset', 'limit': '50'},
+              queryParameters: {'offset': '$offset', 'limit': '500'},
             ),
             headers: _headers(credentials),
           )
@@ -208,6 +270,7 @@ class LokalDesktopSource extends NetworkSourceService {
           .map((raw) => Map<String, dynamic>.from(raw as Map))
           .toList();
       tracks.addAll(items);
+      onPage?.call(tracks.length);
       if (body['hasMore'] != true) return tracks;
       if (items.isEmpty || offset >= 100000)
         throw const FormatException(
@@ -925,7 +988,7 @@ class LokalDesktopSource extends NetworkSourceService {
           .get(
             credentials.origin.replace(
               path: '/api/remote/library/tracks',
-              queryParameters: {'offset': '$offset', 'limit': '50'},
+              queryParameters: {'offset': '$offset', 'limit': '500'},
             ),
             headers: _headers(credentials),
           )

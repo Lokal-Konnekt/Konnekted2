@@ -149,7 +149,10 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
   KonnektedDiscoveryState build() => const KonnektedDiscoveryState();
 
   Future<void> setSource(KonnektedDiscoverySource source) async {
-    if (state.source == source && _sourceLoaded) return;
+    if (state.source == source && _sourceLoaded) {
+      await load(refresh: true);
+      return;
+    }
     ++_generation;
     _page = 0;
     _account = null;
@@ -161,7 +164,7 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
     } catch (_) {
       // The in-memory selection remains usable if persistence fails.
     }
-    await load();
+    await load(refresh: true);
   }
 
   Future<void> _restoreSource() {

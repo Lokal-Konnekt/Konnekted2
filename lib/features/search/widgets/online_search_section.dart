@@ -147,16 +147,11 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
 
   Future<List<OnlineResult>> _search(OnlineSource source, String query) async {
     final generation = ++_searchGeneration;
-    // Search is scheduled by build; touch the messenger after this frame.
+    // The results section already shows search loading inline. Reserve the
+    // status snackbar for preparing, downloading and saving a selected song.
     await Future<void>.delayed(Duration.zero);
     if (!mounted || generation != _searchGeneration) return const [];
-    _progress.update('Searching ${source.name}…');
-    try {
-      return await source.results(query);
-    } finally {
-      if (mounted && generation == _searchGeneration && _saving.isEmpty)
-        _progress.clear();
-    }
+    return source.results(query);
   }
 
   /// Download progress: one line, updated in place, only while a song is

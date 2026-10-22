@@ -98,6 +98,11 @@ class AndroidAudioDeviceService {
   Future<void>? _initializeInFlight;
   Future<AndroidPlaybackDeviceInfo>? _refreshInFlight;
 
+  /// Android owns Bluetooth/speaker media routing; opening its chooser avoids
+  /// pretending that a communication-device API can route media/USB audio.
+  Future<bool> showOutputSwitcher() async =>
+      await _channel.invokeMethod<bool>('showOutputSwitcher') ?? false;
+
   Future<void> initialize() async {
     if (!Platform.isAndroid) return;
 

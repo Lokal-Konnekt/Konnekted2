@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'copy_check_guard.dart';
+
 import '../../data/database.dart';
 import '../../data/repositories/song_repository.dart';
 import '../../models/lokal_remote_state.dart';
@@ -37,20 +39,43 @@ class LinkFileCopy {
   final bool Function() connected;
   final void Function(LinkCopyProgress) onProgress;
 
+  final _preview = CopyCheckGuard();
+  bool get cancelled => _preview.stopped;
+  void cancel() => _preview.cancel();
+  void _checking(String stage, {int processed = 0, int total = 0}) {
+    _check();
+    onProgress(
+      LinkCopyProgress(
+        phase: LinkCopyPhase.checking,
+        currentTitle: stage,
+        processed: processed,
+        total: total,
+      ),
+    );
+  }
+
   void _check() {
+    _preview.check();
     if (!connected())
       throw StateError('Reconnect to your desktop to continue copying.');
   }
 
-  Future<LinkCopyPlan> plan() async {
+  Future<LinkCopyPlan> plan() => _preview.run(_buildPlan);
+
+  Future<LinkCopyPlan> _buildPlan() async {
     _check();
-    onProgress(const LinkCopyProgress(phase: LinkCopyPhase.checking));
+    _checking('Connecting to desktop…');
     final source = LokalDesktopSource.instance;
     final contentMatching = await source.requireOriginalFileSupport(
       credentials,
     );
+    _check();
     final server = await source.ensureServer(credentials);
-    final catalogue = await source.readCatalogue(credentials);
+    _checking('Reading desktop library…');
+    final catalogue = await source.readCatalogue(
+      credentials,
+      onPage: (count) => _checking('Reading desktop library: $count songs…'),
+    );
     final identity = LinkCopyIdentity(serverId: server.id, tracks: catalogue);
     final originalChecks = <String, Future<bool>>{};
     final confirmedDesktopIds = <String>{};
@@ -79,7 +104,16 @@ class LinkFileCopy {
         if (row?.mediaStoreUri case final uri?) row!.id.toString(): uri,
     };
     final local = <Song>[];
+    var checked = 0;
+    _checking('Checking files on this phone…', total: songs.length);
     for (final song in songs) {
+      _check();
+      if (++checked % 25 == 0)
+        _checking(
+          'Checking files on this phone…',
+          processed: checked,
+          total: songs.length,
+        );
       if (song.isNetworkSource || song.filePath == null) continue;
       final uri = Uri.tryParse(song.filePath!);
       if (uri?.scheme == 'content') {
@@ -108,6 +142,11 @@ class LinkFileCopy {
     final missing = <Song>[];
     for (var offset = 0; offset < local.length; offset += 250) {
       _check();
+      _checking(
+        'Comparing song identities…',
+        processed: offset,
+        total: local.length,
+      );
       final batch = local.skip(offset).take(250).toList();
       final reply = await socket.request('command', {
         'action': 'resolveTracks',
@@ -140,8 +179,41 @@ class LinkFileCopy {
     // tag edits and organizer moves can lose the original association. Compare
     // exact bytes before putting such songs into the upload preview.
     if (contentMatching && missing.isNotEmpty) {
-      final unresolved = List<Song>.of(missing);
+      var unresolved = List<Song>.of(missing);
       missing.clear();
+      if (source.supportsSizeMatching) {
+        final mayExist = <Song>[];
+        for (var offset = 0; offset < unresolved.length; offset += 2048) {
+          _checking(
+            'Comparing file sizes…',
+            processed: offset,
+            total: unresolved.length,
+          );
+          final batch = unresolved.skip(offset).take(2048).toList();
+          final sizes = <String, int>{};
+          for (final song in batch) {
+            _check();
+            final size = await source.originalFileSize(song);
+            if (size != null) sizes[song.id] = size;
+          }
+          final existingSizes = sizes.isEmpty
+              ? <int>{}
+              : await source.matchOriginalSizes(
+                  credentials,
+                  sizes.values.toSet().toList(),
+                );
+          _check();
+          for (final song in batch) {
+            final size = sizes[song.id];
+            if (size == null || existingSizes.contains(size)) {
+              mayExist.add(song);
+            } else {
+              missing.add(song);
+            }
+          }
+        }
+        unresolved = mayExist;
+      }
       for (var offset = 0; offset < unresolved.length; offset += 32) {
         _check();
         final batch = unresolved.skip(offset).take(32).toList();
@@ -149,7 +221,15 @@ class LinkFileCopy {
         final fingerprints = <Map<String, dynamic>>[];
         for (final song in batch) {
           _check();
-          final fingerprint = await source.originalFingerprint(song);
+          _checking(
+            'Comparing audio contents: ${song.title}',
+            processed: offset + candidates.length,
+            total: unresolved.length,
+          );
+          final fingerprint = await source.originalFingerprint(
+            song,
+            check: _check,
+          );
           if (fingerprint == null) {
             missing.add(song);
           } else {
@@ -164,6 +244,7 @@ class LinkFileCopy {
         );
         _check();
         for (var index = 0; index < candidates.length; index++) {
+          _check();
           final remoteId = matches[index];
           if (remoteId == null) {
             missing.add(candidates[index]);
@@ -193,6 +274,12 @@ class LinkFileCopy {
         if (song.remoteServerId == server.id && song.remoteId != null)
           song.remoteId!,
     };
+    final remoteById = {
+      for (final song in songs)
+        if (song.sourceType == 'lokal' && song.remoteServerId == server.id)
+          song.remoteId: song,
+    };
+    _checking('Preparing copy preview…');
     for (final track in catalogue) {
       _check();
       final id = track['id'].toString();
@@ -204,23 +291,12 @@ class LinkFileCopy {
         (song) => (song.duration.inMilliseconds / 1000 - seconds).abs() <= 2,
       ))
         continue;
-      final existing = songs
-          .where(
-            (song) =>
-                (song.sourceType == 'lokal' &&
-                    song.remoteServerId == server.id &&
-                    song.remoteId == id) ||
-                (!song.isNetworkSource &&
-                    name(song.artist) == name(artist) &&
-                    name(song.title) == name(title) &&
-                    (song.duration.inMilliseconds / 1000 - seconds).abs() <= 2),
-          )
-          .firstOrNull;
+      final existing = remoteById[id];
       downloads.add((track: track, existing: existing));
     }
     _check();
     // Keep the operation reserved while the user reviews the copy preview.
-    onProgress(const LinkCopyProgress(phase: LinkCopyPhase.checking));
+    _checking('Ready to review files');
     return LinkCopyPlan(
       server: server,
       toDesktop: missing,

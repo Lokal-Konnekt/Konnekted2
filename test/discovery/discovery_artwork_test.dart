@@ -18,20 +18,70 @@ void main() {
   late Map<String, Object> responses;
   late DateTime now;
 
-  DiscoveryArtworkResolver resolver() {
+  DiscoveryArtworkResolver resolver({
+    Future<String?> Function(String)? artistPortrait,
+  }) {
     final client = MockClient((request) async {
       requests.add(request.url);
       final key = '${request.url.host}${request.url.path}';
       final body = responses[key];
       return body == null ? http.Response('', 404) : _json(body);
     });
-    return DiscoveryArtworkResolver(DiscoveryHttp(client), now: () => now);
+    return DiscoveryArtworkResolver(
+      DiscoveryHttp(client),
+      now: () => now,
+      artistPortrait: artistPortrait,
+    );
   }
 
   setUp(() {
     requests = [];
     responses = {};
     now = DateTime(2026, 10, 20, 12);
+  });
+
+  test(
+    'uses a real portrait fallback when Deezer has no artist picture',
+    () async {
+      final image =
+          await resolver(
+            artistPortrait: (name) async {
+              expect(name, 'Artist');
+              return 'https://cdn.test/portrait.jpg';
+            },
+          ).resolve(
+            const DiscoveryArtworkRequest(
+              kind: DiscoveryArtworkKind.artist,
+              artist: 'Artist',
+            ),
+          );
+      expect(image, 'https://cdn.test/portrait.jpg');
+    },
+  );
+
+  test('matches remaster and guest-credit differences without selecting a remix cover', () async {
+    responses['api.deezer.com/search'] = {
+      'data': [
+        {
+          'title': 'Song (Remix)',
+          'artist': {'name': 'Artist'},
+          'album': {'cover_xl': 'https://cdn.test/remix.jpg'},
+        },
+        {
+          'title': 'Song (2020 Remaster)',
+          'artist': {'name': 'Artist'},
+          'album': {'cover_xl': 'https://cdn.test/original.jpg'},
+        },
+      ],
+    };
+    final image = await resolver().resolve(
+      const DiscoveryArtworkRequest(
+        kind: DiscoveryArtworkKind.track,
+        title: 'Song',
+        artist: 'Artist feat. Guest',
+      ),
+    );
+    expect(image, 'https://cdn.test/original.jpg');
   });
 
   group('discoveryImageUrl', () {

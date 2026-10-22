@@ -13,6 +13,48 @@ const _fallbackUserAgent =
 final _videoId = RegExp(r'^[A-Za-z0-9_-]{11}$');
 final _clock = RegExp(r'^(?:\d+:)?\d{1,2}:\d{2}$');
 
+/// Read JSON embedded by YouTube's page without evaluating JavaScript. Handles
+/// nested braces and escaped quotes in titles/config values.
+Map<String, dynamic>? youtubeMusicPageObject(String html, String variable) {
+  final marker = variable == 'ytcfg'
+      ? RegExp(r'ytcfg\.set\(\s*\{')
+      : RegExp(r'(?:var\s+)?ytInitialData\s*=\s*\{');
+  for (final match in marker.allMatches(html)) {
+    final start = match.end - 1;
+    var depth = 0, quoted = false, escaped = false;
+    for (var at = start; at < html.length; at++) {
+      final char = html[at];
+      if (quoted) {
+        if (escaped) {
+          escaped = false;
+        } else if (char == r'\') {
+          escaped = true;
+        } else if (char == '"') {
+          quoted = false;
+        }
+        continue;
+      }
+      if (char == '"') {
+        quoted = true;
+      } else if (char == '{') {
+        depth++;
+      } else if (char == '}' && --depth == 0) {
+        try {
+          final value = jsonDecode(html.substring(start, at + 1));
+          if (value is Map<String, dynamic> &&
+              (variable != 'ytcfg' ||
+                  value['INNERTUBE_CLIENT_VERSION'] != null))
+            return value;
+        } on FormatException {
+          /* Try another embedded object. */
+        }
+        break;
+      }
+    }
+  }
+  return null;
+}
+
 /// Account cookies and page context captured after interactive sign-in.
 class YoutubeMusicSession {
   const YoutubeMusicSession({
@@ -944,7 +986,52 @@ class YoutubeMusicAccount {
     return (pages: pages, error: null);
   }
 
+  Future<Map<String, dynamic>?> _refreshPage() async {
+    try {
+      final headers = youtubeMusicHeaders(session);
+      if (headers == null) return null;
+      final response = await client
+          .get(
+            Uri.parse('$_origin/'),
+            headers: {
+              'Cookie': headers['Cookie']!,
+              'User-Agent': session.userAgent,
+              'Accept-Language': 'en-US,en;q=0.9',
+            },
+          )
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode != 200 ||
+          response.bodyBytes.length > 8 * 1024 * 1024)
+        return null;
+      _keepCookies(response.headers['set-cookie']);
+      final html = utf8.decode(response.bodyBytes);
+      final config = youtubeMusicPageObject(html, 'ytcfg');
+      if (config != null) {
+        session = YoutubeMusicSession(
+          cookies: session.cookies,
+          userAgent: session.userAgent,
+          // Preserve the profile explicitly selected at sign-in.
+          sessionIndex:
+              session.sessionIndex ?? config['SESSION_INDEX']?.toString(),
+          delegatedSessionId:
+              session.delegatedSessionId ??
+              config['DELEGATED_SESSION_ID']?.toString(),
+          visitorData:
+              config['VISITOR_DATA']?.toString() ?? session.visitorData,
+          clientVersion:
+              config['INNERTUBE_CLIENT_VERSION']?.toString() ??
+              session.clientVersion,
+        );
+        onSessionChanged?.call(session);
+      }
+      return youtubeMusicPageObject(html, 'ytInitialData');
+    } on Object {
+      return null;
+    } // API browsing can still work without HTML.
+  }
+
   Future<YoutubeMusicAccountData> fetch({int limit = 100}) async {
+    final initialPage = await _refreshPage();
     final errors = <Object>[];
     Future<Map<String, dynamic>?> attempt(String id) async {
       try {
@@ -976,11 +1063,11 @@ class YoutubeMusicAccount {
       );
     }
 
-    var homePages = <Object?>[];
+    var homePages = <Object?>[if (initialPage != null) initialPage];
     String? mixError;
     if (home != null) {
       final result = await _pages('FEmusic_home', home, stopAtMixShelf: true);
-      homePages = result.pages;
+      homePages.addAll(result.pages);
       mixError = result.error;
     }
     final mixes = <String, LokalDiscoveryMix>{
@@ -999,7 +1086,7 @@ class YoutubeMusicAccount {
         })
         .take(6)
         .toList();
-    final shelfResults = await Future.wait(
+    final shelfResults = Future.wait(
       shelfContexts.map(
         (context) async => (
           named: context.named,
@@ -1009,16 +1096,6 @@ class YoutubeMusicAccount {
         ),
       ),
     );
-    for (final expanded in shelfResults) {
-      mixError ??= expanded.result.error;
-      for (final mix in parseYoutubeMusicPlaylists(
-        expanded.result.pages.skip(1).toList(),
-        limit: 500,
-      )) {
-        if (expanded.named || mix.id.startsWith('RDTMAK'))
-          mixes.putIfAbsent(mix.id, () => mix);
-      }
-    }
     final moreResults = await Future.wait(
       _mixShelfBrowseEndpoints(homePages).take(6).map((endpoint) async {
         try {
@@ -1041,6 +1118,16 @@ class YoutubeMusicAccount {
         }
       }),
     );
+    for (final expanded in await shelfResults) {
+      mixError ??= expanded.result.error;
+      for (final mix in parseYoutubeMusicPlaylists(
+        expanded.result.pages.skip(1).toList(),
+        limit: 500,
+      )) {
+        if (expanded.named || mix.id.startsWith('RDTMAK'))
+          mixes.putIfAbsent(mix.id, () => mix);
+      }
+    }
     for (final result in moreResults) {
       mixError ??= result.error;
       for (final mix in parseYoutubeMusicPlaylists(result.pages, limit: 500)) {
@@ -1118,9 +1205,14 @@ Future<LokalDiscovery> loadYoutubeMusicDiscovery(
       at.difference(cached.at) < const Duration(minutes: 5)) {
     data = cached.data;
   } else {
-    data = await account.fetch();
+    if (force) _playlistCache.removeWhere((id, _) => id.startsWith('$key:'));
+    data = await account.fetch().timeout(const Duration(seconds: 35));
     _cache.remove(key);
-    _cache[key] = _Cached(at, data);
+    if (data.homeError == null &&
+        data.mixError == null &&
+        data.mixes.isNotEmpty) {
+      _cache[key] = _Cached(at, data);
+    }
     while (_cache.length > 4) {
       _cache.remove(_cache.keys.first);
     }
@@ -1135,18 +1227,22 @@ Future<LokalDiscovery> loadYoutubeMusicDiscovery(
       playlists[start],
       playlists[(start + 1) % playlists.length],
     };
-    for (final mix in selected) {
-      final cacheKey = key + ':' + mix.id;
-      try {
-        picks.addAll(
-          _playlistCache[cacheKey] ??= await account.playlist(mix.id),
-        );
-      } on YoutubeMusicSignedOut {
-        rethrow;
-      } catch (error) {
-        warnings.add(mix.title + ': ' + _message(error));
-      }
-    }
+    final picked = await Future.wait(
+      selected.map((mix) async {
+        final cacheKey = key + ':' + mix.id;
+        try {
+          return _playlistCache[cacheKey] ??= await account
+              .playlist(mix.id)
+              .timeout(const Duration(seconds: 4));
+        } on YoutubeMusicSignedOut {
+          rethrow;
+        } catch (error) {
+          warnings.add(mix.title + ': ' + _message(error));
+          return <LokalDiscoveryTrack>[];
+        }
+      }),
+    );
+    picks.addAll(picked.expand((tracks) => tracks));
   }
   final seen = <String>{};
   final candidates = [
@@ -1161,7 +1257,7 @@ Future<LokalDiscovery> loadYoutubeMusicDiscovery(
   };
   for (final track in candidates) {
     if (artists.length >= 30) break;
-    final name = track.artist.split(',').first.trim();
+    final name = track.artist.trim();
     if (name.isNotEmpty) {
       artists.putIfAbsent(
         name.toLowerCase(),

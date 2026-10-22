@@ -80,6 +80,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   final _downloadOutbox = LinkDownloadOutbox();
   final _syncNotification = LibrarySyncNotification();
   final _copyNotification = FileCopyNotification();
+  LinkFileCopy? _copyPlanner;
   bool _socketWanted = false, _openingSocket = false, _receivingTheme = false;
   DateTime _lastLibrarySyncAt = DateTime.fromMillisecondsSinceEpoch(0);
   Map<String, dynamic>? _desktopState;
@@ -140,6 +141,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       if (!_receivingTheme && link.connected) unawaited(_sendTheme(appearance));
     });
     ref.onDispose(() {
+      _copyPlanner?.cancel();
       _syncNotification.dispose();
       _copyNotification.dispose();
       _disposed = true;
@@ -405,32 +407,38 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       );
     }
     final generation = _generation;
-    return LinkFileCopy(
+    late final LinkFileCopy copier;
+    copier = LinkFileCopy(
       credentials: credentials,
       socket: ref.read(lokalLinkServiceProvider),
       connected: () =>
           !_disposed && generation == _generation && state.socketConnected,
       onProgress: (progress) {
-        if (!_disposed && generation == _generation) {
+        if (!_disposed && generation == _generation && !copier.cancelled) {
           state = state.copyWith(fileCopyProgress: progress);
           _copyNotification.update(progress);
         }
       },
     );
+    return copier;
   }
 
   Future<LinkCopyPlan> prepareFileCopy() async {
     _lastActivity = DateTime.now();
     if (state.syncProgress.busy || state.fileCopyProgress.busy)
       throw StateError('Wait for the current library operation to finish.');
+    final copier = _fileCopier();
+    _copyPlanner = copier;
     try {
-      return await _fileCopier().plan();
+      return await copier.plan();
     } catch (_) {
       if (!_disposed)
         state = state.copyWith(
           fileCopyProgress: const LinkCopyProgress(phase: LinkCopyPhase.paused),
         );
       rethrow;
+    } finally {
+      if (identical(_copyPlanner, copier)) _copyPlanner = null;
     }
   }
 
@@ -456,6 +464,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   void cancelFileCopyPlan() {
+    _copyPlanner?.cancel();
     if (state.fileCopyProgress.phase == LinkCopyPhase.checking) {
       state = state.copyWith(fileCopyProgress: const LinkCopyProgress());
     }

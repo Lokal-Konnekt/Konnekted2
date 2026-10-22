@@ -678,6 +678,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       child: ValueListenableBuilder<bool>(
         valueListenable: _player.isPlayingNotifier,
         builder: (context, playing, _) => MotionArtView(
+          sharedPlaybackKey: 'player:${song.id}',
           title: song.title,
           artist: song.artist,
           album: song.album,

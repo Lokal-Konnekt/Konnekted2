@@ -1170,6 +1170,17 @@ class MainActivity: FlutterActivity() {
         audioDeviceChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getPlaybackDeviceInfo" -> result.success(getPlaybackDeviceInfo())
+                "showOutputSwitcher" -> {
+                    try {
+                        if (Build.VERSION.SDK_INT >= 34) {
+                            result.success(android.media.MediaRouter2.getInstance(this).showSystemOutputSwitcher())
+                        } else {
+                            result.error("OUTPUT_UNAVAILABLE", "Use Android's media output control in Quick Settings on this Android version.", null)
+                        }
+                    } catch (error: Exception) {
+                        result.error("OUTPUT_UNAVAILABLE", "Android could not open the media output chooser.", null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

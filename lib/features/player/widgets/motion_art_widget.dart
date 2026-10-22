@@ -11,6 +11,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:flick/services/motion_art/shared_motion_playback.dart';
 
 /// Renders Apple Music Motion Art for an album while falling back to [fallback]
 /// (typically the Ken Burns [AnimatedAlbumArt] or a static artwork widget).
@@ -40,6 +41,7 @@ class MotionArtView extends StatefulWidget {
     this.suppressionOverride,
     this.serviceOverride,
     this.loadingFallback,
+    this.sharedPlaybackKey,
   });
 
   /// Song title, or the album name when [albumMode] is true.
@@ -78,6 +80,7 @@ class MotionArtView extends StatefulWidget {
   /// Test hook: replaces the shared [AnimatedArtworkService] instance.
   @visibleForTesting
   final AnimatedArtworkService? serviceOverride;
+  final String? sharedPlaybackKey;
 
   @override
   State<MotionArtView> createState() => _MotionArtViewState();
@@ -91,6 +94,34 @@ class _MotionArtViewState extends State<MotionArtView>
 
   static final Set<VideoPlayerController> _liveControllers = {};
 
+  static final _shared = SharedMotionPlayback<VideoPlayerController>(
+    create: (url) async {
+      final uri = Uri.parse(url);
+      final controller = VideoPlayerController.networkUrl(
+        uri,
+        formatHint: uri.path.toLowerCase().endsWith('.m3u8')
+            ? VideoFormat.hls
+            : null,
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+      try {
+        await controller.initialize().timeout(const Duration(seconds: 15));
+        await controller.setLooping(true);
+        await controller.setVolume(0);
+        return controller;
+      } catch (_) {
+        try {
+          await controller.dispose().timeout(const Duration(seconds: 4));
+        } catch (_) {}
+        rethrow;
+      }
+    },
+    activate: (controller, active) =>
+        active ? controller.play() : controller.pause(),
+    dispose: (controller) =>
+        controller.dispose().timeout(const Duration(seconds: 4)),
+  );
+  MotionPlaybackLease<VideoPlayerController>? _sharedLease;
   VideoPlayerController? _controller;
   bool _hasVideo = false;
   bool _settledWithoutMotion = false;
@@ -178,7 +209,9 @@ class _MotionArtViewState extends State<MotionArtView>
   void _syncPlayback() {
     final controller = _controller;
     if (controller != null) {
-      final action = _canPlay ? controller.play() : controller.pause();
+      final action =
+          _sharedLease?.setActive(_canPlay) ??
+          (_canPlay ? controller.play() : controller.pause());
       unawaited(
         action.catchError(
           (Object error) => _logFailureOnce('video state', error),
@@ -220,6 +253,7 @@ class _MotionArtViewState extends State<MotionArtView>
         oldWidget.albumMode != widget.albumMode ||
         oldWidget.representativeSongTitle != widget.representativeSongTitle ||
         oldWidget.preferVertical != widget.preferVertical ||
+        oldWidget.sharedPlaybackKey != widget.sharedPlaybackKey ||
         oldWidget.enabled != widget.enabled;
     if (changed)
       _restart();
@@ -248,12 +282,26 @@ class _MotionArtViewState extends State<MotionArtView>
     _hasVideo = false;
     _settledWithoutMotion = false;
     final controller = _controller;
+    final lease = _sharedLease;
     _controller = null;
-    unawaited(_disposeVideo(controller));
+    _sharedLease = null;
+    unawaited(_disposeVideo(controller, lease: lease));
   }
 
-  Future<void> _disposeVideo(VideoPlayerController? controller) async {
+  Future<void> _disposeVideo(
+    VideoPlayerController? controller, {
+    MotionPlaybackLease<VideoPlayerController>? lease,
+  }) async {
     if (controller == null) return;
+    if (lease != null) {
+      await lease.release(
+        immediate:
+            _suppressed ||
+            !widget.enabled ||
+            _lifecycle != AppLifecycleState.resumed,
+      );
+      return;
+    }
     if (_liveControllers.remove(controller)) {
       _logLifecycle('stopped active=${_liveControllers.length}');
     }
@@ -373,50 +421,63 @@ class _MotionArtViewState extends State<MotionArtView>
     }
 
     VideoPlayerController? controller;
+    MotionPlaybackLease<VideoPlayerController>? lease;
     try {
-      final uri = Uri.parse(url);
-      controller = VideoPlayerController.networkUrl(
-        uri,
-        // boidu's `animated` field is an Apple HLS playlist; hinting the format
-        // is more robust than relying on ExoPlayer's URI-extension sniffing.
-        formatHint: uri.path.toLowerCase().endsWith('.m3u8')
-            ? VideoFormat.hls
-            : null,
-        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-      );
-      await controller.initialize().timeout(const Duration(seconds: 15));
-      await controller.setLooping(true);
-      await controller.setVolume(0);
+      final sharedKey = widget.sharedPlaybackKey;
+      if (sharedKey != null) {
+        lease = await _shared.acquire(sharedKey, url);
+        controller = lease.resource;
+      } else {
+        final uri = Uri.parse(url);
+        controller = VideoPlayerController.networkUrl(
+          uri,
+          // boidu's `animated` field is an Apple HLS playlist; hinting the format
+          // is more robust than relying on ExoPlayer's URI-extension sniffing.
+          formatHint: uri.path.toLowerCase().endsWith('.m3u8')
+              ? VideoFormat.hls
+              : null,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+        await controller.initialize().timeout(const Duration(seconds: 15));
+        await controller.setLooping(true);
+        await controller.setVolume(0);
+      }
       if (!mounted || generation != _generation) {
-        await _disposeVideo(controller);
+        await _disposeVideo(controller, lease: lease);
         return;
       }
-      if (_canPlay) await controller.play();
+      if (lease != null) {
+        await lease.setActive(_canPlay);
+      } else if (_canPlay) {
+        await controller.play();
+      }
     } catch (error) {
       _logFailureOnce('video init', error);
       devLog('[MotionArt] video init failed: $error');
-      await _disposeVideo(controller);
+      await _disposeVideo(controller, lease: lease);
       _scheduleRetry();
       return;
     }
 
     if (!mounted || generation != _generation) {
-      await _disposeVideo(controller);
+      await _disposeVideo(controller, lease: lease);
       return;
     }
 
     final previous = _controller;
-    _liveControllers.add(controller);
+    final previousLease = _sharedLease;
+    if (lease == null) _liveControllers.add(controller);
     _logLifecycle(
-      'started active=${_liveControllers.length} ${_rssLabel()} '
+      'started ${lease == null ? 'active=${_liveControllers.length}' : 'shared player clip'} ${_rssLabel()} '
       '${widget.albumMode ? 'album="${widget.album ?? widget.title}"' : 'song="${widget.title}"'}',
     );
     setState(() {
       _controller = controller;
+      _sharedLease = lease;
       _hasVideo = true;
     });
     _attempt = 0;
-    await _disposeVideo(previous);
+    await _disposeVideo(previous, lease: previousLease);
   }
 
   @override

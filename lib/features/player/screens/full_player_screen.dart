@@ -1,3 +1,5 @@
+import 'package:flick/features/player/widgets/full_bleed_artwork_frame.dart';
+
 import '../widgets/artist_credit_links.dart';
 
 import 'package:flick/core/theme/lokal_appearance.dart';
@@ -96,6 +98,28 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   bool _carouselDragging = false;
   final _carouselKey = GlobalKey<SongStageCarouselState>();
+  final _playerBoundsKey = GlobalKey();
+  final _posterAnchorKey = GlobalKey();
+  double? _posterBottom;
+  bool _posterMeasurePending = false;
+
+  void _measurePoster() {
+    if (_posterMeasurePending) return;
+    _posterMeasurePending = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _posterMeasurePending = false;
+      if (!mounted || _showLyrics || _queue.engaged) return;
+      final slot = _posterAnchorKey.currentContext?.findRenderObject();
+      final frame = _playerBoundsKey.currentContext?.findRenderObject();
+      if (slot is! RenderBox || frame is! RenderBox || !slot.hasSize) return;
+      final bottom =
+          slot.localToGlobal(Offset(0, slot.size.height), ancestor: frame).dy +
+          8;
+      if (_posterBottom == null || (_posterBottom! - bottom).abs() > .5) {
+        setState(() => _posterBottom = bottom);
+      }
+    });
+  }
 
   /// The queue opens in place: the cover shrinks into a header row and the
   /// list rises under it, all off this one value (0 = player, 1 = queue).
@@ -345,6 +369,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             return const Center(child: CircularProgressIndicator());
           }
           return Stack(
+            key: _playerBoundsKey,
             fit: StackFit.expand,
             children: [
               ArtworkGradientBackdrop(colors: colors),
@@ -603,6 +628,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         valueListenable: _player.isPlayingNotifier,
                         builder: (context, playing, _) => MotionArtView(
                           sharedPlaybackKey: 'player:${track.id}',
+                          presentationBuilder: (context, artwork, canvas) =>
+                              FullBleedArtworkFrame(
+                                canvas: canvas,
+                                bannerBottom: _posterBottom,
+                                child: artwork,
+                              ),
                           title: track.title,
                           artist: track.artist,
                           album: track.album,
@@ -680,7 +711,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             if (fullCover) {
               // The poster owns the single Hero and carousel in this mode.
               // Only reveal the compact cover while entering lyrics/queue.
-              if (p == 0) return const SizedBox.expand();
+              if (p == 0) {
+                _measurePoster();
+                return SizedBox.expand(key: _posterAnchorKey);
+              }
               return IgnorePointer(
                 child: HeroMode(
                   enabled: false,

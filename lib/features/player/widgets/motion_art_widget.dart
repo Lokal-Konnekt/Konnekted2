@@ -43,6 +43,7 @@ class MotionArtView extends StatefulWidget {
     this.loadingFallback,
     this.sharedPlaybackKey,
     this.sharedPlaybackOverride,
+    this.presentationBuilder,
   });
 
   /// Song title, or the album name when [albumMode] is true.
@@ -71,6 +72,11 @@ class MotionArtView extends StatefulWidget {
   /// Prefer the portrait motion-art variant (full-bleed backgrounds).
   final bool preferVertical;
 
+  /// Optional source-aware frame for full-bleed player artwork. The decoded
+  /// controller retains source identity across mini/full-player handoffs.
+  final Widget Function(BuildContext, Widget, bool isSpotifyCanvas)?
+  presentationBuilder;
+
   final BoxFit fit;
   final BorderRadius? borderRadius;
 
@@ -95,6 +101,7 @@ class _MotionArtViewState extends State<MotionArtView>
   static const int _maxAttempts = 4;
 
   static final Set<VideoPlayerController> _liveControllers = {};
+  static final _spotifyCanvas = Expando<bool>();
 
   static final _shared = SharedMotionPlayback<VideoPlayerController>(
     create: (url) async {
@@ -506,6 +513,7 @@ class _MotionArtViewState extends State<MotionArtView>
       return;
     }
 
+    _spotifyCanvas[controller] = artwork!.albumId.startsWith('spotify:');
     final previous = _controller;
     final previousLease = _sharedLease;
     if (lease == null) _liveControllers.add(controller);
@@ -524,16 +532,19 @@ class _MotionArtViewState extends State<MotionArtView>
 
   @override
   Widget build(BuildContext context) {
-    if (_suppressed || !widget.enabled) return widget.fallback;
+    Widget present(Widget child, {bool canvas = false}) =>
+        widget.presentationBuilder?.call(context, child, canvas) ?? child;
+    if (_suppressed || !widget.enabled) return present(widget.fallback);
     final controller = _controller;
     if (!_hasVideo || controller == null || !controller.value.isInitialized) {
       final loading = widget.loadingFallback;
-      if (_settledWithoutMotion || loading == null) return widget.fallback;
-      return loading;
+      if (_settledWithoutMotion || loading == null)
+        return present(widget.fallback);
+      return present(loading);
     }
 
     final size = controller.value.size;
-    if (size.width <= 0 || size.height <= 0) return widget.fallback;
+    if (size.width <= 0 || size.height <= 0) return present(widget.fallback);
 
     Widget video = SizedBox.expand(
       child: FittedBox(
@@ -550,22 +561,25 @@ class _MotionArtViewState extends State<MotionArtView>
     if (radius != null) {
       video = ClipRRect(borderRadius: radius, child: video);
     }
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        widget.fallback,
-        if (_reusedClip)
-          video
-        else
-          TweenAnimationBuilder<double>(
-            key: ValueKey(controller),
-            tween: Tween(begin: 0, end: 1),
-            duration: const Duration(milliseconds: 240),
-            child: video,
-            builder: (context, value, child) =>
-                Opacity(opacity: value, child: child),
-          ),
-      ],
+    return present(
+      Stack(
+        fit: StackFit.expand,
+        children: [
+          widget.fallback,
+          if (_reusedClip)
+            video
+          else
+            TweenAnimationBuilder<double>(
+              key: ValueKey(controller),
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 240),
+              child: video,
+              builder: (context, value, child) =>
+                  Opacity(opacity: value, child: child),
+            ),
+        ],
+      ),
+      canvas: _spotifyCanvas[controller] ?? false,
     );
   }
 }

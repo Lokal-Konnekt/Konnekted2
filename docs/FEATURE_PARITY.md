@@ -494,6 +494,31 @@ pass, including a desktop-style 19-mix continuation fixture and a warm video dra
 preview. Targeted analysis has no errors/warnings (style/deprecation notices
 remain). No APK build, live account or physical-device validation was run.
 
+### Discovery storefronts and personal-mix recovery
+
+A live public iTunes search reproduced the reported Plastic Love miss: the US
+storefront returned other artists, while GB returned Mariya Takeuchi's original.
+Artwork lookup now tries GB after a US miss, preserving exact normalized artist
+and recording checks so a cover version cannot supply the image.
+
+YouTube traversal now budgets pages independently with a larger per-page limit;
+an earlier response cannot consume the budget for later continuation pages.
+Empty personal-mix headers no longer stop home pagination. Native RDTMAK cards
+are accepted in grids/flat responses and the signed-in playlist library, and
+provider-supplied personal-mix chips can provide browse IDs/parameters. Homepage
+bootstrap includes the selected authuser. A shared 30-second fetch deadline
+returns partial results instead of letting optional expansion discard all cards
+at the outer timeout. Empty results report a reason, and app logs include only
+request/page/shelf/card counts, never cookies, account IDs or response payloads.
+
+Validation: 50 focused discovery checks pass, including the reported recording,
+large earlier responses, empty headers, supplied chip routes and an optional
+request that hangs after valid cards loaded. Targeted analysis has no errors or
+warnings. Public storefront behavior was verified live; authenticated YouTube
+mixes still require confirmation with the user's own profile. No APK/CI build
+was run.
+
+
 ### Idle desktop sync, background playback and settings
 
 Automatic journal sync now runs quietly once a minute, or after a local journal
@@ -524,27 +549,3 @@ Validation: 30 focused player/mix/onboarding/settings checks and 23 packaging
 checks pass. Settings search's stale account-location expectation was updated.
 Targeted analysis has no errors/warnings; existing style notices remain. No
 APK/CI build, live paired-device sync or physical background-playback test ran.
-
-### Discovery storefronts and personal-mix recovery
-
-A live public iTunes search reproduced the reported Plastic Love miss: the US
-storefront returned other artists, while GB returned Mariya Takeuchi's original.
-Artwork lookup now tries GB after a US miss, preserving exact normalized artist
-and recording checks so a cover version cannot supply the image.
-
-YouTube traversal now budgets pages independently with a larger per-page limit;
-an earlier response cannot consume the budget for later continuation pages.
-Empty personal-mix headers no longer stop home pagination. Native RDTMAK cards
-are accepted in grids/flat responses and the signed-in playlist library, and
-provider-supplied personal-mix chips can provide browse IDs/parameters. Homepage
-bootstrap includes the selected authuser. A shared 30-second fetch deadline
-returns partial results instead of letting optional expansion discard all cards
-at the outer timeout. Empty results report a reason, and app logs include only
-request/page/shelf/card counts, never cookies, account IDs or response payloads.
-
-Validation: 50 focused discovery checks pass, including the reported recording,
-large earlier responses, empty headers, supplied chip routes and an optional
-request that hangs after valid cards loaded. Targeted analysis has no errors or
-warnings. Public storefront behavior was verified live; authenticated YouTube
-mixes still require confirmation with the user's own profile. No APK/CI build
-was run.

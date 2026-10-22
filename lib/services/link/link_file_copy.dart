@@ -5,6 +5,7 @@ import '../../data/repositories/song_repository.dart';
 import '../../models/lokal_remote_state.dart';
 import '../../models/song.dart';
 import 'link_journal.dart';
+import 'link_copy_identity.dart';
 import 'lokal_desktop_source.dart';
 import 'lokal_link_service.dart';
 
@@ -47,6 +48,21 @@ class LinkFileCopy {
     final source = LokalDesktopSource.instance;
     await source.requireOriginalFileSupport(credentials);
     final server = await source.ensureServer(credentials);
+    final catalogue = await source.readCatalogue(credentials);
+    final identity = LinkCopyIdentity(serverId: server.id, tracks: catalogue);
+    final originalChecks = <String, Future<bool>>{};
+    Future<bool> alreadyOnDesktop(Song song) async {
+      for (final id in identity.candidates(song)) {
+        _check();
+        if (await originalChecks.putIfAbsent(
+          id,
+          () => source.hasOriginalFile(credentials, id),
+        ))
+          return true;
+      }
+      return false;
+    }
+
     final songs = await SongRepository().getAllSongs();
     final entities = await Database.songs.getAll([
       for (final song in songs)
@@ -94,7 +110,9 @@ class LinkFileCopy {
             for (final song in batch)
               {
                 ...LinkJournal.instance.songWire(song),
-                'track_key': await LinkJournal.instance.trackKeyFor(song),
+                // Retain the original PC identity for copied files; use
+                // current metadata rather than stale aliases for other songs.
+                'track_key': identity.resolverKey(song),
               },
           ],
         },
@@ -106,7 +124,10 @@ class LinkFileCopy {
       for (final index in reply.body['missing'] as List) {
         if (index is! int || index < 0 || index >= batch.length)
           throw const FormatException('Invalid missing-song response.');
-        missing.add(batch[index]);
+        // The resolver can miss a downloaded copy after its local tags or
+        // duration changed. Confirm its preserved desktop identity/fresh
+        // catalogue candidates without transferring the audio back to the PC.
+        if (!await alreadyOnDesktop(batch[index])) missing.add(batch[index]);
       }
     }
     String name(String value) =>
@@ -118,10 +139,15 @@ class LinkFileCopy {
       localByName.putIfAbsent(key(song.artist, song.title), () => []).add(song);
     final downloads = <({Map<String, dynamic> track, Song? existing})>[];
     final seen = <String>{};
-    for (final track in await source.readCatalogue(credentials)) {
+    final localDesktopIds = {
+      for (final song in local)
+        if (song.remoteServerId == server.id && song.remoteId != null)
+          song.remoteId!,
+    };
+    for (final track in catalogue) {
       _check();
       final id = track['id'].toString();
-      if (!seen.add(id)) continue;
+      if (!seen.add(id) || localDesktopIds.contains(id)) continue;
       final title = track['title'] as String? ?? '',
           artist = track['artist'] as String? ?? '';
       final seconds = (track['duration'] as num? ?? 0).toDouble();

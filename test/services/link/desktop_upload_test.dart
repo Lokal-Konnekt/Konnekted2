@@ -89,6 +89,34 @@ void main() {
       );
     },
   );
+  test('verifies existing PC originals with authenticated HEAD and no audio download', () async {
+    for (final status in [200, 404, 403]) {
+      final source = LokalDesktopSource(
+        originalClientFactory: () => MockClient((request) async {
+          expect(request.method, 'HEAD');
+          expect(request.url.pathSegments, [
+            'api',
+            'remote',
+            'files',
+            'pc-original',
+          ]);
+          expect(request.headers['x-remote-token'], 'fixture-pairing-token');
+          return http.Response('', status);
+        }),
+      );
+      if (status == 403) {
+        await expectLater(
+          source.hasOriginalFile(credentials, 'pc-original'),
+          throwsA(isA<StateError>()),
+        );
+      } else {
+        expect(
+          await source.hasOriginalFile(credentials, 'pc-original'),
+          status == 200,
+        );
+      }
+    }
+  });
   test('rejects empty files before sending', () async {
     await file.writeAsBytes([]);
     final source = LokalDesktopSource(

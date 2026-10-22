@@ -305,3 +305,16 @@ frame pacing and live Discord rendering remain device/account checks.
 Validation: focused Flutter tests, release metadata tests, the exact JS hook
 fixture and actionlint. No APK/CI build, native compilation, live Spotify login,
 physical background-transfer test or actual release replacement was performed.
+
+
+### Missing-file preview identity follow-up
+
+Copy previews use a copied song's original desktop identity scoped to the paired
+server, and fresh metadata for independently scanned songs, rather than cached
+journal keys. If the bulk resolver still reports missing, matching catalogue
+candidates are verified via the paired-original HEAD route (no audio body). A
+missing original stays eligible; auth/network failures abort verification rather
+than classifying files as absent. The same retained IDs prevent downloading
+already-present phone copies after tag edits. Journal aliases for history/likes
+remain intact. Focused identity, HEAD status and upload tests pass; no physical
+PC/phone transfer or APK build was performed.

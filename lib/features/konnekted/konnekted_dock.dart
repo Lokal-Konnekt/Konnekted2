@@ -1,3 +1,6 @@
+import 'package:flick/features/player/widgets/motion_art_widget.dart';
+import 'package:flick/providers/app_preferences_provider.dart';
+import 'package:flick/services/motion_art/moving_cover_settings.dart';
 import 'package:flick/l10n/l10n.dart';
 
 import '../link/lokal_devices_card.dart';
@@ -728,11 +731,14 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                                 createRectTween: (begin, end) =>
                                     RectTween(begin: begin, end: end),
                                 flightShuttleBuilder: _flight,
-                                child: KonnektedArtwork(
+                                child: SizedBox(
                                   key: artworkKey,
-                                  song: song,
-                                  size: 42,
-                                  radius: 21,
+                                  width: 42,
+                                  height: 42,
+                                  child: _MiniMotionArtwork(
+                                    song: song,
+                                    playing: isPlaying,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -902,4 +908,37 @@ class _PullUpState extends State<_PullUp> {
     onHorizontalDragCancel: () => _horizontalDelta = 0,
     child: widget.child,
   );
+}
+
+class _MiniMotionArtwork extends ConsumerWidget {
+  const _MiniMotionArtwork({required this.song, required this.playing});
+  final Song song;
+  final bool playing;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(appPreferencesProvider);
+    final enabled =
+        prefs.animatedAlbumArt &&
+        prefs.animationsEnabled &&
+        song.filePath != null &&
+        !song.isPending &&
+        !ref
+            .watch(movingCoverSettingsProvider)
+            .disabledSongs
+            .contains(movingCoverSongKey(song));
+    final still = KonnektedArtwork(song: song, size: 42, radius: 21);
+    if (!enabled) return still;
+    return ClipOval(
+      child: MotionArtView(
+        sharedPlaybackKey: 'player:${song.id}',
+        title: song.title,
+        artist: song.artist,
+        album: song.album,
+        duration: song.duration,
+        playbackActive: playing,
+        borderRadius: BorderRadius.circular(21),
+        fallback: still,
+      ),
+    );
+  }
 }

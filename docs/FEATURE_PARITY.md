@@ -460,3 +460,18 @@ Validation: 24 focused discovery artwork/account/parser/source tests and 10 copy
 preview guard/fingerprint/identity tests pass. Targeted Dart analysis has no
 errors/warnings. Android API availability was checked against the SDK; native
 compilation, live source accounts and physical audio routing remain unverified.
+
+### Motion artwork in the minimized player
+
+The dock thumbnail now uses the same moving-cover/Canvas settings and per-song
+opt-out as full player. Both views share a muted looping decoder keyed by song
+and clip URL, retaining its playback position across the minimize/open handoff.
+One hidden view cannot pause another active view. App backgrounding pauses
+motion, and exclusive-output suppression releases it immediately when unused.
+Reduced-motion/settings fallbacks remain static.
+
+Validation: 26 focused shared-playback, motion gating/suppression/loading and
+dock/component tests pass, including same-resource/frame handoff and active-view
+ownership. No physical video-decoder/performance test or APK build was run.
+Targeted analysis has no errors; the full-player's pre-existing unused
+`_favForSongId` field warning remains.

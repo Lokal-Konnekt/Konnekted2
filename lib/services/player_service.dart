@@ -1460,6 +1460,37 @@ class PlayerService {
     return ids;
   }
 
+  /// Preserve queued identities when an explicit library organization moves a file.
+  void syncSongFileLocation({
+    required String oldPath,
+    required String newPath,
+    required String folderUri,
+    required String relativeFolderPath,
+  }) {
+    Song update(Song song) => song.filePath == oldPath
+        ? song.copyWith(
+            filePath: newPath,
+            folderUri: folderUri,
+            relativeFolderPath: relativeFolderPath,
+          )
+        : song;
+    for (var i = 0; i < _playlist.length; i++) {
+      _playlist[i] = update(_playlist[i]);
+    }
+    for (var i = 0; i < _originalPlaylist.length; i++) {
+      _originalPlaylist[i] = update(_originalPlaylist[i]);
+    }
+    for (var i = 0; i < _queuedEntries.length; i++) {
+      final entry = _queuedEntries[i];
+      _queuedEntries[i] = _QueueEntry(id: entry.id, song: update(entry.song));
+    }
+    final current = currentSongNotifier.value;
+    if (current != null && current.filePath == oldPath)
+      currentSongNotifier.value = update(current);
+    _notifyQueueChanged();
+    _notifyUpNextChanged();
+  }
+
   void syncAlbumArtPaths({
     required Iterable<String> filePaths,
     required String? albumArtPath,

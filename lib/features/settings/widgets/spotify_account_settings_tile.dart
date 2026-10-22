@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/features/spotify/spotify_likes_sync_service.dart';
 import 'package:flick/features/spotify/spotify_oauth.dart';
+
+import 'spotify_cookie_dialog.dart';
+
 import 'package:flick/features/spotify/spotify_storage.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
@@ -68,56 +71,21 @@ class _SpotifyAccountSettingsTileState
   Future<void> _connect() async {
     if (_busy) return;
     setState(() => _busy = true);
-    final controller = TextEditingController();
-    final cookie = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(lokalText('Connect Spotify')),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              lokalText(
-                'Paste the sp_dc session cookie from your signed-in Spotify web session. It is stored encrypted on this device.',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              obscureText: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: InputDecoration(
-                labelText: lokalText('Spotify sp_dc cookie'),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(lokalText('Cancel')),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(lokalText('Connect')),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (!mounted) return;
-    if (cookie == null) {
-      setState(() => _busy = false);
-      return;
-    }
+    final settings = SpotifySettingsStore();
+    final oauth = SpotifyOAuthService(tokenStore: settings.tokenStore);
+    final revision = SecureSpotifyTokenStore.sessionRevision.value;
     try {
-      final settings = SpotifySettingsStore();
-      final oauth = SpotifyOAuthService(tokenStore: settings.tokenStore);
-      final revision = SecureSpotifyTokenStore.sessionRevision.value;
-      await oauth.signInWithCookie(cookie);
+      final connected = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => SpotifyCookieDialog(
+          onConnect: (cookie) async {
+            await oauth.signInWithCookie(cookie);
+          },
+          onCancel: oauth.cancel,
+        ),
+      );
+      if (!mounted || connected != true) return;
       // Explicit reconnection also retries a settled Canvas miss for the same cookie.
       if (SecureSpotifyTokenStore.sessionRevision.value == revision)
         SecureSpotifyTokenStore.sessionRevision.value++;

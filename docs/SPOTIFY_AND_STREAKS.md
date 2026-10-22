@@ -13,8 +13,10 @@ hook watches actual fetch/XHR token responses, request headers and a bounded
 set of public loaded script bundles. Only Spotify origins can supply session
 credentials. Handcrafted client-token requests are removed. WebView startup
 uses the saved cookie, waits for it to be installed and blocks navigation away
-from open.spotify.com. A header-only bearer is checked against the signed-in
-profile before it is accepted. Session expiry also respects the client token.
+from open.spotify.com. Real browser-captured bearer/client tokens are used
+directly, as on desktop; explicitly anonymous token responses are rejected.
+The separate public Web API profile endpoint is not a cookie-login gate.
+Session expiry also respects the client token.
 
 Canvas, Discovery and likes share one in-flight mint per cookie and serialize
 other mints because Android WebViews share a cookie jar. Legacy saved sessions

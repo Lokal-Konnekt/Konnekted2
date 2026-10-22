@@ -349,3 +349,29 @@ The 39 package-manager tests pass, including the observed Amazon descriptor
 shape, descriptor fallback, normalized extensions, clear audio and rejected path
 injection. Targeted Dart analysis has no errors/warnings. The fixture injects the
 decryptor; no live Amazon stream, physical Android playback or APK build was run.
+
+
+### Existing-library organizer and Spotify cookie entry
+
+Library settings › Maintenance now contains **Organize existing library**. It
+previews relocations beneath each selected root as Album Artist (or Artist) /
+Album, requires an explicit confirmation, avoids overwriting collisions, and
+updates existing Isar row IDs and queued file locations. A foreground progress
+notification protects the job during app switching. A durable one-file journal
+recovers a rename interrupted before database commit; failed commits roll the
+rename back. The current loaded song, CUE audio, document-only/inaccessible files
+and files outside saved roots are skipped. Existing artwork/lyrics sidecars are
+left in place. Scoped-storage fallback uses the persisted ExternalStorage tree
+move grant where the destination keeps its filename; unsupported permission or
+collision cases are reported for retry, without copying/deleting originals.
+
+Spotify cookie login no longer requires public Web API `/v1/me` acceptance for
+a first-party WebPlayer bearer. It still requires real browser-captured access
+and client tokens and rejects explicitly anonymous responses. Failed connection
+attempts keep the entered cookie in the obscured dialog for retry; cancelling
+invalidates the attempt. This does not prove a live Spotify account/device test.
+
+Validation: focused organizer filesystem/journal/rollback/collision/skip tests,
+cookie-dialog retry/cancel tests, session migration and copy-notification tests
+pass. Targeted Dart analysis has no errors/warnings. No APK/CI build, native
+compilation, physical Android move/grant test or live Spotify login was run.

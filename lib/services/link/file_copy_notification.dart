@@ -12,13 +12,24 @@ class FileCopyNotification {
   bool _active = false;
   DateTime? _sentAt;
   String _device = '';
-  Future<void> begin(String device) async {
+  String _title = 'Copying music',
+      _completeTitle = 'Music copy complete',
+      _pausedTitle = 'Music copy paused';
+  Future<void> begin(
+    String device, {
+    String title = 'Copying music',
+    String completeTitle = 'Music copy complete',
+    String pausedTitle = 'Music copy paused',
+  }) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     _device = device;
+    _title = title;
+    _completeTitle = completeTitle;
+    _pausedTitle = pausedTitle;
     _sentAt = null;
     // Must start while the user-triggered copy is still in the foreground.
     await _channel.invokeMethod<void>('start', {
-      'title': 'Copying music',
+      'title': _title,
       'message': 'Preparing files…',
       'device': device,
     });
@@ -33,7 +44,7 @@ class FileCopyNotification {
       return;
     _sentAt = now;
     _send('update', {
-      'title': 'Copying music',
+      'title': _title,
       'message':
           '${progress.processed} of ${progress.total} files · ${progress.currentTitle ?? (progress.toDesktop ? "Sending to desktop" : "Copying files")}',
       'device': _device,
@@ -42,14 +53,15 @@ class FileCopyNotification {
     });
   }
 
-  Future<void> finish(LinkCopyProgress progress) async {
+  Future<void> finish(LinkCopyProgress progress, {String? message}) async {
     if (!_active) return;
     _active = false;
     await _send('stop', {
       'title': progress.phase == LinkCopyPhase.complete
-          ? 'Music copy complete'
-          : 'Music copy paused',
+          ? _completeTitle
+          : _pausedTitle,
       'message':
+          message ??
           '${progress.sent} sent · ${progress.received} received · ${progress.failures.length} failed',
       'device': _device,
     });

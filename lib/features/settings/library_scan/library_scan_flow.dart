@@ -7,7 +7,6 @@ import 'package:flick/l10n/l10n.dart';
 import 'package:flick/services/audio_preload_service.dart';
 import 'package:flick/services/library_scanner_service.dart';
 import 'package:flick/services/music_folder_service.dart';
-import 'package:flick/services/permission_service.dart';
 import 'package:flick/services/replaygain_scan_service.dart';
 import 'package:flick/services/scan_session_controller.dart';
 
@@ -111,8 +110,9 @@ abstract final class LibraryScanFlow {
   static Future<MusicFolder?> addFolder(BuildContext context) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     void say(String message) {
+      if (messenger == null || !messenger.mounted) return;
       messenger
-        ?..removeCurrentSnackBar()
+        ..removeCurrentSnackBar()
         ..showSnackBar(
           SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
         );
@@ -123,14 +123,9 @@ abstract final class LibraryScanFlow {
       return null;
     }
     try {
-      final permissions = PermissionService();
-      if (!await permissions.hasStoragePermission()) {
-        final saved = await _folders.getSavedFolders();
-        if (saved.isEmpty && !await permissions.requestStoragePermission()) {
-          say('Lokal needs storage access to add a folder.');
-          return null;
-        }
-      }
+      // SAF grants access to the chosen tree itself on every supported Android
+      // version. Broad media/storage permissions are not prerequisites and
+      // introduce another first-run system dialog before the picker.
       final folder = await _folders.addFolder();
       if (folder == null) return null;
       if (!context.mounted) {

@@ -274,6 +274,17 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
       return;
     }
 
+    if (source == KonnektedDiscoverySource.spotify) {
+      // Spotify shelves are owned by konnektedSpotifyDiscoveryProvider.
+      // Keep the selection stable; never fall through into Last.fm loading.
+      _account = null;
+      _page = 0;
+      state = const KonnektedDiscoveryState(
+        source: KonnektedDiscoverySource.spotify,
+      );
+      return;
+    }
+
     String? account;
     try {
       account = await ref.read(konnektedLastfmAccountProvider.future);

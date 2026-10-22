@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'lokal_library_kit.dart';
+import 'lokal_song_filter.dart';
+
+import 'package:flick/widgets/lokal/lokal_quality.dart';
 
 /// Desktop's Simple view sorts.
 enum LokalSongSort {
@@ -54,6 +57,10 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
   final _search = TextEditingController();
   late LokalSongSort _sort = widget.initialSort;
   String _query = '';
+  LokalSongLocation _location = LokalSongLocation.all;
+  String _audioFilter = 'all';
+  LokalSongLocation? _inputLocation;
+  String? _inputAudioFilter;
   List<Song>? _visibleCache;
   List<Song>? _inputSongs;
   Map<String, int>? _inputCounts;
@@ -72,18 +79,20 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
         identical(_inputCounts, counts) &&
         _inputQuery == query &&
         _inputSort == _sort &&
+        _inputLocation == _location &&
+        _inputAudioFilter == _audioFilter &&
         _visibleCache != null) {
       return _visibleCache!;
     }
-    final songs = query.isEmpty
-        ? List<Song>.of(widget.songs)
-        : [
-            for (final song in widget.songs)
-              if ('${song.title}\n${song.artist}\n${song.album ?? ''}'
-                  .toLowerCase()
-                  .contains(query))
-                song,
-          ];
+    final songs = [
+      for (final song in widget.songs)
+        if (matchesLibraryFilters(song, _location, _audioFilter) &&
+            (query.isEmpty ||
+                '${song.title}\n${song.artist}\n${song.album ?? ''}'
+                    .toLowerCase()
+                    .contains(query)))
+          song,
+    ];
     int byTitle(Song a, Song b) =>
         a.title.toLowerCase().compareTo(b.title.toLowerCase());
     switch (_sort) {
@@ -115,6 +124,8 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
     _inputCounts = counts;
     _inputQuery = query;
     _inputSort = _sort;
+    _inputLocation = _location;
+    _inputAudioFilter = _audioFilter;
     return _visibleCache = songs;
   }
 
@@ -174,22 +185,107 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
             ),
           ),
         ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                PopupMenuButton<LokalSongLocation>(
+                  tooltip: lokalText('Filter by location'),
+                  initialValue: _location,
+                  onSelected: (value) => setState(() => _location = value),
+                  itemBuilder: (_) => [
+                    for (final value in LokalSongLocation.values)
+                      CheckedPopupMenuItem(
+                        value: value,
+                        checked: value == _location,
+                        child: Text(lokalText(value.label)),
+                      ),
+                  ],
+                  child: Chip(
+                    avatar: Icon(
+                      Icons.folder_outlined,
+                      size: 18,
+                      color: t.accent,
+                    ),
+                    label: Text(lokalText(_location.label)),
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  tooltip: lokalText('Filter by format and quality'),
+                  initialValue: _audioFilter,
+                  onSelected: (value) => setState(() => _audioFilter = value),
+                  itemBuilder: (_) => [
+                    CheckedPopupMenuItem(
+                      value: 'all',
+                      checked: _audioFilter == 'all',
+                      child: Text(lokalText('All formats and qualities')),
+                    ),
+                    PopupMenuItem(
+                      enabled: false,
+                      child: Text(lokalText('Quality')),
+                    ),
+                    for (final value in LokalQualityTier.values)
+                      CheckedPopupMenuItem(
+                        value: 'quality:${value.name}',
+                        checked: _audioFilter == 'quality:${value.name}',
+                        child: Text(lokalText(value.label)),
+                      ),
+                    if (libraryAudioFormats(widget.songs).isNotEmpty) ...[
+                      const PopupMenuDivider(),
+                      PopupMenuItem(
+                        enabled: false,
+                        child: Text(lokalText('Format')),
+                      ),
+                      for (final value in libraryAudioFormats(widget.songs))
+                        CheckedPopupMenuItem(
+                          value: value,
+                          checked: _audioFilter == value,
+                          child: Text(libraryAudioFilterLabel(value)),
+                        ),
+                    ],
+                  ],
+                  child: Chip(
+                    avatar: Icon(
+                      Icons.equalizer_rounded,
+                      size: 18,
+                      color: t.accent,
+                    ),
+                    label: Text(
+                      lokalText(libraryAudioFilterLabel(_audioFilter)),
+                    ),
+                  ),
+                ),
+                if (_location != LokalSongLocation.all ||
+                    _audioFilter != 'all') ...[
+                  Text(
+                    lokalSongCount(songs.length),
+                    style: TextStyle(color: t.muted, fontSize: 12),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() {
+                      _location = LokalSongLocation.all;
+                      _audioFilter = 'all';
+                    }),
+                    child: Text(lokalText('Clear filters')),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
         SliverToBoxAdapter(child: LokalPlayShufflePills(songs: songs)),
         if (songs.isEmpty)
           SliverToBoxAdapter(
             child: LokalEmptyState(
               icon: Icons.search_off_rounded,
-              title: _query.isEmpty
-                  ? lokalText('No songs yet')
-                  : lokalText('No results'),
-              message: _query.isEmpty
-                  ? lokalText(
-                      'Songs show up here once they’re in your library.',
-                    )
-                  : lokalText(
-                      "Nothing matches “{arg0}”.",
-                      args: {'arg0': _query},
-                    ),
+              title: lokalText('No matching songs'),
+              message: lokalText(
+                'Try another search, location or audio filter.',
+              ),
             ),
           )
         else

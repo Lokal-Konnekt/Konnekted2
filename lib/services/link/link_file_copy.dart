@@ -69,6 +69,7 @@ class LinkFileCopy {
     final contentMatching = await source.requireOriginalFileSupport(
       credentials,
     );
+    _check();
     final server = await source.ensureServer(credentials);
     _checking('Reading desktop library…');
     final catalogue = await source.readCatalogue(
@@ -243,6 +244,7 @@ class LinkFileCopy {
         );
         _check();
         for (var index = 0; index < candidates.length; index++) {
+          _check();
           final remoteId = matches[index];
           if (remoteId == null) {
             missing.add(candidates[index]);

@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart';
+import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 
 import 'dart:async';
@@ -1429,6 +1431,41 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
     super.dispose();
   }
 
+  bool _openingOutput = false;
+
+  Future<void> _chooseOutput() async {
+    if (_openingOutput) return;
+    setState(() => _openingOutput = true);
+    try {
+      final opened = await AndroidAudioDeviceService.instance
+          .showOutputSwitcher();
+      if (!mounted) return;
+      if (opened) {
+        Navigator.of(context).pop();
+      } else {
+        setState(
+          () => _outputError = 'Android could not open the output chooser. Start playback, then try again.',
+        );
+      }
+    } on PlatformException catch (error) {
+      if (mounted)
+        setState(
+          () => _outputError =
+              error.message ?? 'Could not open Android output selection.',
+        );
+    } on MissingPluginException {
+      if (mounted)
+        setState(
+          () => _outputError =
+              'Output selection requires the updated Android app.',
+        );
+    } finally {
+      if (mounted) setState(() => _openingOutput = false);
+    }
+  }
+
+  String? _outputError;
+
   String _time(Duration value) {
     final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -1645,7 +1682,7 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                 const SizedBox(height: 10),
                 InkWell(
                   borderRadius: BorderRadius.circular(28),
-                  onTap: () => Navigator.of(context).pop(),
+                  onTap: _openingOutput ? null : _chooseOutput,
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 20),
@@ -1662,7 +1699,11 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                         ),
                         const SizedBox(width: 18),
                         Text(
-                          widget.deviceLabel,
+                          lokalText(
+                            _openingOutput
+                                ? 'Opening outputs…'
+                                : 'Choose output',
+                          ),
                           style: TextStyle(
                             color: Colors.black,
                             fontSize: 20,
@@ -1674,6 +1715,19 @@ class _OutputDevicePopupState extends State<OutputDevicePopup> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.deviceLabel,
+                  style: TextStyle(color: context.lokal.muted, fontSize: 13),
+                ),
+                if (_outputError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      lokalText(_outputError!),
+                      style: TextStyle(color: context.lokal.text, fontSize: 13),
+                    ),
+                  ),
               ],
             ),
           ),

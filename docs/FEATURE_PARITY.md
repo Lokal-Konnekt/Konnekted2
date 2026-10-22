@@ -432,3 +432,31 @@ the previous comparison path within the same cancellation/time bounds.
 
 Focused guard cancellation/timeout, fingerprint and identity tests pass. No APK
 build or physical large-library/background-storage test was run.
+
+### Discovery artwork, YouTube refresh and player output action
+
+Discovery uses cached library artist portraits and can fall back to the existing
+Apple Music artist portrait service when Deezer has no matching picture. It no
+longer substitutes an album cover for an artist portrait. Track artwork accepts
+same-recording remaster/featured-credit differences while keeping remixes/live
+versions distinct. These lookups change images only, not recommended recordings.
+
+Selecting/reselecting a Discovery source forces refresh. YouTube refresh clears
+playlist cache entries, refreshes browser client/visitor context, reads personal
+mix cards from the signed-in page's initial home data as well as API shelves,
+and does not cache incomplete/missing-mix responses for five minutes. Independent
+mix expansion runs concurrently. Account fetching and optional playlist picks
+have time bounds. Fixtures cover current page context/embedded mixes and repeat
+refresh; real account-specific mixes still need device verification.
+
+The player output popup's previous device row only dismissed the dialog. Its
+Choose output action now opens Android's system media output chooser (API 34+),
+with inline failure feedback. USB/DSD engines are unchanged. Older Android
+versions direct users to Quick Settings; no physical route-switch or native APK
+build has been validated. Routine provider searches use inline loading without
+searching-source snackbars; selected-song preparation/download feedback remains.
+
+Validation: 24 focused discovery artwork/account/parser/source tests and 10 copy
+preview guard/fingerprint/identity tests pass. Targeted Dart analysis has no
+errors/warnings. Android API availability was checked against the SDK; native
+compilation, live source accounts and physical audio routing remain unverified.

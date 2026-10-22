@@ -5,8 +5,8 @@
 /// recommendation often arrives without artwork, or with a URL that no longer
 /// loads. In that case the cover is looked up, in desktop's order: a match in
 /// your library, then Deezer, then iTunes. A lookup only ever changes the
-/// picture, never which recording is recommended, and it needs the title and
-/// the artist to match exactly, so another artist's cover never stands in.
+/// picture, never which recording is recommended. Matching retains recording
+/// versions while allowing harmless remaster labels and featured credits.
 ///
 /// Lookups only happen inside Discovery, which is already opt-in: it shows
 /// nothing until you connect Last.fm (or sign in to YouTube Music).
@@ -23,6 +23,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import 'discovery_http.dart';
+import '../library_jobs/artist_metadata.dart';
+import '../../services/apple_music/apple_music_metadata_service.dart';
 import 'recommendation_match.dart';
 
 enum DiscoveryArtworkKind { track, album, artist }
@@ -86,10 +88,14 @@ class _Cached {
 /// a day, misses for five minutes, at most 1000 entries, one request per
 /// cover at a time and at most four lookups running together.
 class DiscoveryArtworkResolver {
-  DiscoveryArtworkResolver(this._http, {DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  DiscoveryArtworkResolver(
+    this._http, {
+    DateTime Function()? now,
+    this.artistPortrait,
+  }) : _now = now ?? DateTime.now;
 
   final DiscoveryHttp _http;
+  final Future<String?> Function(String name)? artistPortrait;
   final DateTime Function() _now;
 
   static const maxEntries = 1000;
@@ -193,21 +199,22 @@ class DiscoveryArtworkResolver {
       );
       for (final row in songs) {
         final artist = row['artist'] is Map ? row['artist'] as Map : const {};
-        final album = row['album'] is Map ? row['album'] as Map : const {};
-        final image = first([
-          artist['picture_xl'],
-          artist['picture_big'],
-          album['cover_xl'],
-          album['cover_big'],
-        ]);
+        final image = first([artist['picture_xl'], artist['picture_big']]);
         if (same(artist['name'], request.artist) && image.isNotEmpty) {
           return image;
         }
       }
-      return '';
+      final lookup = artistPortrait;
+      return lookup == null ? '' : allowed(await lookup(request.artist));
     }
 
     final album = request.kind == DiscoveryArtworkKind.album;
+    bool matchingTitle(Object? value) => album
+        ? same(value, request.title)
+        : value is String && titleKey(value) == titleKey(request.title);
+    bool matchingArtist(Object? value) =>
+        same(value, request.artist) ||
+        value is String && same(mainArtist(value), mainArtist(request.artist));
     final deezer = await _rows(
       Uri.https('api.deezer.com', album ? '/search/album' : '/search', {
         'q': album
@@ -222,8 +229,8 @@ class DiscoveryArtworkResolver {
       final cover = source is Map
           ? first([source['cover_xl'], source['cover_big']])
           : '';
-      if (same(row['title'], request.title) &&
-          same(nameOf(row['artist']), request.artist) &&
+      if (matchingTitle(row['title']) &&
+          matchingArtist(nameOf(row['artist'])) &&
           cover.isNotEmpty) {
         return cover;
       }
@@ -242,11 +249,8 @@ class DiscoveryArtworkResolver {
       final cover = allowed(
         small is String ? small.replaceFirst('100x100bb', '600x600bb') : null,
       );
-      if (same(
-            album ? row['collectionName'] : row['trackName'],
-            request.title,
-          ) &&
-          same(row['artistName'], request.artist) &&
+      if (matchingTitle(album ? row['collectionName'] : row['trackName']) &&
+          matchingArtist(row['artistName']) &&
           cover.isNotEmpty) {
         return cover;
       }
@@ -294,7 +298,7 @@ class DiscoveryLocalArtwork {
       '${kind.name}\u0000$artist\u0000$title';
 
   /// The library cover for [request], or null. Artists have no library
-  /// picture on mobile, so they always go online.
+  /// picture in this track-cover index; their cached portraits are read separately.
   String? lookup(DiscoveryArtworkRequest request) {
     if (!request.isComplete || request.kind == DiscoveryArtworkKind.artist) {
       return null;
@@ -316,7 +320,13 @@ final discoveryArtworkResolverProvider = Provider<DiscoveryArtworkResolver>((
   final client = http.Client();
   ref.onDispose(client.close);
   return DiscoveryArtworkResolver(
-    DiscoveryHttp(client, timeout: const Duration(seconds: 6)),
+    DiscoveryHttp(client, timeout: const Duration(seconds: 4)),
+    artistPortrait: (name) async {
+      final api = AppleMusicMetadataService.instance;
+      final artist = await api.resolveArtist(name);
+      if (artist == null) return null;
+      return (await api.getArtistInfo(artist.artistId))?.imageUrl;
+    },
   );
 });
 
@@ -418,6 +428,25 @@ class _DiscoveryArtworkFallbackState
     final request = widget.request;
     if (!request.isComplete) return widget.placeholder;
     if (!widget.skipLocal) {
+      final portrait = request.kind == DiscoveryArtworkKind.artist
+          ? ref.watch(
+              artistMetadataProvider.select(
+                (images) => images[ArtistMetadata.key(request.artist)],
+              ),
+            )
+          : null;
+      if (portrait != null && portrait != request.exclude) {
+        return _image(
+          portrait,
+          _DiscoveryArtworkFallback(
+            request: request,
+            placeholder: widget.placeholder,
+            width: widget.width,
+            height: widget.height,
+            skipLocal: true,
+          ),
+        );
+      }
       final local = ref.watch(
         discoveryLocalArtworkProvider.select((index) => index.lookup(request)),
       );

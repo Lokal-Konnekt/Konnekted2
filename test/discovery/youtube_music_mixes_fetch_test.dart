@@ -36,6 +36,47 @@ YoutubeMusicAccount account(http.Client client) => YoutubeMusicAccount(
   const YoutubeMusicSession(cookies: {'SAPISID': 'fixture-signing-cookie'}),
 );
 void main() {
+  test('refresh reads current page context and mixes embedded in the signed-in home page', () async {
+    forgetYoutubeMusicAccount();
+    addTearDown(forgetYoutubeMusicAccount);
+    var revision = 1, pageReads = 0;
+    final client = MockClient((request) async {
+      if (request.method == 'GET') {
+        pageReads++;
+        final initial = signed({
+          'musicCarouselShelfRenderer': {
+            'header': {
+              'musicCarouselShelfBasicHeaderRenderer': {
+                'title': {
+                  'runs': [
+                    {'text': 'Mixed for you'},
+                  ],
+                },
+              },
+            },
+            'contents': [card('RDTMAKfixture123', 'Mix $revision { \" }')],
+          },
+        });
+        return http.Response(
+          '<script>ytcfg.set(${jsonEncode({'INNERTUBE_CLIENT_VERSION': '1.current', 'VISITOR_DATA': 'fresh-visitor'})}); var ytInitialData = ${jsonEncode(initial)};</script>',
+          200,
+        );
+      }
+      final body = jsonDecode(request.body) as Map;
+      expect((body['context'] as Map)['client']['clientVersion'], '1.current');
+      expect(request.headers['x-youtube-client-version'], '1.current');
+      return http.Response(jsonEncode(signed({})), 200);
+    });
+    addTearDown(client.close);
+    final source = account(client);
+    final first = await loadYoutubeMusicDiscovery(source);
+    expect(first.mixes!.single.title, startsWith('Mix 1'));
+    revision = 2;
+    final refreshed = await loadYoutubeMusicDiscovery(source, force: true);
+    expect(refreshed.mixes!.single.title, startsWith('Mix 2'));
+    expect(pageReads, 2);
+  });
+
   test(
     'mix cards can expose their playlist only on the artwork play button',
     () {

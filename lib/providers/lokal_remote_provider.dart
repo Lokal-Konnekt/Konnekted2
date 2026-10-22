@@ -141,6 +141,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       if (!_receivingTheme && link.connected) unawaited(_sendTheme(appearance));
     });
     ref.onDispose(() {
+      _copyPlanner?.cancel();
       _syncNotification.dispose();
       _copyNotification.dispose();
       _disposed = true;

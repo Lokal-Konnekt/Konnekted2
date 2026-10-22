@@ -192,7 +192,10 @@ class LibraryOrganizer {
     var skipped = 0, organized = 0;
     for (final row in await _rows()) {
       if (!p.isAbsolute(row.filePath)) {
-        skipped++;
+        // Cloud/history rows are not physical files to organize.
+        if (row.filePath.startsWith('content://') ||
+            row.filePath.startsWith('file://'))
+          skipped++;
         continue;
       }
       groups.putIfAbsent(row.filePath, () => []).add(row);

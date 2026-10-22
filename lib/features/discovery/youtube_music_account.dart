@@ -1171,7 +1171,9 @@ class YoutubeMusicAccount {
       final result = await _pages(
         'FEmusic_home',
         home,
-        stopAtMixShelf: true,
+        // Mixed-for-you cards can be in later home pages, even after a
+        // populated first shelf. Preserve the older continuation recovery.
+        stopAtMixShelf: false,
         types: _homeContinuationTypes,
         deadline: deadline,
       );

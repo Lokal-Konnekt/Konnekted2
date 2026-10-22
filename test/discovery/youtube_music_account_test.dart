@@ -27,16 +27,14 @@ void main() {
     });
 
     test('parses a Cookie header without splitting values at extra equals', () {
-      expect(
-        YoutubeMusicSession.parseCookieHeader('SID=one; SAPISID=a=b=c'),
-        {'SID': 'one', 'SAPISID': 'a=b=c'},
-      );
+      expect(YoutubeMusicSession.parseCookieHeader('SID=one; SAPISID=a=b=c'), {
+        'SID': 'one',
+        'SAPISID': 'a=b=c',
+      });
     });
 
     test('signs the account request for a fixed timestamp', () {
-      const session = YoutubeMusicSession(
-        cookies: {'SAPISID': 'test-sapisid'},
-      );
+      const session = YoutubeMusicSession(cookies: {'SAPISID': 'test-sapisid'});
       final headers = youtubeMusicHeaders(
         session,
         now: DateTime.fromMillisecondsSinceEpoch(1735689600000),
@@ -71,7 +69,11 @@ void main() {
         'responseContext': {
           'mainAppWebResponseContext': {'loggedOut': false},
           'serviceTrackingParams': [
-            {'params': [{'key': 'logged_in', 'value': '1'}]},
+            {
+              'params': [
+                {'key': 'logged_in', 'value': '1'},
+              ],
+            },
           ],
         },
       }),
@@ -79,79 +81,123 @@ void main() {
     );
   });
 
-  test('parses an account song row with video ID, artist, album and length', () {
-    final root = {
-      'musicResponsiveListItemRenderer': {
-        'playlistItemData': {'videoId': 'abcdefghijk'},
-        'flexColumns': [
-          {
-            'musicResponsiveListItemFlexColumnRenderer': {
-              'text': {
-                'runs': [
-                  {
-                    'text': 'Track One',
-                    'navigationEndpoint': {
-                      'watchEndpoint': {'videoId': 'abcdefghijk'},
-                    },
-                  },
-                ],
-              },
-            },
-          },
-          {
-            'musicResponsiveListItemFlexColumnRenderer': {
-              'text': {
-                'runs': [
-                  {
-                    'text': 'Artist One',
-                    'navigationEndpoint': {
-                      'browseEndpoint': {'browseId': 'UCartist'},
-                    },
-                  },
-                  {'text': ' • '},
-                  {
-                    'text': 'Album One',
-                    'navigationEndpoint': {
-                      'browseEndpoint': {'browseId': 'MPREalbum'},
-                    },
-                  },
-                ],
-              },
-            },
-          },
-        ],
-        'fixedColumns': [
-          {
-            'musicResponsiveListItemFixedColumnRenderer': {
-              'text': {
-                'runs': [{'text': '3:21'}],
-              },
-            },
-          },
-        ],
-        'thumbnail': {
-          'thumbnails': [
+  test(
+    'parses an account song row with video ID, artist, album and length',
+    () {
+      final root = {
+        'musicResponsiveListItemRenderer': {
+          'playlistItemData': {'videoId': 'abcdefghijk'},
+          'flexColumns': [
             {
-              'url': 'https://img.example/cover=w120-h120-l90-rj',
-              'width': 120,
-              'height': 120,
+              'musicResponsiveListItemFlexColumnRenderer': {
+                'text': {
+                  'runs': [
+                    {
+                      'text': 'Track One',
+                      'navigationEndpoint': {
+                        'watchEndpoint': {'videoId': 'abcdefghijk'},
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+            {
+              'musicResponsiveListItemFlexColumnRenderer': {
+                'text': {
+                  'runs': [
+                    {
+                      'text': 'Artist One',
+                      'navigationEndpoint': {
+                        'browseEndpoint': {'browseId': 'UCartist'},
+                      },
+                    },
+                    {'text': ' • '},
+                    {
+                      'text': 'Album One',
+                      'navigationEndpoint': {
+                        'browseEndpoint': {'browseId': 'MPREalbum'},
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          'fixedColumns': [
+            {
+              'musicResponsiveListItemFixedColumnRenderer': {
+                'text': {
+                  'runs': [
+                    {'text': '3:21'},
+                  ],
+                },
+              },
+            },
+          ],
+          'thumbnail': {
+            'thumbnails': [
+              {
+                'url': 'https://img.example/cover=w120-h120-l90-rj',
+                'width': 120,
+                'height': 120,
+              },
+            ],
+          },
+        },
+      };
+
+      final tracks = parseYoutubeMusicTracks(root);
+
+      expect(tracks, hasLength(1));
+      expect(tracks.single.title, 'Track One');
+      expect(tracks.single.artist, 'Artist One');
+      expect(tracks.single.album, 'Album One');
+      expect(tracks.single.videoId, 'abcdefghijk');
+      expect(tracks.single.duration, const Duration(minutes: 3, seconds: 21));
+      expect(
+        tracks.single.url,
+        'https://music.youtube.com/watch?v=abcdefghijk',
+      );
+      expect(tracks.single.artworkUrl, contains('w544-h544'));
+    },
+  );
+
+  test(
+    'recognizes localized mixed-for-you shelves and responsive playlist cards',
+    () {
+      final root = {
+        'musicCarouselShelfRenderer': {
+          'header': {
+            'musicCarouselShelfBasicHeaderRenderer': {
+              'title': {'simpleText': 'Mix pour vous'},
+            },
+          },
+          'contents': [
+            {
+              'musicResponsiveListItemRenderer': {
+                'playlistId': 'PL123456789',
+                'flexColumns': [
+                  {
+                    'musicResponsiveListItemFlexColumnRenderer': {
+                      'text': {
+                        'runs': [
+                          {'text': 'Supermix'},
+                        ],
+                      },
+                    },
+                  },
+                ],
+              },
             },
           ],
         },
-      },
-    };
-
-    final tracks = parseYoutubeMusicTracks(root);
-
-    expect(tracks, hasLength(1));
-    expect(tracks.single.title, 'Track One');
-    expect(tracks.single.artist, 'Artist One');
-    expect(tracks.single.album, 'Album One');
-    expect(tracks.single.videoId, 'abcdefghijk');
-    expect(tracks.single.duration, const Duration(minutes: 3, seconds: 21));
-    expect(tracks.single.url, 'https://music.youtube.com/watch?v=abcdefghijk');
-    expect(tracks.single.artworkUrl, contains('w544-h544'));
-  });
+      };
+      final mixes = parseYoutubeMusicMixes(root);
+      expect(mixes.single.title, 'Supermix');
+      expect(mixes.single.id, 'PL123456789');
+    },
+  );
 
   test('parses provider-owned mixes from the Mixed for you shelf', () {
     final root = {
@@ -166,7 +212,9 @@ void main() {
             'musicTwoRowItemRenderer': {
               'playlistId': 'RDTMAKABCDE123456',
               'title': {
-                'runs': [{'text': 'My Supermix'}],
+                'runs': [
+                  {'text': 'My Supermix'},
+                ],
               },
               'thumbnailRenderer': {
                 'musicThumbnailRenderer': {

@@ -298,6 +298,8 @@ class MilestoneService {
   static const _streakPopupSnoozedUntilKey = 'streak_popup_snoozed_until';
 
   final RecentlyPlayedRepository? _repository;
+  final Future<List<DateTime>> Function()? _activityDaysOverride;
+  final DateTime Function() _now;
   final Future<int> Function()? _playCountOverride;
   final Future<int> Function()? _listenSecondsOverride;
   final Future<int> Function()? _dayStreakOverride;
@@ -308,11 +310,15 @@ class MilestoneService {
   /// path is skipped, so unit tests don't need Isar initialized.
   MilestoneService({
     RecentlyPlayedRepository? repository,
+    Future<List<DateTime>> Function()? activityDaysOverride,
+    DateTime Function()? now,
     Future<int> Function()? playCountOverride,
     Future<int> Function()? listenSecondsOverride,
     Future<int> Function()? dayStreakOverride,
     Future<int> Function()? uniqueArtistsOverride,
-  }) : _repository =
+  }) : _activityDaysOverride = activityDaysOverride,
+       _now = now ?? DateTime.now,
+       _repository =
            (playCountOverride == null || uniqueArtistsOverride == null)
            ? (repository ?? RecentlyPlayedRepository())
            : repository,
@@ -342,7 +348,7 @@ class MilestoneService {
   Future<int> _getDayStreak() {
     final override = _dayStreakOverride;
     if (override != null) return override();
-    return getCurrentDayStreak();
+    return getBestDayStreak();
   }
 
   /// Exposed for the milestones screen to render live song progress.
@@ -375,46 +381,117 @@ class MilestoneService {
     await prefs.setInt(_accumulatedListenSecondsKey, current + seconds);
   }
 
-  /// Returns today's running day streak (defaults to 0 before any activity).
-  /// Streak is advanced by [recordActivityDay]; reading is side-effect free.
-  Future<int> getCurrentDayStreak() async {
+  /// Merge local activity with all paired play events, including desktop
+  /// songs not owned on this phone. Multiple plays/devices count one local day.
+  Future<({int current, int best})> _dayStreaks() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_streakCurrentKey) ?? 0;
-  }
-
-  /// Records that the user was active "today". Idempotent within a day: same
-  /// calendar day is a no-op; yesterday increments by 1; any larger gap resets
-  /// to 1. Day boundary is the local calendar date (UTC offset applied).
-  Future<int> recordActivityDay() async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = _dayKey(DateTime.now());
-    final lastKey = prefs.getString(_streakLastActiveDayKey);
-    final current = prefs.getInt(_streakCurrentKey) ?? 0;
-
-    int next;
-    if (lastKey == null) {
-      next = 1;
-    } else {
-      final diff = today - int.parse(lastKey);
-      if (diff <= 0) {
-        next = current == 0 ? 1 : current;
-      } else if (diff == 1) {
-        next = current + 1;
-      } else {
-        next = 1;
+    final now = _now();
+    final cutoff = prefs.getInt('streak_history_since') ?? 0;
+    final stamps = <DateTime>[];
+    if (_activityDaysOverride != null) {
+      stamps.addAll(await _activityDaysOverride());
+    } else if (Database.isInitialized) {
+      stamps.addAll(
+        (await Database.instance.playEventEntitys
+                .where()
+                .playedAtProperty()
+                .findAll())
+            .map((ms) => DateTime.fromMillisecondsSinceEpoch(ms)),
+      );
+      stamps.addAll(
+        await Database.instance.recentlyPlayedEntitys
+            .where()
+            .playedAtProperty()
+            .findAll(),
+      );
+    }
+    final days = <int>{
+      for (final stamp in stamps)
+        if (stamp.millisecondsSinceEpoch > 0 &&
+            stamp.millisecondsSinceEpoch >= cutoff &&
+            !stamp.isAfter(now.add(const Duration(minutes: 5))))
+          _ordinal(stamp),
+    };
+    final stored = prefs.getInt(_streakCurrentKey) ?? 0;
+    final key = int.tryParse(prefs.getString(_streakLastActiveDayKey) ?? '');
+    if (key != null && stored > 0) {
+      final last = _dateFromKey(key);
+      if (last != null && !last.isAfter(now)) {
+        final ordinal = _ordinal(last);
+        for (var n = 0; n < stored.clamp(0, 10000); n++) days.add(ordinal - n);
       }
     }
+    final sorted = days.toList()..sort();
+    var best = 0, run = 0;
+    int? previous;
+    for (final day in sorted) {
+      run = previous != null && day == previous + 1 ? run + 1 : 1;
+      if (run > best) best = run;
+      previous = day;
+    }
+    final today = _ordinal(now);
+    var anchor = days.contains(today) ? today : today - 1;
+    var current = 0;
+    while (days.contains(anchor)) {
+      current++;
+      anchor--;
+    }
+    return (
+      current: current,
+      best: best > (prefs.getInt('streak_best') ?? 0)
+          ? best
+          : prefs.getInt('streak_best') ?? 0,
+    );
+  }
 
+  Future<int> getCurrentDayStreak() async => (await _dayStreaks()).current;
+  Future<int> getBestDayStreak() async => (await _dayStreaks()).best;
+
+  Future<int> recordActivityDay() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = _now();
+    final today = _dayKey(now);
+    final key = int.tryParse(prefs.getString(_streakLastActiveDayKey) ?? '');
+    final last = key == null ? null : _dateFromKey(key);
+    final diff = last == null ? null : _ordinal(now) - _ordinal(last);
+    final current = prefs.getInt(_streakCurrentKey) ?? 0;
+    final next = diff != null && diff <= 0
+        ? (current > 0 ? current : 1)
+        : diff == 1
+        ? current + 1
+        : 1;
+    final best = prefs.getInt('streak_best') ?? 0;
+    await prefs.setInt(
+      'streak_best',
+      [best, current, next].reduce((a, b) => a > b ? a : b),
+    );
     await prefs.setInt(_streakCurrentKey, next);
     await prefs.setString(_streakLastActiveDayKey, today.toString());
     changes.add(null);
-    return next;
+    return getCurrentDayStreak();
   }
 
-  /// Days since Unix epoch in local calendar days — compact integer streak key.
+  static int _ordinal(DateTime t) {
+    final local = t.toLocal();
+    return DateTime.utc(
+          local.year,
+          local.month,
+          local.day,
+        ).millisecondsSinceEpoch ~/
+        Duration.millisecondsPerDay;
+  }
+
+  // Keep existing YYYYMMDD preference keys readable; subtract real days instead
+  // of YYYYMMDD integers (which broke streaks at month/year boundaries).
   static int _dayKey(DateTime t) {
-    final local = t.toUtc().add(t.timeZoneOffset);
+    final local = t.toLocal();
     return local.year * 10000 + local.month * 100 + local.day;
+  }
+
+  static DateTime? _dateFromKey(int key) {
+    final y = key ~/ 10000, m = key ~/ 100 % 100, d = key % 100;
+    final date = DateTime(y, m, d);
+    return date.year == y && date.month == m && date.day == d ? date : null;
   }
 
   /// Whether the streak popup was snoozed today (until the next calendar day).
@@ -435,6 +512,8 @@ class MilestoneService {
   /// and any shown streak milestones. Used when the user disables streaks.
   Future<void> clearStreakData() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('streak_history_since', _now().millisecondsSinceEpoch);
+    await prefs.remove('streak_best');
     await prefs.remove(_streakCurrentKey);
     await prefs.remove(_streakLastActiveDayKey);
     await prefs.remove(_streakPopupSnoozedUntilKey);

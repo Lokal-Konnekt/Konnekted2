@@ -165,6 +165,9 @@ void main() {
     'Canvas uses Pathfinder when REST search rejects a web cookie session',
     () async {
       final store = _Store();
+      store.tokens = store.tokens!.copyWith(
+        queryHashes: {'searchTracks': 'c' * 64, 'canvas': 'd' * 64},
+      );
       final calls = <String>[];
       final client = MockClient((request) async {
         expect(request.headers['authorization'], 'Bearer test-access');
@@ -173,6 +176,10 @@ void main() {
           return http.Response('{}', 403);
         final body = jsonDecode(request.body) as Map;
         final op = body['operationName'];
+        expect(
+          body['extensions']['persistedQuery']['sha256Hash'],
+          op == 'searchTracks' ? 'c' * 64 : 'd' * 64,
+        );
         calls.add('$op');
         expect(request.method, 'POST');
         expect(request.url.path, '/pathfinder/v2/query');

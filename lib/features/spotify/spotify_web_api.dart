@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import 'package:flick/core/utils/app_log.dart';
+
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -56,7 +59,10 @@ class SpotifyWebApi implements SpotifyLibraryApi {
           'operationName': operation,
           'variables': variables,
           'extensions': {
-            'persistedQuery': {'version': 1, 'sha256Hash': hashes[operation]},
+            'persistedQuery': {
+              'version': 1,
+              'sha256Hash': tokens.queryHashes[operation] ?? hashes[operation],
+            },
           },
         }),
         headers: {
@@ -64,14 +70,17 @@ class SpotifyWebApi implements SpotifyLibraryApi {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'App-Platform': 'WebPlayer',
-          'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/122.0.0.0 Mobile Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Origin': 'https://open.spotify.com',
           'Referer': 'https://open.spotify.com/',
           if (tokens.clientToken != null) 'client-token': tokens.clientToken!,
         },
         cancellation: cancellation,
       );
-      if (response.statusCode == 401 && attempt == 0) {
+      if (response.statusCode != 200)
+        AppLog.instance.add('[Spotify] $operation HTTP ${response.statusCode}');
+      if ((response.statusCode == 401 || response.statusCode == 403) &&
+          attempt == 0) {
         await oauth.refresh();
         continue;
       }
@@ -86,6 +95,14 @@ class SpotifyWebApi implements SpotifyLibraryApi {
           statusCode: response.statusCode,
         );
       final body = SpotifyHttp.decode(response);
+      if (body['errors'] is List &&
+          (body['errors'] as List).any(
+            (e) => e is Map && '${e['message']}'.contains('PersistedQuery'),
+          ) &&
+          attempt == 0) {
+        await oauth.refresh();
+        continue;
+      }
       if (body['data'] is Map<String, dynamic>)
         return body['data'] as Map<String, dynamic>;
       throw const SpotifyApiException(
@@ -222,6 +239,49 @@ class SpotifyWebApi implements SpotifyLibraryApi {
     return tracks.take(max).toList();
   }
 
+  /// Desktop policy: null cursor reads one row to establish a baseline only.
+  Future<SpotifyLikesBatch> likedSince(
+    int? since, {
+    SpotifyCancellation? cancellation,
+  }) async {
+    final fresh = <SpotifyLikedTrack>[];
+    var newest = since ?? 0;
+    final limit = since == null ? 1 : 50;
+    for (var page = 0; page < 50; page++) {
+      final data = await query('fetchLibraryTracks', {
+        'offset': page * limit,
+        'limit': limit,
+      }, cancellation: cancellation);
+      final library = data['me']?['library']?['tracks'];
+      if (library is! Map)
+        throw const SpotifyApiException(
+          'Spotify could not read your Liked Songs.',
+        );
+      final items = library['items'] as List? ?? [];
+      var older = false;
+      for (final item in items.whereType<Map>()) {
+        final at =
+            DateTime.tryParse('${item['addedAt']?['isoString'] ?? ''}')
+                ?.millisecondsSinceEpoch ??
+            0;
+        if (at > newest) newest = at;
+        if (since == null) continue;
+        if (at <= since) {
+          older = true;
+          break;
+        }
+        final wrapper = item['track'];
+        final raw = wrapper is Map ? wrapper['data'] : null;
+        final parsed = track(
+          raw is Map ? {...raw, 'uri': wrapper['_uri'] ?? raw['uri']} : raw,
+        );
+        if (parsed != null) fresh.add(SpotifyLikedTrack(parsed, at));
+      }
+      if (since == null || older || items.length < limit) break;
+    }
+    return SpotifyLikesBatch(fresh, newest);
+  }
+
   @override
   Future<List<SpotifyTrack>> getLikedSongs({
     void Function(int)? onProgress,
@@ -267,4 +327,16 @@ class SpotifyWebApi implements SpotifyLibraryApi {
     }
     return tracks.take(max).toList();
   }
+}
+
+class SpotifyLikedTrack {
+  const SpotifyLikedTrack(this.track, this.addedAt);
+  final SpotifyTrack track;
+  final int addedAt;
+}
+
+class SpotifyLikesBatch {
+  const SpotifyLikesBatch(this.items, this.newest);
+  final List<SpotifyLikedTrack> items;
+  final int newest;
 }

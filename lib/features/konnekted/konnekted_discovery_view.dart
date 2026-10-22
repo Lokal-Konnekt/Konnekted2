@@ -393,19 +393,31 @@ class _KonnektedDiscoveryViewState
               icon: Icons.auto_awesome_rounded,
             ),
           ),
-        if (source == KonnektedDiscoverySource.youtube && mixes.isNotEmpty) ...[
+        if (source == KonnektedDiscoverySource.youtube && data != null) ...[
           KonnektedSectionHeading(
             title: lokalText('Mixed for you'),
             icon: Icons.queue_music_rounded,
             subtitle: lokalText('Your YouTube Music radio mixes.'),
           ),
-          _MixShelf(
-            mixes: mixes,
-            busyId: _busy?.startsWith('mix:') == true
-                ? _busy!.substring(4)
-                : null,
-            onTap: _playMix,
-          ),
+          if (mixes.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: TextButton.icon(
+                onPressed: () => ref
+                    .read(konnektedDiscoveryProvider.notifier)
+                    .load(refresh: true),
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(lokalText('Retry loading your mixes')),
+              ),
+            )
+          else
+            _MixShelf(
+              mixes: mixes,
+              busyId: _busy?.startsWith('mix:') == true
+                  ? _busy!.substring(4)
+                  : null,
+              onTap: _playMix,
+            ),
         ],
         if (source == KonnektedDiscoverySource.youtube &&
             data?.mixError != null)

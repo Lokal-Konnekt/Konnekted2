@@ -261,3 +261,20 @@ Implemented in source; authenticated/device confirmation remains outstanding:
 Validation: 131 focused Dart/widget tests passed, with no Dart analysis errors.
 No APK/CI build was run. Provider credentials, Android FFmpeg decoding, device
 frame pacing and live Discord rendering remain device/account checks.
+
+## Mobile 1.0 release channels and presentation (2026-10-22)
+
+- Prepared pubspec 1.0.0 and independent manual stable/nightly entry points.
+  Merge-triggered beta publication is removed. Stable defaults to a draft;
+  published stable builds are latest, nightlies are prereleases. Both reuse the
+  permanent signing identity and one serialized time-based versionCode clock.
+- Shared signed builds reuse toolchain/Cargo caches and retain signature, APK
+  package/version/ABI/native-library/notices/checksum verification. No duplicate
+  debug-build/test workflow is called by the release workflow.
+- Mobile banners are generated from checked-in branding/fonts with teal stable
+  and coral nightly palettes; immutable banner URLs work in draft previews.
+  README Home/Library images render actual widgets with fictional local fixtures.
+- Validation: 30 release-helper tests, actionlint on all three release workflows,
+  local banner rendering and README widget renders pass. No APK/Actions build,
+  version tag, public release or secret changes were performed for this PR.
+  The first intentional workflow run still validates hosted signing/publication.

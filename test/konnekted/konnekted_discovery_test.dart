@@ -122,12 +122,62 @@ Widget _app(Widget child, {String? account = 'me'}) => ProviderScope(
   ),
 );
 
+class _ReadyYoutube extends KonnektedDiscoveryNotifier {
+  @override
+  KonnektedDiscoveryState build() => const KonnektedDiscoveryState(
+    source: KonnektedDiscoverySource.youtube,
+    data: LokalDiscovery(
+      account: 'YouTube Music',
+      page: 0,
+      mixes: [LokalDiscoveryMix(id: 'RDTMAKtest', title: 'Supermix')],
+      liked: [LokalDiscoveryTrack(title: 'A liked song', artist: 'Artist')],
+    ),
+  );
+  @override
+  Future<void> load({bool refresh = false}) async {}
+}
+
 void main() {
   setUp(() {
     forgetLastfmSeeds();
     // Discovery remembers the chosen source in preferences.
     SharedPreferences.setMockInitialValues({});
   });
+
+  testWidgets(
+    'YouTube personal mixes are first and use horizontal cover cards',
+    (tester) async {
+      tester.view
+        ..physicalSize = const Size(412, 1800)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            konnektedDiscoveryProvider.overrideWith(_ReadyYoutube.new),
+          ],
+          child: _app(
+            SingleChildScrollView(
+              child: KonnektedDiscoveryView(
+                onNavigate: (_) {},
+                onPlay: (_, __) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Supermix'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Mixed for you')).dy,
+        lessThan(tester.getTopLeft(find.text('Your Likes')).dy),
+      );
+      final shelf = tester.widget<ListView>(
+        find.byKey(const PageStorageKey('youtube-music-mixes')),
+      );
+      expect(shelf.scrollDirection, Axis.horizontal);
+    },
+  );
 
   test('the library index finds your copy, and albums and artists', () {
     final index = KonnektedLibraryIndex(_library);

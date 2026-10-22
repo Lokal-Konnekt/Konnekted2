@@ -1,5 +1,5 @@
 name: flick
-description: "Konnekted — a local-first Android music player with bit-perfect USB audio and Flow"
+description: "Lokal Mobile — your music, your files, on Android"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.1.0+1
+version: 1.0.0+1000
 
 environment:
   sdk: ^3.13.0
@@ -121,6 +121,7 @@ flutter:
     - shaders/lokal_glass_rim.frag
 
   assets:
+    - assets/spotify/session_hook.js
     - assets/icons/flicklogo.png
     - assets/icons/flicklogo_svg.svg
     - assets/icons/flicklogo_transparent.png

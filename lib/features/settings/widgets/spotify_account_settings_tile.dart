@@ -116,9 +116,12 @@ class _SpotifyAccountSettingsTileState
     try {
       final settings = SpotifySettingsStore();
       final oauth = SpotifyOAuthService(tokenStore: settings.tokenStore);
+      final revision = SecureSpotifyTokenStore.sessionRevision.value;
       await oauth.signInWithCookie(cookie);
+      // Explicit reconnection also retries a settled Canvas miss for the same cookie.
+      if (SecureSpotifyTokenStore.sessionRevision.value == revision)
+        SecureSpotifyTokenStore.sessionRevision.value++;
       await settings.saveDiscoveryEnabled(true);
-      await SpotifyLikesSyncService.instance.resetCursor();
       await _load();
       unawaited(SpotifyLikesSyncService.instance.sync());
       if (!mounted) return;
@@ -179,13 +182,29 @@ class _SpotifyAccountSettingsTileState
       LokalSettingRow.toggle(
         label: lokalText('Sync Spotify liked songs'),
         description: lokalText(
-          'Add matching library songs to Favorites. Existing likes stay; no music files are downloaded.',
+          'Watch new Spotify likes from now on and add matching library songs to Favorites. Earlier likes are not imported.',
         ),
         value: _syncLikes,
         enabled: _connected && !_busy,
         onChanged: (value) async {
-          setState(() => _syncLikes = value);
-          await SpotifyLikesSyncService.instance.setEnabled(value);
+          setState(() {
+            _syncLikes = value;
+            _busy = true;
+          });
+          try {
+            await SpotifyLikesSyncService.instance.setEnabled(value);
+          } catch (_) {
+            if (mounted)
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Could not start watching Spotify likes. Check your cookie and retry.',
+                  ),
+                ),
+              );
+          }
+          await _load();
+          if (mounted) setState(() => _busy = false);
         },
       ),
       if (_syncLikes)

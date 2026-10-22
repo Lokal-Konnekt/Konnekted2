@@ -33,6 +33,43 @@ void main() {
     );
   }
 
+  test('synced desktop days count once across month boundaries and retain earned streaks', () async {
+    var now = DateTime(2026, 3, 2, 12);
+    final days = [
+      for (var i = 0; i < 7; i++) DateTime(2026, 3, 2 - i, 12),
+      DateTime(2026, 3, 1, 18),
+    ];
+    final service = MilestoneService(
+      playCountOverride: () async => 0,
+      uniqueArtistsOverride: () async => 0,
+      activityDaysOverride: () async => days,
+      now: () => now,
+    );
+    expect(await service.getCurrentDayStreak(), 7);
+    expect(await service.getBestDayStreak(), 7);
+    expect(await service.checkMilestones(), MilestoneType.streak7);
+    now = DateTime(2026, 3, 10, 12);
+    expect(await service.getCurrentDayStreak(), 0);
+    expect(await service.getBestDayStreak(), 7);
+  });
+  test(
+    'existing phone streak keys continue over year and month boundaries',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'streak_current': 6,
+        'streak_last_active_day': '20251231',
+      });
+      final service = MilestoneService(
+        playCountOverride: () async => 0,
+        uniqueArtistsOverride: () async => 0,
+        activityDaysOverride: () async => [],
+        now: () => DateTime(2026, 1, 1, 12),
+      );
+      expect(await service.recordActivityDay(), 7);
+      expect(await service.getCurrentDayStreak(), 7);
+    },
+  );
+
   group('MilestoneTypeX', () {
     test('every tier has a title, message, color, and icon', () {
       for (final type in MilestoneType.values) {

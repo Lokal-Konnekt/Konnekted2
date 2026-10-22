@@ -145,8 +145,11 @@ class PackagingTests(unittest.TestCase):
     def write_apk(self, abis=("arm64-v8a", "armeabi-v7a")):
         with zipfile.ZipFile(self.apk, "w") as archive:
             for abi in abis:
-                for library in ("librust_lib_flick_player.so", "libflutter.so", "libapp.so"):
+                for library in ("librust_lib_flick_player.so", "libflutter.so", "libapp.so",
+                                "libmornye_discord.so", "libdiscord_partner_sdk.so"):
                     archive.writestr(f"lib/{abi}/{library}", "fixture")
+            for notice in ("Discord-License-Notices.txt", "Mornye-Discord-Bridge-License.txt"):
+                archive.writestr(f"assets/{notice}", "fixture notice")
 
     def package(self):
         release.package_apk(self.apk, self.dest, "full", "0.1.0-alpha.1", 23, self.env, self.signer)

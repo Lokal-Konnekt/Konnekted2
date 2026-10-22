@@ -49,7 +49,12 @@ class SpotifyCanvasService {
       'Authorization': 'Bearer ${tokens.accessToken}',
       'Accept': protobuf != null ? 'application/protobuf' : 'application/json',
       'App-Platform': 'WebPlayer',
-      'User-Agent': 'Spotify/9.0.34.593 iOS/18.4 (iPhone15,3)',
+      'User-Agent': protobuf != null
+          ? 'Spotify/9.0.34.593 iOS/18.4 (iPhone15,3)'
+          : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      if (protobuf == null) 'Origin': 'https://open.spotify.com',
+      if (protobuf == null) 'Referer': 'https://open.spotify.com/',
+      'Accept-Language': 'en',
       if (tokens.clientToken != null) 'client-token': tokens.clientToken!,
     });
     if (json != null) {
@@ -92,7 +97,7 @@ class SpotifyCanvasService {
     var tokens = await _store.readTokens();
     if (tokens?.sessionCookie?.isNotEmpty != true) return null;
     if (tokens!.isExpired)
-      tokens = await _oauth.refresh().timeout(const Duration(seconds: 20));
+      tokens = await _oauth.refresh().timeout(const Duration(seconds: 50));
     if (tokens == null) throw StateError('Spotify session expired');
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
@@ -104,7 +109,7 @@ class SpotifyCanvasService {
         );
       } catch (_) {
         if (attempt == 1) rethrow;
-        tokens = await _oauth.refresh().timeout(const Duration(seconds: 20));
+        tokens = await _oauth.refresh().timeout(const Duration(seconds: 50));
         if (tokens == null) rethrow;
       }
     }
@@ -192,7 +197,10 @@ class SpotifyCanvasService {
               'includePreReleases': false,
             },
             'extensions': {
-              'persistedQuery': {'version': 1, 'sha256Hash': _searchHash},
+              'persistedQuery': {
+                'version': 1,
+                'sha256Hash': tokens.queryHashes['searchTracks'] ?? _searchHash,
+              },
             },
           },
         ),
@@ -232,7 +240,10 @@ class SpotifyCanvasService {
             'operationName': 'canvas',
             'variables': {'trackUri': uri},
             'extensions': {
-              'persistedQuery': {'version': 1, 'sha256Hash': _canvasHash},
+              'persistedQuery': {
+                'version': 1,
+                'sha256Hash': tokens.queryHashes['canvas'] ?? _canvasHash,
+              },
             },
           },
         ),
@@ -240,7 +251,7 @@ class SpotifyCanvasService {
       final canvas = validCanvasUrl(
         body['data']?['trackUnion']?['canvas']?['url'],
       );
-      if (canvas != null) return canvas;
+      if (body['data'] != null) return canvas;
     } catch (_) {
       /* Try the older Canvas endpoint if GraphQL failed. */
     }
@@ -323,7 +334,13 @@ class SpotifyCanvasService {
         if (url != null) found.add((uri, url));
       }
     } catch (_) {
-      return null;
+      /* A changed/trailing protobuf field must not discard an earlier clip. */
+    }
+    if (found.isEmpty) {
+      final match = RegExp(r'''https://[^"'\s\x00-\x1F]+\.cnvs\.mp4''')
+          .firstMatch(latin1.decode(bytes, allowInvalid: true));
+      final url = validCanvasUrl(match?.group(0));
+      if (url != null) found.add((null, url));
     }
     return found.where((v) => v.$1 == wantedUri).firstOrNull?.$2 ??
         found.firstOrNull?.$2;

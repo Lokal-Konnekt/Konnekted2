@@ -45,8 +45,7 @@ runs:
     - name: Install host native dependencies
       shell: bash
       run: |
-        sudo apt-get update
-        sudo apt-get install --no-install-recommends -y libclang-dev clang cmake ninja-build pkg-config libasound2-dev libudev-dev libusb-1.0-0-dev autoconf automake libtool
+        bash tool/install_android_host_dependencies.sh
     - name: Pin Rust, discover host libclang and check the stack
       shell: bash
       run: python3 tool/ci_android.py setup

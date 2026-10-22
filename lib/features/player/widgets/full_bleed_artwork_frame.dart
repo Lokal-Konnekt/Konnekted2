@@ -10,9 +10,11 @@ class FullBleedArtworkFrame extends StatelessWidget {
     required this.child,
     this.bannerBottom,
     this.morphEnabled = true,
+    this.controlsOpacity = 1,
   });
 
   final bool canvas;
+  final double controlsOpacity;
   final bool morphEnabled;
   final Widget child;
   final double? bannerBottom;
@@ -24,7 +26,10 @@ class FullBleedArtworkFrame extends StatelessWidget {
       enabled: morphEnabled,
       expandedRadius: 0,
       child: CustomPaint(
-        foregroundPainter: _ArtworkContrast(viewportHeight, progress),
+        foregroundPainter: _ArtworkContrast(
+          viewportHeight,
+          progress * controlsOpacity,
+        ),
         child: child,
       ),
     );

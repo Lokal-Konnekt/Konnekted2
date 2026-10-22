@@ -45,6 +45,9 @@ class DiscordPresenceService extends ChangeNotifier {
   );
   final _covers = <String, String>{};
   final _coverJobs = <String>{};
+  final _coverFailures = <String, DateTime>{};
+  final _coverRetryTimers = <String, Timer>{};
+  static const _artworkRetryDelay = Duration(seconds: 45);
   String? _lastPublishedKey;
   String _songKey(Song song) => '${song.id}|${song.title}|${song.artist}';
   static const _preference = 'lokal_discord_presence_enabled';
@@ -219,7 +222,11 @@ class DiscordPresenceService extends ChangeNotifier {
         : 0;
     final key = _songKey(song);
     final image = publicArtwork(song.albumArt);
-    if (image.isEmpty && !_covers.containsKey(key) && _coverJobs.add(key)) {
+    final lastFailure = _coverFailures[key];
+    final canRetry = lastFailure == null ||
+        DateTime.now().difference(lastFailure) >= _artworkRetryDelay;
+    if (image.isEmpty && !_covers.containsKey(key) &&
+        canRetry && _coverJobs.add(key)) {
       unawaited(_resolveCover(song, key));
     }
     await _channel
@@ -261,7 +268,13 @@ class DiscordPresenceService extends ChangeNotifier {
         }
       }
       final safe = publicArtwork(url);
-      _covers[key] = safe;
+      if (safe.isNotEmpty) {
+        _covers[key] = safe;
+        _coverFailures.remove(key);
+        _coverRetryTimers.remove(key)?.cancel();
+      } else {
+        _recordArtworkFailure(key);
+      }
       while (_covers.length > 100) {
         _covers.remove(_covers.keys.first);
       }
@@ -272,9 +285,27 @@ class DiscordPresenceService extends ChangeNotifier {
         _schedule();
       }
     } catch (_) {
+      _recordArtworkFailure(key);
       /* Keep the current activity; never upload a local cover. */
     } finally {
       _coverJobs.remove(key);
+    }
+  }
+
+  void _recordArtworkFailure(String key) {
+    _coverFailures[key] = DateTime.now();
+    _coverRetryTimers.remove(key)?.cancel();
+    _coverRetryTimers[key] = Timer(_artworkRetryDelay, () {
+      _coverRetryTimers.remove(key);
+      final current = _player?.currentSongNotifier.value;
+      if (_enabled && current != null && _songKey(current) == key) {
+        _schedule();
+      }
+    });
+    while (_coverFailures.length > 100) {
+      final oldest = _coverFailures.keys.first;
+      _coverFailures.remove(oldest);
+      _coverRetryTimers.remove(oldest)?.cancel();
     }
   }
 
@@ -324,6 +355,8 @@ class DiscordPresenceService extends ChangeNotifier {
 
   Future<void> stop() async {
     _pending?.cancel();
+    for (final timer in _coverRetryTimers.values) { timer.cancel(); }
+    _coverRetryTimers.clear();
     final player = _player;
     if (configured && player != null) {
       player.currentSongNotifier.removeListener(_schedule);

@@ -36,6 +36,14 @@ class _ArtworkGradientBackdropState
     value: 1,
   );
   late List<Color> _from = widget.colors;
+  late FullPlayerVisuals _visualFrom =
+      FullPlayerVisuals.fromPalette(widget.colors);
+  late FullPlayerVisuals _visualTo = _visualFrom;
+
+  FullPlayerVisuals get _currentVisual => FullPlayerVisuals.lerp(
+    _visualFrom, _visualTo,
+    Curves.easeInOut.transform(_palette.value),
+  );
   Animation<double>? _route;
   bool _reduceMotion = false;
   bool _performance = true;
@@ -72,6 +80,11 @@ class _ArtworkGradientBackdropState
   void didUpdateWidget(ArtworkGradientBackdrop oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!listEquals(oldWidget.colors, widget.colors)) {
+      // Blend fully resolved surface colors, not intermediate palettes.
+      // Re-selecting the 'most saturated' swatch every paint caused abrupt
+      // hue jumps as the swatches crossed during next/previous transitions.
+      _visualFrom = _currentVisual;
+      _visualTo = FullPlayerVisuals.fromPalette(widget.colors);
       final t = Curves.easeInOut.transform(_palette.value);
       _from = List.generate(
         3,
@@ -112,6 +125,7 @@ class _ArtworkGradientBackdropState
           _color,
           () => _drift.value,
           vibrant: widget.vibrant,
+          visuals: () => _currentVisual,
         ),
         size: Size.infinite,
       ),
@@ -122,15 +136,17 @@ class _ArtworkGradientBackdropState
 class _PalettePainter extends CustomPainter {
   _PalettePainter(Listenable repaint, this.color, this.phase, {
     required this.vibrant,
+    required this.visuals,
   }) : super(repaint: repaint);
   final Color Function(int) color;
   final double Function() phase;
   final bool vibrant;
+  final FullPlayerVisuals Function() visuals;
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     if (vibrant) {
-      final theme = FullPlayerVisuals.fromPalette([color(0), color(1), color(2)]);
+      final theme = visuals();
       // A dark, legible header and a stronger artwork-colored lower half.
       // Static shader paints: no texture blur or additional image decode.
       canvas.drawRect(

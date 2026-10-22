@@ -22,6 +22,18 @@ class FullPlayerVisuals {
   static const secondaryText = Color(0xD7F8F0EB);
   static const tertiaryText = Color(0xAEF8F0EB);
 
+  /// Interpolate already-selected gradients, avoiding discontinuous hue
+  /// changes when competing album swatches cross during a track transition.
+  static FullPlayerVisuals lerp(
+    FullPlayerVisuals from, FullPlayerVisuals to, double progress,
+  ) => FullPlayerVisuals(
+    top: Color.lerp(from.top, to.top, progress)!,
+    middle: Color.lerp(from.middle, to.middle, progress)!,
+    bottom: Color.lerp(from.bottom, to.bottom, progress)!,
+    glow: Color.lerp(from.glow, to.glow, progress)!,
+    play: Color.lerp(from.play, to.play, progress)!,
+  );
+
   static FullPlayerVisuals fromPalette(List<Color> colors) {
     Color seed = colors.isNotEmpty ? colors.first : const Color(0xFF6A4141);
     var score = -1.0;

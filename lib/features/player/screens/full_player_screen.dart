@@ -1,4 +1,6 @@
 import 'package:flick/core/theme/lokal_performance_scope.dart';
+import 'package:flick/features/search/library_download.dart';
+import 'dart:io';
 import 'package:flick/features/player/widgets/full_player_visuals.dart';
 import 'package:flick/features/player/widgets/full_bleed_artwork_frame.dart';
 
@@ -341,12 +343,34 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   /// The Now Playing menu retains only actions that aren't already surfaced
   /// as player controls or as taps on the track title, artist, and quality pill.
+  Future<void> _saveOnlineSong(Song song) async {
+    try {
+      await LibraryDownloader().save(song, artwork: song.albumArt);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved to your music library')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save track: $error')),
+      );
+    }
+  }
+
   void _openMore(Song song) {
     SongActionsBottomSheet.show(
       context,
       song,
       nowPlaying: true,
       extras: [
+        if (song.sourcePackage == 'konnekted.discovery' &&
+            song.filePath != null && File(song.filePath!).existsSync())
+          LokalSongMenuAction(
+            icon: Icons.download_rounded,
+            label: 'Download to library',
+            onTap: () => unawaited(_saveOnlineSong(song)),
+          ),
         LokalSongMenuAction(
           icon: Icons.graphic_eq_rounded,
           label: 'Pitch',
@@ -555,59 +579,45 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   // ───────────────────────────── top bar ─────────────────────────────
 
   Widget _topBar(
-    Song song,
-    bool isCasting,
-    AudioOutputDiagnostics? diagnostics,
+    Song song, bool isCasting, AudioOutputDiagnostics? diagnostics,
   ) {
     final label = diagnostics?.outputDeviceLabel.trim().isNotEmpty == true
         ? diagnostics!.outputDeviceLabel.trim()
         : diagnostics?.routeLabel.trim().isNotEmpty == true
         ? diagnostics!.routeLabel.trim()
         : l10n.thisDevice;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+    return SizedBox(
+      height: 58,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          _roundIcon(LucideIcons.chevronLeft, _close),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Align(
-              alignment: Alignment.center,
+          Align(alignment: Alignment.centerLeft,
+            child: _roundIcon(LucideIcons.chevronLeft, _close)),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 215),
               child: _pill(
                 onTap: () => openAndroidOutputChooser(context),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 190),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        LucideIcons.headphones,
-                        size: 17,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: _font,
-                            fontSize: 13,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(LucideIcons.headphones, size: 17,
+                        color: FullPlayerVisuals.primaryText),
+                    const SizedBox(width: 8),
+                    Flexible(child: Text(label,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontFamily: _font, fontSize: 13,
+                          color: FullPlayerVisuals.primaryText))),
+                  ],
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          _roundIcon(LucideIcons.cast, _openCasting, active: isCasting),
-          const SizedBox(width: 4),
-          _roundIcon(Icons.more_vert, () => _openMore(song)),
+          Align(alignment: Alignment.centerRight,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              _roundIcon(LucideIcons.cast, _openCasting, active: isCasting),
+              _roundIcon(Icons.more_vert, () => _openMore(song)),
+            ])),
         ],
       ),
     );
@@ -635,9 +645,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     bool selected = false,
   }) {
     return Material(
-      color: selected
-          ? FullPlayerVisuals.selectedSurface
-          : FullPlayerVisuals.surface,
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
@@ -883,23 +891,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         ),
                       ),
                     ),
-                    if (song.album?.trim().isNotEmpty == true) ...[
-                      const _MetadataDot(),
-                      Flexible(
-                        child: Text(
-                          song.album!.trim(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: _font,
-                            fontSize: lerpDouble(11, 10, p),
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: .2,
-                            color: FullPlayerVisuals.secondaryText,
-                          ),
-                        ),
-                      ),
-                    ],
                     if (song.year != null && song.year! > 0) ...[
                       const _MetadataDot(),
                       Text(
@@ -912,21 +903,28 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       ),
                     ],
                     if (LokalQualityTier.of(song) case final tier?) ...[
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       InkWell(
                         onTap: () => SongMetadataSheet.show(context, song),
                         borderRadius: BorderRadius.circular(6),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 5,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: FullPlayerVisuals.secondaryText),
+                            borderRadius: BorderRadius.circular(5),
                           ),
                           child: Text(
-                            tier.label,
-                            style: const TextStyle(
-                              fontFamily: _font,
-                              fontSize: 10,
-                              color: FullPlayerVisuals.tertiaryText,
-                            ),
+                            switch (tier) {
+                              LokalQualityTier.hiRes => 'HI-RES LOSSLESS',
+                              LokalQualityTier.lossless => 'LOSSLESS',
+                              LokalQualityTier.high => 'HIGH',
+                              LokalQualityTier.low => 'LOW',
+                              LokalQualityTier.unknown => 'UNKNOWN',
+                            },
+                            style: const TextStyle(fontFamily: _font,
+                              fontSize: 9, fontWeight: FontWeight.w700,
+                              letterSpacing: .6,
+                              color: FullPlayerVisuals.primaryText),
                           ),
                         ),
                       ),
@@ -1301,9 +1299,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         .clamp(0.0, maxVol)
         .toDouble();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: FullPlayerVisuals.surface,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: FullPlayerVisuals.border),
       ),
@@ -1341,13 +1339,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             size: 18,
             color: FullPlayerVisuals.secondaryText,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 18),
           Container(
             width: 1,
             height: 26,
             color: FullPlayerVisuals.border,
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 10),
           ValueListenableBuilder<ShuffleMode>(
             valueListenable: _player.shuffleModeNotifier,
             builder: (_, mode, __) => _toggle(
@@ -1394,7 +1392,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           onTap: onTap,
           onLongPress: onLong,
           child: SizedBox(
-            width: 40,
+            width: 36,
             height: 40,
             child: Icon(
               icon,
@@ -1415,10 +1413,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       String label,
       VoidCallback onTap, {
       bool active = false,
+      double? width,
     }) {
       return Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: _pill(
+        padding: const EdgeInsets.only(right: 2),
+        child: SizedBox(
+          width: width,
+          child: _pill(
           selected: active,
           onTap: onTap,
           child: Row(
@@ -1431,23 +1432,24 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     ? FullPlayerVisuals.primaryText
                     : FullPlayerVisuals.secondaryText,
               ),
-              const SizedBox(width: 7),
-              Text(
-                label,
+              const SizedBox(width: 4),
+              Flexible(child: Text(
+                label, maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontFamily: _font,
-                  fontSize: 13,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w500,
                   color: FullPlayerVisuals.primaryText,
                 ),
-              ),
+              )),
             ],
           ),
-        ),
+        )),
       );
     }
 
-    return SizedBox(
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
       height: 44,
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -1457,12 +1459,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             l10n.queue,
             _toggleQueue,
             active: _queue.isOpen && !_showLyrics,
+            width: (constraints.maxWidth - 8) / 4,
           ),
           chip(
             LucideIcons.messageSquareQuote,
             l10n.lyrics,
             _toggleLyrics,
             active: _showLyrics,
+            width: (constraints.maxWidth - 8) / 4,
           ),
           ValueListenableBuilder<Duration?>(
             valueListenable: _player.sleepTimerRemainingNotifier,
@@ -1471,6 +1475,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               remaining == null ? l10n.sleepTimer : _clock(remaining),
               () => SleepTimerBottomSheet.show(context, _player),
               active: remaining != null,
+              width: (constraints.maxWidth - 8) / 4,
             ),
           ),
           if (_player.currentSongNotifier.value case final song?)
@@ -1490,6 +1495,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   .watch(movingCoverSettingsProvider)
                   .disabledSongs
                   .contains(movingCoverSongKey(song)),
+              width: (constraints.maxWidth - 8) / 4,
             ),
           ValueListenableBuilder<double>(
             valueListenable: _player.playbackSpeedNotifier,
@@ -1500,12 +1506,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   : '${speed.toStringAsFixed(2)}x',
               () => SpeedBottomSheet.show(context, _player),
               active: (speed - 1.0).abs() >= 0.01,
+              width: (constraints.maxWidth - 8) / 4,
             ),
           ),
-          chip(LucideIcons.slidersHorizontal, l10n.equalizer, _openEqualizer),
+          chip(LucideIcons.slidersHorizontal, l10n.equalizer, _openEqualizer,
+            width: (constraints.maxWidth - 8) / 4),
         ],
       ),
-    );
+    ));
   }
 }
 

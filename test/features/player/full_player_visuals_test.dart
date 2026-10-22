@@ -31,6 +31,22 @@ void main() {
       expect(hue, lessThan(265));
     });
 
+    test('previous/next blends resolved surface colors continuously', () {
+      final warm = FullPlayerVisuals.fromPalette(
+        const [Color(0xFFBB5B2C), Color(0xFF7A351E)],
+      );
+      final cool = FullPlayerVisuals.fromPalette(
+        const [Color(0xFF245BBA), Color(0xFF183D90)],
+      );
+      final atStart = FullPlayerVisuals.lerp(warm, cool, 0);
+      final atHalf = FullPlayerVisuals.lerp(warm, cool, .5);
+      final atEnd = FullPlayerVisuals.lerp(warm, cool, 1);
+      expect(atStart.top, warm.top);
+      expect(atEnd.bottom, cool.bottom);
+      expect(atHalf.top, Color.lerp(warm.top, cool.top, .5));
+      expect(atHalf.bottom, Color.lerp(warm.bottom, cool.bottom, .5));
+    });
+
     test('monochrome artwork remains monochrome', () {
       final visuals = FullPlayerVisuals.fromPalette(const [
         Color(0xFF777777),

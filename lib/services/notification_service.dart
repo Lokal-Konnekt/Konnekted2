@@ -136,8 +136,8 @@ class NotificationService {
     required VoidCallback onPrevious,
     required VoidCallback onStop,
     required Function(Duration) onSeek,
-    required VoidCallback onToggleShuffle,
-    required VoidCallback onToggleFavorite,
+    required FutureOr<void> Function() onToggleShuffle,
+    required FutureOr<void> Function() onToggleFavorite,
     VoidCallback? onDisconnectCast,
     Function(double)? onSetCastVolume,
   }) {
@@ -196,10 +196,10 @@ class NotificationService {
           }
           break;
         case 'toggleShuffle':
-          onToggleShuffle();
+          await onToggleShuffle();
           break;
         case 'toggleFavorite':
-          onToggleFavorite();
+          await onToggleFavorite();
           break;
         case 'disconnectCast':
           onDisconnectCast?.call();

@@ -3531,8 +3531,8 @@ class PlayerService {
     final song = currentSongNotifier.value;
     if (_allowsFavoriteActions(song)) {
       await _favoritesService.toggleFavorite(song!.id);
-      _updateNotificationState();
       favoriteNotificationToggleNotifier.value++;
+      await _updateNotificationState();
     }
   }
 
@@ -6087,6 +6087,9 @@ class PlayerService {
   Future<void> setShuffleMode(ShuffleMode mode) async {
     final wasActive = shuffleModeNotifier.value.isActive;
     shuffleModeNotifier.value = mode;
+    // Publish the new shuffle state immediately even if a playlist rebuild
+    // takes time or fails; Android notification actions share this notifier.
+    unawaited(_updateNotificationState());
     _playedCategoryIds.clear();
     unawaited(_appPreferencesService.setShuffleMode(mode.index));
 

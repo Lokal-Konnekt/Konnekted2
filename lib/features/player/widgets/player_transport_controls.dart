@@ -81,7 +81,7 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
                     label: label,
                     child: Icon(
                       icon,
-                      size: lerpDouble(32, 27, l),
+                      size: lerpDouble(29, 26, l),
                       color: FullPlayerVisuals.primaryText,
                     ),
                   ),
@@ -105,7 +105,7 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
                     child: AnimatedIcon(
                       icon: AnimatedIcons.play_pause,
                       progress: _icon,
-                      size: lerpDouble(40, 32, l),
+                      size: lerpDouble(33, 29, l),
                       color: widget.onAccent,
                     ),
                   ),

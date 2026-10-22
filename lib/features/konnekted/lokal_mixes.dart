@@ -252,6 +252,9 @@ List<LokalMadeForYouPick> pickMadeForYou(
 
 List<LokalMadeForYouPick>? _picked;
 
+/// Explicit Home refresh also replaces the normally session-stable cover picks.
+void refreshLokalMadeForYou() => _picked = null;
+
 /// Keep this run's valid picks, filling newly available mixes as the library
 /// loads. A partial initial snapshot must not freeze Cover Flow at two songs.
 List<LokalMadeForYouPick> lokalMadeForYou(

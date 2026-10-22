@@ -118,7 +118,10 @@ void resetKonnektedMixes() => _mixes = null;
 class KonnektedMixRefresh extends Notifier<int> {
   @override
   int build() => 0;
-  void refresh() => state++;
+  void refresh() {
+    refreshLokalMadeForYou();
+    state++;
+  }
 }
 
 final konnektedMixRefreshProvider = NotifierProvider<KonnektedMixRefresh, int>(

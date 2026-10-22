@@ -463,9 +463,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       child: SafeArea(
                         child: Padding(
                           padding: EdgeInsets.fromLTRB(
-                            20,
+                            23,
                             0,
-                            20,
+                            23,
                             14, // keeps the chip row clear of the system nav bar
                           ),
                           child: LayoutBuilder(
@@ -950,7 +950,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     double progress = 0,
   }) {
     final prefs = ref.watch(appPreferencesProvider);
-    final radius = BorderRadius.circular(lerpDouble(28, 12, progress)!);
+    final radius = BorderRadius.circular(lerpDouble(20, 12, progress)!);
     final still = PlayerArtworkImage(
       song: song,
       radius: radius.topLeft.x,

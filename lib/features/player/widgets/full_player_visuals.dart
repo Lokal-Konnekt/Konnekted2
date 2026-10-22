@@ -40,7 +40,10 @@ class FullPlayerVisuals {
     final hue = base.hue >= 10 && base.hue <= 65
         ? math.max(0.0, base.hue - 7)
         : base.hue;
-    final saturation = math.max(.56, base.saturation).clamp(0.0, .86).toDouble();
+    // A black-and-white sleeve must stay neutral, never acquire red tint.
+    final saturation = base.saturation < .08
+        ? 0.0
+        : math.max(.56, base.saturation).clamp(0.0, .86).toDouble();
     Color tone(double light, {double? sat}) =>
         HSLColor.fromAHSL(1, hue, sat ?? saturation, light).toColor();
     return FullPlayerVisuals(
@@ -48,7 +51,7 @@ class FullPlayerVisuals {
       middle: tone(.255),
       bottom: tone(.31),
       glow: tone(.37),
-      play: tone(.865, sat: .23),
+      play: tone(.865, sat: saturation == 0 ? 0 : .23),
     );
   }
 }

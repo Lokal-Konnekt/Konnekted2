@@ -40,9 +40,9 @@ void main() {
     SongEntity? saved;
     await store.saveEntity(entity, persist: (r) async => saved = r);
     expect(saved?.id, 42);
-    expect(p.dirname(entity.filePath), p.join(music.path, 'Lokal Desktop'));
+    expect(p.dirname(entity.filePath), p.join(music.path, 'Artist', 'Album'));
     expect(entity.folderUri, 'chosen-uri');
-    expect(entity.relativeFolderPath, 'Lokal Desktop');
+    expect(entity.relativeFolderPath, 'Artist/Album');
     expect(entity.remoteId, 'pc-song');
     expect(entity.remoteServerId, 3);
     expect(entity.sampleRate, 96000);
@@ -105,7 +105,10 @@ void main() {
     expect(entity.folderUri, 'content://documents/tree/music');
     expect(calls.single.method, 'copyMusicToFolder');
     expect((calls.single.arguments as Map)['sourcePath'], source.path);
-    expect((calls.single.arguments as Map)['directoryName'], 'Lokal Desktop');
+    expect((calls.single.arguments as Map)['directorySegments'], [
+      'Artist',
+      'Album',
+    ]);
   });
   test('revoked folder grant fails without falling back to app data', () async {
     const channel = MethodChannel('test/desktop-copy-revoked');
@@ -154,7 +157,7 @@ void main() {
       expect(entity.folderUri, source.parent.path);
       expect(entity.mediaStoreUri, isNull);
       expect(
-        Directory(p.join(music.path, 'Lokal Desktop')).listSync(),
+        Directory(p.join(music.path, 'Artist', 'Album')).listSync(),
         isEmpty,
       );
       expect(source.existsSync(), isTrue);

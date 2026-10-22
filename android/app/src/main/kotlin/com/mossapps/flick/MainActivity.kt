@@ -671,13 +671,14 @@ class MainActivity: FlutterActivity() {
                 "copyMusicToFolder" -> {
                     val tree = call.argument<String>("folderTreeUri")
                     val source = call.argument<String>("sourcePath")
-                    val directory = call.argument<String>("directoryName")
+                    val directories = call.argument<List<String>>("directorySegments")
+                        ?: call.argument<String>("directoryName")?.let { listOf(it) }
                     val name = call.argument<String>("fileName")
-                    if (tree == null || source == null || directory == null || name == null) {
+                    if (tree == null || source == null || directories == null || name == null) {
                         result.error("INVALID_ARGUMENT", "Folder and file details are required", null)
                     } else mainScope.launch {
                         try {
-                            val saved = withContext(Dispatchers.IO) { copyMusicToFolder(tree, source, directory, name) }
+                            val saved = withContext(Dispatchers.IO) { copyMusicToFolder(tree, source, directories, name) }
                             result.success(saved)
                         } catch (_: Exception) {
                             result.error("MUSIC_COPY_FAILED", "Cannot write to the selected music folder. Re-select it and retry.", null)
@@ -1897,13 +1898,15 @@ class MainActivity: FlutterActivity() {
 
     // Stream through the persisted folder grant when scoped storage denies
     // raw writes. Partial files are not audio and the input survives failures.
-    private fun copyMusicToFolder(tree: String, source: String, directory: String, name: String): Map<String, String> {
+    private fun copyMusicToFolder(tree: String, source: String, directories: List<String>, name: String): Map<String, String> {
         fun safe(part: String) = part.isNotBlank() && part != "." && part != ".." &&
             part.none { it == '/' || it == '\\' || it.code < 32 }
-        require(safe(directory) && safe(name))
-        val root = DocumentFile.fromTreeUri(this, Uri.parse(tree)) ?: error("Folder unavailable")
-        val folder = root.findFile(directory)?.also { require(it.isDirectory) }
-            ?: root.createDirectory(directory) ?: error("Cannot create music directory")
+        require(directories.isNotEmpty() && directories.size <= 8 && directories.all { safe(it) } && safe(name))
+        var folder = DocumentFile.fromTreeUri(this, Uri.parse(tree)) ?: error("Folder unavailable")
+        for (directory in directories) {
+            folder = folder.findFile(directory)?.also { require(it.isDirectory) }
+                ?: folder.createDirectory(directory) ?: error("Cannot create music directory")
+        }
         val input = File(source)
         require(input.isFile && input.length() > 0)
         require(folder.findFile(name) == null)

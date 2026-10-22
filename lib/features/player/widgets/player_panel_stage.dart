@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flick/l10n/l10n.dart';
 
 /// A single artwork and title travel between three poses: large cover,
 /// queue header, and the compact now-playing row beneath lyrics.
@@ -18,6 +19,7 @@ class PlayerPanelStage extends StatelessWidget {
     required this.lyrics,
     this.artGap = 16,
     this.onQueueHeaderTap,
+    this.onLyricsCoverReturn,
     this.onQueueHeaderDrag,
     this.onQueueHeaderRelease,
   });
@@ -27,7 +29,7 @@ class PlayerPanelStage extends StatelessWidget {
   final Widget Function(BuildContext, double) info;
   final Widget queue, lyrics;
   final double artGap;
-  final VoidCallback? onQueueHeaderTap;
+  final VoidCallback? onQueueHeaderTap, onLyricsCoverReturn;
   final ValueChanged<double>? onQueueHeaderDrag, onQueueHeaderRelease;
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -81,15 +83,18 @@ class PlayerPanelStage extends StatelessWidget {
             LayoutId(
               id: _Part.header,
               child: IgnorePointer(
-                ignoring: !queueOpen || lyricsOpen,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onQueueHeaderTap,
-                  onVerticalDragUpdate: (d) =>
-                      onQueueHeaderDrag?.call(-d.delta.dy),
-                  onVerticalDragEnd: (d) =>
-                      onQueueHeaderRelease?.call(-(d.primaryVelocity ?? 0)),
-                ),
+                ignoring: !queueOpen && !lyricsOpen,
+                child: lyricsOpen
+                    ? _LyricsCoverReturnTarget(onReturn: onLyricsCoverReturn)
+                    : GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onQueueHeaderTap,
+                        onVerticalDragUpdate: (d) =>
+                            onQueueHeaderDrag?.call(-d.delta.dy),
+                        onVerticalDragEnd: (d) => onQueueHeaderRelease?.call(
+                          -(d.primaryVelocity ?? 0),
+                        ),
+                      ),
               ),
             ),
           ],
@@ -159,12 +164,46 @@ class _PanelLayout extends MultiChildLayoutDelegate {
     positionChild(_Part.lyrics, Offset(0, (1 - lyrics) * 18));
     layoutChild(
       _Part.header,
-      BoxConstraints.tightFor(width: w, height: queueTop),
+      BoxConstraints.tightFor(
+        width: lerpDouble(w, math.min(thumb, w), lyrics)!,
+        height: lerpDouble(queueTop, math.min(thumb, h), lyrics)!,
+      ),
     );
-    positionChild(_Part.header, Offset.zero);
+    positionChild(_Part.header, Offset(0, (lyricsTop + artCentering) * lyrics));
   }
 
   @override
   bool shouldRelayout(_PanelLayout old) =>
       old.queue != queue || old.lyrics != lyrics || old.artGap != artGap;
+}
+
+/// A compact cover exits lyrics on tap or an upward swipe, without stealing
+/// gestures from the lyrics list or changing the queue's downward drag behavior.
+class _LyricsCoverReturnTarget extends StatefulWidget {
+  const _LyricsCoverReturnTarget({this.onReturn});
+  final VoidCallback? onReturn;
+  @override
+  State<_LyricsCoverReturnTarget> createState() =>
+      _LyricsCoverReturnTargetState();
+}
+
+class _LyricsCoverReturnTargetState extends State<_LyricsCoverReturnTarget> {
+  double _distance = 0;
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: lokalText('Return to player'),
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onReturn,
+      onVerticalDragStart: (_) => _distance = 0,
+      onVerticalDragUpdate: (details) => _distance += details.delta.dy,
+      onVerticalDragEnd: (details) {
+        if (_distance <= -20 || (details.primaryVelocity ?? 0) < -250)
+          widget.onReturn?.call();
+        _distance = 0;
+      },
+      onVerticalDragCancel: () => _distance = 0,
+    ),
+  );
 }

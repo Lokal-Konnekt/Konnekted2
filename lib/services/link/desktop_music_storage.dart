@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 import '../music_folder_service.dart';
+import '../music_library_path.dart';
 import 'link_protocol.dart';
 
 class DesktopMusicFolder {
@@ -19,9 +20,11 @@ class DesktopMusicFile {
     required this.path,
     required this.folderUri,
     this.documentUri,
+    this.relativeFolderPath = '',
   });
   final String path, folderUri;
   final String? documentUri;
+  final String relativeFolderPath;
 }
 
 /// Permanent copies use a selected library folder. Private files are staging or
@@ -34,7 +37,6 @@ class DesktopMusicStorage {
   }) : _folders = folders ?? _savedFolders,
        _channel = channel,
        _indexMedia = indexMedia ?? MusicFolderService().indexMediaFiles;
-  static const directoryName = 'Lokal Desktop';
   final Future<List<DesktopMusicFolder>> Function() _folders;
   final MethodChannel _channel;
   final Future<void> Function(List<String>) _indexMedia;
@@ -71,6 +73,8 @@ class DesktopMusicStorage {
     File source, {
     required String title,
     required String artist,
+    String? album,
+    String? albumArtist,
     required String extension,
   }) async {
     if (!RegExp(r'^[a-zA-Z0-9]{1,8}$').hasMatch(extension))
@@ -82,11 +86,17 @@ class DesktopMusicStorage {
       );
     final length = await source.length();
     if (length == 0) throw StateError('The desktop song file is empty.');
+    final directories = MusicLibraryPath.directories(
+      artist: artist,
+      album: album,
+      albumArtist: albumArtist,
+    );
+    final relative = directories.join('/');
     final name = _name(artist, title, extension.toLowerCase());
     for (final folder in folders) {
       final root = folder.path;
       if (root != null && p.isAbsolute(root)) {
-        final target = File(p.join(root, directoryName, name));
+        final target = File(p.joinAll([root, ...directories, name]));
         final part = File('${target.path}.part');
         try {
           await target.parent.create(recursive: true);
@@ -94,7 +104,11 @@ class DesktopMusicStorage {
           if (await part.length() != length)
             throw const FileSystemException('Incomplete copy');
           await part.rename(target.path);
-          return DesktopMusicFile(path: target.path, folderUri: folder.uri);
+          return DesktopMusicFile(
+            path: target.path,
+            folderUri: folder.uri,
+            relativeFolderPath: relative,
+          );
         } on FileSystemException {
           try {
             if (await part.exists()) await part.delete();
@@ -110,7 +124,7 @@ class DesktopMusicStorage {
             {
               'folderTreeUri': folder.uri,
               'sourcePath': source.path,
-              'directoryName': directoryName,
+              'directorySegments': directories,
               'fileName': name,
             },
           );
@@ -121,6 +135,7 @@ class DesktopMusicStorage {
             path: resolved ?? uri,
             folderUri: folder.uri,
             documentUri: uri,
+            relativeFolderPath: relative,
           );
         } on PlatformException {
           /* Try another selected folder, never private storage. */
@@ -145,13 +160,15 @@ class DesktopMusicStorage {
       File(oldPath),
       title: entity.title,
       artist: entity.artist,
+      album: entity.album,
+      albumArtist: entity.albumArtist,
       extension: entity.fileType ?? p.extension(oldPath).replaceFirst('.', ''),
     );
     try {
       entity.filePath = output.path;
       entity.folderUri = output.folderUri;
       entity.mediaStoreUri = output.documentUri;
-      entity.relativeFolderPath = directoryName;
+      entity.relativeFolderPath = output.relativeFolderPath;
       await persist(entity);
     } catch (_) {
       entity.filePath = oldPath;

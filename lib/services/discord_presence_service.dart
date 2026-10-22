@@ -297,8 +297,9 @@ class DiscordPresenceService extends ChangeNotifier {
     _coverRetryTimers.remove(key)?.cancel();
     _coverRetryTimers[key] = Timer(_artworkRetryDelay, () {
       _coverRetryTimers.remove(key);
-      if (_enabled && _player?.currentSongNotifier.value case final Song current) {
-        if (_songKey(current) == key) _schedule();
+      final current = _player?.currentSongNotifier.value;
+      if (_enabled && current != null && _songKey(current) == key) {
+        _schedule();
       }
     });
     while (_coverFailures.length > 100) {
@@ -354,6 +355,8 @@ class DiscordPresenceService extends ChangeNotifier {
 
   Future<void> stop() async {
     _pending?.cancel();
+    for (final timer in _coverRetryTimers.values) { timer.cancel(); }
+    _coverRetryTimers.clear();
     final player = _player;
     if (configured && player != null) {
       player.currentSongNotifier.removeListener(_schedule);

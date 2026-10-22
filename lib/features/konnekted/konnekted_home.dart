@@ -228,7 +228,7 @@ class KonnektedHomeTopBar extends StatelessWidget {
 
   /// The personal line under the salutation; a time-of-day line until
   /// history has loaded.
-  final String? greeting;
+  final LokalHomeMessages? greeting;
 
   /// The clock, for tests.
   final DateTime? now;
@@ -277,7 +277,9 @@ class KonnektedHomeTopBar extends StatelessWidget {
           Semantics(
             header: true,
             child: Text(
-              lokalHomeSalutation(at.hour),
+              lokalText(
+                (greeting ?? lokalHomeMessages(const [], now: at)).headline,
+              ),
               style: TextStyle(
                 fontSize: 34,
                 fontWeight: FontWeight.w600,
@@ -290,7 +292,9 @@ class KonnektedHomeTopBar extends StatelessWidget {
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
             child: Text(
-              greeting ?? lokalHomeGreeting(const [], now: at),
+              lokalText(
+                (greeting ?? lokalHomeMessages(const [], now: at)).subheader,
+              ),
               key: ValueKey(greeting),
               style: TextStyle(fontSize: 15, color: context.lokal.muted),
             ),

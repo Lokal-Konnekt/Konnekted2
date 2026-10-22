@@ -1,3 +1,4 @@
+import 'package:flick/services/motion_art/moving_cover_settings.dart';
 import 'package:flick/services/link/lokal_desktop_source.dart';
 import 'package:flick/l10n/l10n.dart';
 
@@ -141,7 +142,22 @@ class SongActionsBottomSheet extends ConsumerWidget {
       unawaited(Future<void>.sync(action));
     };
 
+    final motionOff = ref
+        .watch(movingCoverSettingsProvider)
+        .disabledSongs
+        .contains(movingCoverSongKey(song));
     final rows = <Widget>[
+      _MenuRow(
+        icon: motionOff ? Icons.motion_photos_on : Icons.motion_photos_off,
+        label: motionOff
+            ? 'Enable moving cover for this song'
+            : 'Disable moving cover for this song',
+        onTap: close(
+          () => container
+              .read(movingCoverSettingsProvider.notifier)
+              .setSongEnabled(movingCoverSongKey(song), motionOff),
+        ),
+      ),
       if (onRemoveFromPlaylist != null)
         _MenuRow(
           icon: Icons.playlist_remove_rounded,

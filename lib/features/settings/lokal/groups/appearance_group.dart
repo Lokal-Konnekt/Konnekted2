@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flick/services/motion_art/moving_cover_settings.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +29,8 @@ List<LokalSettingsSection> appearanceSettings(
   final look = ref.read(lokalAppearanceProvider.notifier);
   final prefs = ref.watch(appPreferencesProvider);
   final notifier = ref.read(appPreferencesProvider.notifier);
+  final moving = ref.watch(movingCoverSettingsProvider);
+  final motion = ref.read(movingCoverSettingsProvider.notifier);
   return [
     LokalSettingsSection(
       title: lokalText('Theme'),
@@ -86,11 +90,42 @@ List<LokalSettingsSection> appearanceSettings(
         LokalSettingRow.toggle(
           label: lokalText('Moving covers'),
           description: lokalText(
-            'Play an album’s animated cover in the classic player, when there is one.',
+            'Play an animated cover or Canvas in either player, when one is available.',
           ),
           value: prefs.animatedAlbumArt,
           onChanged: notifier.setAnimatedAlbumArt,
         ),
+        if (prefs.animatedAlbumArt) ...[
+          for (final source in movingCoverSources.entries)
+            LokalSettingRow.toggle(
+              label: source.value,
+              description: source.key == 'spotify'
+                  ? lokalText(
+                      'Uses your Spotify account in You → Data → Accounts.',
+                    )
+                  : source.key == 'apple'
+                  ? lokalText(
+                      'Animated album covers, with Apple lookup fallback.',
+                    )
+                  : source.key == 'tidal'
+                  ? lokalText('Video album covers.')
+                  : source.key == 'community'
+                  ? lokalText('Clips shared by other listeners.')
+                  : lokalText(
+                      'Apple animated artwork through artwork.m8tec.top.',
+                    ),
+              value: moving.sources.contains(source.key),
+              onChanged: (value) => motion.setSource(source.key, value),
+            ),
+          LokalSettingRow.toggle(
+            label: lokalText('Prioritize Spotify Canvas'),
+            description: lokalText(
+              'Ask Spotify before album covers. Tall videos are cropped to fit the cover.',
+            ),
+            value: moving.spotifyFirst,
+            onChanged: motion.prioritizeSpotify,
+          ),
+        ],
       ],
     ),
     LokalSettingsSection(

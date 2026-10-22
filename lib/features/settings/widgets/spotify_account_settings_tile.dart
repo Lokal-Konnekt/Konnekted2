@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/l10n/l10n.dart';
-import 'package:flick/features/spotify/spotify_library_screen.dart';
+import 'package:flick/features/spotify/spotify_likes_sync_service.dart';
 import 'package:flick/features/spotify/spotify_oauth.dart';
 import 'package:flick/features/spotify/spotify_storage.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
@@ -20,6 +20,50 @@ class SpotifyAccountSettingsTile extends ConsumerStatefulWidget {
 class _SpotifyAccountSettingsTileState
     extends ConsumerState<SpotifyAccountSettingsTile> {
   bool _busy = false;
+  bool _connected = false, _syncLikes = false;
+  @override
+  void initState() {
+    super.initState();
+    SecureSpotifyTokenStore.sessionRevision.addListener(_load);
+    unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    SecureSpotifyTokenStore.sessionRevision.removeListener(_load);
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    final tokens = await SecureSpotifyTokenStore().readTokens();
+    final sync = await SpotifyLikesSyncService.instance.enabled;
+    if (mounted)
+      setState(() {
+        _connected = tokens?.sessionCookie?.isNotEmpty == true;
+        _syncLikes = sync;
+      });
+  }
+
+  Future<void> _remove() async {
+    setState(() => _busy = true);
+    try {
+      await SpotifyOAuthService(tokenStore: SecureSpotifyTokenStore()).logout();
+      await SpotifySettingsStore().saveDiscoveryEnabled(false);
+      await SpotifyLikesSyncService.instance.setEnabled(false);
+      await SpotifyLikesSyncService.instance.resetCursor();
+      ref.invalidate(konnektedSpotifyDiscoveryProvider);
+      await _load();
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not remove the Spotify session. Retry.'),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   Future<void> _connect() async {
     if (_busy) return;
@@ -74,6 +118,9 @@ class _SpotifyAccountSettingsTileState
       final oauth = SpotifyOAuthService(tokenStore: settings.tokenStore);
       await oauth.signInWithCookie(cookie);
       await settings.saveDiscoveryEnabled(true);
+      await SpotifyLikesSyncService.instance.resetCursor();
+      await _load();
+      unawaited(SpotifyLikesSyncService.instance.sync());
       if (!mounted) return;
       ref.invalidate(konnektedSpotifyDiscoveryProvider);
       ScaffoldMessenger.of(
@@ -97,31 +144,60 @@ class _SpotifyAccountSettingsTileState
   }
 
   @override
-  Widget build(BuildContext context) => LokalSettingRow(
-    label: lokalText('Spotify'),
-    description: lokalText(
-      'Connect your account to load personal shelves and manage your library.',
-    ),
-    stacked: true,
-    trailing: Wrap(
-      spacing: 10,
-      runSpacing: 8,
-      children: [
-        LokalSettingButton(
-          label: lokalText(_busy ? 'Connecting…' : 'Enter cookie'),
-          onPressed: _busy ? null : () => unawaited(_connect()),
+  Widget build(BuildContext context) => Column(
+    children: [
+      LokalSettingRow(
+        label: lokalText('Spotify'),
+        description: lokalText(
+          _connected
+              ? 'Cookie saved. Your Spotify session supplies Discovery and Canvas.'
+              : 'Add your Spotify cookie for Discovery and Canvas.',
         ),
-        LokalSettingButton(
-          label: lokalText('Manage Spotify library'),
-          onPressed: () => unawaited(
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const SpotifyLibraryScreen(),
+        stacked: true,
+        trailing: Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            LokalSettingButton(
+              label: lokalText(
+                _busy
+                    ? 'Connecting…'
+                    : _connected
+                    ? 'Update cookie'
+                    : 'Enter cookie',
               ),
+              onPressed: _busy ? null : () => unawaited(_connect()),
             ),
-          ),
+            if (_connected)
+              LokalSettingButton(
+                label: lokalText('Remove cookie'),
+                onPressed: _busy ? null : () => unawaited(_remove()),
+              ),
+          ],
         ),
-      ],
-    ),
+      ),
+      LokalSettingRow.toggle(
+        label: lokalText('Sync Spotify liked songs'),
+        description: lokalText(
+          'Add matching library songs to Favorites. Existing likes stay; no music files are downloaded.',
+        ),
+        value: _syncLikes,
+        enabled: _connected && !_busy,
+        onChanged: (value) async {
+          setState(() => _syncLikes = value);
+          await SpotifyLikesSyncService.instance.setEnabled(value);
+        },
+      ),
+      if (_syncLikes)
+        ValueListenableBuilder<String?>(
+          valueListenable: SpotifyLikesSyncService.instance.status,
+          builder: (context, message, _) => message == null
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(message),
+                ),
+        ),
+    ],
   );
 }

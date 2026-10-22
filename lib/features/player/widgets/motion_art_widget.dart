@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/services/motion_art/animated_artwork_service.dart';
+import 'package:flick/services/motion_art/moving_cover_service.dart';
+import 'package:flick/services/motion_art/moving_cover_settings.dart';
+import 'package:flick/features/spotify/spotify_storage.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +31,7 @@ class MotionArtView extends StatefulWidget {
     this.album,
     this.duration,
     this.enabled = true,
+    this.playbackActive = true,
     this.albumMode = false,
     this.representativeSongTitle,
     this.preferVertical = false,
@@ -54,6 +58,9 @@ class MotionArtView extends StatefulWidget {
 
   final bool enabled;
 
+  /// Pause the decoder while preserving its last frame in a compact header.
+  final bool playbackActive;
+
   /// Resolve by album (edition-aware) rather than by song.
   final bool albumMode;
   final String? representativeSongTitle;
@@ -76,7 +83,8 @@ class MotionArtView extends StatefulWidget {
   State<MotionArtView> createState() => _MotionArtViewState();
 }
 
-class _MotionArtViewState extends State<MotionArtView> {
+class _MotionArtViewState extends State<MotionArtView>
+    with WidgetsBindingObserver {
   static const Duration _debounce = Duration(milliseconds: 120);
   static const Duration _retryDelay = Duration(seconds: 35);
   static const int _maxAttempts = 4;
@@ -88,6 +96,16 @@ class _MotionArtViewState extends State<MotionArtView> {
   bool _settledWithoutMotion = false;
   bool _suppressed = false;
   bool _routeIsCurrent = true;
+  bool _tickerEnabled = true;
+  bool _loading = false;
+  AppLifecycleState _lifecycle = AppLifecycleState.resumed;
+  bool get _canPlay =>
+      widget.enabled &&
+      widget.playbackActive &&
+      !_suppressed &&
+      _routeIsCurrent &&
+      _tickerEnabled &&
+      _lifecycle == AppLifecycleState.resumed;
   bool _listeningToSuppression = false;
   Timer? _timer;
   Timer? _retryTimer;
@@ -113,6 +131,9 @@ class _MotionArtViewState extends State<MotionArtView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    movingCoverRevision.addListener(_onRevisionChanged);
+    SecureSpotifyTokenStore.sessionRevision.addListener(_onRevisionChanged);
     if (widget.enabled) {
       _listenToSuppression();
     }
@@ -149,13 +170,37 @@ class _MotionArtViewState extends State<MotionArtView> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycle = state;
+    _syncPlayback();
+  }
+
+  void _syncPlayback() {
+    final controller = _controller;
+    if (controller != null) {
+      final action = _canPlay ? controller.play() : controller.pause();
+      unawaited(
+        action.catchError(
+          (Object error) => _logFailureOnce('video state', error),
+        ),
+      );
+    } else if (_canPlay && !_settledWithoutMotion) {
+      _beginLoad();
+    }
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _tickerEnabled =
+        TickerMode.of(context) && !MediaQuery.disableAnimationsOf(context);
     final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
-    if (isCurrent == _routeIsCurrent) return;
-    _routeIsCurrent = isCurrent;
-    _restart();
-    if (mounted) setState(() {});
+    if (isCurrent != _routeIsCurrent) {
+      _routeIsCurrent = isCurrent;
+      _restart();
+    } else {
+      _syncPlayback();
+    }
   }
 
   @override
@@ -176,11 +221,17 @@ class _MotionArtViewState extends State<MotionArtView> {
         oldWidget.representativeSongTitle != widget.representativeSongTitle ||
         oldWidget.preferVertical != widget.preferVertical ||
         oldWidget.enabled != widget.enabled;
-    if (changed) _restart();
+    if (changed)
+      _restart();
+    else if (oldWidget.playbackActive != widget.playbackActive)
+      _syncPlayback();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    movingCoverRevision.removeListener(_onRevisionChanged);
+    SecureSpotifyTokenStore.sessionRevision.removeListener(_onRevisionChanged);
     AnimatedArtworkService.instance.revision.removeListener(_onRevisionChanged);
     _stopListeningToSuppression();
     _teardown();
@@ -189,6 +240,7 @@ class _MotionArtViewState extends State<MotionArtView> {
 
   void _teardown() {
     _generation++;
+    _loading = false;
     _timer?.cancel();
     _timer = null;
     _retryTimer?.cancel();
@@ -205,7 +257,11 @@ class _MotionArtViewState extends State<MotionArtView> {
     if (_liveControllers.remove(controller)) {
       _logLifecycle('stopped active=${_liveControllers.length}');
     }
-    await controller.dispose();
+    try {
+      await controller.dispose().timeout(const Duration(seconds: 4));
+    } catch (_) {
+      /* The platform may already have released the decoder. */
+    }
   }
 
   void _restart() {
@@ -215,9 +271,16 @@ class _MotionArtViewState extends State<MotionArtView> {
   }
 
   void _beginLoad() {
-    if (!widget.enabled || _suppressed || !_routeIsCurrent) return;
+    if (!_canPlay ||
+        _loading ||
+        _timer?.isActive == true ||
+        _retryTimer?.isActive == true)
+      return;
     final generation = _generation;
-    _timer = Timer(_debounce, () => _loadOnce(generation));
+    _timer = Timer(_debounce, () {
+      _timer = null;
+      _loadOnce(generation);
+    });
   }
 
   void _scheduleRetry() {
@@ -250,11 +313,29 @@ class _MotionArtViewState extends State<MotionArtView> {
   }
 
   Future<void> _loadOnce(int generation) async {
+    if (!_canPlay || _loading || generation != _generation) return;
+    _loading = true;
+    try {
+      await _loadClip(generation);
+    } finally {
+      if (generation == _generation) _loading = false;
+    }
+  }
+
+  Future<void> _loadClip(int generation) async {
     MotionArtLookup? lookup;
     try {
-      final service =
-          widget.serviceOverride ?? AnimatedArtworkService.instance;
-      if (widget.albumMode) {
+      final service = widget.serviceOverride ?? AnimatedArtworkService.instance;
+      if (widget.serviceOverride == null) {
+        lookup = await MovingCoverService.instance.lookup(
+          title: widget.albumMode
+              ? widget.representativeSongTitle ?? widget.title
+              : widget.title,
+          artist: widget.artist,
+          album: widget.albumMode ? widget.album ?? widget.title : widget.album,
+          duration: widget.duration,
+        );
+      } else if (widget.albumMode) {
         lookup = await service.lookupAnimatedArtworkForAlbum(
           albumName: widget.album ?? widget.title,
           artist: widget.artist,
@@ -273,7 +354,7 @@ class _MotionArtViewState extends State<MotionArtView> {
       devLog('[MotionArt] lookup failed: $error');
     }
 
-    if (!mounted || generation != _generation) return;
+    if (!mounted || generation != _generation || !_canPlay) return;
     final artwork = lookup?.artwork;
     final url = widget.preferVertical
         ? artwork?.verticalPlaybackUrl
@@ -303,14 +384,14 @@ class _MotionArtViewState extends State<MotionArtView> {
             : null,
         videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
       );
-      await controller.initialize();
+      await controller.initialize().timeout(const Duration(seconds: 15));
       await controller.setLooping(true);
       await controller.setVolume(0);
       if (!mounted || generation != _generation) {
         await _disposeVideo(controller);
         return;
       }
-      await controller.play();
+      if (_canPlay) await controller.play();
     } catch (error) {
       _logFailureOnce('video init', error);
       devLog('[MotionArt] video init failed: $error');
@@ -366,6 +447,19 @@ class _MotionArtViewState extends State<MotionArtView> {
     if (radius != null) {
       video = ClipRRect(borderRadius: radius, child: video);
     }
-    return video;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        widget.fallback,
+        TweenAnimationBuilder<double>(
+          key: ValueKey(controller),
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 240),
+          child: video,
+          builder: (context, value, child) =>
+              Opacity(opacity: value, child: child),
+        ),
+      ],
+    );
   }
 }

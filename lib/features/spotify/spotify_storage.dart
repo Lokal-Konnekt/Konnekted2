@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -55,6 +57,7 @@ class SecureSpotifyTokenStore implements SpotifyTokenStore {
     : _storage = storage ?? const FlutterSecureStorage();
 
   static const _key = 'konnekted.spotify.tokens.v1';
+  static final sessionRevision = ValueNotifier<int>(0);
   final FlutterSecureStorage _storage;
 
   @override
@@ -84,20 +87,28 @@ class SecureSpotifyTokenStore implements SpotifyTokenStore {
   }
 
   @override
-  Future<void> writeTokens(SpotifyTokens tokens) => _storage.write(
-    key: _key,
-    value: jsonEncode({
-      'version': 1,
-      'accessToken': tokens.accessToken,
-      'refreshToken': tokens.refreshToken,
-      'expiresAt': tokens.expiresAt.toUtc().toIso8601String(),
-      'sessionCookie': tokens.sessionCookie,
-      'clientToken': tokens.clientToken,
-    }),
-  );
+  Future<void> writeTokens(SpotifyTokens tokens) async {
+    final previous = await readTokens();
+    await _storage.write(
+      key: _key,
+      value: jsonEncode({
+        'version': 1,
+        'accessToken': tokens.accessToken,
+        'refreshToken': tokens.refreshToken,
+        'expiresAt': tokens.expiresAt.toUtc().toIso8601String(),
+        'sessionCookie': tokens.sessionCookie,
+        'clientToken': tokens.clientToken,
+      }),
+    );
+    if (previous?.sessionCookie != tokens.sessionCookie)
+      sessionRevision.value++;
+  }
 
   @override
-  Future<void> clearTokens() => _storage.delete(key: _key);
+  Future<void> clearTokens() async {
+    await _storage.delete(key: _key);
+    sessionRevision.value++;
+  }
 }
 
 abstract interface class SpotifyPreferenceStore {

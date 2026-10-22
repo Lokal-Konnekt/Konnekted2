@@ -1,3 +1,4 @@
+import 'package:flick/features/konnekted/lokal_home_greeting.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
@@ -151,7 +152,12 @@ void main() {
               (ref) => Stream.value([]),
             ),
             konnektedGreetingProvider.overrideWith(
-              (ref) => Stream.value('Your listening streak has some momentum.'),
+              (ref) => Stream.value(
+                const LokalHomeMessages(
+                  'In a groove',
+                  'Your listening streak has some momentum.',
+                ),
+              ),
             ),
           ],
           child: _app(
@@ -164,10 +170,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining(RegExp('^Good (morning|afternoon|evening)\$')),
-        findsOneWidget,
-      );
+      expect(find.text('In a groove'), findsOneWidget);
       expect(
         find.text('Your listening streak has some momentum.'),
         findsOneWidget,
@@ -179,7 +182,7 @@ void main() {
       expect(find.byTooltip('Settings'), findsOneWidget);
       await tester.tap(find.bySemanticsLabel('Open Flow'));
       expect(opened, [
-        KonnektedDestination.settings,
+        const KonnektedDestination.settingsAt(LokalSettingsGroup.playback),
         const KonnektedDestination.settingsAt(LokalSettingsGroup.appearance),
         KonnektedDestination.flow,
       ]);
@@ -348,7 +351,7 @@ void main() {
               onOpen: () => moves.add('tap'),
               onPlayPause: () {},
               onPrevious: () {},
-                onNext: () {},
+              onNext: () {},
               onQueue: () {},
               progress: const SizedBox(),
               onPullUpStart: () => moves.add('start'),
@@ -452,7 +455,7 @@ void main() {
         onOpen: () {},
         onPlayPause: () {},
         onPrevious: () {},
-                onNext: () {},
+        onNext: () {},
         onQueue: () {},
         progress: const SizedBox.shrink(),
       ),

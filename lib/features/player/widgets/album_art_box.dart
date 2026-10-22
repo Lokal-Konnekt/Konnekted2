@@ -1,3 +1,5 @@
+import 'package:flick/services/motion_art/moving_cover_settings.dart';
+
 import 'dart:math' as math;
 import 'dart:async';
 
@@ -375,7 +377,14 @@ class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
       albumMode: useAlbum,
       representativeSongTitle: useAlbum ? widget.song.title : null,
       duration: widget.song.duration,
-      enabled: widget.motionArtEnabled && motionEnabled && !_isVinyl,
+      enabled:
+          widget.motionArtEnabled &&
+          motionEnabled &&
+          !_isVinyl &&
+          !ref
+              .watch(movingCoverSettingsProvider)
+              .disabledSongs
+              .contains(movingCoverSongKey(widget.song)),
       loadingFallback: staticArt,
       fallback: fallback,
     );

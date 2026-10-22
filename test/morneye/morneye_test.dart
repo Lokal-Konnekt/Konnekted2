@@ -104,15 +104,9 @@ void main() {
     });
 
     test('domain permissions and wildcards', () {
-      expect(
-        morneyeDomainAllowed('api.deezer.com', ['*.deezer.com']),
-        isTrue,
-      );
+      expect(morneyeDomainAllowed('api.deezer.com', ['*.deezer.com']), isTrue);
       expect(morneyeDomainAllowed('deezer.com', ['deezer.com']), isTrue);
-      expect(
-        morneyeDomainAllowed('evildeezer.com', ['*.deezer.com']),
-        isFalse,
-      );
+      expect(morneyeDomainAllowed('evildeezer.com', ['*.deezer.com']), isFalse);
       const permissions = MorneyePermissions(network: ['api.example.com']);
       expect(
         morneyeValidateUrl('https://api.example.com/x', permissions).path,
@@ -207,9 +201,7 @@ void main() {
     tearDown(() => server.close(force: true));
 
     MorneyeNetwork network([List<String> domains = const ['127.0.0.1']]) =>
-        MorneyeNetwork(
-          MorneyePermissions(network: domains, allowHttp: true),
-        );
+        MorneyeNetwork(MorneyePermissions(network: domains, allowHttp: true));
 
     test(
       'keeps cookies between requests and follows local redirects',
@@ -497,8 +489,7 @@ void main() {
         fails('teleport'),
       );
       expect(
-        () =>
-            morneyeValidateManifest(manifestFor('x', network: ['bad host/'])),
+        () => morneyeValidateManifest(manifestFor('x', network: ['bad host/'])),
         fails('network'),
       );
     });
@@ -514,9 +505,7 @@ void main() {
         () => morneyeReadArchive(Uint8List.fromList([1, 2, 3])),
         throwsA(isA<MorneyePackageError>()),
       );
-      final ok = morneyeReadArchive(
-        packageBytes(manifestFor('qobuz'), 'code'),
-      );
+      final ok = morneyeReadArchive(packageBytes(manifestFor('qobuz'), 'code'));
       expect(ok.code, 'code');
     });
   });
@@ -529,6 +518,7 @@ void main() {
     Map<String, GuestMethod> downloader({
       String? payload,
       bool requiresContainerConversion = false,
+      Map<String, Object?>? decryption,
     }) => {
       'initialize': (args, call) async => true,
       'searchTracks': (args, call) async => [
@@ -547,7 +537,9 @@ void main() {
         return {
           'success': true,
           'file_path': path,
-          if (requiresContainerConversion) 'requires_container_conversion': true,
+          if (decryption != null) 'decryption': decryption,
+          if (requiresContainerConversion)
+            'requires_container_conversion': true,
         };
       },
     };
@@ -781,42 +773,100 @@ void main() {
       expect(download.file.existsSync(), isFalse);
     });
 
+    test(
+      'converts a lossless stream container before validating playback',
+      () async {
+        engine.scripts['container'] = downloader(
+          requiresContainerConversion: true,
+        );
+        native.info = {
+          'codec': 'flac',
+          'format': 'isomp4',
+          'duration_ms': 181000,
+        };
+        final conversionPackages = MorneyePackages(
+          dir,
+          storage: storage,
+          native: native,
+          starter: engine.start,
+          audioConverter: (inputPath, outputPath, codec) async {
+            expect(codec, 'copy');
+            expect(File(inputPath).existsSync(), isTrue);
+            native.info = {
+              'codec': 'flac',
+              'format': 'flac',
+              'duration_ms': 181000,
+            };
+            await File(outputPath).writeAsBytes([1, 2, 3, 4]);
+          },
+        );
+        await conversionPackages.load();
+        final addon = await conversionPackages.install(
+          bytes: packageBytes(manifestFor('qobuz'), 'container'),
+        );
+        await conversionPackages.search(addon.key, 'song');
 
-    test('converts a lossless stream container before validating playback', () async {
-      engine.scripts['container'] = downloader(requiresContainerConversion: true);
-      native.info = {
-        'codec': 'flac',
-        'format': 'isomp4',
-        'duration_ms': 181000,
-      };
-      final conversionPackages = MorneyePackages(
-        dir,
-        storage: storage,
-        native: native,
-        starter: engine.start,
-        audioConverter: (inputPath, outputPath, codec) async {
-          expect(codec, 'copy');
-          expect(File(inputPath).existsSync(), isTrue);
-          native.info = {
-            'codec': 'flac',
-            'format': 'flac',
-            'duration_ms': 181000,
-          };
-          await File(outputPath).writeAsBytes([1, 2, 3, 4]);
-        },
-      );
-      await conversionPackages.load();
-      final addon = await conversionPackages.install(
-        bytes: packageBytes(manifestFor('qobuz'), 'container'),
-      );
-      await conversionPackages.search(addon.key, 'song');
+        final download = await conversionPackages.download(addon.key, 't1');
+        expect(p.extension(download.file.path), '.flac');
+        expect(download.info['codec'], 'flac');
+        expect(download.file.readAsBytesSync(), [1, 2, 3, 4]);
+        await download.cleanup();
+        conversionPackages.shutdown();
+      },
+    );
 
-      final download = await conversionPackages.download(addon.key, 't1');
-      expect(p.extension(download.file.path), '.flac');
-      expect(download.info['codec'], 'flac');
-      expect(download.file.readAsBytesSync(), [1, 2, 3, 4]);
-      await download.cleanup();
-      conversionPackages.shutdown();
+    test(
+      'decrypts the desktop Amazon descriptor before probing audio',
+      () async {
+        const key = '00112233445566778899aabbccddeeff';
+        engine.scripts['encrypted'] = downloader(
+          decryption: {'strategy': 'ffmpeg.mov_key', 'key': key},
+        );
+        var decrypted = false;
+        final decryptPackages = MorneyePackages(
+          dir,
+          storage: storage,
+          native: native,
+          starter: engine.start,
+          audioDecryptor: (input, output, suppliedKey) async {
+            expect(suppliedKey, key);
+            expect(File(input).readAsStringSync(), 'audio');
+            decrypted = true;
+            await File(output).writeAsBytes([1, 2, 3, 4]);
+          },
+        );
+        await decryptPackages.load();
+        addTearDown(decryptPackages.shutdown);
+        final addon = await decryptPackages.install(
+          bytes: packageBytes(manifestFor('qobuz'), 'encrypted'),
+        );
+        await decryptPackages.search(addon.key, 'song');
+        final result = await decryptPackages.download(addon.key, 't1');
+        expect(decrypted, isTrue);
+        expect(p.extension(result.file.path), '.flac');
+        expect(result.file.readAsBytesSync(), [1, 2, 3, 4]);
+        await result.cleanup();
+      },
+    );
+
+    test('rejects unknown decryption instead of forwarding arbitrary ffmpeg options', () async {
+      engine.scripts['bad-key'] = downloader(
+        decryption: {'strategy': 'arbitrary', 'key': 'bad'},
+      );
+      final addon = await packages.install(
+        bytes: packageBytes(manifestFor('qobuz'), 'bad-key'),
+      );
+      await packages.search(addon.key, 'song');
+      await expectLater(
+        packages.download(addon.key, 't1'),
+        throwsA(
+          isA<MorneyePackageError>().having(
+            (e) => e.message,
+            'message',
+            contains('descriptor'),
+          ),
+        ),
+      );
     });
 
     test('refuses audio the phone can’t play or that doesn’t match', () async {

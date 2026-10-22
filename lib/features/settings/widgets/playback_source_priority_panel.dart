@@ -102,6 +102,9 @@ class _PlaybackSourcePriorityPanelState
             ),
           ),
           title: Text(_sources[index].name),
+          subtitle: _sources[index].needsVerification?.call() == true
+              ? Text(lokalText('Needs verification'))
+              : null,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/features/player/widgets/lyric_motion_line.dart';
-import 'package:flick/features/player/widgets/player_lyrics_transition.dart';
+import 'package:flick/features/player/widgets/player_panel_stage.dart';
 
 void main() {
   testWidgets(
@@ -63,53 +63,86 @@ void main() {
       }
     },
   );
-  testWidgets('rapid lyric transitions retain scroll state and controls', (
-    tester,
-  ) async {
-    var show = false;
-    late StateSetter change;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: StatefulBuilder(
-          builder: (context, setState) {
-            change = setState;
-            return Column(
-              children: [
-                Expanded(
-                  child: PlayerLyricsTransition(
-                    showLyrics: show,
-                    cover: const Text('Artwork'),
-                    lyrics: ListView(
-                      key: const ValueKey('scroll'),
-                      children: [
-                        for (var i = 0; i < 50; i++)
-                          SizedBox(height: 40, child: Text('Line $i')),
-                      ],
-                    ),
+  testWidgets(
+    'one cover moves between queue and lyrics without growing or losing scroll',
+    (tester) async {
+      final q = ValueNotifier<double>(1), l = ValueNotifier<double>(0);
+      addTearDown(q.dispose);
+      addTearDown(l.dispose);
+      Widget list(String name) => ListView(
+        key: ValueKey(name),
+        children: [
+          for (var i = 0; i < 50; i++)
+            SizedBox(height: 40, child: Text('$name $i')),
+        ],
+      );
+      final queue = list('queue'), lyrics = list('lyrics');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 360,
+              height: 560,
+              child: ValueListenableBuilder<double>(
+                valueListenable: l,
+                builder: (context, value, _) => PlayerPanelStage(
+                  queueProgress: AlwaysStoppedAnimation(q.value),
+                  lyricsProgress: AlwaysStoppedAnimation(value),
+                  queueOpen: value == 0 && q.value > 0,
+                  lyricsOpen: value > 0,
+                  artwork: (context, side, progress) => const ColoredBox(
+                    key: ValueKey('shared-cover'),
+                    color: Colors.blue,
                   ),
+                  info: (context, progress) => const SizedBox(
+                    height: 44,
+                    child: Text('Song title', key: ValueKey('shared-title')),
+                  ),
+                  queue: queue,
+                  lyrics: lyrics,
                 ),
-                const Text('Transport'),
-              ],
-            );
-          },
+              ),
+            ),
+          ),
         ),
-      ),
-    );
-    change(() => show = true);
-    await tester.pumpAndSettle();
-    final scroll = tester.state<ScrollableState>(
-      find.descendant(
-        of: find.byKey(const ValueKey('scroll')),
-        matching: find.byType(Scrollable),
-      ),
-    );
-    scroll.position.jumpTo(160);
-    change(() => show = false);
-    await tester.pump(const Duration(milliseconds: 100));
-    change(() => show = true);
-    await tester.pumpAndSettle();
-    expect(scroll.position.pixels, 160);
-    expect(find.text('Transport'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      ScrollableState scroll(String name) => tester.state<ScrollableState>(
+        find.descendant(
+          of: find.byKey(ValueKey(name)),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      scroll('queue').position.jumpTo(160);
+      final start = tester.getRect(find.byKey(const ValueKey('shared-cover')));
+      expect(start.width, 52);
+      var previousY = start.top;
+      for (final t in [.1, .3, .5, .7, 1.0]) {
+        l.value = t;
+        await tester.pump();
+        final rect = tester.getRect(find.byKey(const ValueKey('shared-cover')));
+        expect(rect.width, 52); // Never returns via the large cover.
+        expect(rect.top, greaterThan(previousY));
+        previousY = rect.top;
+        expect(find.byKey(const ValueKey('shared-cover')), findsOneWidget);
+      }
+      scroll('lyrics').position.jumpTo(200);
+      for (final t in [.8, .4, .6, .2, 0.0]) {
+        l.value = t;
+        await tester.pump();
+      }
+      expect(scroll('queue').position.pixels, 160);
+      expect(scroll('lyrics').position.pixels, 200);
+      expect(tester.getRect(find.byKey(const ValueKey('shared-cover'))), start);
+      q.value = 0;
+      l.value = .01;
+      await tester.pump();
+      l.value = 0;
+      await tester.pump();
+      expect(
+        tester.getSize(find.byKey(const ValueKey('shared-cover'))).width,
+        greaterThan(300),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

@@ -1,3 +1,5 @@
+import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -36,9 +38,9 @@ class _FlowScreenState extends ConsumerState<FlowScreen> {
     }
   }
 
-  void _message(String message) => ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(message)));
+  void _message(String message) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
 
   void _retry() {
     ref.invalidate(songsProvider);
@@ -192,8 +194,7 @@ class _FlowScreenState extends ConsumerState<FlowScreen> {
             child: _StateCard(
               icon: Icons.library_music_outlined,
               title: 'Your local library is empty',
-              message:
-                  'Scan music in your Library, then like at least 16 tracks to build your Flow.',
+              message: 'Scan music in your Library, then like at least 16 tracks to build your Flow.',
             ),
           )
         else if (!library.unlocked)
@@ -335,10 +336,17 @@ class _FlowScreenState extends ConsumerState<FlowScreen> {
     final liked = library.favoriteIds.contains(song.id);
     return ListTile(
       selected: current,
-      leading: CircleAvatar(
-        child: current && player.isPlaying
-            ? const Icon(Icons.graphic_eq)
-            : Text('${index + 1}'),
+      leading: SizedBox.square(
+        dimension: 44,
+        child: ClipOval(
+          child: CachedImageWidget(
+            imagePath: song.albumArt,
+            audioSourcePath: song.filePath,
+            fit: BoxFit.cover,
+            placeholder: const FlickArtworkPlaceholder(),
+            errorWidget: const FlickArtworkPlaceholder(),
+          ),
+        ),
       ),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(

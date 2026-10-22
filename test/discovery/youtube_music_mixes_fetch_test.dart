@@ -150,6 +150,60 @@ void main() {
   );
 
   test(
+    'populated first mix shelf does not hide mixes on later home pages',
+    () async {
+      var continued = false;
+      final client = MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        final body = jsonDecode(request.body) as Map;
+        if (body['browseId'] != 'FEmusic_home') {
+          return http.Response(jsonEncode(signed({})), 200);
+        }
+        if (body['continuation'] != null) {
+          continued = true;
+          return http.Response(
+            jsonEncode(signed({
+              'gridRenderer': {
+                'items': [card('RDTMAKsecond456', 'Second mix')],
+              },
+            })),
+            200,
+          );
+        }
+        return http.Response(
+          jsonEncode(signed({
+            'sectionListRenderer': {
+              'contents': [
+                {
+                  'musicCarouselShelfRenderer': {
+                    'header': {
+                      'musicCarouselShelfBasicHeaderRenderer': {
+                        'title': {'simpleText': 'Mixed for you'},
+                      },
+                    },
+                    'contents': [card('RDTMAKfirst123', 'First mix')],
+                  },
+                },
+              ],
+              'continuations': [
+                {
+                  'nextContinuationData': {'continuation': 'more-mixes'},
+                },
+              ],
+            },
+          })),
+          200,
+        );
+      });
+      addTearDown(client.close);
+      final data = await account(client).fetch();
+      expect(continued, isTrue);
+      expect(data.mixes.map((mix) => mix.id),
+          containsAll(['RDTMAKfirst123', 'RDTMAKsecond456']));
+    },
+  );
+
+  test(
     'provider personal mix chip supplies its real browse route and params',
     () async {
       final client = MockClient((request) async {

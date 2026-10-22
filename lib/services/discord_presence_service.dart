@@ -1,6 +1,7 @@
 import 'package:flick/models/song.dart';
 import 'package:flick/features/discovery/discovery_artwork.dart';
 import 'package:flick/features/discovery/discovery_http.dart';
+import 'package:flick/features/discovery/discovery_sources.dart';
 import 'package:flick/services/graceful_http_client.dart';
 
 import 'dart:async';
@@ -40,8 +41,16 @@ class DiscordPresenceService extends ChangeNotifier {
   final MethodChannel _channel;
   final bool _android;
   final Future<String?> Function(Song)? _artworkResolver;
+  // Local album-art paths cannot be used in Discord activity assets.
+  // Resolve a matching public cover, using the same verified YouTube Music
+  // fallback as Discovery when Deezer and Apple Music have no matching art.
+  late final _artworkHttp = DiscoveryHttp(GracefulHttpClient());
   late final _artwork = DiscoveryArtworkResolver(
-    DiscoveryHttp(GracefulHttpClient()),
+    _artworkHttp,
+    searchSongs: YoutubeMusicCatalog(
+      _artworkHttp,
+      refreshClientContext: true,
+    ).search,
   );
   final _covers = <String, String>{};
   final _coverJobs = <String>{};

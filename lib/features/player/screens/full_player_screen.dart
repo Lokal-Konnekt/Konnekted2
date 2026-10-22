@@ -373,7 +373,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             fit: StackFit.expand,
             children: [
               ArtworkGradientBackdrop(colors: colors),
-              if (fullCover) _fullscreenArtwork(song),
               if (fullCover)
                 const IgnorePointer(
                   child: DecoratedBox(
@@ -394,6 +393,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 )
               else
                 Container(color: Colors.black.withValues(alpha: 0.24)),
+              if (fullCover) _fullscreenArtwork(song),
               SafeArea(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
@@ -631,6 +631,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           presentationBuilder: (context, artwork, canvas) =>
                               FullBleedArtworkFrame(
                                 canvas: canvas,
+                                morphEnabled: current,
                                 bannerBottom: _posterBottom,
                                 child: artwork,
                               ),

@@ -42,11 +42,7 @@ class YoutubeMusicSession {
   ];
 
   String? get _sapisid {
-    for (final name in [
-      'SAPISID',
-      '__Secure-3PAPISID',
-      '__Secure-1PAPISID',
-    ]) {
+    for (final name in ['SAPISID', '__Secure-3PAPISID', '__Secure-1PAPISID']) {
       final value = cookies[name];
       if (value != null && value.isNotEmpty) return value;
     }
@@ -57,10 +53,14 @@ class YoutubeMusicSession {
 
   /// Non-reversible account identity for caches; raw cookies aren't cache keys.
   String get accountKey => sha256
-      .convert(utf8.encode([
-        for (final name in identityCookies)
-          name + '=' + (cookies[name] ?? ''),
-      ].join(';')))
+      .convert(
+        utf8.encode(
+          [
+            for (final name in identityCookies)
+              name + '=' + (cookies[name] ?? ''),
+          ].join(';'),
+        ),
+      )
       .toString()
       .substring(0, 24);
 
@@ -119,9 +119,9 @@ Map<String, String>? youtubeMusicHeaders(
   if (sapisid == null) return null;
   final timestamp = (now ?? DateTime.now()).millisecondsSinceEpoch ~/ 1000;
   String signed(String scheme, String value) {
-    final digest = sha1.convert(utf8.encode(
-      timestamp.toString() + ' ' + value + ' ' + _origin,
-    ));
+    final digest = sha1.convert(
+      utf8.encode(timestamp.toString() + ' ' + value + ' ' + _origin),
+    );
     return scheme + ' ' + timestamp.toString() + '_' + digest.toString();
   }
 
@@ -148,8 +148,7 @@ Map<String, String>? youtubeMusicHeaders(
     'Authorization': authorization.join(' '),
     'X-Origin': _origin,
     'X-YouTube-Client-Name': '67',
-    'X-YouTube-Client-Version':
-        session.clientVersion ?? _fallbackClientVersion,
+    'X-YouTube-Client-Version': session.clientVersion ?? _fallbackClientVersion,
     'X-Goog-AuthUser': session.sessionIndex ?? '0',
     if (session.visitorData != null) 'X-Goog-Visitor-Id': session.visitorData!,
     if (session.delegatedSessionId != null)
@@ -206,14 +205,20 @@ String _thumbnail(Object? value) {
 
   visit(value, 0);
   if (urls.isEmpty) return '';
-  return urls.last.replaceFirst(RegExp(r'=w\d+-h\d+[^&?]*$'), '=w544-h544-l90-rj');
+  return urls.last.replaceFirst(
+    RegExp(r'=w\d+-h\d+[^&?]*$'),
+    '=w544-h544-l90-rj',
+  );
 }
 
-String _pageType(Object? endpoint) => (_at(endpoint, [
-  'browseEndpointContextSupportedConfigs',
-  'browseEndpointContextMusicConfig',
-  'pageType',
-]) ?? '').toString();
+String _pageType(Object? endpoint) =>
+    (_at(endpoint, [
+              'browseEndpointContextSupportedConfigs',
+              'browseEndpointContextMusicConfig',
+              'pageType',
+            ]) ??
+            '')
+        .toString();
 
 Duration? _duration(Object? raw) {
   final value = _text(raw).trim();
@@ -224,7 +229,11 @@ Duration? _duration(Object? raw) {
   return Duration(seconds: parts.fold<int>(0, (n, p) => n * 60 + p!));
 }
 
-void _walk(Object? root, void Function(Map node) visit, {int maxNodes = 40000}) {
+void _walk(
+  Object? root,
+  void Function(Map node) visit, {
+  int maxNodes = 40000,
+}) {
   var count = 0;
   void walk(Object? value, int depth) {
     if (++count > maxNodes || depth > 45) return;
@@ -278,8 +287,10 @@ _Metadata _metadata(Iterable<Object?> rawRuns) {
     }
   }
   if (loose.isNotEmpty &&
-      RegExp(r'^(song|video|episode)$', caseSensitive: false)
-          .hasMatch(loose.first)) {
+      RegExp(
+        r'^(song|video|episode)$',
+        caseSensitive: false,
+      ).hasMatch(loose.first)) {
     kind = loose.removeAt(0).toLowerCase();
   }
   if (artists.isEmpty && loose.isNotEmpty) artists.add(loose.removeAt(0));
@@ -292,43 +303,46 @@ _Metadata _metadata(Iterable<Object?> rawRuns) {
   );
 }
 
-List<Object?> _columnRuns(Map renderer, int index) =>
-    _list(_at(renderer, [
-      'flexColumns',
-      index,
-      'musicResponsiveListItemFlexColumnRenderer',
-      'text',
-      'runs',
-    ]));
+List<Object?> _columnRuns(Map renderer, int index) => _list(
+  _at(renderer, [
+    'flexColumns',
+    index,
+    'musicResponsiveListItemFlexColumnRenderer',
+    'text',
+    'runs',
+  ]),
+);
 
 List<Object?> _bylineRuns(Object? byline) {
   final runs = _list(_at(byline, ['runs']));
   if (runs.any((run) => run is Map && run['navigationEndpoint'] != null)) {
     return runs;
   }
-  return [for (final line in _text(byline).split('•')) {'text': line}];
+  return [
+    for (final line in _text(byline).split('•')) {'text': line},
+  ];
 }
 
 LokalDiscoveryTrack? _listItem(Map renderer) {
   final titleRuns = _columnRuns(renderer, 0);
-  final watch = _at(titleRuns.firstOrNull, [
-        'navigationEndpoint',
-        'watchEndpoint',
-      ]) ??
+  final watch =
+      _at(titleRuns.firstOrNull, ['navigationEndpoint', 'watchEndpoint']) ??
       _at(renderer, ['navigationEndpoint', 'watchEndpoint']);
-  final rawId = _at(renderer, ['playlistItemData', 'videoId']) ??
-      _at(watch, ['videoId']);
+  final rawId =
+      _at(renderer, ['playlistItemData', 'videoId']) ?? _at(watch, ['videoId']);
   final id = rawId?.toString() ?? '';
   if (!_videoId.hasMatch(id)) return null;
   final columns = _list(renderer['flexColumns']);
   final runs = <Object?>[
     for (var i = 1; i < columns.length; i++) ..._columnRuns(renderer, i),
     for (final column in _list(renderer['fixedColumns']))
-      ..._list(_at(column, [
-        'musicResponsiveListItemFixedColumnRenderer',
-        'text',
-        'runs',
-      ])),
+      ..._list(
+        _at(column, [
+          'musicResponsiveListItemFixedColumnRenderer',
+          'text',
+          'runs',
+        ]),
+      ),
   ];
   final meta = _metadata(runs);
   if (meta.kind == 'episode') return null;
@@ -365,13 +379,20 @@ LokalDiscoveryTrack? _trackCard(Map renderer) {
     for (final run in _list(_at(renderer, ['title', 'runs'])))
       _at(run, ['navigationEndpoint']),
   ];
-  if (endpoints.any((endpoint) =>
-      _at(endpoint, ['watchPlaylistEndpoint']) != null ||
-      (_at(endpoint, ['browseEndpoint', 'browseId']) ?? '').toString().startsWith('VL'))) {
+  if (endpoints.any(
+    (endpoint) =>
+        _at(endpoint, ['watchPlaylistEndpoint']) != null ||
+        (_at(endpoint, ['browseEndpoint', 'browseId']) ?? '')
+            .toString()
+            .startsWith('VL'),
+  )) {
     return null;
   }
   final id = endpoints
-      .map((endpoint) => (_at(endpoint, ['watchEndpoint', 'videoId']) ?? '').toString())
+      .map(
+        (endpoint) =>
+            (_at(endpoint, ['watchEndpoint', 'videoId']) ?? '').toString(),
+      )
       .firstWhere(_videoId.hasMatch, orElse: () => '');
   final title = _text(renderer['title']);
   if (id.isEmpty || title.isEmpty) return null;
@@ -419,10 +440,10 @@ List<LokalDiscoveryTrack> parseYoutubeMusicTracks(
     final track = row is Map
         ? _listItem(row)
         : panel is Map
-            ? _panelItem(panel)
-            : card is Map
-                ? _trackCard(card)
-                : null;
+        ? _panelItem(panel)
+        : card is Map
+        ? _trackCard(card)
+        : null;
     if (track == null || track.title.isEmpty || track.videoId == null) return;
     if (seen.add(track.videoId!)) tracks.add(track);
   });
@@ -437,7 +458,10 @@ List<LokalDiscoveryMix> parseYoutubeMusicPlaylists(
   final playlists = <String, LokalDiscoveryMix>{};
   _walk(root, (node) {
     if (playlists.length >= limit) return;
-    final renderer = node['gridPlaylistRenderer'] ?? node['musicTwoRowItemRenderer'];
+    final renderer =
+        node['gridPlaylistRenderer'] ??
+        node['musicTwoRowItemRenderer'] ??
+        node['musicResponsiveListItemRenderer'];
     if (renderer is! Map) return;
     final endpoints = <Object?>[
       for (final run in _list(_at(renderer, ['title', 'runs'])))
@@ -450,12 +474,15 @@ List<LokalDiscoveryMix> parseYoutubeMusicPlaylists(
         .whereType<Map>()
         .firstOrNull;
     final type = _pageType(browse);
-    final rawId = renderer['playlistId'] ??
+    final rawId =
+        renderer['playlistId'] ??
         _at(browse, ['browseId']) ??
         endpoints
-            .map((endpoint) =>
-                _at(endpoint, ['watchPlaylistEndpoint', 'playlistId']) ??
-                _at(endpoint, ['watchEndpoint', 'playlistId']))
+            .map(
+              (endpoint) =>
+                  _at(endpoint, ['watchPlaylistEndpoint', 'playlistId']) ??
+                  _at(endpoint, ['watchEndpoint', 'playlistId']),
+            )
             .firstWhere((value) => value != null, orElse: () => null);
     var id = rawId?.toString() ?? '';
     if (id.startsWith('VL')) id = id.substring(2);
@@ -463,24 +490,39 @@ List<LokalDiscoveryMix> parseYoutubeMusicPlaylists(
         id.startsWith('UC') ||
         id.startsWith('MPRE') ||
         id.startsWith('FE') ||
-        (type.isNotEmpty && !type.endsWith('_PLAYLIST') && !id.startsWith('RD')) ||
+        (type.isNotEmpty &&
+            !type.endsWith('_PLAYLIST') &&
+            !id.startsWith('RD')) ||
         (id.startsWith('RD') && id.length < 8)) {
       return;
     }
-    final title = _text(renderer['title']);
+    final title = _text(
+      renderer['title'] ??
+          _at(renderer, [
+            'flexColumns',
+            0,
+            'musicResponsiveListItemFlexColumnRenderer',
+            'text',
+          ]),
+    );
     if (title.isEmpty) return;
-    playlists.putIfAbsent(id, () => LokalDiscoveryMix(
-      id: id,
-      title: title,
-      author: _text(renderer['shortBylineText'] ?? renderer['subtitle']),
-      artworkUrl: _thumbnail(renderer['thumbnailRenderer'] ?? renderer['thumbnail']),
-    ));
+    playlists.putIfAbsent(
+      id,
+      () => LokalDiscoveryMix(
+        id: id,
+        title: title,
+        author: _text(renderer['shortBylineText'] ?? renderer['subtitle']),
+        artworkUrl: _thumbnail(
+          renderer['thumbnailRenderer'] ?? renderer['thumbnail'],
+        ),
+      ),
+    );
   });
   return playlists.values.toList();
 }
 
 final _mixTitle = RegExp(
-  r'^(mixed for you|mixes for you|your mixes)$',
+  r'^(mixed for you|mixes for you|your mixes|mix pour vous|mix pour toi|mixes pour vous|vos mix|für dich gemixt|mixes für dich|mixes para ti|mezclas para ti|mix per te|mixes para você|ミックスリスト|あなたへのミックス|나만을 위한 믹스|为你精选的混合播放列表)$',
   caseSensitive: false,
 );
 
@@ -490,13 +532,39 @@ String _shelfTitle(Map shelf) => _text(
       shelf['title'],
 ).trim();
 
+bool _isPersonalMixShelf(Map shelf) {
+  if (_mixTitle.hasMatch(_shelfTitle(shelf))) return true;
+  var personal = false;
+  _walk(shelf['header'], (node) {
+    final id = node['browseId'];
+    if (id is String &&
+        RegExp(r'(mixed_for_you|mixes_for_you|your_mixes)').hasMatch(id))
+      personal = true;
+  });
+  return personal;
+}
+
+bool _hasPersonalMixShelf(Object? root) {
+  var found = false;
+  _walk(root, (node) {
+    final shelf =
+        node['musicCarouselShelfRenderer'] ?? node['musicShelfRenderer'];
+    if (shelf is Map && _isPersonalMixShelf(shelf)) found = true;
+  });
+  return found;
+}
+
 List<LokalDiscoveryMix> parseYoutubeMusicMixes(Object? root) {
   final mixes = <String, LokalDiscoveryMix>{};
   _walk(root, (node) {
-    final shelf = node['musicCarouselShelfRenderer'] ?? node['musicShelfRenderer'];
+    final shelf =
+        node['musicCarouselShelfRenderer'] ?? node['musicShelfRenderer'];
     if (shelf is! Map) return;
-    final named = _mixTitle.hasMatch(_shelfTitle(shelf));
-    for (final mix in parseYoutubeMusicPlaylists(shelf['contents'], limit: 200)) {
+    final named = _isPersonalMixShelf(shelf);
+    for (final mix in parseYoutubeMusicPlaylists(
+      shelf['contents'],
+      limit: 200,
+    )) {
       if (named || mix.id.startsWith('RDTMAK')) {
         mixes.putIfAbsent(mix.id, () => mix);
       }
@@ -506,16 +574,24 @@ List<LokalDiscoveryMix> parseYoutubeMusicMixes(Object? root) {
 }
 
 /// The "More" browse endpoint attached to a named personal-mixes shelf.
-List<({String browseId, String? params})> _mixShelfBrowseEndpoints(Object? root) {
+List<({String browseId, String? params})> _mixShelfBrowseEndpoints(
+  Object? root,
+) {
   final endpoints = <String, ({String browseId, String? params})>{};
   _walk(root, (node) {
-    final shelf = node['musicCarouselShelfRenderer'] ?? node['musicShelfRenderer'];
-    if (shelf is! Map || !_mixTitle.hasMatch(_shelfTitle(shelf))) return;
+    final shelf =
+        node['musicCarouselShelfRenderer'] ?? node['musicShelfRenderer'];
+    if (shelf is! Map || !_isPersonalMixShelf(shelf)) return;
     _walk(shelf['header'], (headerNode) {
       final candidates = [
         headerNode['browseEndpoint'],
         _at(headerNode, ['navigationEndpoint', 'browseEndpoint']),
-        _at(headerNode, ['moreContentButton', 'buttonRenderer', 'navigationEndpoint', 'browseEndpoint']),
+        _at(headerNode, [
+          'moreContentButton',
+          'buttonRenderer',
+          'navigationEndpoint',
+          'browseEndpoint',
+        ]),
       ];
       for (final candidate in candidates.whereType<Map>()) {
         final id = candidate['browseId'];
@@ -535,10 +611,13 @@ List<({String browseId, String? params})> _mixShelfBrowseEndpoints(Object? root)
 List<LokalDiscoveryArtist> parseYoutubeMusicArtists(Object? root) {
   final artists = <String, LokalDiscoveryArtist>{};
   _walk(root, (node) {
-    final row = node['musicTwoRowItemRenderer'] ?? node['musicResponsiveListItemRenderer'];
+    final row =
+        node['musicTwoRowItemRenderer'] ??
+        node['musicResponsiveListItemRenderer'];
     if (row is! Map) return;
     final titleRuns = _columnRuns(row, 0);
-    final endpoint = _at(row, ['navigationEndpoint', 'browseEndpoint']) ??
+    final endpoint =
+        _at(row, ['navigationEndpoint', 'browseEndpoint']) ??
         _at(titleRuns.firstOrNull, ['navigationEndpoint', 'browseEndpoint']);
     final id = (_at(endpoint, ['browseId']) ?? '').toString();
     final title = _text(row['title']).isNotEmpty
@@ -548,10 +627,13 @@ List<LokalDiscoveryArtist> parseYoutubeMusicArtists(Object? root) {
         (!_pageType(endpoint).endsWith('_ARTIST') && !id.startsWith('UC'))) {
       return;
     }
-    artists.putIfAbsent(id, () => LokalDiscoveryArtist(
-      name: title,
-      image: _thumbnail(row['thumbnailRenderer'] ?? row['thumbnail']),
-    ));
+    artists.putIfAbsent(
+      id,
+      () => LokalDiscoveryArtist(
+        name: title,
+        image: _thumbnail(row['thumbnailRenderer'] ?? row['thumbnail']),
+      ),
+    );
   });
   return artists.values.take(30).toList();
 }
@@ -581,7 +663,8 @@ bool _confirmsSignedIn(Map<String, dynamic> json) {
   for (final service in _list(context['serviceTrackingParams'])) {
     if (service is! Map) continue;
     for (final param in _list(service['params'])) {
-      if (param is Map && param['key'] == 'logged_in' &&
+      if (param is Map &&
+          param['key'] == 'logged_in' &&
           (param['value'] ?? '').toString() == '1') {
         return true;
       }
@@ -628,9 +711,15 @@ List<String> _continuations(Object? root) {
       final token = _at(item, ['nextContinuationData', 'continuation']);
       if (token is String && token.isNotEmpty) tokens.add(token);
     }
-    final token = _at(node, ['continuationEndpoint', 'continuationCommand', 'token']);
+    final token = _at(node, [
+      'continuationEndpoint',
+      'continuationCommand',
+      'token',
+    ]);
     if (token is String && token.isNotEmpty) tokens.add(token);
-    for (final item in _list(node['contents'] ?? node['items'] ?? node['continuationItems'])) {
+    for (final item in _list(
+      node['contents'] ?? node['items'] ?? node['continuationItems'],
+    )) {
       final next = _at(item, [
         'continuationItemRenderer',
         'continuationEndpoint',
@@ -665,50 +754,62 @@ class YoutubeMusicAccount {
   }) async {
     final headers = youtubeMusicHeaders(session);
     if (headers == null) {
-      throw const YoutubeMusicSignedOut('Sign in to YouTube Music in Integrations.');
+      throw const YoutubeMusicSignedOut(
+        'Sign in to YouTube Music in Integrations.',
+      );
     }
     final uri = Uri.https('music.youtube.com', '/youtubei/v1/' + endpoint, {
       'prettyPrint': 'false',
       if (continuation != null) 'continuation': continuation,
       if (continuation != null) 'ctoken': continuation,
     });
-    final response = await client.post(
-      uri,
-      headers: headers,
-      body: jsonEncode({
-        'context': {
-          'client': {
-            'clientName': 'WEB_REMIX',
-            'clientVersion': session.clientVersion ?? _fallbackClientVersion,
-            'hl': 'en',
-            if (session.visitorData != null) 'visitorData': session.visitorData,
-          },
-          'user': {
-            if (session.delegatedSessionId != null)
-              'onBehalfOfUser': session.delegatedSessionId,
-          },
-        },
-        ...body,
-        if (continuation != null) 'continuation': continuation,
-      }),
-    ).timeout(timeout ?? this.timeout);
+    final response = await client
+        .post(
+          uri,
+          headers: headers,
+          body: jsonEncode({
+            'context': {
+              'client': {
+                'clientName': 'WEB_REMIX',
+                'clientVersion':
+                    session.clientVersion ?? _fallbackClientVersion,
+                'hl': 'en',
+                if (session.visitorData != null)
+                  'visitorData': session.visitorData,
+              },
+              'user': {
+                if (session.delegatedSessionId != null)
+                  'onBehalfOfUser': session.delegatedSessionId,
+              },
+            },
+            ...body,
+            if (continuation != null) 'continuation': continuation,
+          }),
+        )
+        .timeout(timeout ?? this.timeout);
     _keepCookies(response.headers['set-cookie']);
     if (response.statusCode == 401 || response.statusCode == 403) {
       throw const YoutubeMusicSignedOut();
     }
     if (response.statusCode != 200) {
       throw LokalDiscoveryFailure(
-        'YouTube Music account request failed (' + response.statusCode.toString() + ').',
+        'YouTube Music account request failed (' +
+            response.statusCode.toString() +
+            ').',
       );
     }
     final Object? decoded;
     try {
       decoded = jsonDecode(utf8.decode(response.bodyBytes));
     } on FormatException {
-      throw const LokalDiscoveryFailure('YouTube Music returned an unreadable answer.');
+      throw const LokalDiscoveryFailure(
+        'YouTube Music returned an unreadable answer.',
+      );
     }
     if (decoded is! Map<String, dynamic>) {
-      throw const LokalDiscoveryFailure('YouTube Music returned an unreadable answer.');
+      throw const LokalDiscoveryFailure(
+        'YouTube Music returned an unreadable answer.',
+      );
     }
     if (youtubeMusicLoggedOut(decoded)) throw const YoutubeMusicSignedOut();
     return decoded;
@@ -759,25 +860,35 @@ class YoutubeMusicAccount {
     final pending = _continuations(first);
     final deadline = DateTime.now().add(const Duration(seconds: 10));
     while (pending.isNotEmpty && pages.length < 10) {
-      if (stopAtMixShelf && parseYoutubeMusicMixes(pages).isNotEmpty) break;
+      if (stopAtMixShelf && _hasPersonalMixShelf(pages)) break;
       final token = pending.removeAt(0);
       if (!seen.add(token)) continue;
       final left = deadline.difference(DateTime.now());
       if (left <= Duration.zero) {
-        return (pages: pages, error: 'YouTube Music loading timed out. Refresh to retry.');
+        return (
+          pages: pages,
+          error: 'YouTube Music loading timed out. Refresh to retry.',
+        );
       }
       try {
         final page = await browse(
           browseId,
           continuation: token,
-          timeout: left < const Duration(seconds: 5) ? left : const Duration(seconds: 5),
+          timeout: left < const Duration(seconds: 5)
+              ? left
+              : const Duration(seconds: 5),
         );
         pages.add(page);
-        pending.addAll(_continuations(page).where((value) => !seen.contains(value)));
+        pending.addAll(
+          _continuations(page).where((value) => !seen.contains(value)),
+        );
       } on YoutubeMusicSignedOut {
         rethrow;
       } catch (_) {
-        return (pages: pages, error: 'Some YouTube Music recommendations could not be loaded.');
+        return (
+          pages: pages,
+          error: 'Some YouTube Music recommendations could not be loaded.',
+        );
       }
     }
     if (pending.isNotEmpty && pages.length >= 10) {
@@ -815,7 +926,9 @@ class YoutubeMusicAccount {
         throw signedOut ?? const YoutubeMusicSignedOut();
       }
       throw LokalDiscoveryFailure(
-        errors.isEmpty ? 'YouTube Music did not answer.' : _message(errors.first),
+        errors.isEmpty
+            ? 'YouTube Music did not answer.'
+            : _message(errors.first),
       );
     }
 
@@ -834,7 +947,10 @@ class YoutubeMusicAccount {
         final first = await browse(endpoint.browseId, params: endpoint.params);
         final result = await _pages(endpoint.browseId, first);
         mixError ??= result.error;
-        for (final mix in parseYoutubeMusicPlaylists(result.pages, limit: 500)) {
+        for (final mix in parseYoutubeMusicPlaylists(
+          result.pages,
+          limit: 500,
+        )) {
           mixes.putIfAbsent(mix.id, () => mix);
         }
       } on YoutubeMusicSignedOut {
@@ -843,7 +959,9 @@ class YoutubeMusicAccount {
         mixError ??= 'YouTube Music could not load every personal mix. Refresh to retry.';
       }
     }
-    final likedTracks = liked == null ? null : parseYoutubeMusicTracks(liked, limit: limit);
+    final likedTracks = liked == null
+        ? null
+        : parseYoutubeMusicTracks(liked, limit: limit);
     final homeTracks = parseYoutubeMusicTracks(homePages, limit: limit);
     final historyTracks = history == null
         ? null
@@ -855,7 +973,9 @@ class YoutubeMusicAccount {
       mixes: mixes.values.toList(),
       history: historyTracks,
       artists: parseYoutubeMusicArtists(homePages),
-      homeError: home == null && errors.isNotEmpty ? _message(errors.first) : null,
+      homeError: home == null && errors.isNotEmpty
+          ? _message(errors.first)
+          : null,
       mixError: mixError,
     );
   }
@@ -930,8 +1050,9 @@ Future<LokalDiscovery> loadYoutubeMusicDiscovery(
     for (final mix in selected) {
       final cacheKey = key + ':' + mix.id;
       try {
-        picks.addAll(_playlistCache[cacheKey] ??=
-            await account.playlist(mix.id));
+        picks.addAll(
+          _playlistCache[cacheKey] ??= await account.playlist(mix.id),
+        );
       } on YoutubeMusicSignedOut {
         rethrow;
       } catch (error) {
@@ -954,7 +1075,10 @@ Future<LokalDiscovery> loadYoutubeMusicDiscovery(
     if (artists.length >= 30) break;
     final name = track.artist.split(',').first.trim();
     if (name.isNotEmpty) {
-      artists.putIfAbsent(name.toLowerCase(), () => LokalDiscoveryArtist(name: name));
+      artists.putIfAbsent(
+        name.toLowerCase(),
+        () => LokalDiscoveryArtist(name: name),
+      );
     }
   }
   if (data.homeError != null) warnings.add(data.homeError!);

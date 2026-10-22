@@ -6,15 +6,16 @@ import android.app.Dialog
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
-import android.os.Build
-import android.util.Base64
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
-import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import kotlinx.coroutines.delay
+import java.util.concurrent.ConcurrentHashMap
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -28,7 +29,6 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
-import java.util.UUID
 
 /**
  * BitChord-style Spotify web session support.
@@ -43,11 +43,13 @@ internal class SpotifyWebSession(private val activity: Activity) {
         val accessToken: String,
         val clientToken: String?,
         val expiresAtMs: Long,
+        val queryHashes: Map<String, String>,
     ) {
         fun asMap(): Map<String, Any?> = mapOf(
             "accessToken" to accessToken,
             "clientToken" to clientToken,
             "expiresAtMs" to expiresAtMs,
+            "queryHashes" to queryHashes,
         )
     }
 
@@ -55,17 +57,6 @@ internal class SpotifyWebSession(private val activity: Activity) {
         val dialog: Dialog,
         val webView: WebView,
         val callback: (String?) -> Unit,
-    )
-
-    private data class HarvestedToken(
-        val accessToken: String,
-        val expiresAtMs: Long,
-        val clientId: String?,
-    )
-
-    private data class SessionInfo(
-        val clientVersion: String,
-        val deviceId: String,
     )
 
     private var loginState: LoginState? = null
@@ -176,17 +167,7 @@ internal class SpotifyWebSession(private val activity: Activity) {
         val cookie = spDc.trim()
         if (cookie.isEmpty()) return null
 
-        val harvested = withContext(Dispatchers.Main.immediate) {
-            harvestAccessToken(cookie)
-        } ?: return null
-        val clientToken = withContext(Dispatchers.IO) {
-            fetchClientToken(harvested.clientId)
-        }
-        return MintedTokens(
-            accessToken = harvested.accessToken,
-            clientToken = clientToken,
-            expiresAtMs = harvested.expiresAtMs,
-        )
+        return withContext(Dispatchers.Main.immediate) { harvestSession(cookie) }
     }
 
     private fun finishLogin(cookie: String?) {
@@ -199,140 +180,119 @@ internal class SpotifyWebSession(private val activity: Activity) {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private suspend fun harvestAccessToken(spDc: String): HarvestedToken? {
-        val cookies = CookieManager.getInstance().apply {
-            setAcceptCookie(true)
-            setCookie(SPOTIFY_OPEN_URL, "sp_dc=$spDc; Domain=.spotify.com; Path=/; Secure")
-            setCookie(SPOTIFY_ACCOUNTS_URL, "sp_dc=$spDc; Domain=.spotify.com; Path=/; Secure")
-            flush()
-        }
-        runCatching { WebStorage.getInstance().deleteAllData() }
-
-        val deferred = CompletableDeferred<HarvestedToken?>()
-        var webView: WebView? = null
-        return try {
-            webView = WebView(activity).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.userAgentString = CANVAS_USER_AGENT
-                cookies.setAcceptThirdPartyCookies(this, true)
-                addJavascriptInterface(TokenBridge(deferred), BRIDGE_NAME)
-                webViewClient = object : WebViewClient() {
-                    override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
-                        view.evaluateJavascript(HOOK_SCRIPT, null)
-                    }
-
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        view.evaluateJavascript(HOOK_SCRIPT, null)
-                    }
+    private suspend fun harvestSession(spDc: String): MintedTokens? {
+        val cookies = CookieManager.getInstance().apply { setAcceptCookie(true) }
+        runCatching { WebStorage.getInstance().deleteOrigin("https://open.spotify.com") }
+        val cookieReady = CompletableDeferred<Unit>()
+        cookies.setCookie(SPOTIFY_OPEN_URL, "sp_dc=$spDc; Domain=.spotify.com; Path=/; Secure; HttpOnly") { cookieReady.complete(Unit) }
+        if (withTimeoutOrNull(3000L) { cookieReady.await(); true } != true) return null
+        val bridge = TokenBridge()
+        val hook = activity.assets.open("flutter_assets/assets/spotify/session_hook.js").bufferedReader().use { it.readText() }
+        val webView = WebView(activity)
+        val messageBridge = WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
+        try {
+            webView.settings.javaScriptEnabled = true
+            webView.settings.domStorageEnabled = true
+            webView.settings.userAgentString = CANVAS_USER_AGENT
+            webView.settings.mediaPlaybackRequiresUserGesture = true
+            cookies.setAcceptThirdPartyCookies(webView, true)
+            if (messageBridge) {
+                WebViewCompat.addWebMessageListener(webView, BRIDGE_NAME, setOf("https://open.spotify.com")) { _, message, _, isMainFrame, _ ->
+                    if (isMainFrame) bridge.onSessionPayload(message.data)
                 }
-                loadUrl(SPOTIFY_OPEN_URL)
             }
-            withTimeoutOrNull(HARVEST_TIMEOUT_MS) { deferred.await() }
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                WebViewCompat.addDocumentStartJavaScript(webView, hook, setOf("https://open.spotify.com"))
+            }
+            webView.webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+                    !isSpotifyOpenUrl(request.url.toString())
+                override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                    if (isSpotifyOpenUrl(url)) view.evaluateJavascript(hook, null)
+                }
+                override fun onPageFinished(view: WebView, url: String?) {
+                    if (isSpotifyOpenUrl(url)) view.evaluateJavascript(hook, null)
+                }
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): android.webkit.WebResourceResponse? {
+                    val host = request.url.host.orEmpty()
+                    if (request.url.scheme == "https" && (host == "spotify.com" || host.endsWith(".spotify.com"))) {
+                        bridge.captureHeaders(request.requestHeaders)
+                    }
+                    return null
+                }
+            }
+            webView.loadUrl(SPOTIFY_OPEN_URL)
+            withTimeoutOrNull(HARVEST_TIMEOUT_MS) { bridge.ready.await() }
+            // Wait briefly for the actual loaded query bundles, not only tokens.
+            for (attempt in 0 until 8) {
+                if (bridge.hashes.containsKey("home") && bridge.hashes.containsKey("canvas")) break
+                delay(500L)
+            }
+            if (bridge.anonymous || bridge.accessToken == null || bridge.clientToken == null) return null
+            if (!bridge.verifiedAccess) {
+                val signedIn = withContext(Dispatchers.IO) {
+                    val connection = URL("https://api.spotify.com/v1/me").openConnection() as HttpURLConnection
+                    try {
+                        connection.connectTimeout = NETWORK_TIMEOUT_MS
+                        connection.readTimeout = NETWORK_TIMEOUT_MS
+                        connection.instanceFollowRedirects = false
+                        connection.setRequestProperty("Authorization", "Bearer ${bridge.accessToken}")
+                        connection.setRequestProperty("client-token", bridge.clientToken)
+                        connection.setRequestProperty("User-Agent", CANVAS_USER_AGENT)
+                        connection.responseCode == 200
+                    } finally { connection.disconnect() }
+                }
+                if (!signedIn) return null
+            }
+            return MintedTokens(bridge.accessToken!!, bridge.clientToken, minOf(bridge.expiresAtMs, bridge.clientExpiresAtMs), bridge.hashes.toMap())
         } finally {
-            runCatching {
-                webView?.removeJavascriptInterface(BRIDGE_NAME)
-                webView?.stopLoading()
-                webView?.destroy()
-            }
+            if (messageBridge) WebViewCompat.removeWebMessageListener(webView, BRIDGE_NAME)
+            webView.stopLoading()
+            webView.destroy()
         }
     }
 
-    private class TokenBridge(
-        private val deferred: CompletableDeferred<HarvestedToken?>,
-    ) {
-        @JavascriptInterface
-        fun onTokenPayload(payload: String?) {
-            if (payload.isNullOrBlank() || deferred.isCompleted) return
+    private class TokenBridge {
+        val ready = CompletableDeferred<Unit>()
+        @Volatile var accessToken: String? = null
+        @Volatile var clientToken: String? = null
+        @Volatile var anonymous = false
+        @Volatile var verifiedAccess = false
+        @Volatile var expiresAtMs = System.currentTimeMillis() + 45 * 60 * 1000L
+        @Volatile var clientExpiresAtMs = System.currentTimeMillis() + 45 * 60 * 1000L
+        val hashes = ConcurrentHashMap<String, String>()
+        private fun signal() { if (accessToken != null && clientToken != null && !ready.isCompleted) ready.complete(Unit) }
+        @Synchronized fun captureHeaders(headers: Map<String, String>) {
+            headers.entries.firstOrNull { it.key.equals("Authorization", true) }?.value
+                ?.takeIf { it.startsWith("Bearer ") }?.removePrefix("Bearer ")?.takeIf { it.isNotBlank() }?.let { if (!verifiedAccess) accessToken = it }
+            headers.entries.firstOrNull { it.key.equals("client-token", true) }?.value?.takeIf { it.isNotBlank() && it != "null" }?.let { clientToken = it }
+            signal()
+        }
+        @Synchronized fun onSessionPayload(payload: String?) {
+            if (payload == null || payload.length > 65536) return
             runCatching {
                 val root = JSONObject(payload)
-                val token = root.optString("accessToken").takeIf { it.isNotBlank() }
-                if (token == null || root.optBoolean("isAnonymous", false)) return
-                val expiresAt = root.optLong(
-                    "accessTokenExpirationTimestampMs",
-                    System.currentTimeMillis() + DEFAULT_TOKEN_LIFETIME_MS,
-                ).takeIf { it > System.currentTimeMillis() }
-                    ?: (System.currentTimeMillis() + DEFAULT_TOKEN_LIFETIME_MS)
-                val clientId = root.optString("clientId").takeIf { it.isNotBlank() }
-                deferred.complete(HarvestedToken(token, expiresAt, clientId))
+                when (root.optString("kind")) {
+                    "headers" -> captureHeaders(mapOf("Authorization" to root.optString("authorization"), "client-token" to root.optString("clientToken")))
+                    "access" -> root.getJSONObject("data").let { data ->
+                        anonymous = data.optBoolean("isAnonymous", false)
+                        verifiedAccess = data.has("accessToken") && !anonymous
+                        data.optString("accessToken").takeIf { it.isNotBlank() }?.let { accessToken = it }
+                        expiresAtMs = data.optLong("accessTokenExpirationTimestampMs", expiresAtMs)
+                    }
+                    "client" -> root.getJSONObject("data").optJSONObject("granted_token")?.let { data ->
+                        clientExpiresAtMs = System.currentTimeMillis() + data.optLong("expires_after_seconds", 3600L) * 1000L
+                        data.optString("token").takeIf { it.isNotBlank() && it != "null" }?.let { clientToken = it }
+                    }
+                    "hash" -> {
+                        val op = root.optString("operation"); val hash = root.optString("hash")
+                        if (op in setOf("home", "canvas", "searchTracks", "fetchPlaylist", "fetchLibraryTracks", "libraryV3", "addToLibrary") && hash.matches(Regex("[a-f0-9]{64}"))) hashes[op] = hash
+                    }
+                }
+                signal()
             }
         }
     }
-
-    private fun fetchClientToken(clientId: String?): String? {
-        if (clientId.isNullOrBlank()) return null
-        val session = loadSessionInfo() ?: return null
-        val payload = JSONObject()
-            .put(
-                "client_data",
-                JSONObject()
-                    .put("client_version", session.clientVersion)
-                    .put("client_id", clientId)
-                    .put(
-                        "js_sdk_data",
-                        JSONObject()
-                            .put("device_brand", "unknown")
-                            .put("device_model", "unknown")
-                            .put("os", "android")
-                            .put("os_version", Build.VERSION.RELEASE.orEmpty())
-                            .put("device_id", session.deviceId)
-                            .put("device_type", "smartphone"),
-                    ),
-            )
-        val connection = openConnection("https://clienttoken.spotify.com/v1/clienttoken")
-            ?: return null
-        return runCatching {
-            connection.requestMethod = "POST"
-            connection.doOutput = true
-            connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("User-Agent", CANVAS_USER_AGENT)
-            connection.outputStream.use { output ->
-                output.write(payload.toString().toByteArray(StandardCharsets.UTF_8))
-            }
-            if (connection.responseCode !in 200..299) return@runCatching null
-            val root = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-            if (root.optString("response_type") != "RESPONSE_GRANTED_TOKEN_RESPONSE") {
-                return@runCatching null
-            }
-            root.optJSONObject("granted_token")
-                ?.optString("token")
-                ?.takeIf { it.isNotBlank() }
-        }.getOrNull().also { connection.disconnect() }
-    }
-
-    private fun loadSessionInfo(): SessionInfo? {
-        val connection = openConnection("https://open.spotify.com") ?: return null
-        return runCatching {
-            val html = connection.inputStream.bufferedReader().use { it.readText() }
-            val deviceId = connection.headerFields.values
-                .asSequence()
-                .filterNotNull()
-                .flatten()
-                .mapNotNull { header -> Regex("sp_t=([^;]+)").find(header)?.groupValues?.get(1) }
-                .firstOrNull()
-                ?: UUID.randomUUID().toString()
-            val encoded = Regex("<script id=\"appServerConfig\" type=\"text/plain\">([^<]+)</script>")
-                .find(html)
-                ?.groupValues
-                ?.get(1)
-                ?: return@runCatching null
-            val config = JSONObject(
-                String(Base64.decode(encoded, Base64.DEFAULT), StandardCharsets.UTF_8),
-            )
-            config.optString("clientVersion")
-                .takeIf { it.isNotBlank() }
-                ?.let { SessionInfo(it, deviceId) }
-        }.getOrNull().also { connection.disconnect() }
-    }
-
-    private fun openConnection(rawUrl: String): HttpURLConnection? = runCatching {
-        (URL(rawUrl).openConnection() as HttpURLConnection).apply {
-            connectTimeout = NETWORK_TIMEOUT_MS
-            readTimeout = NETWORK_TIMEOUT_MS
-            instanceFollowRedirects = false
-        }
-    }.getOrNull()
 
     private fun extractSessionCookie(raw: String?): String? = raw
         ?.split(";")
@@ -367,7 +327,7 @@ internal class SpotifyWebSession(private val activity: Activity) {
         const val SPOTIFY_OPEN_URL = "https://open.spotify.com/"
         const val SPOTIFY_ACCOUNTS_URL = "https://accounts.spotify.com/"
         const val BRIDGE_NAME = "KonnektedSpotifyTokenBridge"
-        const val HARVEST_TIMEOUT_MS = 20_000L
+        const val HARVEST_TIMEOUT_MS = 25_000L
         const val DEFAULT_TOKEN_LIFETIME_MS = 3_600_000L
         const val NETWORK_TIMEOUT_MS = 15_000
         const val CANVAS_USER_AGENT =
@@ -390,49 +350,5 @@ internal class SpotifyWebSession(private val activity: Activity) {
             "facebook.com",
             "apple.com",
         )
-        val HOOK_SCRIPT = """
-            (function () {
-              if (window.__konnektedSpotifyTokenHook) return;
-              window.__konnektedSpotifyTokenHook = true;
-              var report = function (body) {
-                try { $BRIDGE_NAME.onTokenPayload(body); } catch (e) {}
-              };
-              var isToken = function (u) {
-                try { return String(u).indexOf('/api/token') !== -1; } catch (e) { return false; }
-              };
-              var origFetch = window.fetch;
-              if (origFetch) {
-                window.fetch = function (input, init) {
-                  var url = (input && input.url) ? input.url : input;
-                  var result = origFetch.apply(this, arguments);
-                  if (isToken(url)) {
-                    try {
-                      result.then(function (res) {
-                        res.clone().text().then(report).catch(function () {});
-                      }).catch(function () {});
-                    } catch (e) {}
-                  }
-                  return result;
-                };
-              }
-              var origOpen = XMLHttpRequest.prototype.open;
-              XMLHttpRequest.prototype.open = function (method, url) {
-                this.__konnektedSpotifyUrl = url;
-                return origOpen.apply(this, arguments);
-              };
-              var origSend = XMLHttpRequest.prototype.send;
-              XMLHttpRequest.prototype.send = function () {
-                var xhr = this;
-                try {
-                  xhr.addEventListener('load', function () {
-                    if (isToken(xhr.__konnektedSpotifyUrl)) {
-                      try { report(xhr.responseText); } catch (e) {}
-                    }
-                  });
-                } catch (e) {}
-                return origSend.apply(this, arguments);
-              };
-            })();
-        """.trimIndent()
     }
 }

@@ -22,7 +22,7 @@ class MilestonesScreen extends ConsumerStatefulWidget {
 class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   final _service = MilestoneService();
   bool _loading = true, _streaksEnabled = true;
-  int _request = 0;
+  int _request = 0, _runningStreak = 0;
   Map<MilestoneType, MilestoneRecord> _records = {};
   Map<MilestoneCategory, int> _current = const {};
 
@@ -37,10 +37,12 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
     final records = await _service.getShownMilestones();
     final playCount = await _service.getHistoryCount();
     final listenSeconds = await _service.getAccumulatedListenSeconds();
-    final streak = await _service.getCurrentDayStreak();
+    final runningStreak = await _service.getCurrentDayStreak();
+    final streak = await _service.getBestDayStreak();
     final artists = await _service.getUniqueArtistCount();
     if (!mounted || request != _request) return;
     setState(() {
+      _runningStreak = runningStreak;
       _records = {for (final record in records) record.type: record};
       _streaksEnabled = ref.read(appPreferencesProvider).streaksEnabled;
       _current = {
@@ -221,7 +223,7 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '${_current[MilestoneCategory.dayStreak] ?? 0} ${l10n.dayUnit(_current[MilestoneCategory.dayStreak] ?? 0)}',
+                                    '$_runningStreak ${l10n.dayUnit(_runningStreak)}',
                                     style: TextStyle(
                                       color: t.accent,
                                       fontFamily: LokalTheme.mono,
@@ -323,7 +325,7 @@ class _MilestonesScreenState extends ConsumerState<MilestonesScreen> {
   }
 
   void _showStreakDialog() {
-    final streak = _current[MilestoneCategory.dayStreak] ?? 0;
+    final streak = _runningStreak;
     if (streak < 1) return;
     showFlickDialog<void>(
       context: context,

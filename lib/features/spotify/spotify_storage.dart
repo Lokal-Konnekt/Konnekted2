@@ -14,6 +14,7 @@ class SpotifyTokens {
     required this.expiresAt,
     this.sessionCookie,
     this.clientToken,
+    this.queryHashes = const {},
   });
 
   final String accessToken;
@@ -21,6 +22,7 @@ class SpotifyTokens {
   final DateTime expiresAt;
   final String? sessionCookie;
   final String? clientToken;
+  final Map<String, String> queryHashes;
 
   bool get isExpired => DateTime.now()
       .toUtc()
@@ -33,6 +35,7 @@ class SpotifyTokens {
     DateTime? expiresAt,
     String? sessionCookie,
     String? clientToken,
+    Map<String, String>? queryHashes,
   }) {
     return SpotifyTokens(
       accessToken: accessToken ?? this.accessToken,
@@ -40,6 +43,7 @@ class SpotifyTokens {
       expiresAt: expiresAt ?? this.expiresAt,
       sessionCookie: sessionCookie ?? this.sessionCookie,
       clientToken: clientToken ?? this.clientToken,
+      queryHashes: queryHashes ?? this.queryHashes,
     );
   }
 }
@@ -66,7 +70,7 @@ class SecureSpotifyTokenStore implements SpotifyTokenStore {
     if (raw == null || raw.isEmpty) return null;
     try {
       final json = jsonDecode(raw);
-      if (json is! Map || json['version'] != 1) return null;
+      if (json is! Map || ![1, 2].contains(json['version'])) return null;
       final accessToken = json['accessToken'];
       final expiresAt = json['expiresAt'];
       if (accessToken is! String ||
@@ -77,9 +81,23 @@ class SecureSpotifyTokenStore implements SpotifyTokenStore {
       return SpotifyTokens(
         accessToken: accessToken,
         refreshToken: json['refreshToken'] as String?,
-        expiresAt: DateTime.parse(expiresAt).toUtc(),
+        // Version 1 used a fabricated client token. Remint once after upgrade.
+        expiresAt: json['version'] == 1
+            ? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true)
+            : DateTime.parse(expiresAt).toUtc(),
         sessionCookie: json['sessionCookie'] as String?,
-        clientToken: json['clientToken'] as String?,
+        clientToken: json['version'] == 1
+            ? null
+            : json['clientToken'] as String?,
+        queryHashes: {
+          for (final entry
+              in (json['queryHashes'] is Map ? json['queryHashes'] as Map : {})
+                  .entries)
+            if (entry.key is String &&
+                entry.value is String &&
+                RegExp(r'^[a-f0-9]{64}$').hasMatch(entry.value as String))
+              entry.key as String: entry.value as String,
+        },
       );
     } catch (_) {
       return null;
@@ -92,7 +110,8 @@ class SecureSpotifyTokenStore implements SpotifyTokenStore {
     await _storage.write(
       key: _key,
       value: jsonEncode({
-        'version': 1,
+        'version': 2,
+        'queryHashes': tokens.queryHashes,
         'accessToken': tokens.accessToken,
         'refreshToken': tokens.refreshToken,
         'expiresAt': tokens.expiresAt.toUtc().toIso8601String(),

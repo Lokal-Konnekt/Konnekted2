@@ -216,13 +216,16 @@ class SpotifySyncService {
   /// One-way import: Spotify liked songs add local favorites only. Existing
   /// local favorites and all unmatched Spotify items are retained.
   Future<SpotifyLikedSongsSyncReport> syncLikedSongs({
+    List<SpotifyTrack>? suppliedTracks,
     void Function(int loaded)? onProgress,
     SpotifyCancellation? cancellation,
   }) async {
-    final tracks = await _api.getLikedSongs(
-      onProgress: onProgress,
-      cancellation: cancellation,
-    );
+    final tracks =
+        suppliedTracks ??
+        await _api.getLikedSongs(
+          onProgress: onProgress,
+          cancellation: cancellation,
+        );
     final songs = await _library.allSongs();
     final matched = <Song>[];
     final unmatched = <SpotifyUnmatchedTrack>[];

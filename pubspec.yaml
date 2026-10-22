@@ -121,6 +121,7 @@ flutter:
     - shaders/lokal_glass_rim.frag
 
   assets:
+    - assets/spotify/session_hook.js
     - assets/icons/flicklogo.png
     - assets/icons/flicklogo_svg.svg
     - assets/icons/flicklogo_transparent.png

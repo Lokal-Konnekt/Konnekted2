@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flick/core/utils/app_log.dart';
 
 import 'spotify_storage.dart';
 
@@ -33,22 +34,50 @@ class MethodChannelSpotifyOAuthBrowser implements SpotifyOAuthBrowser {
   final MethodChannel _channel;
 
   @override
-  Future<String?> authenticate() => _channel.invokeMethod<String>('authenticate');
+  Future<String?> authenticate() =>
+      _channel.invokeMethod<String>('authenticate');
 
+  static Future<void> _mintTail = Future.value();
+  static final _mints = <String, Future<SpotifyTokens?>>{};
   @override
-  Future<SpotifyTokens?> mintTokens(String sessionCookie) async {
-    final raw = await _channel.invokeMethod<Map<Object?, Object?>>(
-      'mintTokens',
-      {'sessionCookie': sessionCookie},
-    );
-    if (raw == null) return null;
+  Future<SpotifyTokens?> mintTokens(String sessionCookie) {
+    // Canvas, Discovery and likes share Android's cookie jar. One real web
+    // player at a time; callers for the same session share the result.
+    final key = '${_channel.name}|$sessionCookie';
+    final active = _mints[key];
+    if (active != null) return active;
+    final next = _mintTail
+        .catchError((Object _) {})
+        .then((_) => _mintTokens(sessionCookie));
+    _mintTail = next.then<void>((_) {}).catchError((Object _) {});
+    _mints[key] = next;
+    return next.whenComplete(() => _mints.remove(key));
+  }
+
+  Future<SpotifyTokens?> _mintTokens(String sessionCookie) async {
+    final raw = await _channel
+        .invokeMethod<Map<Object?, Object?>>('mintTokens', {
+          'sessionCookie': sessionCookie,
+        })
+        .timeout(const Duration(seconds: 50));
+    if (raw == null)
+      throw const SpotifyOAuthException(
+        'Spotify did not complete its web-player session. Try again.',
+      );
     final accessToken = raw['accessToken'];
     final expiresAtMs = raw['expiresAtMs'];
-    if (accessToken is! String || accessToken.isEmpty ||
-        expiresAtMs is! num || expiresAtMs <= 0) {
-      throw const SpotifyOAuthException('Spotify returned an invalid session token.');
+    if (accessToken is! String ||
+        accessToken.isEmpty ||
+        expiresAtMs is! num ||
+        expiresAtMs <= 0) {
+      throw const SpotifyOAuthException(
+        'Spotify returned an invalid session token.',
+      );
     }
     final clientToken = raw['clientToken'];
+    AppLog.instance.add(
+      '[Spotify] WebPlayer session refreshed; client=${clientToken is String && clientToken.isNotEmpty}; hashes=${raw['queryHashes'] is Map ? (raw['queryHashes'] as Map).length : 0}',
+    );
     return SpotifyTokens(
       accessToken: accessToken,
       refreshToken: null,
@@ -57,6 +86,15 @@ class MethodChannelSpotifyOAuthBrowser implements SpotifyOAuthBrowser {
         isUtc: true,
       ),
       sessionCookie: sessionCookie,
+      queryHashes: {
+        for (final entry
+            in (raw['queryHashes'] is Map ? raw['queryHashes'] as Map : {})
+                .entries)
+          if (entry.key is String &&
+              entry.value is String &&
+              RegExp(r'^[a-f0-9]{64}$').hasMatch(entry.value as String))
+            entry.key as String: entry.value as String,
+      },
       clientToken: clientToken is String && clientToken.isNotEmpty
           ? clientToken
           : null,
@@ -172,7 +210,10 @@ class SpotifyOAuthService {
     final cookie = current?.sessionCookie;
     if (cookie == null || cookie.isEmpty) return null;
     final fresh = await _browser.mintTokens(cookie);
-    if (fresh == null || epoch != _epoch) return null;
+    if (fresh == null ||
+        epoch != _epoch ||
+        (await _tokenStore.readTokens())?.sessionCookie != cookie)
+      return null;
     final saved = fresh.copyWith(sessionCookie: cookie);
     await _persist(epoch, saved);
     return saved;

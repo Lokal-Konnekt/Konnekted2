@@ -32,9 +32,13 @@ import '../album_art_service.dart';
 /// Desktop songs use the existing ranged network-player and bounded audio cache.
 /// The server row contains no token; encrypted storage remains the only token owner.
 class LokalDesktopSource extends NetworkSourceService {
-  LokalDesktopSource({http.Client Function()? uploadClientFactory})
-    : _uploadClientFactory = uploadClientFactory ?? GracefulHttpClient.new;
+  LokalDesktopSource({
+    http.Client Function()? uploadClientFactory,
+    http.Client Function()? originalClientFactory,
+  }) : _uploadClientFactory = uploadClientFactory ?? GracefulHttpClient.new,
+       _originalClientFactory = originalClientFactory ?? GracefulHttpClient.new;
   final http.Client Function() _uploadClientFactory;
+  final http.Client Function() _originalClientFactory;
   static final instance = LokalDesktopSource();
   final _cache = NetworkCacheService();
   final _musicStorage = DesktopMusicStorage();
@@ -55,6 +59,31 @@ class LokalDesktopSource extends NetworkSourceService {
       throw StateError(
         'Update Lokal on your PC to copy missing song files both ways.',
       );
+    }
+  }
+
+  /// HEAD runs the desktop's paired-original route but sends no audio bytes.
+  Future<bool> hasOriginalFile(
+    LokalRemoteCredentials credentials,
+    String id,
+  ) async {
+    final client = _originalClientFactory();
+    try {
+      final response = await client
+          .head(
+            credentials.origin.replace(
+              pathSegments: ['api', 'remote', 'files', id],
+            ),
+            headers: _headers(credentials),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) return true;
+      if (response.statusCode == 404) return false;
+      throw StateError(
+        'Could not verify the desktop original (HTTP ${response.statusCode}). Reconnect and retry.',
+      );
+    } finally {
+      client.close();
     }
   }
 

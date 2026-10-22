@@ -1,4 +1,5 @@
 import 'package:flick/features/appearance/lokal_performance_selector.dart';
+import 'package:flick/features/settings/widgets/spotify_account_settings_tile.dart';
 
 import 'dart:async';
 
@@ -240,6 +241,16 @@ List<LokalSettingsSection> appearanceSettings(
             value: prefs.refreshRateMode,
             onChanged: notifier.setRefreshRateMode,
           ),
+        ),
+      ],
+    ),
+    LokalSettingsSection(
+      title: lokalText('Spotify Canvas'),
+      children: [
+        LokalSettingCustom(
+          label: lokalText('Spotify cookie'),
+          description: lokalText('Connect Spotify for Discovery and Canvas artwork.'),
+          child: const SpotifyAccountSettingsTile(showLikesSync: false),
         ),
       ],
     ),

@@ -75,12 +75,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _pickFolder() async {
     if (_picking) return;
     setState(() => _picking = true);
-    final folder = await LibraryScanFlow.addFolder(context);
-    if (!mounted) return;
-    setState(() {
-      _picking = false;
-      if (folder != null) _folderName = folder.displayName;
-    });
+    try {
+      final folder = await LibraryScanFlow.addFolder(context);
+      if (mounted && folder != null) {
+        setState(() => _folderName = folder.displayName);
+      }
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
   }
 
   Future<void> _finish() async {

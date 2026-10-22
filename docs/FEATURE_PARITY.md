@@ -641,3 +641,26 @@ Validation: focused frame geometry/fallback, warm preview, suppression, loading
 and motion gating checks pass. Targeted analysis reports no errors; an existing
 unused field and style notices remain. No APK/CI build or physical device/video
 rendering validation was performed.
+
+### First-run folder picker lifecycle
+
+Opening DocumentsUI stops MainActivity, which previously applied any queued
+launcher-icon alias change. OEM launchers can restart the process despite
+DONT_KILL_APP, losing the pending folder result. First-run accent synchronization
+can queue an alias even without a manual theme change. MainActivity now defers
+icon application while a document picker, overlay-permission or Spotify auth
+result is pending, and during configuration changes. The queued icon still
+applies on a later idle background exit.
+
+Document picker launches share a pending-operation guard and translate missing
+or denied picker activities into a recoverable channel error. A failed launch
+clears pending state so another attempt works. Folder selection uses SAF's
+chosen-tree grant directly, without first requiring broad media permission.
+Onboarding resets its Opening state in finally, and folder errors avoid disposed
+ScaffoldMessengers. Folder persistence and the shared Settings scan path remain.
+
+Validation: 18 focused onboarding/folder-service checks pass, including picker
+launch failure followed by cancellation/retry without a broad permission request.
+Targeted Dart analysis has no issues. No native compilation/APK/CI run or Samsung
+M06 reproduction was performed; the OEM restart mechanism is a concrete code
+hazard consistent with the report, not a device-confirmed crash diagnosis.

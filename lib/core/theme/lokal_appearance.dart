@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'lokal_tokens.dart';
 
+enum LokalPerformanceLevel { full, performance, ultra }
+
 /// The listener's look: theme, accent, text size and glass.
 ///
 /// Mirrors desktop Lokal's Appearance settings. As on desktop, picking a
@@ -19,6 +21,7 @@ class LokalAppearance {
     this.accent,
     this.textScale = 1.0,
     this.performanceMode = true,
+    this.ultraPerformanceMode = false,
     this.fullscreenCover = false,
   });
 
@@ -34,6 +37,14 @@ class LokalAppearance {
   /// Performance Mode removes every backdrop-filter the same way).
   final bool performanceMode;
 
+  /// Additional rendering reductions for entry-level phones; opt-in.
+  final bool ultraPerformanceMode;
+  LokalPerformanceLevel get performanceLevel => ultraPerformanceMode
+      ? LokalPerformanceLevel.ultra
+      : performanceMode
+      ? LokalPerformanceLevel.performance
+      : LokalPerformanceLevel.full;
+
   /// Edge-to-edge artwork behind full-player controls, with no live blur.
   final bool fullscreenCover;
 
@@ -48,12 +59,14 @@ class LokalAppearance {
     bool clearAccent = false,
     double? textScale,
     bool? performanceMode,
+    bool? ultraPerformanceMode,
     bool? fullscreenCover,
   }) => LokalAppearance(
     theme: theme ?? this.theme,
     accent: clearAccent ? null : (accent ?? this.accent),
     textScale: (textScale ?? this.textScale).clamp(minTextScale, maxTextScale),
     performanceMode: performanceMode ?? this.performanceMode,
+    ultraPerformanceMode: ultraPerformanceMode ?? this.ultraPerformanceMode,
     fullscreenCover: fullscreenCover ?? this.fullscreenCover,
   );
 
@@ -62,6 +75,7 @@ class LokalAppearance {
     'accent': accent?.name,
     'textScale': textScale,
     'performanceMode': performanceMode,
+    'ultraPerformanceMode': ultraPerformanceMode,
     'fullscreenCover': fullscreenCover,
   };
 
@@ -74,7 +88,10 @@ class LokalAppearance {
         minTextScale,
         maxTextScale,
       ),
-      performanceMode: json['performanceMode'] as bool? ?? true,
+      performanceMode:
+          json['ultraPerformanceMode'] == true ||
+          (json['performanceMode'] as bool? ?? true),
+      ultraPerformanceMode: json['ultraPerformanceMode'] as bool? ?? false,
       fullscreenCover: json['fullscreenCover'] as bool? ?? false,
     );
   }
@@ -86,11 +103,18 @@ class LokalAppearance {
       other.accent == accent &&
       other.textScale == textScale &&
       other.performanceMode == performanceMode &&
+      other.ultraPerformanceMode == ultraPerformanceMode &&
       other.fullscreenCover == fullscreenCover;
 
   @override
-  int get hashCode =>
-      Object.hash(theme, accent, textScale, performanceMode, fullscreenCover);
+  int get hashCode => Object.hash(
+    theme,
+    accent,
+    textScale,
+    performanceMode,
+    ultraPerformanceMode,
+    fullscreenCover,
+  );
 }
 
 class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
@@ -179,8 +203,19 @@ class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
   Future<void> setFullscreenCover(bool value) =>
       _commit(state.copyWith(fullscreenCover: value));
 
-  Future<void> setPerformanceMode(bool value) =>
-      _commit(state.copyWith(performanceMode: value));
+  Future<void> setPerformanceMode(bool value) => _commit(
+    state.copyWith(
+      performanceMode: value,
+      ultraPerformanceMode: value && state.ultraPerformanceMode,
+    ),
+  );
+
+  Future<void> setPerformanceLevel(LokalPerformanceLevel level) => _commit(
+    state.copyWith(
+      performanceMode: level != LokalPerformanceLevel.full,
+      ultraPerformanceMode: level == LokalPerformanceLevel.ultra,
+    ),
+  );
 }
 
 final lokalInitialAppearanceProvider = Provider<LokalAppearance>(

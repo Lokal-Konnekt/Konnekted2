@@ -1,3 +1,4 @@
+import 'package:flick/features/appearance/lokal_performance_selector.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -62,16 +63,7 @@ class LokalAppearanceScreen extends ConsumerWidget {
             _Label(lokalText('Display')),
             _Group(
               children: [
-                SwitchListTile(
-                  value: appearance.performanceMode,
-                  onChanged: notifier.setPerformanceMode,
-                  title: Text(lokalText('Performance mode')),
-                  subtitle: Text(
-                    lokalText(
-                      'Solid surfaces instead of glass, for older phones',
-                    ),
-                  ),
-                ),
+                lokalPerformanceSelector(ref),
                 Divider(height: 1, color: t.border, indent: 16),
                 _TextSize(
                   value: appearance.textScale,

@@ -1,3 +1,5 @@
+import 'package:flick/core/theme/lokal_performance_scope.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -137,6 +139,7 @@ class _MotionArtViewState extends State<MotionArtView>
   bool _hasVideo = false;
   bool _dependenciesReady = false;
   bool _reduceMotion = false;
+  bool _performance = false;
   bool _reusedClip = false;
   bool _settledWithoutMotion = false;
   bool _suppressed = false;
@@ -240,10 +243,13 @@ class _MotionArtViewState extends State<MotionArtView>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _dependenciesReady = true;
+    final performance = LokalPerformanceScope.of(context);
+    final budgetChanged = _performance != performance;
+    _performance = performance;
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
-    _tickerEnabled = TickerMode.of(context) && !_reduceMotion;
+    _tickerEnabled = TickerMode.of(context) && !_reduceMotion && !_performance;
     final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
-    if (isCurrent != _routeIsCurrent) {
+    if (isCurrent != _routeIsCurrent || budgetChanged) {
       _routeIsCurrent = isCurrent;
       _restart();
     } else {
@@ -313,6 +319,7 @@ class _MotionArtViewState extends State<MotionArtView>
       await lease.release(
         immediate:
             _suppressed ||
+            _performance ||
             !widget.enabled ||
             _lifecycle != AppLifecycleState.resumed,
       );
@@ -534,7 +541,8 @@ class _MotionArtViewState extends State<MotionArtView>
   Widget build(BuildContext context) {
     Widget present(Widget child, {bool canvas = false}) =>
         widget.presentationBuilder?.call(context, child, canvas) ?? child;
-    if (_suppressed || !widget.enabled) return present(widget.fallback);
+    if (_suppressed || _performance || !widget.enabled)
+      return present(widget.fallback);
     final controller = _controller;
     if (!_hasVideo || controller == null || !controller.value.isInitialized) {
       final loading = widget.loadingFallback;

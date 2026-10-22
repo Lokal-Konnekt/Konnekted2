@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_performance_scope.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flick/features/player/widgets/motion_art_widget.dart';
@@ -58,14 +59,31 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
       vsync: this,
       duration: const Duration(seconds: 18),
     );
-    // Deferred so the system reduced-motion flag is available before
-    // deciding whether to keep animating.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (!MediaQuery.of(context).disableAnimations) {
-        _controller.repeat(reverse: true);
-      }
-    });
+  }
+
+  void _configureMotion() {
+    final animate =
+        widget.animate &&
+        !LokalPerformanceScope.of(context) &&
+        !MediaQuery.disableAnimationsOf(context) &&
+        TickerMode.of(context);
+    if (animate && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    } else if (!animate) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _configureMotion();
+  }
+
+  @override
+  void didUpdateWidget(AnimatedAlbumArt oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _configureMotion();
   }
 
   @override
@@ -132,7 +150,10 @@ class _AnimatedAlbumArtState extends State<AnimatedAlbumArt>
       ),
     );
 
-    if (!widget.animate) return image;
+    if (!widget.animate ||
+        LokalPerformanceScope.of(context) ||
+        MediaQuery.disableAnimationsOf(context))
+      return image;
 
     final album = widget.albumName?.trim() ?? '';
     final artist = widget.artistName?.trim() ?? '';

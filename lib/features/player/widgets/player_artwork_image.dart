@@ -1,3 +1,5 @@
+import 'package:flick/core/theme/lokal_performance_scope.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -69,8 +71,10 @@ class _PlayerArtworkImageState extends State<PlayerArtworkImage>
 
   Future<void> _resolve() async {
     final song = widget.song;
-    final key =
-        '${song.id}|${song.albumArt}|${song.filePath}|${widget.decodeWidth}';
+    final decodeWidth = LokalPerformanceScope.of(context)
+        ? widget.decodeWidth.clamp(64, 768)
+        : widget.decodeWidth;
+    final key = '${song.id}|${song.albumArt}|${song.filePath}|${decodeWidth}';
     if (_requested == key) return;
     _requested = key;
     final generation = ++_generation;
@@ -97,7 +101,7 @@ class _PlayerArtworkImageState extends State<PlayerArtworkImage>
         _showFrame(null, key);
         return;
       }
-      provider = ResizeImage.resizeIfNeeded(widget.decodeWidth, null, provider);
+      provider = ResizeImage.resizeIfNeeded(decodeWidth, null, provider);
       _stream = provider.resolve(createLocalImageConfiguration(context));
       _listener = ImageStreamListener(
         (info, _) {

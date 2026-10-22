@@ -278,3 +278,30 @@ frame pacing and live Discord rendering remain device/account checks.
   local banner rendering and README widget renders pass. No APK/Actions build,
   version tag, public release or secret changes were performed for this PR.
   The first intentional workflow run still validates hosted signing/publication.
+
+
+### Copy lifetime and account/release follow-up (October 2026)
+
+- Explicit phone/desktop file copies now request a separate Android `dataSync`
+  foreground service before sending bytes. Its notification reports progress;
+  timed CPU and Wi-Fi locks release on completion, failure, task removal or stale
+  progress. Launcher icon changes defer during copies. This supports Home/app
+  switching and screen locking, not force-stop or a persistent queue after process
+  death. Retry rechecks both catalogues to skip completed files.
+- Mobile preserves the desktop receiver's bounded HTTP 400 reason and rejects
+  empty files locally. Streaming checks cover exact original bytes, content length,
+  Unicode metadata and SHA-256. The reported device-specific 400 has not been
+  reproduced: its underlying server reason is needed; this is not a claim that
+  every desktop rejection is fixed.
+- Spotify session harvesting attaches its temporary WebView behind Flutter,
+  removes a conflicting host-only cookie before installing the replacement, and
+  resolves the JS bridge at report time. Specific native session/network errors
+  reach the account UI rather than a blanket invalid-cookie message.
+- Onboarding uses the canonical YouTube Music sign-in tile directly; Last.fm
+  opens Data › Accounts instead of the removed Online sources account section.
+- Stable releases offer patch/minor/major or exact versions and explicit existing
+  release replacement, including 1.0.0 with a newer Android versionCode.
+
+Validation: focused Flutter tests, release metadata tests, the exact JS hook
+fixture and actionlint. No APK/CI build, native compilation, live Spotify login,
+physical background-transfer test or actual release replacement was performed.

@@ -2,9 +2,8 @@
 (function () {
   if (window.__lokalSpotifySessionHook) return;
   window.__lokalSpotifySessionHook = true;
-  const bridge = window.KonnektedSpotifyTokenBridge;
   const operations = new Set(['home', 'canvas', 'searchTracks', 'fetchPlaylist', 'fetchLibraryTracks', 'libraryV3', 'addToLibrary']);
-  const report = value => { try { const data=JSON.stringify(value);if(bridge.postMessage)bridge.postMessage(data);else bridge.onSessionPayload(data); } catch (_) {} };
+  const report = value => { try { const bridge=window.KonnektedSpotifyTokenBridge;const data=JSON.stringify(value);if(bridge.postMessage)bridge.postMessage(data);else bridge.onSessionPayload(data); } catch (_) {} };
   const spotify = raw => { if(typeof raw!=='string')return false;try { const u = new URL(raw, location.href); return u.protocol === 'https:' && (u.hostname === 'spotify.com' || u.hostname.endsWith('.spotify.com')); } catch (_) { return false; } };
   function headers(raw, input, init) {
     if (!spotify(raw)) return;

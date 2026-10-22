@@ -38,6 +38,8 @@ import java.nio.charset.StandardCharsets
  * short-lived web-player bearer token for a Spotify API request.
  */
 internal class SpotifyWebSession(private val activity: Activity) {
+    class SessionException(message: String) : Exception(message)
+
 
     data class MintedTokens(
         val accessToken: String,
@@ -184,13 +186,31 @@ internal class SpotifyWebSession(private val activity: Activity) {
         val cookies = CookieManager.getInstance().apply { setAcceptCookie(true) }
         runCatching { WebStorage.getInstance().deleteOrigin("https://open.spotify.com") }
         val cookieReady = CompletableDeferred<Unit>()
-        cookies.setCookie(SPOTIFY_OPEN_URL, "sp_dc=$spDc; Domain=.spotify.com; Path=/; Secure; HttpOnly") { cookieReady.complete(Unit) }
-        if (withTimeoutOrNull(3000L) { cookieReady.await(); true } != true) return null
+        // A previously entered host-only cookie takes precedence over the domain
+        // cookie. Remove that copy before installing the replacement session.
+        cookies.setCookie(SPOTIFY_OPEN_URL, "sp_dc=; Max-Age=0; Path=/; Secure") {
+            cookies.setCookie(SPOTIFY_OPEN_URL, "sp_dc=$spDc; Domain=.spotify.com; Path=/; Secure; HttpOnly") { accepted ->
+                if (accepted) cookieReady.complete(Unit)
+                else cookieReady.completeExceptionally(SessionException("Android rejected the Spotify cookie. Paste only the sp_dc value."))
+            }
+        }
+        if (withTimeoutOrNull(3000L) { cookieReady.await(); true } != true)
+            throw SessionException("Android could not install the Spotify cookie. Try again.")
         val bridge = TokenBridge()
         val hook = activity.assets.open("flutter_assets/assets/spotify/session_hook.js").bufferedReader().use { it.readText() }
         val webView = WebView(activity)
+        val host = activity.window.decorView as ViewGroup
+        var loadFailure: String? = null
         val messageBridge = WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
         try {
+            // An unattached WebView may never render/start the WebPlayer on
+            // Android. Keep it attached behind the opaque Flutter surface for
+            // this bounded session harvest; remove it before returning.
+            webView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            webView.isFocusable = false
+            webView.isClickable = false
+            host.addView(webView, 0, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            webView.onResume()
             webView.settings.javaScriptEnabled = true
             webView.settings.domStorageEnabled = true
             webView.settings.userAgentString = CANVAS_USER_AGENT
@@ -213,6 +233,13 @@ internal class SpotifyWebSession(private val activity: Activity) {
                 override fun onPageFinished(view: WebView, url: String?) {
                     if (isSpotifyOpenUrl(url)) view.evaluateJavascript(hook, null)
                 }
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: android.webkit.WebResourceError) {
+                    if (request.isForMainFrame) loadFailure = "Spotify's web player could not load. Check your network, VPN or private DNS."
+                }
+                override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: android.webkit.WebResourceResponse) {
+                    if (request.isForMainFrame && errorResponse.statusCode >= 400)
+                        loadFailure = "Spotify's web player returned HTTP ${errorResponse.statusCode}. Try again later."
+                }
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): android.webkit.WebResourceResponse? {
                     val host = request.url.host.orEmpty()
                     if (request.url.scheme == "https" && (host == "spotify.com" || host.endsWith(".spotify.com"))) {
@@ -228,7 +255,10 @@ internal class SpotifyWebSession(private val activity: Activity) {
                 if (bridge.hashes.containsKey("home") && bridge.hashes.containsKey("canvas")) break
                 delay(500L)
             }
-            if (bridge.anonymous || bridge.accessToken == null || bridge.clientToken == null) return null
+            loadFailure?.let { throw SessionException(it) }
+            if (bridge.anonymous) throw SessionException("Spotify did not recognize this cookie. Copy a fresh sp_dc value from your signed-in browser.")
+            if (bridge.accessToken == null) throw SessionException("Spotify's web player did not finish signing in. Try again; the cookie may still be valid.")
+            if (bridge.clientToken == null) throw SessionException("Spotify's web player did not initialize its client session. Update Android System WebView and retry.")
             if (!bridge.verifiedAccess) {
                 val signedIn = withContext(Dispatchers.IO) {
                     val connection = URL("https://api.spotify.com/v1/me").openConnection() as HttpURLConnection
@@ -242,12 +272,13 @@ internal class SpotifyWebSession(private val activity: Activity) {
                         connection.responseCode == 200
                     } finally { connection.disconnect() }
                 }
-                if (!signedIn) return null
+                if (!signedIn) throw SessionException("Spotify could not verify the web-player account. Try a fresh sp_dc cookie.")
             }
             return MintedTokens(bridge.accessToken!!, bridge.clientToken, minOf(bridge.expiresAtMs, bridge.clientExpiresAtMs), bridge.hashes.toMap())
         } finally {
             if (messageBridge) WebViewCompat.removeWebMessageListener(webView, BRIDGE_NAME)
             webView.stopLoading()
+            host.removeView(webView)
             webView.destroy()
         }
     }
@@ -261,7 +292,7 @@ internal class SpotifyWebSession(private val activity: Activity) {
         @Volatile var expiresAtMs = System.currentTimeMillis() + 45 * 60 * 1000L
         @Volatile var clientExpiresAtMs = System.currentTimeMillis() + 45 * 60 * 1000L
         val hashes = ConcurrentHashMap<String, String>()
-        private fun signal() { if (accessToken != null && clientToken != null && !ready.isCompleted) ready.complete(Unit) }
+        private fun signal() { if (!anonymous && accessToken != null && clientToken != null && !ready.isCompleted) ready.complete(Unit) }
         @Synchronized fun captureHeaders(headers: Map<String, String>) {
             headers.entries.firstOrNull { it.key.equals("Authorization", true) }?.value
                 ?.takeIf { it.startsWith("Bearer ") }?.removePrefix("Bearer ")?.takeIf { it.isNotBlank() }?.let { if (!verifiedAccess) accessToken = it }

@@ -99,7 +99,7 @@ Stable and nightly APKs use the same package and permanent signing key, so they 
 | --- | --- |
 | <img src="docs/images/release-preview.png" alt="Teal mobile stable-release banner" width="460"> | <img src="docs/images/nightly-preview.png" alt="Coral mobile nightly-release banner" width="460"> |
 | **Actions → Release Lokal Mobile → Run workflow** | **Actions → Build Lokal Mobile Nightly → Run workflow** |
-| Uses the version in `pubspec.yaml`; next is **1.0.0**. Creates a reviewable draft by default. | Builds main as `1.0.0-nightly.N` before 1.0.0, then `1.0.1-nightly.N` after its tag exists. |
+| Choose **patch**, **minor** or **major**, or an exact version. The prepared first release stays **1.0.0**. Creates a reviewable draft by default. | Builds main as `1.0.0-nightly.N` before 1.0.0, then the next patch of the latest stable tag. |
 | Publishing a stable release makes it the latest stable download. Matching `v*` stable tags also work. | Always a prerelease; never replaces GitHub's latest stable download. |
 
 Both flows generate their own mobile banner, changelog, signed APKs, certificate metadata and SHA-256 checksums. Merges run normal CI but **do not publish APK releases**. [Release maintainer guide →](docs/RELEASING.md)

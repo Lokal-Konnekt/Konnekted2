@@ -55,11 +55,20 @@ class MethodChannelSpotifyOAuthBrowser implements SpotifyOAuthBrowser {
   }
 
   Future<SpotifyTokens?> _mintTokens(String sessionCookie) async {
-    final raw = await _channel
-        .invokeMethod<Map<Object?, Object?>>('mintTokens', {
-          'sessionCookie': sessionCookie,
-        })
-        .timeout(const Duration(seconds: 50));
+    Map<Object?, Object?>? raw;
+    try {
+      raw = await _channel
+          .invokeMethod<Map<Object?, Object?>>('mintTokens', {
+            'sessionCookie': sessionCookie,
+          })
+          .timeout(const Duration(seconds: 50));
+    } on PlatformException catch (error) {
+      throw SpotifyOAuthException(
+        error.code == 'SPOTIFY_SESSION_ERROR'
+            ? error.message ?? 'Spotify could not start its web-player session.'
+            : 'Spotify connection failed. Check your network and try again.',
+      );
+    }
     if (raw == null)
       throw const SpotifyOAuthException(
         'Spotify did not complete its web-player session. Try again.',

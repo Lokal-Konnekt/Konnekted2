@@ -3,15 +3,19 @@
 ## Two deliberate flows
 
 - **Release Lokal Mobile** (`android-release.yml`): run manually from **main**.
-  The version comes from `pubspec.yaml` (prepared for **1.0.0+1000**). Choose
-  `full`, `play` or `both`; `full` is the default. Leave versionCode blank.
+  Choose **patch**, **minor** or **major**, like desktop, or enter an exact
+  version to override the bump. If pubspec already prepares an unreleased
+  version, that version is released first: the initial stable stays **1.0.0**.
+  Later bumps use the latest stable tag, even if pubspec still says 1.0.0.
+  Choose `full` for the complete sideloaded app (`play` is the restricted store
+  variant; `both` builds both). Leave versionCode blank.
   **Draft** defaults to true so you can review the generated notes and assets
   before publishing. Uncheck it only when you want immediate stable publication.
   Matching stable `vMAJOR.MINOR.PATCH` tag pushes also publish; the tag must point
-  into trusted main history and match pubspec. Prerelease tags do not trigger it.
+  into trusted main history and be at least as new as pubspec. Prerelease tags do not trigger it.
 - **Build Lokal Mobile Nightly** (`android-nightly.yml`): run manually from main.
-  It publishes an immutable prerelease such as `v1.0.0-nightly.1`. Once `v1.0.0`
-  exists, the next nightly is `1.0.1-nightly.N`. A rerun has `.rATTEMPT` appended
+  It publishes an immutable prerelease such as `v1.0.0-nightly.1`. Once a stable tag
+  exists, nightlies target the next patch of the latest stable version. A rerun has `.rATTEMPT` appended
   to avoid overwriting an earlier nightly. It never receives the latest label.
 
 The old merge-triggered beta publisher is removed. Branch/PR CI is unchanged;
@@ -19,15 +23,30 @@ merging code does not publish a beta, nightly or stable APK. The shared
 `android-signed-build.yml` is called by these two flows, not run manually.
 
 ```sh
-gh workflow run android-release.yml --ref main -f flavor=full -f draft=true
+gh workflow run android-release.yml --ref main -f bump=patch -f flavor=full -f draft=true
 gh workflow run android-nightly.yml --ref main -f flavor=full
 ```
 
-The first stable is **1.0.0**. For the next stable, update pubspec in a reviewed
-PR, merge it, then run the stable workflow. There is no automatic version-bump PR
-and no release on version-bump merge. Workflows must be merged to main before
+The first stable is **1.0.0**. For subsequent releases, select the bump in
+Actions; no manual pubspec edit is required. The selected version is embedded
+in the APK and used by its tag, banner and release notes. There is no automatic
+version-bump PR and no release on merge. Workflows must be merged to main before
 GitHub exposes their Run workflow buttons. Do not run either flow merely to
 validate this configuration: doing so builds and creates a real GitHub release.
+
+## Replace the published 1.0.0
+
+After merging the fixes, run **Release Lokal Mobile** from **main**, enter
+**1.0.0** in the exact-version field, select **full**, and enable **Replace
+existing release**. Leave versionCode blank. The bump choice is ignored.
+
+This rebuilds 1.0.0 with a higher versionCode using the same signing identity,
+updates the existing release's APK/checksums/banner/notes and moves its tag to
+the rebuilt source commit. Outdated generated APK attachments are removed only
+after the verified replacements upload. Unrelated attachments remain. A
+published release stays published; the draft checkbox applies only to creation.
+The workflow refuses replacement if another actor moved the tag during the build.
+No replacement happens just by merging this PR.
 
 ## Signing, updates and version codes
 
@@ -55,7 +74,7 @@ earlier signed beta/stable/nightly installations without counter collisions.
 A manual override must be positive, at least this default, and at most
 2,100,000,000. If you deliberately jump ahead, raise the pubspec baseline to
 match before making another automatically numbered build. Reruns calculate a
-fresh code; existing releases are refused rather than overwritten.
+fresh code. Existing releases are refused unless replacement is explicitly enabled.
 
 The channels share app data and cannot coexist as separate installations.
 Android refuses a lower versionCode even if its human version says stable:

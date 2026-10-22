@@ -11,11 +11,11 @@ import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/appearance/lokal_appearance_screen.dart';
-import 'package:flick/features/konnekted/konnekted_discovery.dart';
 import 'package:flick/features/settings/library_scan/library_scan_flow.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_page.dart';
 import 'package:flick/providers/lastfm_provider.dart';
+import 'package:flick/features/settings/widgets/youtube_music_settings_tile.dart';
 import 'package:flick/providers/onboarding_provider.dart';
 import 'package:flick/services/permission_service.dart';
 import 'package:flick/widgets/lokal/lokal_logo.dart';
@@ -25,8 +25,8 @@ import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 /// your music folder, optional accounts, then All Set.
 ///
 /// Each permission is asked for where it is needed: storage when a folder is
-/// picked, notifications on the last step. Nothing online is turned on here;
-/// the accounts step only opens Settings › Online sources.
+/// picked, notifications on the last step. Account connections remain opt-in;
+/// YouTube Music opens the same sign-in flow as Data › Accounts.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -614,15 +614,13 @@ class _OnlinePage extends ConsumerWidget {
   void _open(BuildContext context, String section) => unawaited(
     openLokalSettings(
       context,
-      group: LokalSettingsGroup.integrations,
+      group: LokalSettingsGroup.data,
       section: section,
     ),
   );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final youtube =
-        ref.watch(konnektedYoutubeMusicSessionProvider).value?.signedIn == true;
     final lastFm = ref.watch(lastFmSessionProvider).value != null;
     return ListView(
       padding: const EdgeInsets.only(top: 12, bottom: 24),
@@ -635,22 +633,14 @@ class _OnlinePage extends ConsumerWidget {
             body:
                 'Sign in to YouTube Music for your mixes, and connect Last.fm '
                 'for scrobbling and Discovery. Both stay off until you turn '
-                'them on, here or later in Settings › Online sources.',
+                'them on, here or later in Data › Accounts.',
           ),
         ),
         const SizedBox(height: 6),
         LokalSettingsSection(
-          title: lokalText('Online sources'),
+          title: lokalText('Accounts'),
           children: [
-            LokalSettingRow.toggle(
-              label: lokalText('YouTube Music'),
-              description: youtube
-                  ? lokalText('Signed in')
-                  : lokalText('Your mixes, likes and history'),
-              icon: Icons.play_circle_outline_rounded,
-              value: youtube,
-              onChanged: (_) => _open(context, LokalOnlineSections.streaming),
-            ),
+            const YoutubeMusicSettingsTile(),
             LokalSettingRow.toggle(
               label: lokalText('Last.fm'),
               description: lastFm
@@ -658,12 +648,12 @@ class _OnlinePage extends ConsumerWidget {
                   : lokalText('Scrobble what you play and power Discovery'),
               icon: Icons.graphic_eq_rounded,
               value: lastFm,
-              onChanged: (_) => _open(context, LokalOnlineSections.accounts),
+              onChanged: (_) => _open(context, LokalDataSections.accounts),
             ),
             LokalSettingLink(
               label: lokalText('All online sources'),
               description: lokalText(
-                'Add-ons, servers, Spotify and ListenBrainz',
+                'Playback sources, add-ons, servers and radio',
               ),
               onTap: () => unawaited(
                 openLokalSettings(

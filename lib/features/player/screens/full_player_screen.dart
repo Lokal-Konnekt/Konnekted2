@@ -1506,9 +1506,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   : '${speed.toStringAsFixed(2)}x',
               () => SpeedBottomSheet.show(context, _player),
               active: (speed - 1.0).abs() >= 0.01,
+              width: (constraints.maxWidth - 8) / 4,
             ),
           ),
-          chip(LucideIcons.slidersHorizontal, l10n.equalizer, _openEqualizer),
+          chip(LucideIcons.slidersHorizontal, l10n.equalizer, _openEqualizer,
+            width: (constraints.maxWidth - 8) / 4),
         ],
       ),
     ));

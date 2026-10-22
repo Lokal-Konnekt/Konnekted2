@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_performance_scope.dart';
 import 'package:flick/services/notification_service.dart';
 import 'package:flick/services/widget_sync_service.dart';
 import 'package:flick/features/appearance/lokal_performance_advisor.dart';
@@ -107,15 +108,18 @@ class FlickPlayerApp extends StatelessWidget {
               appearance.textScale,
             ),
           ),
-          child: Consumer(
-            builder: (context, ref, _) => ConnectionNoticeHost(
-              showNotice: ref.watch(
-                appPreferencesProvider.select(
-                  (preferences) => preferences.connectionNoticesEnabled,
+          child: LokalPerformanceScope(
+            enabled: appearance.ultraPerformanceMode,
+            child: Consumer(
+              builder: (context, ref, _) => ConnectionNoticeHost(
+                showNotice: ref.watch(
+                  appPreferencesProvider.select(
+                    (preferences) => preferences.connectionNoticesEnabled,
+                  ),
                 ),
-              ),
-              child: LokalPerformanceAdvisor(
-                child: child ?? const SizedBox.shrink(),
+                child: LokalPerformanceAdvisor(
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),

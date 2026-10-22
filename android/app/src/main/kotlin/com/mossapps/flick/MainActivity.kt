@@ -242,6 +242,7 @@ class MainActivity: FlutterActivity() {
             }
         LokalSystemVolume.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LauncherIcon.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
+        LokalAppUpdater.register(flutterEngine.dartExecutor.binaryMessenger, this)
         LokalLibrarySyncNotification.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         FileCopyService.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LokalDesktopDiscovery.register(flutterEngine.dartExecutor.binaryMessenger, this)
@@ -5585,6 +5586,11 @@ class MainActivity: FlutterActivity() {
         } catch (e: Exception) {
             Log.w("AudioDevice", "AudioDeviceCallback registration failed: ${e.message}")
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        LokalAppUpdater.systemUiOpen = false
     }
 
     override fun onStop() {

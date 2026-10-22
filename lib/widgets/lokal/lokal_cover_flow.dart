@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_performance_scope.dart';
 import 'package:flick/l10n/l10n.dart';
 
 import 'dart:math' as math;
@@ -66,12 +67,14 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   final _faces = <String, Widget>{};
   double? _faceSize;
   bool _reduceMotion = false;
+  bool _performance = false;
   bool _disposing = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
+    _performance = LokalPerformanceScope.of(context);
     _faces.clear(); // Theme, locale and text-size changes rebuild the faces.
   }
 
@@ -168,7 +171,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   /// The cover nearest [x] across the stage, inverting `_cover`'s layout.
   int _indexAt(double x, double size) {
     final offset = x - _stageWidth / 2;
-    if (_reduceMotion)
+    if (_reduceMotion || _performance)
       return (_position.value + offset / (size * 1.06)).round().clamp(0, _last);
     final near = size * .82;
     final d = offset.abs() <= near
@@ -279,8 +282,9 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
       _faceSize = size;
     }
     final position = _position.value;
-    final first = math.max(0, position.floor() - 5);
-    final lastShown = math.min(_last, position.ceil() + 5);
+    final radius = _performance ? 2 : 5;
+    final first = math.max(0, position.floor() - radius);
+    final lastShown = math.min(_last, position.ceil() + radius);
     final items = <(double, Widget)>[];
     for (var i = first; i <= lastShown; i++) {
       final d = i - position;
@@ -300,7 +304,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   }
 
   Widget _cover(int i, double d, double size) {
-    final reduce = _reduceMotion;
+    final reduce = _reduceMotion || _performance;
     final ad = d.abs();
     final side = d.sign;
     final near = ad.clamp(0.0, 1.0);
@@ -341,12 +345,13 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _Front(cover: cover, size: size),
-            SizedBox(height: size * .02),
-            _Reflection(
-              size: size,
-              child: SizedBox.square(dimension: size, child: cover),
-            ),
+            _Front(cover: cover, size: size, shadow: !_performance),
+            if (!_performance) SizedBox(height: size * .02),
+            if (!_performance)
+              _Reflection(
+                size: size,
+                child: SizedBox.square(dimension: size, child: cover),
+              ),
           ],
         ),
       );
@@ -385,7 +390,8 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
 }
 
 class _Front extends StatelessWidget {
-  const _Front({required this.cover, required this.size});
+  const _Front({required this.cover, required this.size, this.shadow = true});
+  final bool shadow;
 
   final Widget cover;
   final double size;
@@ -396,13 +402,15 @@ class _Front extends StatelessWidget {
     height: size,
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(6),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x73000000),
-          blurRadius: 40,
-          offset: Offset(0, 18),
-        ),
-      ],
+      boxShadow: shadow
+          ? const [
+              BoxShadow(
+                color: Color(0x73000000),
+                blurRadius: 40,
+                offset: Offset(0, 18),
+              ),
+            ]
+          : null,
     ),
     clipBehavior: Clip.antiAlias,
     child: ExcludeSemantics(child: cover),

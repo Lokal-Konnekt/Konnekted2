@@ -550,6 +550,34 @@ checks pass. Settings search's stale account-location expectation was updated.
 Targeted analysis has no errors/warnings; existing style notices remain. No
 APK/CI build, live paired-device sync or physical background-playback test ran.
 
+### GitHub startup updates
+
+The legacy Play-first/Flick updater is replaced with Lokal GitHub release checks
+using installed APK build numbers and matching full/play metadata/assets. Stable
+installs use GitHub's latest stable release; nightly installs also consider
+published nightlies. Replaced stable releases with unchanged marketing versions
+are detected through their higher versionCode. Drafts, older/equal builds and
+invalid checksums are excluded. Requests are bounded and automatic checks have a
+30-minute cooldown. A single offer per release/build/checksum is shown per shell
+session after onboarding, coordinated with What's new. Later dismisses it;
+About › Updates provides a manual check and release-notes link.
+
+Full APKs use Android DownloadManager for user-requested downloads, including
+system notification progress and continuation outside the app. Reopening Updates
+recovers the stored download status. Install verifies SHA-256 and APK package/build
+on a worker thread before handing off to Android; Android verifies the signing
+identity and requires user confirmation. First install requests Android's unknown
+sources permission for Lokal, then the user can tap Install again. Downloads can
+be retried. Only full builds declare REQUEST_INSTALL_PACKAGES and the narrowly
+scoped APK FileProvider. Play variants open their matching GitHub APK externally.
+No silent installation or automatic download is performed. Launcher alias updates
+are held while installer/permission UI is open.
+
+Validation: release selection/replacement/channel/checksum and explicit
+user-download/install/permission sheet checks plus existing Settings checks pass
+(16 checks). Dart analysis has no errors/warnings; XML/diff checks pass. No APK/CI
+build, native compilation or physical DownloadManager/install test was performed.
+
 ### Unified settings navigation
 
 Home, Library and You header gears all open the same searchable Settings main
@@ -564,6 +592,34 @@ Validation: 39 existing navigation/settings widget checks pass after updating
 route/category expectations. Targeted analysis has no errors; an existing
 unnecessary-null-assertion warning in the appearance language selector remains.
 No APK or CI build was run.
+
+### Full / Performance / Ultra rendering budget
+
+Appearance now has a three-segment performance selector. Legacy false/true
+preferences remain Full/Performance, and Performance stays the default. Ultra is
+explicitly opt-in and persisted across launches and theme changes. It inherits
+Performance's solid surfaces and adds a shared route-wide rendering budget:
+- suppress moving-cover/Canvas lookup and decoding, Ken Burns loops and automatic
+  vinyl rotation, retaining the saved motion preferences for when Ultra is off;
+- use flat cover flow with at most two neighbours per side, no mirrored covers
+  or broad cover shadows, retaining gesture/spring navigation;
+- cap cached/player artwork decode width to 768 physical pixels;
+- cap flowing-lyrics repaint work to about 30 Hz, remove line blur and syllable
+  lifts/feathered saveLayers, retaining word timing and clipped highlight progress;
+- yield automatic local metadata repairs during scrolling and pace background
+  reads more slowly; explicitly requested repairs keep priority.
+
+Album-art animation controllers now stop when animation is disabled or hidden,
+instead of ticking behind static art. Lyric timestamp/visible-line searches use
+binary lookup so every repaint does not scan the entire lyric document. Regular
+navigation and player sheet transitions remain animated, and audio paths are not
+changed. Turning Ultra off restores the other modes' artwork and rendering.
+
+Validation: 29 focused mode migration/persistence/pill, decoder gating/restore,
+idle ticker, cover flow, lyric layout and Settings checks pass. Targeted analysis
+has no errors; existing unused-field/non-null warnings and style notices remain.
+No APK/CI build, Samsung M06 trace, physical frame timings, thermal or battery
+measurement was performed; reduced work is not a quantified speedup claim.
 
 ### Spotify mix cards and optional fullscreen artwork
 
@@ -664,3 +720,4 @@ launch failure followed by cancellation/retry without a broad permission request
 Targeted Dart analysis has no issues. No native compilation/APK/CI run or Samsung
 M06 reproduction was performed; the OEM restart mechanism is a concrete code
 hazard consistent with the report, not a device-confirmed crash diagnosis.
+

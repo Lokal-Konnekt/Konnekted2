@@ -1,3 +1,5 @@
+import 'package:flick/features/appearance/lokal_performance_selector.dart';
+
 import 'dart:async';
 
 import 'package:flick/services/motion_art/moving_cover_settings.dart';
@@ -88,14 +90,7 @@ List<LokalSettingsSection> appearanceSettings(
           semanticFormatter: (v) => '${(v * 100).round()} percent',
           onChanged: look.setTextScale,
         ),
-        LokalSettingRow.toggle(
-          label: lokalText('Performance mode'),
-          description: lokalText(
-            'Solid surfaces instead of glass, for older phones.',
-          ),
-          value: appearance.performanceMode,
-          onChanged: look.setPerformanceMode,
-        ),
+        lokalPerformanceSelector(ref),
       ],
     ),
     LokalSettingsSection(

@@ -1,227 +1,98 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:in_app_update/in_app_update.dart';
+import 'package:flick/features/updates/github_update_service.dart';
+import 'package:flick/services/build_info_service.dart';
 
-import '../core/constants/app_constants.dart';
+import 'app_build_info_provider.dart';
 import 'connectivity_provider.dart';
-import 'package:flick/l10n/l10n.dart';
 
 class UpdateCheckState {
   const UpdateCheckState({
-    this.isOnline = false,
     this.isChecking = false,
     this.hasChecked = false,
-    this.updateAvailable = false,
+    this.release,
     this.errorMessage,
     this.lastCheckedAt,
-    this.isPlayStoreBuild = true,
-    this.downloadUrl,
-    this.latestVersion,
+    this.flavor,
   });
-
-  final bool isOnline;
-  final bool isChecking;
-  final bool hasChecked;
-  final bool updateAvailable;
-  final String? errorMessage;
+  final bool isChecking, hasChecked;
+  final LokalUpdateRelease? release;
+  final String? errorMessage, flavor;
   final DateTime? lastCheckedAt;
-  final bool isPlayStoreBuild;
-  final String? downloadUrl;
-  final String? latestVersion;
-
-  UpdateCheckState copyWith({
-    bool? isOnline,
-    bool? isChecking,
-    bool? hasChecked,
-    bool? updateAvailable,
-    String? errorMessage,
-    DateTime? lastCheckedAt,
-    bool clearErrorMessage = false,
-    bool? isPlayStoreBuild,
-    String? downloadUrl,
-    String? latestVersion,
-    bool clearDownloadUrl = false,
-    bool clearLatestVersion = false,
-  }) {
-    return UpdateCheckState(
-      isOnline: isOnline ?? this.isOnline,
-      isChecking: isChecking ?? this.isChecking,
-      hasChecked: hasChecked ?? this.hasChecked,
-      updateAvailable: updateAvailable ?? this.updateAvailable,
-      errorMessage: clearErrorMessage
-          ? null
-          : errorMessage ?? this.errorMessage,
-      lastCheckedAt: lastCheckedAt ?? this.lastCheckedAt,
-      isPlayStoreBuild: isPlayStoreBuild ?? this.isPlayStoreBuild,
-      downloadUrl:
-          clearDownloadUrl ? null : downloadUrl ?? this.downloadUrl,
-      latestVersion:
-          clearLatestVersion ? null : latestVersion ?? this.latestVersion,
-    );
-  }
+  bool get updateAvailable => release != null;
 }
 
+final githubUpdateServiceProvider = Provider<GithubUpdateService>((ref) {
+  final client = http.Client();
+  ref.onDispose(client.close);
+  return GithubUpdateService(client);
+});
+final updateBuildFlavorProvider = FutureProvider<String?>(
+  (ref) => BuildInfoService().getBuildFlavor(),
+);
+
 class UpdateCheckNotifier extends Notifier<UpdateCheckState> {
-  static const String flickPlayStoreUrl =
-      'https://play.google.com/store/apps/details?id=com.mossapps.flick';
-  static const String flickPlayStoreMarketUrl =
-      'market://details?id=com.mossapps.flick';
-  static const String flickWebsiteDownloadUrl = 'https://www.flick-player.site/';
-  static const Duration _automaticRefreshCooldown = Duration(minutes: 30);
-
-  static final Uri _githubReleasesApiUri = Uri.parse(
-    'https://api.github.com/repos/Lokal-Konnekt/Konnekted2/releases/latest',
-  );
-
-  bool _initialized = false;
-
+  bool _disposed = false;
   @override
   UpdateCheckState build() {
-    if (!_initialized) {
-      _initialized = true;
-      ref.listen<ConnectivityStatus>(connectivityProvider, (previous, next) {
-        if (next == ConnectivityStatus.unknown) {
-          return;
-        }
-        final isOnline = next == ConnectivityStatus.online;
-        unawaited(
-          _syncConnectivityAndMaybeCheck(
-            isOnline,
-            forceCheck: previous == ConnectivityStatus.offline && isOnline,
-          ),
-        );
-      });
-
-      // The shared provider may already be resolved when this notifier is
-      // first read, in which case no transition will fire.
-      final status = ref.read(connectivityProvider);
-      if (status == ConnectivityStatus.online) {
-        Future<void>.microtask(() => _syncConnectivityAndMaybeCheck(true));
-      } else if (status == ConnectivityStatus.offline) {
-        Future<void>.microtask(() => _syncConnectivityAndMaybeCheck(false));
-      }
-    }
+    ref.onDispose(() => _disposed = true);
+    ref.listen(connectivityProvider, (previous, next) {
+      if (next == ConnectivityStatus.online) unawaited(refreshIfOnline());
+    });
     return const UpdateCheckState();
   }
 
   Future<void> refreshIfOnline({bool force = false}) async {
-    final status = ref.read(connectivityProvider);
-    final isOnline = switch (status) {
-      ConnectivityStatus.online => true,
-      ConnectivityStatus.offline => false,
-      ConnectivityStatus.unknown => await ref
-          .read(connectivityProvider.notifier)
-          .refresh(),
-    };
-    await _syncConnectivityAndMaybeCheck(isOnline, forceCheck: force);
-  }
-
-  Future<void> _syncConnectivityAndMaybeCheck(
-    bool isOnline, {
-    bool forceCheck = false,
-  }) async {
-    final wasOnline = state.isOnline;
-
-    state = state.copyWith(isOnline: isOnline, clearErrorMessage: isOnline);
-
-    if (!isOnline) {
+    if (state.isChecking) return;
+    if (!force &&
+        state.lastCheckedAt != null &&
+        DateTime.now().difference(state.lastCheckedAt!) <
+            const Duration(minutes: 30))
       return;
-    }
-
-    final shouldCheck = forceCheck || !state.hasChecked || !wasOnline;
-    if (!shouldCheck) {
-      return;
-    }
-
-    if (!forceCheck && _checkedRecently) {
-      return;
-    }
-
-    await _checkForUpdate();
-  }
-
-  bool get _checkedRecently {
-    final lastCheckedAt = state.lastCheckedAt;
-    if (lastCheckedAt == null) {
-      return false;
-    }
-    return DateTime.now().difference(lastCheckedAt) < _automaticRefreshCooldown;
-  }
-
-  Future<void> _checkForUpdate() async {
-    if (state.isChecking) {
-      return;
-    }
-
-    state = state.copyWith(isChecking: true, clearErrorMessage: true);
-
-    try {
-      final info = await InAppUpdate.checkForUpdate();
-      state = state.copyWith(
-        isChecking: false,
-        hasChecked: true,
-        updateAvailable:
-            info.updateAvailability == UpdateAvailability.updateAvailable,
-        lastCheckedAt: DateTime.now(),
-        clearErrorMessage: true,
-      );
-    } on PlatformException {
-      await _checkGitHubForUpdate();
-    } catch (_) {
-      state = state.copyWith(
-        isChecking: false,
-        hasChecked: true,
-        errorMessage: l10n.unableToCheckForUpdatesRight,
-        lastCheckedAt: DateTime.now(),
-      );
-    }
-  }
-
-  Future<void> _checkGitHubForUpdate() async {
-    try {
-      final response = await http.get(
-        _githubReleasesApiUri,
-        headers: const {
-          'Accept': 'application/vnd.github+json',
-          'User-Agent': 'FlickPlayer',
-          'X-GitHub-Api-Version': '2022-11-28',
-        },
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('GitHub API returned ${response.statusCode}');
+    if (ref.read(connectivityProvider) != ConnectivityStatus.online) {
+      if (!force) return;
+      if (!await ref.read(connectivityProvider.notifier).refresh()) {
+        if (!_disposed) {
+          state = UpdateCheckState(
+            errorMessage: 'Connect to the internet to check for updates.',
+            hasChecked: state.hasChecked,
+            release: state.release,
+            flavor: state.flavor,
+          );
+        }
+        return;
       }
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      var tag = (data['tag_name'] as String?)?.trim() ?? '';
-      if (tag.startsWith('v')) {
-        tag = tag.substring(1);
-      }
-
-      final isUpdateAvailable = tag.isNotEmpty && tag != kAppVersion;
-
-      state = state.copyWith(
-        isChecking: false,
+    }
+    if (_disposed || state.isChecking) return;
+    state = UpdateCheckState(
+      isChecking: true,
+      release: state.release,
+      flavor: state.flavor,
+    );
+    try {
+      final build = await ref.read(appBuildInfoProvider.future);
+      final flavor = await ref.read(updateBuildFlavorProvider.future);
+      if (flavor == null) throw StateError('Installed APK variant unavailable');
+      final release = await ref
+          .read(githubUpdateServiceProvider)
+          .check(build, flavor)
+          .timeout(const Duration(seconds: 30));
+      if (_disposed) return;
+      state = UpdateCheckState(
         hasChecked: true,
-        isPlayStoreBuild: false,
-        updateAvailable: isUpdateAvailable,
-        downloadUrl:
-            isUpdateAvailable ? flickWebsiteDownloadUrl : null,
-        latestVersion: tag.isNotEmpty ? tag : null,
+        release: release,
+        flavor: flavor,
         lastCheckedAt: DateTime.now(),
-        clearErrorMessage: true,
       );
     } catch (_) {
-      state = state.copyWith(
-        isChecking: false,
+      if (_disposed) return;
+      state = UpdateCheckState(
         hasChecked: true,
-        isPlayStoreBuild: false,
-        updateAvailable: false,
-        errorMessage: l10n.unableToCheckForUpdatesRight,
+        release: state.release,
+        flavor: state.flavor,
+        errorMessage: 'Couldn’t check for updates. Try again when online.',
         lastCheckedAt: DateTime.now(),
       );
     }

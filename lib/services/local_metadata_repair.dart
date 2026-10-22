@@ -1,3 +1,5 @@
+import 'package:flick/services/artwork_gate.dart';
+
 import 'dart:convert';
 
 import '../src/rust/api/morneye_api.dart' show morneyeMediaInfo;
@@ -17,6 +19,7 @@ import 'music_folder_service.dart';
 /// One worker repairs old rows and new imports without decoding or downloading audio.
 class LocalMetadataRepair {
   static final instance = LocalMetadataRepair();
+  bool ultraPerformanceMode = false;
   static const _version = 'lokal.local_metadata.v2';
   Set<int> _pending = <int>{};
   final _waiters = <int, Completer<void>>{};
@@ -87,6 +90,12 @@ class LocalMetadataRepair {
       _loaded = true;
     }
     while (_pending.isNotEmpty && Database.isInitialized) {
+      // User-requested repairs keep priority. Automatic backfill yields while
+      // a list is being scrolled instead of competing for storage/CPU.
+      if (ultraPerformanceMode && _waiters.isEmpty && artworkExtractionPaused) {
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        continue;
+      }
       final id = _pending.first;
       _pending.remove(id);
       var read = false;
@@ -96,7 +105,11 @@ class LocalMetadataRepair {
         _waiters.remove(id)?.complete();
       }
       if (read && _pending.isNotEmpty)
-        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await Future<void>.delayed(
+          Duration(
+            milliseconds: ultraPerformanceMode && _waiters.isEmpty ? 150 : 20,
+          ),
+        );
     }
     await prefs.setStringList(_version, _seen.toList());
   }

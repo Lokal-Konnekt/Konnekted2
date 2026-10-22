@@ -1,3 +1,5 @@
+import 'package:flick/core/theme/lokal_performance_scope.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -166,7 +168,8 @@ class _LyricMotionLineState extends State<LyricMotionLine> {
               _dim!,
               _runs,
               widget.position,
-              MediaQuery.disableAnimationsOf(context),
+              MediaQuery.disableAnimationsOf(context) ||
+                  LokalPerformanceScope.of(context),
               widget.style.fontSize ?? 24,
             ),
           ),
@@ -248,6 +251,21 @@ class _LyricPainter extends CustomPainter {
         dim.paint(canvas, Offset.zero);
         if (word != null && p > 0) {
           if (p >= 1) {
+            lit.paint(canvas, Offset.zero);
+          } else if (reduced) {
+            final width = rect.width * p;
+            canvas.clipRect(
+              Rect.fromLTRB(
+                box.direction == TextDirection.rtl
+                    ? rect.right - width
+                    : rect.left,
+                rect.top,
+                box.direction == TextDirection.rtl
+                    ? rect.right
+                    : rect.left + width,
+                rect.bottom,
+              ),
+            );
             lit.paint(canvas, Offset.zero);
           } else {
             canvas.saveLayer(rect, Paint());

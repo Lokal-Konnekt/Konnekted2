@@ -35,6 +35,7 @@ object LauncherIcon {
     private var busy = false
 
     fun onStop(context: Context) {
+        if (LokalAppUpdater.systemUiOpen) return
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (!busy && !FileCopyService.running && !audio.isMusicActive) applyPending(context)
     }

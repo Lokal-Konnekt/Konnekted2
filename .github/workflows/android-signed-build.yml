@@ -79,27 +79,49 @@ jobs:
         # A runner-generated debug key must never be used for published betas.
         run: python3 tool/ci_release.py build
 
-      # Test a genuine first install, not just signature/manifest inspection.
-      # This runs after the package step and before the artifact can be uploaded.
+      # Smoke-test the exact published APK on a clean Android 8 install.
+      # GitHub runners need hardware acceleration; fail fast rather than
+      # hanging at 'adb wait-for-device' for the entire job timeout.
       - name: Smoke-test fresh install on Android 8.0
         if: matrix.flavor == 'full'
-        timeout-minutes: 15
+        timeout-minutes: 8
         shell: bash
         env:
           APK_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager --install "platforms;android-26" "system-images;android-26;google_apis;x86" "emulator"
-          echo no | avdmanager create avd -n lokal-fresh-install -k "system-images;android-26;google_apis;x86" --force
-          emulator -avd lokal-fresh-install -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect >"$RUNNER_TEMP/lokal-emulator.log" 2>&1 &
+          if [ ! -e /dev/kvm ]; then
+            echo "::error::Runner has no /dev/kvm; refusing a slow software-emulated Android boot."
+            exit 1
+          fi
+          sudo chmod 666 /dev/kvm
+          sdkmanager --install "system-images;android-26;google_apis;x86_64" "emulator" >/dev/null
+          echo no | avdmanager create avd -n lokal-fresh-install -k "system-images;android-26;google_apis;x86_64" --force
+          emulator -avd lokal-fresh-install -no-window -no-audio -no-boot-anim -no-snapshot -accel on -gpu swiftshader_indirect >"$RUNNER_TEMP/lokal-emulator.log" 2>&1 &
           EMULATOR_PID=$!
           trap 'adb emu kill >/dev/null 2>&1 || true; kill "$EMULATOR_PID" >/dev/null 2>&1 || true' EXIT
-          adb wait-for-device
-          timeout 360 bash -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ]; do sleep 3; done'
-          test -z "$(adb shell pm list packages com.lokalkonnekt.konnekted2 | tr -d '\r')"
-          adb install -r "$RUNNER_TEMP/konnekted-release/Lokal-$APK_VERSION-universal.apk"
+          # Never wait indefinitely if the emulator crashes or cannot boot.
+          for attempt in $(seq 1 45); do
+            if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+              echo "::error::Emulator exited before Android booted."
+              tail -n 100 "$RUNNER_TEMP/lokal-emulator.log" || true
+              exit 1
+            fi
+            if adb devices | grep -q $'emulator-[0-9]*\\tdevice' &&
+               [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r')" = 1 ]; then
+              break
+            fi
+            if [ "$attempt" -eq 45 ]; then
+              echo "::error::Emulator did not boot within 135 seconds."
+              adb devices -l || true
+              tail -n 100 "$RUNNER_TEMP/lokal-emulator.log" || true
+              exit 1
+            fi
+            sleep 3
+          done
+          test -z "$(adb shell pm list packages com.lokalkonnekt.konnekted2 | tr -d '\\r')"
+          timeout 90 adb install -r "$RUNNER_TEMP/konnekted-release/Lokal-$APK_VERSION-universal.apk"
           adb shell pm path com.lokalkonnekt.konnekted2 | grep -q package:
 
       - name: Remove temporary signing material

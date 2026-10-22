@@ -52,7 +52,6 @@ import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/player_volume_control.dart';
-import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_dialog.dart';
 
 const String _font = 'GoogleSansFlex';
@@ -673,6 +672,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       radius: radius.topLeft.x,
       crossfade: false,
     );
+    final motionEnabled =
+        current &&
+        prefs.animatedAlbumArt &&
+        prefs.animationsEnabled &&
+        !ref
+            .watch(movingCoverSettingsProvider)
+            .disabledSongs
+            .contains(movingCoverSongKey(song));
     final art = ClipRRect(
       borderRadius: radius,
       child: ValueListenableBuilder<bool>(
@@ -683,14 +690,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           artist: song.artist,
           album: song.album,
           duration: song.duration,
-          enabled:
-              current &&
-              prefs.animatedAlbumArt &&
-              prefs.animationsEnabled &&
-              !ref
-                  .watch(movingCoverSettingsProvider)
-                  .disabledSongs
-                  .contains(movingCoverSongKey(song)),
+          enabled: motionEnabled,
           playbackActive: current && progress < .999 && playing,
           borderRadius: radius,
           fallback: still,
@@ -736,17 +736,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                             ),
                             child: child,
                           ),
-                          child: CachedImageWidget(
-                            imagePath: song.albumArt,
-                            audioSourcePath: song.filePath,
-                            fit: BoxFit.cover,
-                            placeholder: ColoredBox(
-                              color: flightContext.lokal.surface3,
-                            ),
-                            errorWidget: ColoredBox(
-                              color: flightContext.lokal.surface3,
-                            ),
-                          ),
+                          child: art,
                         ),
                     child: art,
                   ),

@@ -475,3 +475,21 @@ dock/component tests pass, including same-resource/frame handoff and active-view
 ownership. No physical video-decoder/performance test or APK build was run.
 Targeted analysis has no errors; the full-player's pre-existing unused
 `_favForSongId` field warning remains.
+
+### Discovery desktop parity and motion artwork entry (October 22)
+
+Compared mobile against current desktop `electron/discoveryArtwork.js` and
+`electron/online/youtube.js`. Discovery now uses desktop's final YouTube song
+thumbnail fallback after catalogue misses, accepting only matching recordings.
+YouTube personal mixes accept dimensionless native thumbnails, retain the full
+current WEB_REMIX client context, and page home/shelf continuations separately
+with desktop's 20-token limit and existing time budget.
+
+A ticker-disabled player drag preview can synchronously borrow an already loaded
+motion frame without a lookup or second decoder. Both Hero flights retain motion
+artwork; reduced motion, background and exclusive-output suppression still apply.
+
+Validation: 54 focused discovery, parser, shared decoder and motion widget checks
+pass, including a desktop-style 19-mix continuation fixture and a warm video drag
+preview. Targeted analysis has no errors/warnings (style/deprecation notices
+remain). No APK build, live account or physical-device validation was run.

@@ -42,6 +42,7 @@ class MotionArtView extends StatefulWidget {
     this.serviceOverride,
     this.loadingFallback,
     this.sharedPlaybackKey,
+    this.sharedPlaybackOverride,
   });
 
   /// Song title, or the album name when [albumMode] is true.
@@ -81,6 +82,7 @@ class MotionArtView extends StatefulWidget {
   @visibleForTesting
   final AnimatedArtworkService? serviceOverride;
   final String? sharedPlaybackKey;
+  final SharedMotionPlayback<VideoPlayerController>? sharedPlaybackOverride;
 
   @override
   State<MotionArtView> createState() => _MotionArtViewState();
@@ -121,9 +123,14 @@ class _MotionArtViewState extends State<MotionArtView>
     dispose: (controller) =>
         controller.dispose().timeout(const Duration(seconds: 4)),
   );
+  SharedMotionPlayback<VideoPlayerController> get _playbackPool =>
+      widget.sharedPlaybackOverride ?? _shared;
   MotionPlaybackLease<VideoPlayerController>? _sharedLease;
   VideoPlayerController? _controller;
   bool _hasVideo = false;
+  bool _dependenciesReady = false;
+  bool _reduceMotion = false;
+  bool _reusedClip = false;
   bool _settledWithoutMotion = false;
   bool _suppressed = false;
   bool _routeIsCurrent = true;
@@ -217,7 +224,7 @@ class _MotionArtViewState extends State<MotionArtView>
           (Object error) => _logFailureOnce('video state', error),
         ),
       );
-    } else if (_canPlay && !_settledWithoutMotion) {
+    } else if (!_settledWithoutMotion) {
       _beginLoad();
     }
   }
@@ -225,8 +232,9 @@ class _MotionArtViewState extends State<MotionArtView>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _tickerEnabled =
-        TickerMode.of(context) && !MediaQuery.disableAnimationsOf(context);
+    _dependenciesReady = true;
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
+    _tickerEnabled = TickerMode.of(context) && !_reduceMotion;
     final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
     if (isCurrent != _routeIsCurrent) {
       _routeIsCurrent = isCurrent;
@@ -280,6 +288,7 @@ class _MotionArtViewState extends State<MotionArtView>
     _retryTimer?.cancel();
     _retryTimer = null;
     _hasVideo = false;
+    _reusedClip = false;
     _settledWithoutMotion = false;
     final controller = _controller;
     final lease = _sharedLease;
@@ -318,7 +327,40 @@ class _MotionArtViewState extends State<MotionArtView>
     _beginLoad();
   }
 
+  String? get _sharedKey => widget.sharedPlaybackKey == null
+      ? null
+      : '${widget.sharedPlaybackKey}|${movingCoverRevision.value}|${SecureSpotifyTokenStore.sessionRevision.value}|${AnimatedArtworkService.instance.revision.value}';
+
   void _beginLoad() {
+    if (!_dependenciesReady) return;
+    final key = _sharedKey;
+    if (key != null &&
+        _controller == null &&
+        !_loading &&
+        widget.enabled &&
+        !_suppressed &&
+        !_reduceMotion &&
+        _routeIsCurrent &&
+        _lifecycle == AppLifecycleState.resumed) {
+      final lease = _playbackPool.acquireExisting(key);
+      if (lease != null) {
+        _timer?.cancel();
+        _timer = null;
+        _sharedLease = lease;
+        _controller = lease.resource;
+        _hasVideo = true;
+        _reusedClip = true;
+        unawaited(
+          lease
+              .setActive(_canPlay)
+              .catchError(
+                (Object error) => _logFailureOnce('video handoff', error),
+              ),
+        );
+        if (mounted) setState(() {});
+        return;
+      }
+    }
     if (!_canPlay ||
         _loading ||
         _timer?.isActive == true ||
@@ -423,9 +465,9 @@ class _MotionArtViewState extends State<MotionArtView>
     VideoPlayerController? controller;
     MotionPlaybackLease<VideoPlayerController>? lease;
     try {
-      final sharedKey = widget.sharedPlaybackKey;
+      final sharedKey = _sharedKey;
       if (sharedKey != null) {
-        lease = await _shared.acquire(sharedKey, url);
+        lease = await _playbackPool.acquire(sharedKey, url);
         controller = lease.resource;
       } else {
         final uri = Uri.parse(url);
@@ -512,14 +554,17 @@ class _MotionArtViewState extends State<MotionArtView>
       fit: StackFit.expand,
       children: [
         widget.fallback,
-        TweenAnimationBuilder<double>(
-          key: ValueKey(controller),
-          tween: Tween(begin: 0, end: 1),
-          duration: const Duration(milliseconds: 240),
-          child: video,
-          builder: (context, value, child) =>
-              Opacity(opacity: value, child: child),
-        ),
+        if (_reusedClip)
+          video
+        else
+          TweenAnimationBuilder<double>(
+            key: ValueKey(controller),
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 240),
+            child: video,
+            builder: (context, value, child) =>
+                Opacity(opacity: value, child: child),
+          ),
       ],
     );
   }

@@ -23,6 +23,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import 'discovery_http.dart';
+import 'discovery_sources.dart';
+import 'discovery_models.dart';
 import '../library_jobs/artist_metadata.dart';
 import '../../services/apple_music/apple_music_metadata_service.dart';
 import 'recommendation_match.dart';
@@ -92,9 +94,11 @@ class DiscoveryArtworkResolver {
     this._http, {
     DateTime Function()? now,
     this.artistPortrait,
+    this.searchSongs,
   }) : _now = now ?? DateTime.now;
 
   final DiscoveryHttp _http;
+  final Future<List<DiscoveryTrack>> Function(String query)? searchSongs;
   final Future<String?> Function(String name)? artistPortrait;
   final DateTime Function() _now;
 
@@ -255,6 +259,24 @@ class DiscoveryArtworkResolver {
         return cover;
       }
     }
+    // Desktop's final fallback: YouTube Music song thumbnails. Only a
+    // matching title/artist may supply the image, never a random first hit.
+    if (!album && searchSongs != null) {
+      try {
+        final results = await searchSongs!(
+          '${request.artist} ${request.title}',
+        );
+        for (final song in results) {
+          final image = allowed(song.artwork);
+          if (matchingTitle(song.title) &&
+              matchingArtist(song.artist) &&
+              image.isNotEmpty)
+            return image;
+        }
+      } catch (_) {
+        /* Keep the placeholder if every artwork source fails. */
+      }
+    }
     return '';
   }
 }
@@ -319,8 +341,11 @@ final discoveryArtworkResolverProvider = Provider<DiscoveryArtworkResolver>((
 ) {
   final client = http.Client();
   ref.onDispose(client.close);
+  final web = DiscoveryHttp(client, timeout: const Duration(seconds: 4));
+  final youtube = YoutubeMusicCatalog(web, refreshClientContext: true);
   return DiscoveryArtworkResolver(
-    DiscoveryHttp(client, timeout: const Duration(seconds: 4)),
+    web,
+    searchSongs: youtube.search,
     artistPortrait: (name) async {
       final api = AppleMusicMetadataService.instance;
       final artist = await api.resolveArtist(name);

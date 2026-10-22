@@ -183,7 +183,9 @@ Map<String, String>? youtubeMusicHeaders(
     'Content-Type': 'application/json',
     'Origin': _origin,
     'Referer': _origin + '/',
-    'User-Agent': session.userAgent,
+    // WEB_REMIX account browsing uses desktop's web surface. Interactive
+    // sign-in keeps the real WebView UA; it is a separate request path.
+    'User-Agent': _fallbackUserAgent,
     'Cookie': [
       for (final MapEntry(:key, :value) in cookies.entries) key + '=' + value,
     ].join('; '),
@@ -230,9 +232,7 @@ String _thumbnail(Object? value) {
   void visit(Object? node, int depth) {
     if (depth > 14) return;
     if (node is Map) {
-      if (node['url'] is String &&
-          node['width'] is num &&
-          node['height'] is num) {
+      if (node['url'] is String) {
         urls.add(node['url'] as String);
       }
       for (final child in node.values) {
@@ -790,27 +790,52 @@ class YoutubeMusicAccountData {
   final String? mixError;
 }
 
-List<String> _continuations(Object? root) {
+const _homeContinuationTypes = {
+  'sectionListRenderer',
+  'sectionListContinuation',
+  'appendContinuationItemsAction',
+  'reloadContinuationItemsCommand',
+};
+const _mixContinuationTypes = {
+  ..._homeContinuationTypes,
+  'musicCarouselShelfRenderer',
+  'musicCarouselShelfContinuation',
+  'musicShelfRenderer',
+  'musicShelfContinuation',
+  'gridRenderer',
+  'gridContinuation',
+};
+List<String> _continuations(Object? root, {Set<String>? types}) {
   final tokens = <String>{};
-  _walk(root, (node) {
+  void collect(Map node) {
     for (final item in _list(node['continuations'])) {
       final token = _at(item, ['nextContinuationData', 'continuation']);
       if (token is String && token.isNotEmpty) tokens.add(token);
     }
-    final token =
-        _at(node, ['continuationCommand', 'token']) ??
-        _at(node, ['continuationEndpoint', 'continuationCommand', 'token']);
-    if (token is String && token.isNotEmpty) tokens.add(token);
     for (final item in _list(
       node['contents'] ?? node['items'] ?? node['continuationItems'],
     )) {
-      final next = _at(item, [
+      final endpoint = _at(item, [
         'continuationItemRenderer',
         'continuationEndpoint',
-        'continuationCommand',
-        'token',
       ]);
-      if (next is String && next.isNotEmpty) tokens.add(next);
+      for (final command in [
+        endpoint,
+        ..._list(_at(endpoint, ['commandExecutorCommand', 'commands'])),
+      ]) {
+        final token = _at(command, ['continuationCommand', 'token']);
+        if (token is String && token.isNotEmpty) tokens.add(token);
+      }
+    }
+  }
+
+  _walk(root, (node) {
+    if (types == null) {
+      collect(node);
+    } else {
+      for (final type in types) {
+        if (node[type] case final Map container) collect(container);
+      }
     }
   });
   return tokens.toList();
@@ -829,6 +854,7 @@ class YoutubeMusicAccount {
   YoutubeMusicSession session;
   final void Function(YoutubeMusicSession session)? onSessionChanged;
   final Duration timeout;
+  Map<String, Object?> _clientContext = const {};
 
   Future<Map<String, dynamic>> request(
     String endpoint,
@@ -855,6 +881,7 @@ class YoutubeMusicAccount {
             'context': {
               'client': {
                 'clientName': 'WEB_REMIX',
+                ..._clientContext,
                 'clientVersion':
                     session.clientVersion ?? _fallbackClientVersion,
                 'hl': 'en',
@@ -939,12 +966,13 @@ class YoutubeMusicAccount {
     Object? first, {
     bool stopAtMixShelf = false,
     String? params,
+    Set<String> types = _mixContinuationTypes,
   }) async {
     final pages = <Object?>[first];
     final seen = <String>{};
-    final pending = _continuations(first);
+    final pending = _continuations(first, types: types);
     final deadline = DateTime.now().add(const Duration(seconds: 10));
-    while (pending.isNotEmpty && pages.length < 10) {
+    while (pending.isNotEmpty && seen.length < 20) {
       if (stopAtMixShelf && _hasPersonalMixShelf(pages)) break;
       final token = pending.removeAt(0);
       if (!seen.add(token)) continue;
@@ -966,7 +994,10 @@ class YoutubeMusicAccount {
         );
         pages.add(page);
         pending.addAll(
-          _continuations(page).where((value) => !seen.contains(value)),
+          _continuations(
+            page,
+            types: types,
+          ).where((value) => !seen.contains(value)),
         );
       } on YoutubeMusicSignedOut {
         rethrow;
@@ -977,7 +1008,7 @@ class YoutubeMusicAccount {
         );
       }
     }
-    if (pending.isNotEmpty && pages.length >= 10) {
+    if (pending.isNotEmpty && seen.length >= 20) {
       return (
         pages: pages,
         error: 'YouTube Music returned too many pages. Refresh to retry.',
@@ -995,7 +1026,7 @@ class YoutubeMusicAccount {
             Uri.parse('$_origin/'),
             headers: {
               'Cookie': headers['Cookie']!,
-              'User-Agent': session.userAgent,
+              'User-Agent': _fallbackUserAgent,
               'Accept-Language': 'en-US,en;q=0.9',
             },
           )
@@ -1007,6 +1038,10 @@ class YoutubeMusicAccount {
       final html = utf8.decode(response.bodyBytes);
       final config = youtubeMusicPageObject(html, 'ytcfg');
       if (config != null) {
+        final context = _at(config, ['INNERTUBE_CONTEXT', 'client']);
+        _clientContext = context is Map
+            ? context.cast<String, Object?>()
+            : const {};
         session = YoutubeMusicSession(
           cookies: session.cookies,
           userAgent: session.userAgent,
@@ -1066,7 +1101,12 @@ class YoutubeMusicAccount {
     var homePages = <Object?>[if (initialPage != null) initialPage];
     String? mixError;
     if (home != null) {
-      final result = await _pages('FEmusic_home', home, stopAtMixShelf: true);
+      final result = await _pages(
+        'FEmusic_home',
+        home,
+        stopAtMixShelf: true,
+        types: _homeContinuationTypes,
+      );
       homePages.addAll(result.pages);
       mixError = result.error;
     }

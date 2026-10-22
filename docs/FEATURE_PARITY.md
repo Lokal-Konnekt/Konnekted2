@@ -335,3 +335,17 @@ moved by this update; new saves and explicit private-copy recovery use it.
 Focused filesystem/SAF bridge fixtures, folder-name safety checks and widget
 checks cover tap/up/down gestures, stable single artwork and retained scroll.
 No APK build, native compilation or physical Android SAF/gesture test was run.
+
+### Amazon empty-container descriptor compatibility
+
+Amazon add-on 2.3.14 returns empty `output_extension` fields for FLAC, meaning
+use the host default, and an empty `decryption_key` for clear audio. Mobile now
+uses the first nonblank declared extension or `.flac`, matching desktop's
+fallback semantics, and does not synthesize a decryption request for an empty
+key. Extensions are normalized but still checked against the fixed audio
+container allowlist; key/strategy validation remains in place.
+
+The 39 package-manager tests pass, including the observed Amazon descriptor
+shape, descriptor fallback, normalized extensions, clear audio and rejected path
+injection. Targeted Dart analysis has no errors/warnings. The fixture injects the
+decryptor; no live Amazon stream, physical Android playback or APK build was run.

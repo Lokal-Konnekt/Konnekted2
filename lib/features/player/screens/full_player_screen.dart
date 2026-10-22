@@ -1,3 +1,5 @@
+import 'package:flick/core/theme/lokal_appearance.dart';
+
 import '../widgets/lyrics_source_button.dart';
 import '../widgets/player_panel_stage.dart';
 import '../widgets/motion_art_widget.dart';
@@ -354,6 +356,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     bool isCasting,
     AudioOutputDiagnostics? diagnostics,
   ) {
+    final fullCover = ref.watch(
+      lokalAppearanceProvider.select((look) => look.fullscreenCover),
+    );
     return Scaffold(
       backgroundColor: Colors.black,
       body: ValueListenableBuilder<Song?>(
@@ -366,7 +371,27 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             fit: StackFit.expand,
             children: [
               ArtworkGradientBackdrop(colors: colors),
-              Container(color: Colors.black.withValues(alpha: 0.24)),
+              if (fullCover) _fullscreenArtwork(song),
+              if (fullCover)
+                const IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0x99000000),
+                          Color(0x26000000),
+                          Color(0xB3000000),
+                          Color(0xF0000000),
+                        ],
+                        stops: [0, .28, .66, 1],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                Container(color: Colors.black.withValues(alpha: 0.24)),
               SafeArea(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
@@ -401,7 +426,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                   ),
                                 ),
                               ),
-                              Expanded(child: _panelStage(song, compact)),
+                              Expanded(
+                                child: _panelStage(
+                                  song,
+                                  compact,
+                                  fullCover: fullCover,
+                                ),
+                              ),
                               _seekRow(),
                               SizedBox(
                                 height: lerpDouble(compact ? 6 : 10, 6, l),
@@ -549,7 +580,111 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   // ───────────────────────────── artwork / lyrics ─────────────────────────────
 
-  Widget _panelStage(Song song, bool compact) {
+  Widget _fullscreenArtwork(Song song) {
+    final prefs = ref.watch(appPreferencesProvider);
+    final motion =
+        prefs.animatedAlbumArt &&
+        prefs.animationsEnabled &&
+        !ref
+            .watch(movingCoverSettingsProvider)
+            .disabledSongs
+            .contains(movingCoverSongKey(song));
+    return AnimatedBuilder(
+      animation: Listenable.merge([_queueProgress, _lyricsProgress]),
+      builder: (context, _) {
+        final progress =
+            (_lyricsProgress.value +
+                    _queueProgress.value * (1 - _lyricsProgress.value))
+                .clamp(0.0, 1.0);
+        return IgnorePointer(
+          ignoring: _showLyrics || _queue.engaged,
+          child: Opacity(
+            opacity: 1 - progress,
+            child: TickerMode(
+              enabled: progress < 1,
+              child: ValueListenableBuilder<List<Song>>(
+                valueListenable: _player.upNextNotifier,
+                builder: (context, _, __) => ValueListenableBuilder<int>(
+                  valueListenable: _player.currentIndexNotifier,
+                  builder: (context, _, __) => SongStageCarousel(
+                    key: _carouselKey,
+                    currentSong: song,
+                    nextSong: _player.peekNext,
+                    prevSong: _player.peekPrevious,
+                    enabled: progress == 0 && !_showLyrics && !_queue.isOpen,
+                    onDragStateChanged: (value) => _carouselDragging = value,
+                    onNext: _player.next,
+                    onPrevious: _player.previousBySwipe,
+                    stageBuilder: (track) {
+                      final current = track.id == song.id;
+                      final still = PlayerArtworkImage(
+                        song: track,
+                        radius: 0,
+                        crossfade: false,
+                      );
+                      final content = ValueListenableBuilder<bool>(
+                        valueListenable: _player.isPlayingNotifier,
+                        builder: (context, playing, _) => MotionArtView(
+                          sharedPlaybackKey: 'player:${track.id}',
+                          title: track.title,
+                          artist: track.artist,
+                          album: track.album,
+                          duration: track.duration,
+                          enabled: current && motion,
+                          playbackActive: current && progress < 1 && playing,
+                          borderRadius: BorderRadius.zero,
+                          fallback: still,
+                        ),
+                      );
+                      final shownBurst = _burst;
+                      return GestureDetector(
+                        onDoubleTap: current ? _likeFromArtwork : null,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            HeroMode(
+                              enabled: current,
+                              child: Hero(
+                                tag: widget.heroTag,
+                                createRectTween: (begin, end) =>
+                                    RectTween(begin: begin, end: end),
+                                flightShuttleBuilder: (
+                                  _,
+                                  __,
+                                  ___,
+                                  ____,
+                                  _____,
+                                ) => content,
+                                child: content,
+                              ),
+                            ),
+                            if (current && _burstVisible)
+                              Center(
+                                child: LokalLikeBurst(
+                                  key: ValueKey(_burst),
+                                  color: context.lokal.accent,
+                                  size: MediaQuery.sizeOf(context).width * .28,
+                                  onDone: () {
+                                    if (mounted && shownBurst == _burst)
+                                      setState(() => _burstVisible = false);
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _panelStage(Song song, bool compact, {bool fullCover = false}) {
     final titleSize = compact ? 26.0 : 32.0;
     return LayoutBuilder(
       builder: (context, c) {
@@ -565,6 +700,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           onQueueHeaderDrag: _queue.dragBy,
           onQueueHeaderRelease: _releaseQueue,
           artwork: (context, size, p) {
+            if (fullCover) {
+              // The poster owns the single Hero and carousel in this mode.
+              // Only reveal the compact cover while entering lyrics/queue.
+              if (p == 0) return const SizedBox.expand();
+              return IgnorePointer(
+                child: HeroMode(
+                  enabled: false,
+                  child: Opacity(
+                    opacity: p,
+                    child: _artwork(song, size, current: true, progress: p),
+                  ),
+                ),
+              );
+            }
             final atRest = p == 0 && !_queue.isOpen && !_showLyrics;
             return ValueListenableBuilder<List<Song>>(
               valueListenable: _player.upNextNotifier,

@@ -21,6 +21,7 @@ import 'package:flick/features/morneye/morneye_packages.dart';
 import 'package:flick/features/morneye/morneye_runtime.dart';
 import 'package:flick/features/morneye/morneye_service.dart';
 import 'package:flick/features/spotify/spotify_api.dart';
+import 'package:flick/features/spotify/spotify_web_api.dart';
 import 'package:flick/features/spotify/spotify_oauth.dart';
 import 'package:flick/features/spotify/spotify_storage.dart';
 import 'package:flick/models/song.dart';
@@ -60,6 +61,24 @@ final konnektedSpotifyDiscoveryProvider =
         oauth: oauth,
         api: api,
       );
+    });
+
+/// A tap opens the native Spotify playlist with the same saved-cookie session.
+/// Keep the client scoped to the action, including expiry refresh and cleanup.
+final konnektedSpotifyMixLoaderProvider =
+    Provider<Future<List<LokalDiscoveryTrack>> Function(String)>((ref) {
+      return (id) async {
+        final settings = SpotifySettingsStore();
+        final api = SpotifyWebApi(
+          store: settings.tokenStore,
+          oauth: SpotifyOAuthService(tokenStore: settings.tokenStore),
+        );
+        try {
+          return await loadSpotifyWebMix(api, id);
+        } finally {
+          api.close();
+        }
+      };
     });
 
 final konnektedYoutubeMusicStoreProvider = Provider<YoutubeMusicSessionStore>(

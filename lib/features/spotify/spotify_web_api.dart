@@ -149,20 +149,23 @@ class SpotifyWebApi implements SpotifyLibraryApi {
         final sources = images is List && images.isNotEmpty
             ? images.first['sources']
             : null;
-        mixes[uri] = SpotifyPlaylist(
-          id: uri.split(':').last,
-          name: '${playlist['name'] ?? 'Spotify Mix'}',
-          owner: personal ? 'Spotify personal mix' : 'Spotify',
-          imageUrl: biggestImage(sources),
+        mixes.putIfAbsent(
+          uri,
+          () => SpotifyPlaylist(
+            id: uri.split(':').last,
+            name: '${playlist['name'] ?? 'Spotify Mix'}',
+            owner: personal ? 'Spotify personal mix' : 'Spotify',
+            imageUrl: biggestImage(sources),
+          ),
         );
       }
     }
-    final result = mixes.values.toList()
-      ..sort(
-        (a, b) => (a.owner == 'Spotify personal mix' ? 0 : 1).compareTo(
-          b.owner == 'Spotify personal mix' ? 0 : 1,
-        ),
-      );
+    // Desktop preserves Home order within each group, and keeps the first
+    // occurrence when Spotify repeats a card in another section.
+    final result = [
+      ...mixes.values.where((mix) => mix.owner == 'Spotify personal mix'),
+      ...mixes.values.where((mix) => mix.owner != 'Spotify personal mix'),
+    ];
     onProgress?.call(result.length);
     return result;
   }

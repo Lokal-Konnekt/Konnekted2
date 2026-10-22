@@ -564,3 +564,28 @@ Validation: 39 existing navigation/settings widget checks pass after updating
 route/category expectations. Targeted analysis has no errors; an existing
 unnecessary-null-assertion warning in the appearance language selector remains.
 No APK or CI build was run.
+
+### Spotify mix cards and optional fullscreen artwork
+
+Spotify Discovery retains the native Home playlists already fetched through the
+saved-cookie WebPlayer/Pathfinder flow. Mixed for you renders first as horizontal
+cover cards, using desktop's personal-first ordering and first-occurrence dedupe.
+Tapping a card fetches that playlist's metadata with the same cookie session,
+then matches phone songs and queues unresolved entries through existing playback
+sources. Cards remain usable when optional song recommendation shelves fail.
+Desktop reference: `electron/artwork/spotify.js` (`homeMixes`, `madeForYou`,
+`playlistTracks`) and `scripts/spotify-discovery.test.mjs` on sipbuu/lokal main.
+
+Appearance › Now Playing › Fullscreen cover is an opt-in, persisted setting for
+the standard full player. Artwork fills the viewport with a contrast gradient
+under safe-area controls. It uses the existing carousel, one active artwork Hero
+and shared moving-cover/Canvas decoder. Lyrics and queue reveal their compact
+cover while the poster recedes. The default layout and classic player are kept;
+no new blur pass is introduced. Theme/accent changes preserve the option.
+
+Validation: 30 focused Spotify API/discovery/widget, appearance persistence,
+settings and lyrics-panel checks pass. Tests cover card order/layout and tapping
+a mix into local-plus-pending queue entries, and retaining cards after optional
+track requests fail. Targeted analysis has no errors; pre-existing unused-field,
+unused-parameter and unnecessary-null-assertion warnings remain. No APK/CI build,
+live Spotify account or on-device fullscreen/Hero/decoder validation was run.

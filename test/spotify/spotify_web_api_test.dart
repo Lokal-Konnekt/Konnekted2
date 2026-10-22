@@ -1,3 +1,5 @@
+import 'package:flick/features/discovery/spotify_discovery.dart';
+
 import 'dart:convert';
 
 import 'package:flick/services/motion_art/spotify_canvas_service.dart';
@@ -51,6 +53,7 @@ void main() {
   test('cookie Discovery parses desktop Pathfinder Home mixes, playlist tracks and likes', () async {
     final store = _Store();
     final operations = <String>[];
+    var failTracks = false;
     final api = SpotifyWebApi(
       store: store,
       oauth: SpotifyOAuthService(tokenStore: store),
@@ -62,6 +65,7 @@ void main() {
         final json = jsonDecode(request.body) as Map;
         final op = json['operationName'] as String;
         operations.add(op);
+        if (failTracks && op != 'home') return http.Response('{}', 500);
         final data = switch (op) {
           'home' => {
             'home': {
@@ -160,6 +164,19 @@ void main() {
     expect(songs.single.imageUrl, 'https://i.scdn.co/image/id');
     expect((await api.getLikedSongs()).single.title, 'Liked song');
     expect(operations, ['home', 'fetchPlaylist', 'fetchLibraryTracks']);
+    final discovery = await loadSpotifyWebDiscovery(api);
+    expect(discovery.mixes.single.title, 'Daily Mix');
+    expect(discovery.mixes.single.author, 'Spotify');
+    expect(discovery.mixes.single.artworkUrl, 'https://i.scdn.co/image/mix');
+    expect(
+      (await loadSpotifyWebMix(api, discovery.mixes.single.id)).single.title,
+      'Playlist song',
+    );
+    failTracks = true;
+    final partial = await loadSpotifyWebDiscovery(api);
+    expect(partial.mixes.single.title, 'Daily Mix');
+    expect(partial.isEmpty, isFalse);
+    expect(partial.warnings, isNotEmpty);
   });
   test(
     'Canvas uses Pathfinder when REST search rejects a web cookie session',

@@ -19,6 +19,7 @@ class LokalAppearance {
     this.accent,
     this.textScale = 1.0,
     this.performanceMode = true,
+    this.fullscreenCover = false,
   });
 
   final LokalThemeId theme;
@@ -33,6 +34,9 @@ class LokalAppearance {
   /// Performance Mode removes every backdrop-filter the same way).
   final bool performanceMode;
 
+  /// Edge-to-edge artwork behind full-player controls, with no live blur.
+  final bool fullscreenCover;
+
   static const minTextScale = 0.7;
   static const maxTextScale = 1.5;
 
@@ -44,11 +48,13 @@ class LokalAppearance {
     bool clearAccent = false,
     double? textScale,
     bool? performanceMode,
+    bool? fullscreenCover,
   }) => LokalAppearance(
     theme: theme ?? this.theme,
     accent: clearAccent ? null : (accent ?? this.accent),
     textScale: (textScale ?? this.textScale).clamp(minTextScale, maxTextScale),
     performanceMode: performanceMode ?? this.performanceMode,
+    fullscreenCover: fullscreenCover ?? this.fullscreenCover,
   );
 
   Map<String, Object?> toJson() => {
@@ -56,6 +62,7 @@ class LokalAppearance {
     'accent': accent?.name,
     'textScale': textScale,
     'performanceMode': performanceMode,
+    'fullscreenCover': fullscreenCover,
   };
 
   factory LokalAppearance.fromJson(Map<String, Object?> json) {
@@ -68,6 +75,7 @@ class LokalAppearance {
         maxTextScale,
       ),
       performanceMode: json['performanceMode'] as bool? ?? true,
+      fullscreenCover: json['fullscreenCover'] as bool? ?? false,
     );
   }
 
@@ -77,10 +85,12 @@ class LokalAppearance {
       other.theme == theme &&
       other.accent == accent &&
       other.textScale == textScale &&
-      other.performanceMode == performanceMode;
+      other.performanceMode == performanceMode &&
+      other.fullscreenCover == fullscreenCover;
 
   @override
-  int get hashCode => Object.hash(theme, accent, textScale, performanceMode);
+  int get hashCode =>
+      Object.hash(theme, accent, textScale, performanceMode, fullscreenCover);
 }
 
 class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
@@ -165,6 +175,9 @@ class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
 
   Future<void> setTextScale(double value) =>
       _commit(state.copyWith(textScale: value));
+
+  Future<void> setFullscreenCover(bool value) =>
+      _commit(state.copyWith(fullscreenCover: value));
 
   Future<void> setPerformanceMode(bool value) =>
       _commit(state.copyWith(performanceMode: value));

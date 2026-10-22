@@ -152,9 +152,11 @@ class _KonnektedDiscoveryViewState
     }
   }
 
-  Future<void> _playMix(LokalDiscoveryMix mix) async {
-    final account = ref.read(konnektedYoutubeMusicAccountProvider);
-    if (account == null) {
+  Future<void> _playMix(LokalDiscoveryMix mix, {bool spotify = false}) async {
+    final account = spotify
+        ? null
+        : ref.read(konnektedYoutubeMusicAccountProvider);
+    if (!spotify && account == null) {
       await _connectYoutubeMusic();
       return;
     }
@@ -162,7 +164,9 @@ class _KonnektedDiscoveryViewState
     setState(() => _busy = 'mix:' + mix.id);
     _progress.update('Loading ' + mix.title + '…');
     try {
-      final tracks = await youtubeMusicMix(account, mix.id);
+      final tracks = spotify
+          ? await ref.read(konnektedSpotifyMixLoaderProvider)(mix.id)
+          : await youtubeMusicMix(account!, mix.id);
       if (!mounted) return;
       if (tracks.isEmpty) {
         _say(lokalText('This mix did not return any playable tracks.'));
@@ -184,15 +188,18 @@ class _KonnektedDiscoveryViewState
     } on YoutubeMusicSignedOut catch (error) {
       await ref.read(konnektedYoutubeMusicSessionProvider.notifier).signOut();
       if (mounted) _say(error.message);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         _say(
-          lokalText(
-            'Could not load this YouTube Music mix. Refresh and try again.',
-          ),
+          spotify
+              ? spotifyDiscoveryError(error)
+              : lokalText(
+                  'Could not load this YouTube Music mix. Refresh and try again.',
+                ),
         );
       }
     } finally {
+      _progress.clear();
       if (mounted) setState(() => _busy = null);
     }
   }
@@ -649,6 +656,21 @@ class _KonnektedDiscoveryViewState
             ),
             icon: Icons.auto_awesome_rounded,
           ),
+        if (data != null && data.mixes.isNotEmpty) ...[
+          KonnektedSectionHeading(
+            title: lokalText('Mixed for you'),
+            icon: Icons.queue_music_rounded,
+            subtitle: lokalText('Your Spotify mixes and playlists.'),
+          ),
+          _MixShelf(
+            storageKey: 'spotify-mixes',
+            mixes: data.mixes,
+            busyId: _busy?.startsWith('mix:') == true
+                ? _busy!.substring(4)
+                : null,
+            onTap: (mix) => unawaited(_playMix(mix, spotify: true)),
+          ),
+        ],
         if (fresh.isNotEmpty) ...[
           heading(
             _Shelf.fresh,
@@ -960,10 +982,16 @@ class _ProviderChip extends StatelessWidget {
 
 /// Horizontal cards for provider-native radio mixes.
 class _MixShelf extends StatelessWidget {
-  const _MixShelf({required this.mixes, required this.onTap, this.busyId});
+  const _MixShelf({
+    required this.mixes,
+    required this.onTap,
+    this.busyId,
+    this.storageKey = 'youtube-music-mixes',
+  });
 
   final List<LokalDiscoveryMix> mixes;
   final ValueChanged<LokalDiscoveryMix> onTap;
+  final String storageKey;
   final String? busyId;
 
   @override
@@ -972,7 +1000,7 @@ class _MixShelf extends StatelessWidget {
     return SizedBox(
       height: 205,
       child: ListView.separated(
-        key: const PageStorageKey('youtube-music-mixes'),
+        key: PageStorageKey(storageKey),
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: mixes.length,

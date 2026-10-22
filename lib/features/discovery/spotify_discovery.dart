@@ -19,6 +19,7 @@ class SpotifyDiscoveryData {
     required this.albums,
     required this.freshFinds,
     this.warnings = const [],
+    this.mixes = const [],
   });
 
   final String account;
@@ -29,8 +30,10 @@ class SpotifyDiscoveryData {
   final List<LokalDiscoveryAlbum> albums;
   final List<LokalDiscoveryTrack> freshFinds;
   final List<String> warnings;
+  final List<LokalDiscoveryMix> mixes;
 
   bool get isEmpty =>
+      mixes.isEmpty &&
       quickPicks.isEmpty &&
       recentlyPlayed.isEmpty &&
       likedSongs.isEmpty &&
@@ -318,14 +321,6 @@ Future<SpotifyDiscoveryData> loadSpotifyWebDiscovery(SpotifyWebApi api) async {
   }
   final quick = <LokalDiscoveryTrack>[];
   final liked = <LokalDiscoveryTrack>[];
-  LokalDiscoveryTrack convert(SpotifyTrack t) => LokalDiscoveryTrack(
-    title: t.title,
-    artist: t.artist,
-    album: t.album ?? '',
-    artworkUrl: t.imageUrl ?? '',
-    duration: Duration(milliseconds: t.durationMs),
-    url: 'https://open.spotify.com/track/${t.id}',
-  );
   for (var i = 0; i < mixes.take(6).length; i += 2) {
     final group = mixes.take(6).skip(i).take(2);
     final batches = await Future.wait(
@@ -334,7 +329,7 @@ Future<SpotifyDiscoveryData> loadSpotifyWebDiscovery(SpotifyWebApi api) async {
           return (await api.getPlaylistTracks(
             mix.id,
             max: 30,
-          )).map(convert).toList();
+          )).map(spotifyDiscoveryTrack).toList();
         } catch (_) {
           warnings.add('Could not load ${mix.name}.');
           return <LokalDiscoveryTrack>[];
@@ -344,7 +339,7 @@ Future<SpotifyDiscoveryData> loadSpotifyWebDiscovery(SpotifyWebApi api) async {
     quick.addAll(batches.expand((v) => v));
   }
   try {
-    liked.addAll((await api.getLikedSongs(max: 30)).map(convert));
+    liked.addAll((await api.getLikedSongs(max: 30)).map(spotifyDiscoveryTrack));
   } catch (_) {
     warnings.add('Could not load Spotify Liked Songs.');
   }
@@ -363,12 +358,21 @@ Future<SpotifyDiscoveryData> loadSpotifyWebDiscovery(SpotifyWebApi api) async {
         ),
       );
   }
-  if (unique.isEmpty && liked.isEmpty && warnings.isNotEmpty)
+  if (mixes.isEmpty && unique.isEmpty && liked.isEmpty && warnings.isNotEmpty)
     throw const SpotifyApiException(
       'Spotify could not load your mixes. Refresh or update your cookie in Data → Accounts.',
     );
   return SpotifyDiscoveryData(
     account: 'Spotify',
+    mixes: [
+      for (final mix in mixes)
+        LokalDiscoveryMix(
+          id: mix.id,
+          title: mix.name,
+          author: 'Spotify',
+          artworkUrl: mix.imageUrl ?? '',
+        ),
+    ],
     quickPicks: unique.values.toList(),
     likedSongs: liked,
     recentlyPlayed: const [],
@@ -378,3 +382,22 @@ Future<SpotifyDiscoveryData> loadSpotifyWebDiscovery(SpotifyWebApi api) async {
     warnings: warnings,
   );
 }
+
+LokalDiscoveryTrack spotifyDiscoveryTrack(SpotifyTrack t) =>
+    LokalDiscoveryTrack(
+      title: t.title,
+      artist: t.artist,
+      album: t.album ?? '',
+      artworkUrl: t.imageUrl ?? '',
+      duration: Duration(milliseconds: t.durationMs),
+      url: 'https://open.spotify.com/track/${t.id}',
+    );
+
+/// Metadata only; the caller matches local songs or uses the existing resolver.
+Future<List<LokalDiscoveryTrack>> loadSpotifyWebMix(
+  SpotifyWebApi api,
+  String id,
+) async =>
+    (await api.getPlaylistTracks(id).timeout(const Duration(seconds: 30)))
+        .map(spotifyDiscoveryTrack)
+        .toList();

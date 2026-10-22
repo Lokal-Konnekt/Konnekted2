@@ -40,8 +40,10 @@ class DiscordPresenceService extends ChangeNotifier {
   final MethodChannel _channel;
   final bool _android;
   final Future<String?> Function(Song)? _artworkResolver;
-  late final _artwork = DiscoveryArtworkResolver(
-    DiscoveryHttp(GracefulHttpClient()),
+  // Last.fm/Discovery and Discord use exactly the same remote cover lookup.
+  // Embedded local artwork remains private: Discord needs a public image URL.
+  late final _artwork = createDiscoveryArtworkResolver(
+    DiscoveryHttp(GracefulHttpClient(), timeout: const Duration(seconds: 4)),
   );
   final _covers = <String, String>{};
   final _coverJobs = <String>{};
@@ -329,13 +331,56 @@ class DiscordPresenceService extends ChangeNotifier {
       'coverartarchive.org',
       'e-cdns-images.dzcdn.net',
       'cdn-images.dzcdn.net',
-      'is1-ssl.mzstatic.com',
-      'is2-ssl.mzstatic.com',
-      'is3-ssl.mzstatic.com',
-      'is4-ssl.mzstatic.com',
-      'is5-ssl.mzstatic.com',
     };
-    return hosts.contains(uri.host.toLowerCase()) ? uri.toString() : '';
+    final host = uri.host.toLowerCase();
+    // iTunes artwork is served from a family of regional Apple CDNs.
+    // Allowing only is1..is5 silently discarded valid covers from the
+    // US/GB storefront fallback even when Discovery displayed them.
+    final match = RegExp(r'^is[0-9]{1,2}-ssl[.]mzstatic[.]com').firstMatch(host);
+    final appleArtwork = match != null && match.group(0) == host;
+    return hosts.contains(host) || appleArtwork ? uri.toString() : '';
+  }
+
+  Future<void> _stop() async {
+    if (_canPublish)
+      return; // A queued transient stop must not clear a newer song.
+    if (_running) {
+      // Keep the SDK alive across pause/track-load gaps; only disable shuts down.
+      await _channel
+          .invokeMethod<void>(_enabled ? 'clear' : 'shutdown')
+          .timeout(const Duration(seconds: 4));
+    }
+    if (!_enabled) _running = false;
+    _lastSent = null;
+    _lastPublishedKey = null;
+    if (configured) _setStatus(_enabled ? 'Ready when you play music' : 'Off');
+  }
+
+  Future<void> stop() async {
+    _pending?.cancel();
+    for (final timer in _coverRetryTimers.values) { timer.cancel(); }
+    _coverRetryTimers.clear();
+    final player = _player;
+    if (configured && player != null) {
+      player.currentSongNotifier.removeListener(_schedule);
+      player.isPlayingNotifier.removeListener(_schedule);
+      player.isNetworkLoadingNotifier.removeListener(_schedule);
+      player.durationNotifier.removeListener(_schedule);
+      player.playbackSpeedNotifier.removeListener(_schedule);
+      player.positionNotifier.removeListener(_positionChanged);
+    }
+    _player = null;
+    await _tail;
+    if (_running)
+      await _channel
+          .invokeMethod<void>('shutdown')
+          .timeout(const Duration(seconds: 4));
+    _running = false;
+    _starting = null;
+  }
+}
+).hasMatch(host);
+    return hosts.contains(host) || appleArtwork ? uri.toString() : '';
   }
 
   Future<void> _stop() async {

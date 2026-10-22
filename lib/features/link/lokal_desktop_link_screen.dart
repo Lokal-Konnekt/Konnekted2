@@ -110,8 +110,12 @@ class _LokalDesktopLinkScreenState
         context: context,
         title: lokalText('Copy missing songs both ways?'),
         message: lokalText(
-          '{send} songs to your PC, {receive} songs to this phone. Songs are matched by artist, title and duration. Existing files are kept. Keep both apps open on Wi-Fi; you can check again to retry unfinished copies.',
-          args: {'send': plan.toDesktop.length, 'receive': plan.toPhone.length},
+          '{send} songs to your PC, {receive} new songs to this phone, and {recover} existing private copies to your selected music folder under Lokal Desktop. Recovery uses files already on your phone; no re-download. Existing files are kept. Keep both apps open on Wi-Fi; check again to retry unfinished copies.',
+          args: {
+            'send': plan.toDesktop.length,
+            'receive': plan.toPhone.length,
+            'recover': plan.toMusicFolder.length,
+          },
         ),
         confirmLabel: lokalText('Copy files'),
       );
@@ -183,7 +187,7 @@ class _LokalDesktopLinkScreenState
               Text(title, style: TextStyle(color: t.muted)),
             Text(
               lokalText(
-                'Copies original song files in both directions. Nothing is deleted or replaced. Check again to retry files that did not finish.',
+                'Saves original song files under Lokal Desktop in your selected music folder. Existing private copies can be recovered here too. Nothing is deleted or replaced. Check again to retry unfinished files.',
               ),
               style: TextStyle(color: t.muted),
             ),

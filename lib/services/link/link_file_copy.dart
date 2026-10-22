@@ -13,11 +13,13 @@ class LinkCopyPlan {
     required this.server,
     required this.toDesktop,
     required this.toPhone,
+    this.toMusicFolder = const [],
   });
   final NetworkServerEntity server;
   final List<Song> toDesktop;
   final List<({Map<String, dynamic> track, Song? existing})> toPhone;
-  int get total => toDesktop.length + toPhone.length;
+  final List<Song> toMusicFolder;
+  int get total => toDesktop.length + toPhone.length + toMusicFolder.length;
 }
 
 /// Explicit, non-destructive copies. Rechecking both catalogues on each attempt
@@ -76,6 +78,10 @@ class LinkFileCopy {
       } else if (mediaUri != null && mediaUri.startsWith('content://')) {
         local.add(song.copyWith(filePath: mediaUri));
       }
+    }
+    final recover = <Song>[];
+    for (final song in local) {
+      if (await source.isPrivateDesktopCopy(song)) recover.add(song);
     }
     final missing = <Song>[];
     for (var offset = 0; offset < local.length; offset += 250) {
@@ -140,7 +146,12 @@ class LinkFileCopy {
     _check();
     // Keep the operation reserved while the user reviews the copy preview.
     onProgress(const LinkCopyProgress(phase: LinkCopyPhase.checking));
-    return LinkCopyPlan(server: server, toDesktop: missing, toPhone: downloads);
+    return LinkCopyPlan(
+      server: server,
+      toDesktop: missing,
+      toPhone: downloads,
+      toMusicFolder: recover,
+    );
   }
 
   Future<void> copy(LinkCopyPlan plan) async {
@@ -178,6 +189,20 @@ class LinkFileCopy {
         processed++;
         report(LinkCopyPhase.copying);
       }
+      for (final song in plan.toMusicFolder) {
+        _check();
+        report(LinkCopyPhase.copying, title: song.title);
+        try {
+          await LokalDesktopSource.instance.recoverPrivateCopy(song);
+          received++;
+        } catch (error) {
+          failures.add(
+            '${song.title} — ${error is StateError ? error.message : "Could not save to the selected music folder. Retry."}',
+          );
+        }
+        processed++;
+        report(LinkCopyPhase.copying);
+      }
       for (final entry in plan.toPhone) {
         _check();
         final title = entry.track['title'] as String? ?? 'Song';
@@ -189,8 +214,10 @@ class LinkFileCopy {
             existing: entry.existing,
           );
           received++;
-        } catch (_) {
-          failures.add(title);
+        } catch (error) {
+          failures.add(
+            '$title — ${error is StateError ? error.message : "Could not copy this file. Reconnect and retry."}',
+          );
         }
         processed++;
         report(LinkCopyPhase.copying);

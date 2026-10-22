@@ -609,6 +609,33 @@ class LyricsService {
   /// their real timestamps. Plain synced lines carry no word data, so they
   /// get a single whole-line window instead of guessed per-word timing —
   /// the karaoke sweep then tracks real data only.
+  /// Prepare word windows once for the fullscreen flowing-lyrics renderer.
+  /// Embedded enhanced LRC stores word starts without ends (end == start);
+  /// painting those directly makes the highlight jump in 1 ms steps.
+  /// Preserve explicit end times from providers and leave original data intact.
+  List<LyricsLine> playbackLines(LyricsData lyrics) {
+    final rendered = <LyricsLine>[];
+    for (var i = 0; i < lyrics.lines.length; i++) {
+      final line = lyrics.lines[i];
+      final words = line.words;
+      if (words == null ||
+          words.isEmpty ||
+          words.every((word) => word.end > word.start)) {
+        rendered.add(line);
+        continue;
+      }
+      rendered.add(
+        LyricsLine(
+          timestamp: line.timestamp,
+          text: line.text,
+          words: resolveWords(lyrics, i),
+          translation: line.translation,
+        ),
+      );
+    }
+    return rendered;
+  }
+
   List<LyricsWord> resolveWords(LyricsData lyrics, int lineIndex) {
     final line = lyrics.lines[lineIndex];
     final lineEnd = _lineEndTime(lyrics, lineIndex);

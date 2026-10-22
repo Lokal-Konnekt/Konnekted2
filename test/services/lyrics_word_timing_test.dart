@@ -103,6 +103,64 @@ void main() {
     });
   });
 
+  group('fullscreen flowing lyrics word windows', () {
+    final service = LyricsService();
+
+    test('embedded Japanese enhanced LRC sweeps instead of stepping', () {
+      // From the embedded tags of tuki. - Saitei Kaiwai.
+      final lyrics = service.parseLyricsText(
+        '[00:01.448]<00:01.448>満員電<00:02.147>車'
+        '<00:02.531>触んなっ<00:03.013>て\n'
+        '[00:03.412]<00:03.412>きしょ<00:03.672>すぎな',
+      );
+      final raw = lyrics.lines.first.words!;
+      expect(raw.every((word) => word.start == word.end), isTrue);
+
+      final playback = service.playbackLines(lyrics);
+      final words = playback.first.words!;
+      expect(playback.first.text, '満員電車触んなって');
+      expect(words, hasLength(4));
+      expect(
+        words.map((word) => word.end.inMilliseconds).toList(),
+        [2147, 2531, 3013, 3352],
+      );
+      final halfway = LyricsService.fillForWord(
+        words.first,
+        const Duration(milliseconds: 1797),
+      );
+      expect(halfway, closeTo(0.5, 0.01));
+      expect(raw.first.end, raw.first.start); // Do not mutate source data.
+    });
+
+    test('explicit provider word endings remain unchanged', () {
+      const line = LyricsLine(
+        timestamp: Duration(seconds: 1),
+        text: 'Hello',
+        translation: 'Bonjour',
+        words: [
+          LyricsWord(
+            start: Duration(seconds: 1),
+            end: Duration(milliseconds: 1600),
+            text: 'Hello',
+          ),
+        ],
+      );
+      const lyrics = LyricsData(
+        lines: [line],
+        isSynchronized: true,
+        rawContent: '',
+      );
+      expect(identical(service.playbackLines(lyrics).single, line), isTrue);
+    });
+
+    test('line-only lyrics remain untimed', () {
+      final lyrics = service.parseLyricsText(
+        '[00:01.00]First line\n[00:02.00]Second line',
+      );
+      expect(service.playbackLines(lyrics).every((l) => l.words == null), isTrue);
+    });
+  });
+
   group('buildLrcContent round-trip', () {
     test('re-emits enhanced word tags for word-timed lines', () {
       final service = LyricsService();

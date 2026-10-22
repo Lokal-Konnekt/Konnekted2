@@ -6,6 +6,48 @@ import 'package:flick/features/player/widgets/player_panel_stage.dart';
 
 void main() {
   testWidgets(
+    'lyrics cover returns by tap or swipe up, without stealing list gestures',
+    (tester) async {
+      var returns = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 360,
+              height: 560,
+              child: PlayerPanelStage(
+                queueProgress: const AlwaysStoppedAnimation(0.0),
+                lyricsProgress: const AlwaysStoppedAnimation(1.0),
+                queueOpen: false,
+                lyricsOpen: true,
+                onLyricsCoverReturn: () => returns++,
+                artwork: (_, _, _) => const ColoredBox(
+                  key: ValueKey('return-cover'),
+                  color: Colors.blue,
+                ),
+                info: (_, _) => const SizedBox(height: 44, child: Text('Song')),
+                queue: const SizedBox(),
+                lyrics: const ColoredBox(
+                  key: ValueKey('lyrics-area'),
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final cover = find.byKey(const ValueKey('return-cover'));
+      await tester.tapAt(tester.getCenter(cover));
+      expect(returns, 1);
+      await tester.dragFrom(tester.getCenter(cover), const Offset(0, -90));
+      expect(returns, 2);
+      await tester.dragFrom(tester.getCenter(cover), const Offset(0, 90));
+      expect(returns, 2);
+      await tester.tap(find.byKey(const ValueKey('lyrics-area')));
+      expect(returns, 2);
+    },
+  );
+  testWidgets(
     'wrapped timed Japanese uses its measured paragraph height at large text scales',
     (tester) async {
       const text = '見覚えのある レインコート 黄昏の駅で 胸が震えた';

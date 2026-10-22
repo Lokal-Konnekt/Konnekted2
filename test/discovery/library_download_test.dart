@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:flick/data/entities/song_entity.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/search/library_download.dart';
@@ -8,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late Directory root;
   late File cached;
   final upserts = <SongEntity>[];
@@ -16,6 +19,7 @@ void main() {
   final covers = <String>[];
 
   setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     root = await Directory.systemTemp.createTemp('library_download_test');
     cached = File(p.join(root.path, 'cache', 'abc.m4a'));
     await cached.create(recursive: true);
@@ -69,7 +73,7 @@ void main() {
     expect(saved.folderName, 'Music');
     expect(
       saved.path,
-      p.join(music.path, 'Lokal Downloads', 'The Artist - Song One.m4a'),
+      p.join(music.path, 'The Artist', 'Album', 'The Artist - Song One.m4a'),
     );
     expect(File(saved.path).readAsBytesSync(), hasLength(64));
     expect(cached.existsSync(), isTrue, reason: 'the cache keeps its copy');
@@ -82,7 +86,7 @@ void main() {
     expect(entity.durationMs, 200000);
     expect(entity.fileType, 'M4A');
     expect(entity.folderUri, 'content://tree/music');
-    expect(entity.relativeFolderPath, 'Lokal Downloads');
+    expect(entity.relativeFolderPath, 'The Artist/Album');
     expect(entity.hasLocalEdits, isFalse);
     expect(indexed, [saved.path]);
     expect(covers, ['https://example.com/cover.jpg']);
@@ -115,10 +119,10 @@ void main() {
       final fallback = p.join(root.path, 'Music', 'Lokal Downloads');
       expect(saved.fallback, isTrue);
       expect(saved.folderName, 'Lokal Downloads');
-      expect(p.dirname(saved.path), fallback);
+      expect(p.dirname(saved.path), p.join(fallback, 'The Artist', 'Album'));
       expect(registered, [fallback]);
       expect(upserts.single.folderUri, fallback);
-      expect(upserts.single.relativeFolderPath, '');
+      expect(upserts.single.relativeFolderPath, 'The Artist/Album');
     },
   );
 

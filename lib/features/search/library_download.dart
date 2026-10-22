@@ -14,6 +14,7 @@ import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/album_art_import_service.dart';
 import 'package:flick/services/music_folder_service.dart';
+import 'package:flick/services/music_library_path.dart';
 import 'package:flick/src/rust/api/metadata_editor.dart' as rust_metadata;
 
 /// A library folder, with where it is on disk when Android says.
@@ -49,8 +50,8 @@ class LibraryDownloadResult {
 
 /// Saves a song found online (already downloaded and checked into the
 /// playback cache by [OnlineSource.play]) to your library, as desktop's
-/// "Save to library": copied into a "Lokal Downloads" folder inside your
-/// first library folder Lokal may write to (else into Music/Lokal Downloads,
+/// "Save to library": copied into Artist/Album inside your
+/// first writable library folder (else into Music/Lokal Downloads/Artist/Album,
 /// which then becomes a library folder), tagged, given its cover and added
 /// to the library straight away.
 class LibraryDownloader {
@@ -161,13 +162,18 @@ class LibraryDownloader {
     }
     final extension = p.extension(source).toLowerCase();
     final folders = await _folders();
+    final directories = MusicLibraryPath.directories(
+      artist: prepared.artist,
+      album: prepared.album,
+      albumArtist: prepared.albumArtist,
+    );
 
     var targets =
         <({String dir, String root, String uri, String name, bool fallback})>[
           for (final folder in folders)
             if (folder.path case final String path when path.isNotEmpty)
               (
-                dir: p.join(path, folderName),
+                dir: p.joinAll([path, ...directories]),
                 root: path,
                 uri: folder.uri,
                 name: folder.name,
@@ -181,7 +187,7 @@ class LibraryDownloader {
     targets = [
       ...targets,
       (
-        dir: fallbackDir,
+        dir: p.joinAll([fallbackDir, ...directories]),
         root: covering?.path ?? fallbackDir,
         uri: covering?.uri ?? fallbackDir,
         name: covering?.name ?? folderName,
@@ -203,7 +209,7 @@ class LibraryDownloader {
         continue; // Not writable: try the next folder.
       }
 
-      if (target.fallback) await _registerFolder(target.dir, folderName);
+      if (target.fallback) await _registerFolder(target.root, folderName);
       final tagged = await _tag(copy.path, prepared);
       final stat = await copy.stat();
       final now = _now();

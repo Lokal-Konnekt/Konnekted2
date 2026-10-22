@@ -318,3 +318,20 @@ than classifying files as absent. The same retained IDs prevent downloading
 already-present phone copies after tag edits. Journal aliases for history/likes
 remain intact. Focused identity, HEAD status and upload tests pass; no physical
 PC/phone transfer or APK build was performed.
+
+
+### Lyrics return gestures and Artist/Album saves
+
+The lyrics thumbnail returns to the full player on tap or upward swipe using
+its existing artwork/layout transition. Its hit target stays on the compact
+cover so lyric scrolling remains independent; queue tap/downward drag behavior
+is retained. Permanent online saves and desktop-to-phone copies now use the
+selected root / Album Artist (or Artist) / Album hierarchy. Missing tags use
+Unknown Artist / Unknown Album. Folder segments are sanitized individually;
+SAF desktop copies create each nested directory under the saved grant. Stored
+relative paths reflect the hierarchy. Existing shared-storage files are not
+moved by this update; new saves and explicit private-copy recovery use it.
+
+Focused filesystem/SAF bridge fixtures, folder-name safety checks and widget
+checks cover tap/up/down gestures, stable single artwork and retained scroll.
+No APK build, native compilation or physical Android SAF/gesture test was run.

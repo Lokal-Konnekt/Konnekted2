@@ -562,6 +562,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           lyricsOpen: _showLyrics,
           artGap: compact ? 8 : 16,
           onQueueHeaderTap: () => _setQueueOpen(false),
+          onLyricsCoverReturn: _toggleLyrics,
           onQueueHeaderDrag: _queue.dragBy,
           onQueueHeaderRelease: _releaseQueue,
           artwork: (context, size, p) {

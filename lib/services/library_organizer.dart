@@ -11,6 +11,7 @@ import '../data/entities/song_entity.dart';
 import 'music_folder_service.dart';
 import 'music_library_path.dart';
 import 'player_service.dart';
+import 'link/link_download_outbox.dart';
 
 class OrganizeFolder {
   const OrganizeFolder(this.uri, this.path);
@@ -144,6 +145,7 @@ class LibraryOrganizer {
       folderUri: move.folderUri,
       relativeFolderPath: move.relative,
     );
+    await LinkDownloadOutbox.relocate(move.source, move.target);
     try {
       await MusicFolderService.removeFromMediaStore(move.source);
       await MusicFolderService().indexMediaFiles([move.target]);
@@ -342,12 +344,9 @@ class LibraryOrganizer {
           processed++;
           continue;
         }
-        // A refresh failure must not roll back a committed database path.
-        try {
-          await _afterMove(move);
-        } catch (_) {
-          /* Next library load reads the new path. */
-        }
+        // Keep the journal if a dependent path update fails after commit;
+        // recovery can finish it without moving or recreating the song again.
+        await _afterMove(move);
         await _clear(prefs);
         processed++;
         onProgress(processed, p.basename(move.target));

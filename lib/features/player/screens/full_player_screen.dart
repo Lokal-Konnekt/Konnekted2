@@ -593,7 +593,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     final outputIcon = isCasting
         ? LucideIcons.cast
         : route == 'internal' || route == 'speaker'
-            ? LucideIcons.smartphone
+            ? LucideIcons.speaker
             : route == 'bluetooth'
                 ? LucideIcons.bluetooth
                 : route == 'usb' || route == 'dock'

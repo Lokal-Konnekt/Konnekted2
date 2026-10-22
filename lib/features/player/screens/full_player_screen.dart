@@ -861,16 +861,24 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  song.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: _font,
-                    fontSize: lerpDouble(titleSize, 18, p),
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -.55,
-                    color: FullPlayerVisuals.primaryText,
+                Semantics(
+                  button: true,
+                  label: 'Open album for ${song.title}',
+                  child: InkWell(
+                    onTap: () => openLokalAlbumForSong(context, song),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Text(
+                      song.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: _font,
+                        fontSize: lerpDouble(titleSize, 18, p),
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -.55,
+                        color: FullPlayerVisuals.primaryText,
+                      ),
+                    ),
                   ),
                 ),
                 SizedBox(height: lerpDouble(3, 1, p)),

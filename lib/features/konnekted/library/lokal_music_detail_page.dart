@@ -1,3 +1,4 @@
+import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/features/library_jobs/artist_metadata.dart';
 
 import 'dart:async';
@@ -1207,11 +1208,29 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
     );
   }
 
+  void _songActions(_Entry row) => unawaited(
+    SongActionsBottomSheet.show(
+      context,
+      row.owned ?? row.track.pending(),
+      extras: [
+        if (row.owned == null)
+          LokalSongMenuAction(
+            icon: Icons.download_rounded,
+            label: lokalText('Download to library'),
+            onTap: () {
+              if (mounted) unawaited(_download([row]));
+            },
+          ),
+      ],
+    ),
+  );
+
   Widget _trackRow(_Entry row, List<_Entry> queue, int index) {
     final t = context.lokal, track = row.track.metadata;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
       onTap: _busy ? null : () => _play(queue, start: index),
+      onLongPress: _busy ? null : () => _songActions(row),
       leading: ClipRRect(
         borderRadius: BorderRadius.circular(9),
         child: SizedBox.square(
@@ -1263,38 +1282,10 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
                 size: 18,
               ),
             ),
-          PopupMenuButton<String>(
+          IconButton(
             tooltip: lokalText('More'),
-            enabled: !_busy,
-            color: t.surface,
             icon: Icon(Icons.more_vert_rounded, color: t.muted, size: 20),
-            onSelected: (value) async {
-              if (value == 'download') {
-                await _download([row]);
-                return;
-              }
-              final player = ref.read(playerProvider.notifier);
-              if (ref.read(playerProvider).currentSong == null) {
-                await _play([row]);
-                return;
-              }
-              final position = await player.addToQueue(
-                row.owned ?? row.track.pending(),
-              );
-              if (value == 'next') await player.moveQueueItemToNext(position);
-            },
-            itemBuilder: (_) => [
-              PopupMenuItem(value: 'next', child: Text(lokalText('Play next'))),
-              PopupMenuItem(
-                value: 'queue',
-                child: Text(lokalText('Add to queue')),
-              ),
-              if (row.owned == null)
-                PopupMenuItem(
-                  value: 'download',
-                  child: Text(lokalText('Download to library')),
-                ),
-            ],
+            onPressed: _busy ? null : () => _songActions(row),
           ),
         ],
       ),

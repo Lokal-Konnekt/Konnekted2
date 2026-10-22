@@ -1,3 +1,4 @@
+import 'package:flick/services/library_job_notification.dart';
 import 'package:flick/features/spotify/spotify_likes_sync_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
 import 'package:flick/services/local_metadata_repair.dart';
@@ -50,6 +51,7 @@ class KonnektedRuntime extends ConsumerStatefulWidget {
 class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     with WidgetsBindingObserver {
   late final PlayerService _player;
+  final _jobNotification = LibraryJobNotification();
   late final WidgetIntentHandler _widgetIntents;
   late final ProviderSubscription<PlayerState> _widgetSync;
   late final _jobProgress = LokalStatusSnack(
@@ -77,6 +79,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     WidgetsBinding.instance.addObserver(this);
     SpotifyLikesSyncService.instance.resume();
     ref.listenManual(libraryJobsProvider, (previous, next) {
+      _jobNotification.update(next);
       _updateIconBusy();
       if (next.running)
         _jobProgress.update(next.message);
@@ -295,6 +298,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _player.isPlayingNotifier.removeListener(_updateIconBusy);
     _player.isNetworkLoadingNotifier.removeListener(_updateIconBusy);
     _jobProgress.dispose();
+    _jobNotification.dispose();
     _widgetSync.close();
     _run('Widget intent detach', _widgetIntents.detach);
     _run('Discord presence shutdown', DiscordPresenceService.instance.stop);

@@ -47,6 +47,23 @@ class MusicVideoIndex {
   );
 }
 
+/// One card per actual video even when several song rows/credits point to it.
+/// Prefer an owned copy as the representative without modifying the index.
+List<Song> uniqueMusicVideoSongs(Iterable<Song> songs, MusicVideoIndex index) {
+  final videos = <String, Song>{};
+  for (final song in songs) {
+    final id = index.videoFor(song.id);
+    if (id == null) continue;
+    final current = videos[id];
+    if (current == null ||
+        ((current.isNetworkSource || current.isPending) &&
+            !song.isNetworkSource &&
+            !song.isPending))
+      videos[id] = song;
+  }
+  return videos.values.toList();
+}
+
 /// Which library songs have an official video, found by YouTube Music
 /// search and kept on the device. Nothing is searched while music videos
 /// are off.

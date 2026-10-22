@@ -204,12 +204,11 @@ class SongActionsBottomSheet extends ConsumerWidget {
             _say(l10n.linkDownloaded);
           }),
         ),
-      if (!nowPlaying)
-        _MenuRow(
-          icon: Icons.radio_rounded,
-          label: lokalText('Start radio'),
-          onTap: close(() => startLokalRadio(rootContext, seed: song)),
-        ),
+      _MenuRow(
+        icon: Icons.radio_rounded,
+        label: lokalText('Start radio'),
+        onTap: close(() => startLokalRadio(rootContext, seed: song)),
+      ),
       _MenuRow(
         icon: liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
         label: liked ? lokalText('Unlike') : lokalText('Like'),

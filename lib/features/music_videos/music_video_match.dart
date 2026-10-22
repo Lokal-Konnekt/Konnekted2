@@ -1,3 +1,4 @@
+import 'package:flick/core/utils/artist_credits.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/discovery_sources.dart';
 import 'package:flick/models/song.dart';
@@ -37,10 +38,6 @@ final _officialVideo = RegExp(
   caseSensitive: false,
 );
 final _vevo = RegExp(r'vevo$', caseSensitive: false);
-final _artistSplit = RegExp(
-  r'\s*(?:,|;|/|&|\bx\b|\bfeat\.?|\bft\.?|\bfeaturing|\band\b)\s*',
-  caseSensitive: false,
-);
 final _channelSuffix = RegExp(r'\s*(?:vevo|official|topic)$');
 final _diacritics = RegExp(r'[̀-ͯ]');
 final _nonWord = RegExp(r'[^a-z0-9À-￿]+');
@@ -72,7 +69,7 @@ String _baseTitle(String title) =>
     videoMatchClean(title.replaceAll(_noiseTag, ' ').replaceAll(_feat, ' '));
 
 List<String> _artistNames(String artist) => [
-  for (final name in artist.split(_artistSplit))
+  for (final name in splitArtistCredits(artist))
     if (videoMatchClean(name).replaceAll(_channelSuffix, '').trim()
         case final cleaned when cleaned.isNotEmpty)
       cleaned,

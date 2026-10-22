@@ -1,3 +1,5 @@
+import 'package:flick/core/utils/artist_credits.dart';
+
 import 'dart:async';
 
 import 'package:flick/core/constants/app_constants.dart';
@@ -118,7 +120,8 @@ Future<void> openLokalArtist(
   String? name,
   Song? song,
 }) async {
-  final requested = (name ?? song?.artist ?? '').trim();
+  final requested = (name ?? splitArtistCredits(song?.artist).firstOrNull ?? '')
+      .trim();
   if (requested.isEmpty) {
     _say(context, l10n.artistIsNotAvailableForThis);
     return;

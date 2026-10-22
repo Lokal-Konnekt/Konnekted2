@@ -1,3 +1,4 @@
+import 'package:flick/core/utils/artist_credits.dart';
 import 'package:flutter/material.dart';
 import 'package:flick/features/morneye/morneye_auth_sheet.dart';
 
@@ -52,7 +53,7 @@ final konnektedLastfmCallProvider = Provider<LastfmCall>((ref) {
 
 /// Spotify is loaded only after the listener selects the opt-in provider.
 final konnektedSpotifyDiscoveryProvider =
-    FutureProvider.autoDispose<SpotifyDiscoverySnapshot>((ref) async {
+    FutureProvider<SpotifyDiscoverySnapshot>((ref) async {
       final settings = SpotifySettingsStore();
       final oauth = SpotifyOAuthService(tokenStore: settings.tokenStore);
       final api = SpotifyApi(tokenStore: settings.tokenStore, oauth: oauth);
@@ -159,6 +160,7 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
   var _page = 0;
   var _generation = 0;
   var _sourceLoaded = false;
+  bool _loadAttempted = false;
   Future<void>? _sourceRestore;
   String? _account;
 
@@ -168,10 +170,9 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
   KonnektedDiscoveryState build() => const KonnektedDiscoveryState();
 
   Future<void> setSource(KonnektedDiscoverySource source) async {
-    if (state.source == source && _sourceLoaded) {
-      await load(refresh: true);
-      return;
-    }
+    if (state.source == source && _sourceLoaded) return;
+    if (source == KonnektedDiscoverySource.spotify)
+      ref.invalidate(konnektedSpotifyDiscoveryProvider);
     ++_generation;
     _page = 0;
     _account = null;
@@ -223,10 +224,13 @@ class KonnektedDiscoveryNotifier extends Notifier<KonnektedDiscoveryState> {
 
   /// Loads the selected provider. A refresh rotates between provider picks.
   Future<void> load({bool refresh = false}) async {
-    if (!refresh && (state.data != null || state.loading)) return;
+    if (!refresh && (_loadAttempted || state.data != null || state.loading))
+      return;
     await _restoreSource();
     final source = state.source;
-    if (!refresh && (state.data != null || state.loading)) return;
+    if (!refresh && (_loadAttempted || state.data != null || state.loading))
+      return;
+    _loadAttempted = true;
     final generation = ++_generation;
     state = KonnektedDiscoveryState(
       data: state.data,
@@ -451,8 +455,8 @@ class KonnektedLibraryIndex {
     return songs
         .where(
           (song) =>
-              recommendationKey(mainArtist(song.artist)) == by ||
-              recommendationKey(leadArtist(song.artist)) == by,
+              songArtistNames(song)
+                  .any((name) => recommendationKey(name) == by),
         )
         .toList();
   }

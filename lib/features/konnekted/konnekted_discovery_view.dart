@@ -93,6 +93,7 @@ class _KonnektedDiscoveryViewState
   void _say(String message) => _progress.fail(message);
 
   Future<void> _selectDiscoverySource(KonnektedDiscoverySource source) async {
+    if (ref.read(konnektedDiscoveryProvider).source == source) return;
     if (source == KonnektedDiscoverySource.spotify) {
       final settings = SpotifySettingsStore();
       final oauth = SpotifyOAuthService(tokenStore: settings.tokenStore);
@@ -124,7 +125,6 @@ class _KonnektedDiscoveryViewState
             ),
           );
       }
-      ref.invalidate(konnektedSpotifyDiscoveryProvider);
     }
 
     if (!mounted) return;

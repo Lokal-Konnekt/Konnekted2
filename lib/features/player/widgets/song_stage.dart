@@ -1,3 +1,5 @@
+import 'package:flick/core/utils/artist_credits.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -812,7 +814,7 @@ class SongStage extends ConsumerWidget {
     }
 
     if (artworkCardShowArtist) {
-      final artists = _splitArtistNames(song.artist);
+      final artists = splitArtistCredits(song.artist);
       addMetadataWidget(
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -890,21 +892,6 @@ class SongStage extends ConsumerWidget {
           ),
       ],
     );
-  }
-
-  List<String> _splitArtistNames(String value) {
-    final normalized = value
-        .replaceAll(
-          RegExp(r'\s+(?:feat\.?|ft\.?|featuring)\s+', caseSensitive: false),
-          ', ',
-        )
-        .replaceAll(RegExp(r'\s*&\s*'), ', ');
-    final names = normalized
-        .split(RegExp(r'\s*,\s*'))
-        .map((name) => name.trim())
-        .where((name) => name.isNotEmpty)
-        .toList();
-    return names.isEmpty ? <String>[value.trim()] : names;
   }
 
   // ---------------------------------------------------------------------------

@@ -1,3 +1,5 @@
+import '../widgets/artist_credit_links.dart';
+
 import 'package:flick/core/theme/lokal_appearance.dart';
 
 import '../widgets/lyrics_source_button.dart';
@@ -22,7 +24,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
-import 'package:flick/features/player/screens/classic_full_player_screen.dart';
 import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/features/player/widgets/player_artwork_image.dart';
 import 'package:flick/features/queue/screens/queue_screen.dart';
@@ -54,7 +55,8 @@ import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/player_volume_control.dart';
-import 'package:flick/widgets/common/flick_dialog.dart';
+
+import '../widgets/android_output_chooser.dart';
 
 const String _font = 'GoogleSansFlex';
 
@@ -285,31 +287,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     );
   }
 
-  Future<void> _openOutputPopup(Song song) {
-    return showFlickDialog<void>(
-      context: context,
-      barrierLabel: 'Audio output',
-      barrierColor: Colors.black.withValues(alpha: 0.38),
-      builder: (context) => SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: SingleChildScrollView(
-                child: OutputDevicePopup(
-                  song: song,
-                  playerService: _player,
-                  deviceLabel: l10n.thisDevice,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   // ───────────────────────────── build ─────────────────────────────
 
   @override
@@ -495,7 +472,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             child: Align(
               alignment: Alignment.center,
               child: _pill(
-                onTap: () => _openOutputPopup(song),
+                onTap: () => openAndroidOutputChooser(context),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 190),
                   child: Row(
@@ -769,23 +746,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                 Row(
                   children: [
                     Expanded(
-                      child: InkWell(
-                        onTap: song.artist.trim().isEmpty
-                            ? null
-                            : () => openLokalArtist(context, song: song),
-                        borderRadius: BorderRadius.circular(4),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 1),
-                          child: Text(
-                            song.artist,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: _font,
-                              fontSize: lerpDouble(14, 13, p),
-                              color: Colors.white.withValues(alpha: .72),
-                            ),
-                          ),
+                      child: ArtistCreditLinks(
+                        credit: song.artist,
+                        onArtistTap: (name) =>
+                            openLokalArtist(context, name: name, song: song),
+                        style: TextStyle(
+                          fontFamily: _font,
+                          fontSize: lerpDouble(14, 13, p),
+                          color: Colors.white.withValues(alpha: .72),
                         ),
                       ),
                     ),

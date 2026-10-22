@@ -45,10 +45,7 @@ class MusicVideosPage extends ConsumerWidget {
     }
     final songs = ref.watch(konnektedLibraryProvider).value ?? const <Song>[];
     final index = ref.watch(musicVideoIndexProvider);
-    final withVideo = [
-      for (final song in songs)
-        if (index.videoFor(song.id) != null) song,
-    ];
+    final withVideo = uniqueMusicVideoSongs(songs, index);
     final unchecked = songs
         .where((s) => !index.matches.containsKey(s.id))
         .length;

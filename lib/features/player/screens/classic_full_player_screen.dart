@@ -1,3 +1,5 @@
+import '../widgets/android_output_chooser.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -50,7 +52,6 @@ import 'package:flick/providers/providers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/l10n/l10n.dart';
-import 'package:flick/widgets/common/flick_dialog.dart';
 
 class ClassicFullPlayerScreen extends ConsumerStatefulWidget {
   final Object heroTag;
@@ -671,18 +672,8 @@ class _ClassicFullPlayerScreenState
     );
   }
 
-  Future<void> _showOutputDevicePopup(BuildContext context, Song song) async {
-    await showFlickDialog<void>(
-      context: context,
-      barrierLabel: 'Audio output',
-      barrierColor: Colors.black.withValues(alpha: 0.38),
-      builder: (_) => OutputDevicePopup(
-        song: song,
-        playerService: _playerService,
-        deviceLabel: l10n.thisDevice,
-      ),
-    );
-  }
+  Future<void> _showOutputDevicePopup(BuildContext context, Song song) =>
+      openAndroidOutputChooser(context);
 
   Widget _buildReturnToLockerButton(BuildContext context) {
     return GestureDetector(

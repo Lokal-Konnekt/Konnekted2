@@ -336,7 +336,9 @@ class DiscordPresenceService extends ChangeNotifier {
     // iTunes artwork is served from a family of regional Apple CDNs.
     // Allowing only is1..is5 silently discarded valid covers from the
     // US/GB storefront fallback even when Discovery displayed them.
-    final appleArtwork = RegExp(r'^is[0-9]{1,2}-ssl\.mzstatic\.com
+    final match = RegExp(r'^is[0-9]{1,2}-ssl[.]mzstatic[.]com').firstMatch(host);
+    final appleArtwork = match != null && match.group(0) == host;
+    return hosts.contains(host) || appleArtwork ? uri.toString() : '';
   }
 
   Future<void> _stop() async {

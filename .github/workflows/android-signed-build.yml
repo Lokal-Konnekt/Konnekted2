@@ -92,32 +92,3 @@ jobs:
           path: ${{ runner.temp }}/konnekted-release/*
           if-no-files-found: error
           retention-days: 7
- &&
-               [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; then
-              break
-            fi
-            if [ "$attempt" -eq 45 ]; then
-              echo "::error::Emulator did not boot within 135 seconds."
-              adb devices -l || true
-              tail -n 100 "$RUNNER_TEMP/lokal-emulator.log" || true
-              exit 1
-            fi
-            sleep 3
-          done
-          test -z "$(adb shell pm list packages com.lokalkonnekt.konnekted2 | tr -d '\r')"
-          timeout 90 adb install -r "$RUNNER_TEMP/konnekted-release/Lokal-$APK_VERSION-universal.apk"
-          adb shell pm path com.lokalkonnekt.konnekted2 | grep -q package:
-
-      - name: Remove temporary signing material
-        if: always()
-        run: python3 tool/ci_release.py cleanup
-
-      - name: Verify dependency locks
-        run: git diff --exit-code -- pubspec.lock rust/Cargo.lock
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: android-${{ matrix.flavor }}-${{ inputs.build_number }}
-          path: ${{ runner.temp }}/konnekted-release/*
-          if-no-files-found: error
-          retention-days: 7

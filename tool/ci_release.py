@@ -117,6 +117,11 @@ def package_apk(apk, destination, flavor, version, code, env, certificate):
             or "name='com.lokalkonnekt.konnekted2'" not in badging):
         raise ValueError("APK package/version metadata did not match the requested release")
     with zipfile.ZipFile(apk) as archive:
+        # A valid signature and manifest do not verify every compressed entry.
+        # Catch corrupt/truncated payloads before copying them to Releases.
+        bad_entry = archive.testzip()
+        if bad_entry is not None:
+            raise ValueError(f"APK has a corrupt ZIP entry: {bad_entry}")
         for abi in ("arm64-v8a", "armeabi-v7a"):
             for library in ("librust_lib_flick_player.so", "libflutter.so", "libapp.so",
                             "libmornye_discord.so", "libdiscord_partner_sdk.so"):

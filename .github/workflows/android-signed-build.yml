@@ -79,6 +79,29 @@ jobs:
         # A runner-generated debug key must never be used for published betas.
         run: python3 tool/ci_release.py build
 
+      # Test a genuine first install, not just signature/manifest inspection.
+      # This runs after the package step and before the artifact can be uploaded.
+      - name: Smoke-test fresh install on Android 8.0
+        if: matrix.flavor == 'full'
+        timeout-minutes: 15
+        shell: bash
+        env:
+          APK_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "platforms;android-26" "system-images;android-26;google_apis;x86" "emulator"
+          echo no | avdmanager create avd -n lokal-fresh-install -k "system-images;android-26;google_apis;x86" --force
+          emulator -avd lokal-fresh-install -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect >"$RUNNER_TEMP/lokal-emulator.log" 2>&1 &
+          EMULATOR_PID=$!
+          trap 'adb emu kill >/dev/null 2>&1 || true; kill "$EMULATOR_PID" >/dev/null 2>&1 || true' EXIT
+          adb wait-for-device
+          timeout 360 bash -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = 1 ]; do sleep 3; done'
+          test -z "$(adb shell pm list packages com.lokalkonnekt.konnekted2 | tr -d '\r')"
+          adb install -r "$RUNNER_TEMP/konnekted-release/Lokal-$APK_VERSION-universal.apk"
+          adb shell pm path com.lokalkonnekt.konnekted2 | grep -q package:
+
       - name: Remove temporary signing material
         if: always()
         run: python3 tool/ci_release.py cleanup

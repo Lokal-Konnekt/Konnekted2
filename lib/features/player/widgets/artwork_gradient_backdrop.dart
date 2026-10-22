@@ -125,7 +125,7 @@ class _ArtworkGradientBackdropState
           _color,
           () => _drift.value,
           vibrant: widget.vibrant,
-          visuals: _currentVisual,
+          visuals: () => _currentVisual,
         ),
         size: Size.infinite,
       ),
@@ -141,12 +141,12 @@ class _PalettePainter extends CustomPainter {
   final Color Function(int) color;
   final double Function() phase;
   final bool vibrant;
-  final FullPlayerVisuals visuals;
+  final FullPlayerVisuals Function() visuals;
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     if (vibrant) {
-      final theme = visuals;
+      final theme = visuals();
       // A dark, legible header and a stronger artwork-colored lower half.
       // Static shader paints: no texture blur or additional image decode.
       canvas.drawRect(

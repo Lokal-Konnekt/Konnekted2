@@ -656,6 +656,15 @@ class LokalDesktopSource extends NetworkSourceService {
           '${credentials.desktopId}:${credentials.desktopUserId ?? 'guest'}',
         )
         .findFirst();
+    // Polling a journal must not write the server row or wake library watchers
+    // when the connection credentials have not changed.
+    final username =
+        '${credentials.desktopId}:${credentials.desktopUserId ?? 'guest'}';
+    if (server != null &&
+        server.baseUrl == credentials.origin.toString() &&
+        server.username == username &&
+        server.token == null)
+      return server;
     server ??= NetworkServerEntity()
       ..protocol = 'lokal'
       ..label = name;

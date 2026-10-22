@@ -86,7 +86,7 @@ Optional integrations include Last.fm and ListenBrainz scrobbling, network music
 ## Install and update
 
 1. Open [Releases](https://github.com/Lokal-Konnekt/lokal-mobile/releases) and choose stable or nightly.
-2. Download the **full** APK. Each APK includes **arm64-v8a (ARMv8)** and **armeabi-v7a**; no separate architecture selection is needed.
+2. Download **`Lokal-<version>-universal.apk`** (the full build). The optional Play variant adds `-Play` to its name. Each APK includes **arm64-v8a (ARMv8)** and **armeabi-v7a**; no separate architecture selection is needed.
 3. Allow your browser/file manager to install the APK, then choose your music folders from Library settings.
 
 Android **8.0 / API 26** or newer is required. The `play` flavor is an alternative distribution variant; most people sideloading from GitHub should use `full`.

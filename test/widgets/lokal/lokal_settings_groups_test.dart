@@ -132,7 +132,7 @@ void main() {
     expect(find.text('PLAYBACK · LYRICS'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'scrobbl');
     await tester.pumpAndSettle();
-    expect(find.text('ONLINE SOURCES · ACCOUNTS & SCROBBLING'), findsOneWidget);
+    expect(find.text('DATA · ACCOUNTS'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'licences');
     await tester.pumpAndSettle();
     expect(find.text('Licences'), findsOneWidget);
@@ -141,12 +141,17 @@ void main() {
 
   testWidgets('canonical Online sources exposes HTTP add-ons', (tester) async {
     await tester.pumpWidget(
-      _app(const LokalSettingsGroupPage(group: LokalSettingsGroup.integrations)),
+      _app(
+        const LokalSettingsGroupPage(group: LokalSettingsGroup.integrations),
+      ),
     );
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('HTTP music add-ons'), findsOneWidget);
-    expect(find.byKey(const ValueKey('http-addon-manifest-url')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('http-addon-manifest-url')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('http-addon-add')), findsOneWidget);
     expect(find.text('Add music addon'), findsNothing);
     expect(tester.takeException(), isNull);

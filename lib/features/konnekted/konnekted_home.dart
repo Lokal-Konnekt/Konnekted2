@@ -74,138 +74,151 @@ class _KonnektedHomeState extends ConsumerState<KonnektedHome> {
     final library = ref.watch(konnektedLibraryProvider);
     return SafeArea(
       bottom: false,
-      child: CustomScrollView(
-        key: const PageStorageKey('konnekted-listen'),
-        slivers: [
-          SliverToBoxAdapter(
-            child: KonnektedHomeTopBar(
-              greeting: ref.watch(konnektedGreetingProvider).value,
-              onSettings: () => onNavigate(
-                const KonnektedDestination.settingsAt(
-                  LokalSettingsGroup.playback,
+      child: RefreshIndicator(
+        notificationPredicate: (notification) =>
+            _tab == KonnektedHomeTab.local && notification.depth == 0,
+        onRefresh: () async {
+          ref.read(konnektedMixRefreshProvider.notifier).refresh();
+          await ref.read(konnektedMixesProvider.future);
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          key: const PageStorageKey('konnekted-listen'),
+          slivers: [
+            SliverToBoxAdapter(
+              child: KonnektedHomeTopBar(
+                greeting: ref.watch(konnektedGreetingProvider).value,
+                onSettings: () => onNavigate(
+                  const KonnektedDestination.settingsAt(
+                    LokalSettingsGroup.playback,
+                  ),
                 ),
-              ),
-              onAppearance: () => onNavigate(
-                const KonnektedDestination.settingsAt(
-                  LokalSettingsGroup.appearance,
-                ),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Center(
-                child: LokalGlass.capsule(
-                  thickness: LokalGlassThickness.thin,
-                  shadow: false,
-                  padding: const EdgeInsets.all(4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final tab in KonnektedHomeTab.values)
-                        _ShelfChip(
-                          label: tab.label,
-                          selected: tab == _tab,
-                          onTap: () => _select(tab),
-                        ),
-                    ],
+                onAppearance: () => onNavigate(
+                  const KonnektedDestination.settingsAt(
+                    LokalSettingsGroup.appearance,
                   ),
                 ),
               ),
             ),
-          ),
-          if (_tab == KonnektedHomeTab.discovery)
             SliverToBoxAdapter(
-              child: KonnektedDiscoveryView(
-                onNavigate: onNavigate,
-                onPlay: onPlay,
-              ),
-            )
-          else ...[
-            SliverToBoxAdapter(
-              child: KonnektedCoverFlowSection(
-                onPlay: onPlay,
-                onOpenFlow: () => onNavigate(KonnektedDestination.flow),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: library.when(
-                skipLoadingOnReload: true,
-                skipError: true,
-                loading: () => const KonnektedLoading(),
-                error: (_, _) => KonnektedMessage(
-                  title: lokalText('Your library needs another look'),
-                  message: lokalText(
-                    'We couldn’t load your music. Try again, or check your music folders in Library.',
-                  ),
-                  icon: Icons.cloud_off_rounded,
-                  actionLabel: 'Try again',
-                  onAction: () => ref.invalidate(songsProvider),
-                ),
-                data: (songs) => songs.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 24),
-                        child: KonnektedMessage(
-                          title: lokalText('Make room for your favorites'),
-                          message: lokalText(
-                            'Add a music folder to start your collection. Your albums, favorites, and listening history will live here.',
+              child: Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Center(
+                  child: LokalGlass.capsule(
+                    thickness: LokalGlassThickness.thin,
+                    shadow: false,
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final tab in KonnektedHomeTab.values)
+                          _ShelfChip(
+                            label: tab.label,
+                            selected: tab == _tab,
+                            onTap: () => _select(tab),
                           ),
-                          icon: Icons.library_music_rounded,
-                          actionLabel: 'Add your music',
-                          onAction: () => onNavigate(_addMusic),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: KonnektedYourMixes(
-                mixes: ref.watch(konnektedMixesProvider).value ?? const [],
-                onPlay: onPlay,
+            if (_tab == KonnektedHomeTab.discovery)
+              SliverToBoxAdapter(
+                child: KonnektedDiscoveryView(
+                  onNavigate: onNavigate,
+                  onPlay: onPlay,
+                ),
+              )
+            else ...[
+              SliverToBoxAdapter(
+                child: KonnektedCoverFlowSection(
+                  onPlay: onPlay,
+                  onOpenFlow: () => onNavigate(KonnektedDestination.flow),
+                ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: KonnektedSongShelf(
-                title: lokalText('On repeat, lately'),
-                songs: ref.watch(konnektedRecentSongsProvider),
-                emptyTitle: 'Your next listen starts a story',
-                emptyMessage: 'The music you play will appear here. Pick something from your library to begin.',
-                onSeeAll: () => onNavigate(KonnektedDestination.recentlyPlayed),
-                onRetry: () => ref.invalidate(konnektedRecentSongsProvider),
-                onPlay: onPlay,
+              SliverToBoxAdapter(
+                child: library.when(
+                  skipLoadingOnReload: true,
+                  skipError: true,
+                  loading: () => const KonnektedLoading(),
+                  error: (_, _) => KonnektedMessage(
+                    title: lokalText('Your library needs another look'),
+                    message: lokalText(
+                      'We couldn’t load your music. Try again, or check your music folders in Library.',
+                    ),
+                    icon: Icons.cloud_off_rounded,
+                    actionLabel: 'Try again',
+                    onAction: () => ref.invalidate(songsProvider),
+                  ),
+                  data: (songs) => songs.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 24),
+                          child: KonnektedMessage(
+                            title: lokalText('Make room for your favorites'),
+                            message: lokalText(
+                              'Add a music folder to start your collection. Your albums, favorites, and listening history will live here.',
+                            ),
+                            icon: Icons.library_music_rounded,
+                            actionLabel: 'Add your music',
+                            onAction: () => onNavigate(_addMusic),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: KonnektedSongShelf(
-                title: lokalText('Close to your heart'),
-                songs: ref.watch(konnektedFavoritesProvider),
-                emptyTitle: 'Keep the songs you love close',
-                emptyMessage:
-                    'Tap the heart in the player to build your favorites.',
-                onSeeAll: () => onNavigate(KonnektedDestination.favorites),
-                onRetry: () => ref.invalidate(favoritesProvider),
-                onPlay: onPlay,
+              SliverToBoxAdapter(
+                child: KonnektedYourMixes(
+                  mixes: ref.watch(konnektedMixesProvider).value ?? const [],
+                  onPlay: onPlay,
+                ),
               ),
-            ),
+              SliverToBoxAdapter(
+                child: KonnektedSongShelf(
+                  title: lokalText('On repeat, lately'),
+                  songs: ref.watch(konnektedRecentSongsProvider),
+                  emptyTitle: 'Your next listen starts a story',
+                  emptyMessage: 'The music you play will appear here. Pick something from your library to begin.',
+                  onSeeAll: () =>
+                      onNavigate(KonnektedDestination.recentlyPlayed),
+                  onRetry: () => ref.invalidate(konnektedRecentSongsProvider),
+                  onPlay: onPlay,
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: KonnektedSongShelf(
+                  title: lokalText('Close to your heart'),
+                  songs: ref.watch(konnektedFavoritesProvider),
+                  emptyTitle: 'Keep the songs you love close',
+                  emptyMessage:
+                      'Tap the heart in the player to build your favorites.',
+                  onSeeAll: () => onNavigate(KonnektedDestination.favorites),
+                  onRetry: () => ref.invalidate(favoritesProvider),
+                  onPlay: onPlay,
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: KonnektedSongShelf(
+                  title: lokalText('Fresh in your library'),
+                  songs: ref.watch(konnektedRecentlyAddedProvider),
+                  emptyTitle: 'A collection that’s yours',
+                  emptyMessage:
+                      'Newly added music appears here after you scan a folder.',
+                  onSeeAll: () =>
+                      onNavigate(KonnektedDestination.recentlyAdded),
+                  onRetry: () => ref.invalidate(songsProvider),
+                  onPlay: onPlay,
+                ),
+              ),
+            ],
+            // The floating dock reserves its height as bottom padding.
             SliverToBoxAdapter(
-              child: KonnektedSongShelf(
-                title: lokalText('Fresh in your library'),
-                songs: ref.watch(konnektedRecentlyAddedProvider),
-                emptyTitle: 'A collection that’s yours',
-                emptyMessage:
-                    'Newly added music appears here after you scan a folder.',
-                onSeeAll: () => onNavigate(KonnektedDestination.recentlyAdded),
-                onRetry: () => ref.invalidate(songsProvider),
-                onPlay: onPlay,
+              child: SizedBox(
+                height: 28 + MediaQuery.paddingOf(context).bottom,
               ),
             ),
           ],
-          // The floating dock reserves its height as bottom padding.
-          SliverToBoxAdapter(
-            child: SizedBox(height: 28 + MediaQuery.paddingOf(context).bottom),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -2,6 +2,9 @@ import 'package:flick/features/link/lokal_desktop_link_screen.dart';
 import 'package:flick/l10n/l10n.dart';
 
 import 'dart:async';
+import 'dart:io';
+
+import 'package:flick/features/settings/widgets/battery_optimization_setting.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,7 +37,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-enum _Step { welcome, look, folder, desktop, online, done }
+enum _Step { welcome, look, folder, desktop, online, background, done }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   _Step _step = _Step.welcome;
@@ -54,13 +57,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void _next() {
     if (_step == _Step.done) {
       unawaited(_finish());
+    } else if (_step == _Step.online && !Platform.isAndroid) {
+      _go(_Step.done);
     } else {
       _go(_Step.values[_step.index + 1]);
     }
   }
 
   void _back() {
-    if (_step.index > 0) _go(_Step.values[_step.index - 1]);
+    if (_step == _Step.done && !Platform.isAndroid) {
+      _go(_Step.online);
+    } else if (_step.index > 0) {
+      _go(_Step.values[_step.index - 1]);
+    }
   }
 
   Future<void> _pickFolder() async {
@@ -124,7 +133,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         _next,
       ),
       _Step.desktop => (l10n.linkNotNow, _next),
-      _Step.online => (lokalText('Not now'), _next),
+      _Step.online || _Step.background => (lokalText('Not now'), _next),
       _ => (null, null),
     };
 
@@ -219,6 +228,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     ),
     _Step.desktop => const _DesktopLinkPage(),
     _Step.online => const _OnlinePage(),
+    _Step.background => ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      children: [
+        const Text(
+          'Keep the music playing',
+          style: TextStyle(fontSize: 32, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'You can allow background work now, or later in Data. This is optional.',
+        ),
+        const SizedBox(height: 24),
+        LokalSettingsSection(
+          title: 'Background',
+          children: const [BatteryOptimizationSetting()],
+        ),
+      ],
+    ),
     _Step.done => _DonePage(hasFolder: _folderName != null),
   };
 }

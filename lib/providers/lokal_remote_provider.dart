@@ -113,6 +113,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   Future<void>? _restoreTask;
   Future<void> _commandTail = Future<void>.value();
   var _polling = false;
+  bool _syncInFlight = false;
   var _shouldPoll = false;
   var _failures = 0;
   var _generation = 0;
@@ -134,7 +135,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       _syncDebounce?.cancel();
       _syncDebounce = Timer(
         const Duration(milliseconds: 400),
-        () => unawaited(_syncLink()),
+        () => unawaited(_syncLink(background: true)),
       );
     });
     ref.listen(lokalAppearanceProvider, (_, appearance) {
@@ -700,14 +701,15 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
     _refreshSocketSnapshot();
     _publishLocalState();
     final now = DateTime.now();
-    final interval = now.difference(_lastActivity) < const Duration(seconds: 30)
-        ? const Duration(seconds: 6)
-        : const Duration(seconds: 30);
-    if (now.difference(_lastLibrarySyncAt) >= interval) unawaited(_syncLink());
+    const interval = Duration(minutes: 1);
+    if (now.difference(_lastLibrarySyncAt) >= interval)
+      unawaited(_syncLink(background: true));
   }
 
-  Future<void> _syncLink() async {
-    if (state.fileCopyProgress.busy || _linkSync?.busy == true) return;
+  Future<void> _syncLink({bool background = false}) async {
+    if (_syncInFlight || state.fileCopyProgress.busy || _linkSync?.busy == true)
+      return;
+    _syncInFlight = true;
     _lastLibrarySyncAt = DateTime.now();
     final generation = _generation;
     try {
@@ -717,12 +719,14 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
           credentials,
           connected: () => !_disposed && state.socketConnected,
         );
-      await _linkSync?.synchronize();
+      await _linkSync?.synchronize(background: background);
     } catch (_) {
       if (!_disposed && generation == _generation)
         state = state.copyWith(
           error: 'Library sync paused. Your local data is safe; Lokal will retry when connected.',
         );
+    } finally {
+      _syncInFlight = false;
     }
   }
 

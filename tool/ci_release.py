@@ -126,7 +126,8 @@ def package_apk(apk, destination, flavor, version, code, env, certificate):
             if f"assets/{notice}" not in archive.namelist():
                 raise ValueError(f"APK is missing {notice}")
     destination.mkdir(exist_ok=True)
-    name = f"Lokal-{version}+{code}-{flavor}-arm64-armv7.apk"
+    variant = "-Play" if flavor == "play" else ""
+    name = f"Lokal-{version}{variant}-universal.apk"
     output = destination / name
     shutil.copyfile(apk, output)
     with output.open("rb") as stream:

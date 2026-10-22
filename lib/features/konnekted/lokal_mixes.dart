@@ -72,9 +72,11 @@ List<LokalMix> lokalMixes({
   required List<Song> history,
   required Map<String, int> playCounts,
   DateTime? now,
+  int refreshSeed = 0,
 }) {
   final day = now ?? DateTime.now();
-  Random daily(String salt) => Random(_daySeed(day) ^ salt.hashCode);
+  Random daily(String salt) =>
+      Random(_daySeed(day) ^ salt.hashCode ^ refreshSeed);
   final mixes = <LokalMix>[];
   if (library.isEmpty) return mixes;
 
@@ -132,7 +134,7 @@ List<LokalMix> lokalMixes({
   final unplayed = library.where((song) => !playCounts.containsKey(song.id));
   final discovery = _shuffled(
     unplayed,
-    Random(_weekSeed(day)),
+    Random(_weekSeed(day) ^ refreshSeed),
   ).take(30).toList();
   if (discovery.length >= 3) {
     mixes.add(

@@ -12,7 +12,6 @@ import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/settings/library_scan/library_scan_flow.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/library_scan_preferences_provider.dart';
-import 'package:flick/services/android_audio_device_service.dart';
 import 'package:flick/services/library_scanner_service.dart' show ScanMode;
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/permission_service.dart';
@@ -46,8 +45,6 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   final Map<String, FolderEntity> _folderEntities = {};
   int _songCount = 0;
   bool _loaded = false;
-  bool _showBatteryNotice = false;
-  bool _isXiaomiDevice = false;
   bool _allFilesAccessGranted = false;
   bool _allFilesAccessSupported = false;
 
@@ -121,24 +118,17 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     final permissions = PermissionService();
     try {
       final results = await Future.wait<dynamic>([
-        AndroidAudioDeviceService.instance.refresh(),
-        permissions.isIgnoringBatteryOptimizations(),
-        permissions.isBatteryNoticeDismissed(),
         permissions.hasAllFilesAccess(),
         permissions.isAllFilesAccessSupported(),
       ]);
       if (!mounted) return;
       setState(() {
-        _isXiaomiDevice =
-            (results[0] as AndroidPlaybackDeviceInfo).isXiaomiDevice;
-        _showBatteryNotice = !(results[1] as bool) && !(results[2] as bool);
-        _allFilesAccessGranted = results[3] as bool;
-        _allFilesAccessSupported = results[4] as bool;
+        _allFilesAccessGranted = results[0] as bool;
+        _allFilesAccessSupported = results[1] as bool;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _showBatteryNotice = false;
         _allFilesAccessSupported = false;
       });
     }
@@ -159,21 +149,6 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     } catch (e) {
       if (mounted) _say('Couldn’t open the access settings ($e).');
     }
-  }
-
-  Future<void> _requestBatteryOptimizationDisable() async {
-    try {
-      final launched = await PermissionService()
-          .requestIgnoreBatteryOptimizations();
-      if (!launched && mounted) _say('Couldn’t open battery settings.');
-    } catch (e) {
-      if (mounted) _say('Couldn’t open battery settings ($e).');
-    }
-  }
-
-  Future<void> _dismissBatteryNotice() async {
-    await PermissionService().dismissBatteryNotice();
-    if (mounted) setState(() => _showBatteryNotice = false);
   }
 
   Future<void> _addFolder() async {
@@ -294,11 +269,9 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                     ),
                   ),
                 ),
-                if (_showBatteryNotice) _batteryNotice(),
                 _folderSection(scanning),
                 if (_folders.isNotEmpty || _allFilesAccessSupported)
                   _scanSection(scanning),
-                if (_folders.isNotEmpty) _toolsSection(scanning),
               ],
             );
           },
@@ -306,27 +279,6 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       ),
     );
   }
-
-  Widget _batteryNotice() => LokalSettingsSection(
-    title: 'Heads up',
-    children: [
-      LokalSettingRow(
-        icon: Icons.battery_alert_rounded,
-        label: _isXiaomiDevice
-            ? 'Turn off battery optimisation (recommended)'
-            : 'Turn off battery optimisation',
-        description: _isXiaomiDevice
-            ? 'Xiaomi, Redmi and POCO phones stop scans in the background '
-                  'unless Lokal is allowed to run.'
-            : 'Lets rescans and background work finish when the screen is off.',
-        onTap: _requestBatteryOptimizationDisable,
-        trailing: LokalSettingButton(
-          label: 'Dismiss',
-          onPressed: _dismissBatteryNotice,
-        ),
-      ),
-    ],
-  );
 
   Widget _folderSection(bool scanning) {
     final t = context.lokal;
@@ -473,37 +425,6 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       ],
     );
   }
-
-  Widget _toolsSection(bool scanning) => LokalSettingsSection(
-    title: 'Tools',
-    children: [
-      LokalSettingRow(
-        icon: Icons.graphic_eq_rounded,
-        label: 'Prepare audio',
-        description:
-            'Decode every song once so waveforms and loudness are ready.',
-        enabled: !scanning,
-        trailing: LokalSettingButton(
-          label: 'Run',
-          onPressed: scanning
-              ? null
-              : () => LibraryScanFlow.preloadAudio(context),
-        ),
-      ),
-      LokalSettingRow(
-        icon: Icons.speed_rounded,
-        label: 'ReplayGain scan',
-        description: 'Measure loudness and write ReplayGain tags.',
-        enabled: !scanning,
-        trailing: LokalSettingButton(
-          label: 'Run',
-          onPressed: scanning
-              ? null
-              : () => LibraryScanFlow.scanReplayGain(context),
-        ),
-      ),
-    ],
-  );
 }
 
 /// A capsule that looks like [LokalSettingButton] without its own tap, for a

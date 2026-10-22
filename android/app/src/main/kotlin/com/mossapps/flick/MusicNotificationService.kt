@@ -345,7 +345,7 @@ class MusicNotificationService : Service() {
         if (path.isNullOrEmpty()) {
             cachedAlbumArt = null
             cachedAlbumArtPath = null
-            return getFallbackArt()
+            return null
         }
         if (path == cachedAlbumArtPath && cachedAlbumArt != null) {
             return cachedAlbumArt
@@ -369,7 +369,7 @@ class MusicNotificationService : Service() {
                 cachedAlbumArt = bitmap
                 cachedAlbumArtPath = path
             }
-            bitmap ?: getFallbackArt()
+            bitmap
         } catch (e: Exception) {
             android.util.Log.w("MusicNotification", "Failed to decode album art: ${e.message}")
             getFallbackArt()

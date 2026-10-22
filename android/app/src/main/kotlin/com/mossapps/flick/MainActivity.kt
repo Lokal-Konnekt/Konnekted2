@@ -668,6 +668,53 @@ class MainActivity: FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "folderTreeUri, filePath, and tempFilePath are required", null)
                     }
                 }
+                "moveLibraryMusicFile" -> {
+                    val source = call.argument<String>("source")
+                    val target = call.argument<String>("target")
+                    val root = call.argument<String>("root")
+                    if (source == null || target == null || root == null) {
+                        result.error("INVALID_ARGUMENT", "Source, target and library root are required", null)
+                    } else mainScope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                val base = File(root).canonicalFile.toPath()
+                                val from = File(source).canonicalFile.toPath()
+                                val to = File(target).canonicalFile.toPath()
+                                require(from.startsWith(base) && to.startsWith(base) && from != base && to != base)
+                                require(java.nio.file.Files.isRegularFile(from))
+                                try {
+                                    java.nio.file.Files.createDirectories(to.parent)
+                                    // No REPLACE_EXISTING: collisions are errors, never overwrites.
+                                    java.nio.file.Files.move(from, to)
+                                } catch (error: java.io.IOException) {
+                                    // Scoped storage may permit reads but require the saved tree
+                                    // grant for moves. ExternalStorageProvider preserves the filename.
+                                    val tree = Uri.parse(call.argument<String>("folderUri") ?: "")
+                                    require(tree.authority == "com.android.externalstorage.documents")
+                                    require(from.fileName == to.fileName)
+                                    val treeId = DocumentsContract.getTreeDocumentId(tree)
+                                    fun document(relative: String): Uri = DocumentsContract.buildDocumentUriUsingTree(
+                                        tree, if (relative.isEmpty()) treeId else "$treeId/$relative")
+                                    val sourceRelative = base.relativize(from).toString().replace(File.separatorChar, '/')
+                                    val parentRelative = base.relativize(from.parent).toString().replace(File.separatorChar, '/')
+                                    var destination = DocumentFile.fromTreeUri(this@MainActivity, tree) ?: throw error
+                                    for (part in base.relativize(to.parent)) {
+                                        val name = part.toString()
+                                        require(name.isNotBlank() && name != "." && name != "..")
+                                        destination = destination.findFile(name)?.also { require(it.isDirectory) }
+                                            ?: destination.createDirectory(name) ?: throw error
+                                    }
+                                    require(destination.findFile(to.fileName.toString()) == null)
+                                    DocumentsContract.moveDocument(contentResolver, document(sourceRelative), document(parentRelative), destination.uri)
+                                        ?: throw error
+                                }
+                            }
+                            result.success(null)
+                        } catch (_: Exception) {
+                            result.error("MUSIC_MOVE_FAILED", "Could not move this file without overwriting. Check library folder access.", null)
+                        }
+                    }
+                }
                 "copyMusicToFolder" -> {
                     val tree = call.argument<String>("folderTreeUri")
                     val source = call.argument<String>("sourcePath")

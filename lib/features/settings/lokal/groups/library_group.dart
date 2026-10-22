@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/features/settings/library_scan/library_scan_flow.dart';
 import 'package:flick/features/settings/screens/duplicate_cleaner_screen.dart';
 import 'package:flick/features/settings/screens/library_settings_screen.dart';
+import 'package:flick/features/settings/screens/library_organizer_screen.dart';
 import 'package:flick/features/settings/screens/missing_metadata_screen.dart';
 import 'package:flick/providers/app_preferences_provider.dart';
 import 'package:flick/providers/library_scan_preferences_provider.dart';
@@ -132,6 +133,13 @@ List<LokalSettingsSection> librarySettings(
     LokalSettingsSection(
       title: lokalText('Maintenance'),
       children: [
+        LokalSettingLink(
+          label: lokalText('Organize existing library'),
+          description: lokalText(
+            'Preview moving your existing music into Artist/Album folders while keeping likes, playlists and history.',
+          ),
+          onTap: () => _push(context, const LibraryOrganizerScreen()),
+        ),
         LokalSettingLink(
           label: lokalText('Find duplicates'),
           description: lokalText(

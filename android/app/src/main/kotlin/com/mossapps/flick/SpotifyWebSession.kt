@@ -26,8 +26,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.nio.charset.StandardCharsets
 
 /**
@@ -259,21 +257,11 @@ internal class SpotifyWebSession(private val activity: Activity) {
             if (bridge.anonymous) throw SessionException("Spotify did not recognize this cookie. Copy a fresh sp_dc value from your signed-in browser.")
             if (bridge.accessToken == null) throw SessionException("Spotify's web player did not finish signing in. Try again; the cookie may still be valid.")
             if (bridge.clientToken == null) throw SessionException("Spotify's web player did not initialize its client session. Update Android System WebView and retry.")
-            if (!bridge.verifiedAccess) {
-                val signedIn = withContext(Dispatchers.IO) {
-                    val connection = URL("https://api.spotify.com/v1/me").openConnection() as HttpURLConnection
-                    try {
-                        connection.connectTimeout = NETWORK_TIMEOUT_MS
-                        connection.readTimeout = NETWORK_TIMEOUT_MS
-                        connection.instanceFollowRedirects = false
-                        connection.setRequestProperty("Authorization", "Bearer ${bridge.accessToken}")
-                        connection.setRequestProperty("client-token", bridge.clientToken)
-                        connection.setRequestProperty("User-Agent", CANVAS_USER_AGENT)
-                        connection.responseCode == 200
-                    } finally { connection.disconnect() }
-                }
-                if (!signedIn) throw SessionException("Spotify could not verify the web-player account. Try a fresh sp_dc cookie.")
-            }
+            // Discovery and Canvas use the actual WebPlayer credentials.
+            // Do not gate these on api.spotify.com/v1/me: public Web API
+            // policy/scopes can refuse a valid first-party WebPlayer bearer.
+            // Explicit anonymous responses are rejected above; API callers
+            // handle their own session/auth failures without fabricating tokens.
             return MintedTokens(bridge.accessToken!!, bridge.clientToken, minOf(bridge.expiresAtMs, bridge.clientExpiresAtMs), bridge.hashes.toMap())
         } finally {
             if (messageBridge) WebViewCompat.removeWebMessageListener(webView, BRIDGE_NAME)
@@ -360,7 +348,6 @@ internal class SpotifyWebSession(private val activity: Activity) {
         const val BRIDGE_NAME = "KonnektedSpotifyTokenBridge"
         const val HARVEST_TIMEOUT_MS = 25_000L
         const val DEFAULT_TOKEN_LIFETIME_MS = 3_600_000L
-        const val NETWORK_TIMEOUT_MS = 15_000
         const val CANVAS_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"

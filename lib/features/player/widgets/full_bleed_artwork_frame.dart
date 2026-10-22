@@ -100,10 +100,12 @@ class _ArtworkContrast extends CustomPainter {
           end: Alignment.bottomCenter,
           colors:
               [
-                    const Color(0x99000000),
-                    const Color(0x26000000),
-                    const Color(0xB3000000),
-                    const Color(0xF0000000),
+                    // Keep Canvas legible under controls without turning
+                    // the artwork or album-colored backdrop almost black.
+                    const Color(0x7D000000),
+                    const Color(0x14000000),
+                    const Color(0x20000000),
+                    const Color(0x57000000),
                   ]
                   .map((color) => color.withValues(alpha: color.a * progress))
                   .toList(),

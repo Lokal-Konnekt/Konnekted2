@@ -1,4 +1,5 @@
 import 'package:flick/core/theme/lokal_performance_scope.dart';
+import 'package:flick/features/player/widgets/full_player_visuals.dart';
 import 'package:flick/features/player/widgets/full_bleed_artwork_frame.dart';
 
 import '../widgets/artist_credit_links.dart';
@@ -428,7 +429,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               key: _playerBoundsKey,
               fit: StackFit.expand,
               children: [
-                ArtworkGradientBackdrop(colors: colors),
+                ArtworkGradientBackdrop(colors: colors, vibrant: true),
                 if (fullCover)
                   FadeTransition(
                     opacity: _canvasChrome,
@@ -440,9 +441,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                             end: Alignment.bottomCenter,
                             colors: [
                               Color(0x99000000),
-                              Color(0x26000000),
-                              Color(0xB3000000),
-                              Color(0xF0000000),
+                              Color(0x16000000),
+                              Color(0x18000000),
+                              Color(0x48000000),
                             ],
                             stops: [0, .28, .66, 1],
                           ),
@@ -451,7 +452,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     ),
                   )
                 else
-                  Container(color: Colors.black.withValues(alpha: 0.24)),
+                  Container(color: Colors.black.withValues(alpha: 0.10)),
                 if (fullCover) _fullscreenArtwork(song),
                 IgnorePointer(
                   ignoring: hidden,
@@ -462,9 +463,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                       child: SafeArea(
                         child: Padding(
                           padding: EdgeInsets.fromLTRB(
-                            18,
+                            23,
                             0,
-                            18,
+                            23,
                             14, // keeps the chip row clear of the system nav bar
                           ),
                           child: LayoutBuilder(
@@ -501,6 +502,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                         ),
                                       ),
                                       _seekRow(),
+                                      // The timeline sits above the transport pads,
+                                      // rather than being visually glued to them.
+                                      SizedBox(height: compact ? 12 : 24),
                                       SizedBox(
                                         height: lerpDouble(
                                           compact ? 6 : 10,
@@ -519,7 +523,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                               opacity: 1 - l,
                                               child: Padding(
                                                 padding: EdgeInsets.only(
-                                                  top: compact ? 8 : 12,
+                                                  top: compact ? 7 : 10,
                                                 ),
                                                 child: _optionsStrip(),
                                               ),
@@ -527,7 +531,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                           ),
                                         ),
                                       ),
-                                      SizedBox(height: compact ? 8 : 12),
+                                      SizedBox(height: compact ? 13 : 17),
                                       _chipRow(),
                                     ],
                                   );
@@ -632,21 +636,19 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   }) {
     return Material(
       color: selected
-          ? context.lokal.accent.withValues(alpha: 0.22)
-          : Colors.white.withValues(alpha: 0.08),
+          ? FullPlayerVisuals.selectedSurface
+          : FullPlayerVisuals.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: selected
-              ? context.lokal.accent.withValues(alpha: 0.5)
-              : Colors.white.withValues(alpha: 0.18),
+          color: FullPlayerVisuals.border,
         ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           child: child,
         ),
       ),
@@ -779,7 +781,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   }
 
   Widget _panelStage(Song song, bool compact, {bool fullCover = false}) {
-    final titleSize = compact ? 26.0 : 32.0;
+    final titleSize = compact ? 25.0 : 29.0;
     return LayoutBuilder(
       builder: (context, c) {
         _queue.travel = math.max(math.min(c.maxWidth, c.maxHeight) * .8, 200);
@@ -788,7 +790,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           lyricsProgress: _lyricsProgress,
           queueOpen: _queue.isOpen,
           lyricsOpen: _showLyrics,
-          artGap: compact ? 8 : 16,
+          artGap: compact ? 10 : 17,
           onQueueHeaderTap: () => _setQueueOpen(false),
           onLyricsCoverReturn: _toggleLyrics,
           onQueueHeaderDrag: _queue.dragBy,
@@ -858,30 +860,75 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   style: TextStyle(
                     fontFamily: _font,
                     fontSize: lerpDouble(titleSize, 18, p),
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.55,
+                    color: FullPlayerVisuals.primaryText,
                   ),
                 ),
-                SizedBox(height: lerpDouble(2, 1, p)),
+                SizedBox(height: lerpDouble(3, 1, p)),
+                // Reference hierarchy: artist · album · year. Show only
+                // available file metadata; keep audio quality accessible.
                 Row(
                   children: [
-                    Expanded(
+                    Flexible(
                       child: ArtistCreditLinks(
                         credit: song.artist,
                         onArtistTap: (name) =>
                             openLokalArtist(context, name: name, song: song),
                         style: TextStyle(
                           fontFamily: _font,
-                          fontSize: lerpDouble(14, 13, p),
-                          color: Colors.white.withValues(alpha: .72),
+                          fontSize: lerpDouble(13, 12, p),
+                          fontWeight: FontWeight.w500,
+                          color: FullPlayerVisuals.secondaryText,
                         ),
                       ),
                     ),
+                    if (song.album?.trim().isNotEmpty == true) ...[
+                      const _MetadataDot(),
+                      Flexible(
+                        child: Text(
+                          song.album!.trim(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: _font,
+                            fontSize: lerpDouble(11, 10, p),
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: .2,
+                            color: FullPlayerVisuals.secondaryText,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (song.year != null && song.year! > 0) ...[
+                      const _MetadataDot(),
+                      Text(
+                        '${song.year}',
+                        style: TextStyle(
+                          fontFamily: _font,
+                          fontSize: lerpDouble(11, 10, p),
+                          color: FullPlayerVisuals.tertiaryText,
+                        ),
+                      ),
+                    ],
                     if (LokalQualityTier.of(song) case final tier?) ...[
-                      const SizedBox(width: 8),
-                      GestureDetector(
+                      const SizedBox(width: 6),
+                      InkWell(
                         onTap: () => SongMetadataSheet.show(context, song),
-                        child: LokalQualityPill(tier: tier),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 5,
+                          ),
+                          child: Text(
+                            tier.label,
+                            style: const TextStyle(
+                              fontFamily: _font,
+                              fontSize: 10,
+                              color: FullPlayerVisuals.tertiaryText,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ],
@@ -903,7 +950,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     double progress = 0,
   }) {
     final prefs = ref.watch(appPreferencesProvider);
-    final radius = BorderRadius.circular(lerpDouble(28, 12, progress)!);
+    final radius = BorderRadius.circular(lerpDouble(20, 12, progress)!);
     final still = PlayerArtworkImage(
       song: song,
       radius: radius.topLeft.x,
@@ -1152,8 +1199,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   Widget _seekRow() {
     const mono = TextStyle(
       fontFamily: 'monospace',
-      fontSize: 11,
-      color: Color(0xB3FFFFFF),
+      fontSize: 11.5,
+      fontWeight: FontWeight.w600,
+      color: FullPlayerVisuals.tertiaryText,
     );
     return ValueListenableBuilder<Duration>(
       valueListenable: _player.durationNotifier,
@@ -1168,13 +1216,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               children: [
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
-                    trackHeight: 4,
+                    trackHeight: 3.5,
                     trackShape: const GappedSliderTrackShape(),
                     trackGap: 5,
                     thumbShape: const MaterialPlayerThumb(),
                     overlayShape: SliderComponentShape.noOverlay,
-                    activeTrackColor: context.lokal.accent,
-                    inactiveTrackColor: Colors.white24,
+                    activeTrackColor: FullPlayerVisuals.primaryText,
+                    inactiveTrackColor: Colors.white.withValues(alpha: .30),
                     thumbColor: Colors.white,
                   ),
                   child: Slider(
@@ -1229,8 +1277,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           compact: compact,
           lyricsProgress: lyricsProgress,
           playing: playing,
-          accent: context.lokal.accent,
-          onAccent: context.lokal.onAccent,
+          accent: FullPlayerVisuals.fromPalette(
+            ref.watch(albumPaletteSyncProvider),
+          ).play,
+          onAccent: Colors.black,
           onPrevious: () =>
               _carouselKey.currentState?.animateToPrevious() ??
               _player.previous(),
@@ -1251,19 +1301,14 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
         .clamp(0.0, maxVol)
         .toDouble();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.10),
+        color: FullPlayerVisuals.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: FullPlayerVisuals.border),
       ),
       child: Row(
         children: [
-          Icon(
-            sliderValue <= 0.001 ? LucideIcons.volumeX : LucideIcons.volume2,
-            size: 19,
-            color: Colors.white.withValues(alpha: 0.85),
-          ),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
@@ -1291,8 +1336,18 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               ),
             ),
           ),
-          Container(width: 1, height: 26, color: Colors.white24),
-          const SizedBox(width: 6),
+          Icon(
+            sliderValue <= 0.001 ? LucideIcons.volumeX : LucideIcons.volume2,
+            size: 18,
+            color: FullPlayerVisuals.secondaryText,
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 1,
+            height: 26,
+            color: FullPlayerVisuals.border,
+          ),
+          const SizedBox(width: 5),
           ValueListenableBuilder<ShuffleMode>(
             valueListenable: _player.shuffleModeNotifier,
             builder: (_, mode, __) => _toggle(
@@ -1331,7 +1386,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Material(
         color: on
-            ? context.lokal.accent.withValues(alpha: 0.22)
+            ? FullPlayerVisuals.selectedSurface
             : Colors.transparent,
         borderRadius: BorderRadius.circular(13),
         child: InkWell(
@@ -1339,12 +1394,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           onTap: onTap,
           onLongPress: onLong,
           child: SizedBox(
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             child: Icon(
               icon,
-              size: 20,
-              color: on ? context.lokal.accent : Colors.white,
+              size: 19,
+              color: on ? FullPlayerVisuals.primaryText : FullPlayerVisuals.secondaryText,
             ),
           ),
         ),
@@ -1369,15 +1424,21 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: Colors.white),
-              const SizedBox(width: 8),
+              Icon(
+                icon,
+                size: 18,
+                color: active
+                    ? FullPlayerVisuals.primaryText
+                    : FullPlayerVisuals.secondaryText,
+              ),
+              const SizedBox(width: 7),
               Text(
                 label,
                 style: const TextStyle(
                   fontFamily: _font,
-                  fontSize: 13.5,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white,
+                  color: FullPlayerVisuals.primaryText,
                 ),
               ),
             ],
@@ -1403,6 +1464,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             _toggleLyrics,
             active: _showLyrics,
           ),
+          ValueListenableBuilder<Duration?>(
+            valueListenable: _player.sleepTimerRemainingNotifier,
+            builder: (_, remaining, __) => chip(
+              LucideIcons.moonStar,
+              remaining == null ? l10n.sleepTimer : _clock(remaining),
+              () => SleepTimerBottomSheet.show(context, _player),
+              active: remaining != null,
+            ),
+          ),
           if (_player.currentSongNotifier.value case final song?)
             chip(
               Icons.motion_photos_on_rounded,
@@ -1421,15 +1491,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   .disabledSongs
                   .contains(movingCoverSongKey(song)),
             ),
-          ValueListenableBuilder<Duration?>(
-            valueListenable: _player.sleepTimerRemainingNotifier,
-            builder: (_, remaining, __) => chip(
-              LucideIcons.moonStar,
-              remaining == null ? l10n.sleepTimer : _clock(remaining),
-              () => SleepTimerBottomSheet.show(context, _player),
-              active: remaining != null,
-            ),
-          ),
           ValueListenableBuilder<double>(
             valueListenable: _player.playbackSpeedNotifier,
             builder: (_, speed, __) => chip(
@@ -1446,6 +1507,18 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       ),
     );
   }
+}
+
+class _MetadataDot extends StatelessWidget {
+  const _MetadataDot();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 7),
+    child: Text('·', style: TextStyle(
+      fontSize: 13, color: FullPlayerVisuals.tertiaryText,
+    )),
+  );
 }
 
 // ═════════════════════════════ backdrop ═════════════════════════════

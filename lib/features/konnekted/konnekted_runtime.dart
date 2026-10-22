@@ -1,4 +1,5 @@
 import 'package:flick/core/theme/lokal_appearance.dart';
+import 'package:flick/features/updates/lokal_update_sheet.dart';
 import 'package:flick/services/library_job_notification.dart';
 import 'package:flick/features/spotify/spotify_likes_sync_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
@@ -73,6 +74,39 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
 
   bool _backgrounded = false;
   bool _showingWhatsNew = false;
+  bool _showingUpdate = false;
+  String? _offeredUpdate;
+
+  void _maybeShowUpdate() {
+    final release = ref.read(updateCheckProvider).release;
+    if (!mounted ||
+        _backgrounded ||
+        _showingWhatsNew ||
+        _showingUpdate ||
+        release == null ||
+        release.identity == _offeredUpdate ||
+        !ref.read(onboardingCompletedProvider))
+      return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _backgrounded ||
+          _showingWhatsNew ||
+          _showingUpdate ||
+          ModalRoute.of(context)?.isCurrent == false)
+        return;
+      _offeredUpdate = release.identity;
+      _showingUpdate = true;
+      _run('Update prompt', () async {
+        try {
+          await showLokalUpdates(context);
+        } finally {
+          _showingUpdate = false;
+          if (mounted) _maybeShowWhatsNew();
+        }
+      });
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
 
   @override
   void initState() {
@@ -107,6 +141,9 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
       () => DiscordPresenceService.instance.start(_player),
     );
     ref.read(equalizerProvider);
+    ref.listenManual(updateCheckProvider, (_, next) {
+      if (next.updateAvailable) _maybeShowUpdate();
+    });
     ref.read(updateCheckProvider.notifier);
     _widgetSync = installWidgetSync(ref);
     _widgetIntents = WidgetIntentHandler(
@@ -185,6 +222,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void _maybeShowWhatsNew() {
     if (!mounted ||
         _showingWhatsNew ||
+        _showingUpdate ||
         !ref.read(onboardingCompletedProvider)) {
       return;
     }
@@ -199,6 +237,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
         if (mounted) await WhatsNewBottomSheet.show(context, entry: entry);
       } finally {
         _showingWhatsNew = false;
+        if (mounted) _maybeShowUpdate();
       }
     });
   }
@@ -248,6 +287,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     } else if (state == AppLifecycleState.resumed) {
       SpotifyLikesSyncService.instance.resume();
       _backgrounded = false;
+      _maybeShowUpdate();
       _run('Resume app lifecycle', _player.onAppResumed);
       ref.read(updateCheckProvider.notifier).refreshIfOnline();
       _run('Last.fm queue flush', ref.read(lastFmScrobbleQueueProvider).flush);

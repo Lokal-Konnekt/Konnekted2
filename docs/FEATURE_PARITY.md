@@ -550,6 +550,34 @@ checks pass. Settings search's stale account-location expectation was updated.
 Targeted analysis has no errors/warnings; existing style notices remain. No
 APK/CI build, live paired-device sync or physical background-playback test ran.
 
+### GitHub startup updates
+
+The legacy Play-first/Flick updater is replaced with Lokal GitHub release checks
+using installed APK build numbers and matching full/play metadata/assets. Stable
+installs use GitHub's latest stable release; nightly installs also consider
+published nightlies. Replaced stable releases with unchanged marketing versions
+are detected through their higher versionCode. Drafts, older/equal builds and
+invalid checksums are excluded. Requests are bounded and automatic checks have a
+30-minute cooldown. A single offer per release/build/checksum is shown per shell
+session after onboarding, coordinated with What's new. Later dismisses it;
+About › Updates provides a manual check and release-notes link.
+
+Full APKs use Android DownloadManager for user-requested downloads, including
+system notification progress and continuation outside the app. Reopening Updates
+recovers the stored download status. Install verifies SHA-256 and APK package/build
+on a worker thread before handing off to Android; Android verifies the signing
+identity and requires user confirmation. First install requests Android's unknown
+sources permission for Lokal, then the user can tap Install again. Downloads can
+be retried. Only full builds declare REQUEST_INSTALL_PACKAGES and the narrowly
+scoped APK FileProvider. Play variants open their matching GitHub APK externally.
+No silent installation or automatic download is performed. Launcher alias updates
+are held while installer/permission UI is open.
+
+Validation: release selection/replacement/channel/checksum and explicit
+user-download/install/permission sheet checks plus existing Settings checks pass
+(16 checks). Dart analysis has no errors/warnings; XML/diff checks pass. No APK/CI
+build, native compilation or physical DownloadManager/install test was performed.
+
 ### Unified settings navigation
 
 Home, Library and You header gears all open the same searchable Settings main
@@ -692,3 +720,4 @@ launch failure followed by cancellation/retry without a broad permission request
 Targeted Dart analysis has no issues. No native compilation/APK/CI run or Samsung
 M06 reproduction was performed; the OEM restart mechanism is a concrete code
 hazard consistent with the report, not a device-confirmed crash diagnosis.
+

@@ -1,10 +1,11 @@
+import 'package:flick/features/updates/lokal_update_sheet.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:flick/providers/app_build_info_provider.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -45,21 +46,6 @@ void openLokalLicences(BuildContext context) {
   _push(context, const LokalLicencesPage());
 }
 
-Future<void> _open(BuildContext context, String url) async {
-  final messenger = ScaffoldMessenger.maybeOf(context);
-  try {
-    final opened = await launchUrl(
-      Uri.parse(url),
-      mode: LaunchMode.externalApplication,
-    );
-    if (!opened) throw StateError('No app opened the link');
-  } catch (_) {
-    messenger?.showSnackBar(
-      SnackBar(content: Text(lokalText('Couldn’t open the link.'))),
-    );
-  }
-}
-
 /// About: version, updates, what's new, help, licences, privacy and logs.
 List<LokalSettingsSection> aboutSettings(BuildContext context, WidgetRef ref) {
   final t = context.lokal;
@@ -82,8 +68,10 @@ List<LokalSettingsSection> aboutSettings(BuildContext context, WidgetRef ref) {
         ),
         LokalSettingLink(
           label: lokalText('Updates'),
-          description: lokalText('New versions are published on GitHub.'),
-          onTap: () => unawaited(_open(context, lokalReleasesUrl)),
+          description: lokalText(
+            'Check for updates, download and install a newer APK.',
+          ),
+          onTap: () => unawaited(showLokalUpdates(context, check: true)),
         ),
         LokalSettingLink(
           label: lokalText('What’s new'),

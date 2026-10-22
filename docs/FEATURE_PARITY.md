@@ -577,8 +577,9 @@ Desktop reference: `electron/artwork/spotify.js` (`homeMixes`, `madeForYou`,
 `playlistTracks`) and `scripts/spotify-discovery.test.mjs` on sipbuu/lokal main.
 
 Appearance › Now Playing › Fullscreen cover is an opt-in, persisted setting for
-the standard full player. Artwork fills the viewport with a contrast gradient
-under safe-area controls. It uses the existing carousel, one active artwork Hero
+the standard full player. Album artwork expands behind the header as a top
+banner, dissolving into the player palette before the controls. Spotify Canvas
+retains the full viewport with a contrast gradient under safe-area controls. It uses the existing carousel, one active artwork Hero
 and shared moving-cover/Canvas decoder. Lyrics and queue reveal their compact
 cover while the poster recedes. The default layout and classic player are kept;
 no new blur pass is introduced. Theme/accent changes preserve the option.
@@ -619,3 +620,24 @@ and theme grid sizing with a large inherited bottom inset. Targeted analysis has
 no errors; existing unused-field/parameter warnings and style notices remain.
 No APK/CI build, native compilation or physical Android output/notification test
 was run.
+
+
+### Correct full-bleed album cover presentation
+
+Reference: BitChord's enabled `fullBleedArt` / `heroMode` path in
+`sharedUi/src/jvmSharedMain/kotlin/com/music/bitchord/ui/player/NowPlayingScreen.kt`
+(`bannerBottom`, `heroHeight`, `spotifyCanvasOnPhone`). Mobile now distinguishes
+Spotify Canvas from still/other moving covers using the resolved source metadata,
+not video aspect ratio. Source identity follows the shared video controller
+through mini/full-player handoffs. Album covers occupy an edge-to-edge top banner
+behind the status/header, with a bottom alpha fade into the existing palette
+backdrop. Its bottom is measured from the expanded artwork/title layout and held
+while lyrics/queue are open. Spotify Canvas retains its full-viewport frame.
+The square Hero thumbnail is unmasked; no extra decoder, network request or blur
+pass is introduced. The existing lyrics/queue transition remains in use; this is
+not a port of BitChord's complete player motion system.
+
+Validation: focused frame geometry/fallback, warm preview, suppression, loading
+and motion gating checks pass. Targeted analysis reports no errors; an existing
+unused field and style notices remain. No APK/CI build or physical device/video
+rendering validation was performed.

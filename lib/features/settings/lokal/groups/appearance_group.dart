@@ -104,7 +104,7 @@ List<LokalSettingsSection> appearanceSettings(
         LokalSettingRow.toggle(
           label: lokalText('Fullscreen cover'),
           description: lokalText(
-            'Fill the full player with edge-to-edge artwork behind the controls. Covers crop to fit the screen.',
+            'Extend album covers behind the header and fade them into the player. Spotify Canvas fills the screen.',
           ),
           value: appearance.fullscreenCover,
           onChanged: look.setFullscreenCover,

@@ -370,7 +370,6 @@ void main() {
       'Library',
       'Appearance',
       'Data',
-      'About',
     ]);
   });
 }

@@ -18,22 +18,16 @@ void _push(BuildContext context, Widget page) => unawaited(
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page)),
 );
 
-/// The language codes the segmented control offers; `null` follows the
-/// phone.
-
-List<LokalSettingsSection> appearanceSettings(
+/// Home's quick appearance page intentionally contains only these two controls.
+List<LokalSettingsSection> themeAccentSettings(
   BuildContext context,
   WidgetRef ref,
 ) {
   final appearance = ref.watch(lokalAppearanceProvider);
   final look = ref.read(lokalAppearanceProvider.notifier);
-  final prefs = ref.watch(appPreferencesProvider);
-  final notifier = ref.read(appPreferencesProvider.notifier);
-  final moving = ref.watch(movingCoverSettingsProvider);
-  final motion = ref.read(movingCoverSettingsProvider.notifier);
   return [
     LokalSettingsSection(
-      title: lokalText('Theme'),
+      title: lokalText('Theme & accent'),
       children: [
         LokalSettingRow(
           label: lokalText('Theme'),
@@ -63,6 +57,26 @@ List<LokalSettingsSection> appearanceSettings(
             },
           ),
         ),
+      ],
+    ),
+  ];
+}
+
+List<LokalSettingsSection> appearanceSettings(
+  BuildContext context,
+  WidgetRef ref,
+) {
+  final appearance = ref.watch(lokalAppearanceProvider);
+  final look = ref.read(lokalAppearanceProvider.notifier);
+  final prefs = ref.watch(appPreferencesProvider);
+  final notifier = ref.read(appPreferencesProvider.notifier);
+  final moving = ref.watch(movingCoverSettingsProvider);
+  final motion = ref.read(movingCoverSettingsProvider.notifier);
+  return [
+    LokalSettingsSection(
+      title: lokalText('Theme'),
+      children: [
+        ...themeAccentSettings(context, ref).single.children,
         LokalSettingSlider(
           label: lokalText('Text size'),
           description: lokalText('Bigger or smaller text across Lokal.'),

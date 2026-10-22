@@ -45,6 +45,14 @@ enum LokalSettingsGroup {
     parent: LokalSettingsGroup.playback,
   ),
 
+  /// Home's appearance shortcut exposes only theme and accent.
+  themeAccent(
+    'Theme & accent',
+    'Choose your theme and accent color',
+    Icons.palette_rounded,
+    parent: LokalSettingsGroup.appearance,
+  ),
+
   /// SpotiFLAC add-ons: Online sources, scrolled to its add-ons.
   addons(
     'Add-ons',
@@ -70,7 +78,7 @@ enum LokalSettingsGroup {
   /// The groups the Settings page lists, in desktop's order.
   static List<LokalSettingsGroup> get listed => [
     for (final group in values)
-      if (group.parent == null) group,
+      if (group.parent == null && group != about) group,
   ];
 }
 

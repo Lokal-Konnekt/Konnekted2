@@ -27,11 +27,6 @@ const _folders = KonnektedDestination.settingsAt(
   section: 'Folders',
 );
 
-/// Settings › Library, which the header's gear opens.
-const _librarySettings = KonnektedDestination.settingsAt(
-  LokalSettingsGroup.library,
-);
-
 /// Settings › Data › Accounts, where Spotify is.
 const _accounts = KonnektedDestination.settingsAt(
   LokalSettingsGroup.data,
@@ -121,8 +116,8 @@ class KonnektedLibrary extends ConsumerWidget {
                 LokalRoundAction(
                   icon: Icons.settings_rounded,
                   iconSize: 24,
-                  label: lokalText('Library settings'),
-                  onPressed: () => onNavigate(_librarySettings),
+                  label: lokalText('Settings'),
+                  onPressed: () => onNavigate(KonnektedDestination.settings),
                 ),
               ],
             ),

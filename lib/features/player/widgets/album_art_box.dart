@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_performance_scope.dart';
 import 'package:flick/services/motion_art/moving_cover_settings.dart';
 
 import 'dart:math' as math;
@@ -74,6 +75,19 @@ class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
 
   bool get _isPlaying => widget.playerService?.isPlayingNotifier.value ?? false;
 
+  bool _ultra = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ultra = LokalPerformanceScope.of(context);
+    if (_ultra) {
+      _spinController.stop();
+    } else if (_isPlaying && _isVinyl) {
+      _startSpinning();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -120,7 +134,7 @@ class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
       _isVinyl = true;
       _morphController.value = 1.0;
       if (_isPlaying) {
-        _spinController.repeat();
+        if (!_ultra) _spinController.repeat();
       }
     }
   }
@@ -140,7 +154,7 @@ class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
         _spinController.stop();
         _spinController.value = 0;
         if (_isPlaying) {
-          _spinController.repeat();
+          if (!_ultra) _spinController.repeat();
         }
       }
     }
@@ -195,7 +209,7 @@ class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
   void _startSpinning() {
     if (!_isVinyl) return;
     if (_morphController.isCompleted && !_spinController.isAnimating) {
-      _spinController.repeat();
+      if (!_ultra) _spinController.repeat();
     }
   }
 
@@ -203,7 +217,7 @@ class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
     if (!mounted) return;
     if (status == AnimationStatus.completed && _isVinyl) {
       if (_isPlaying) {
-        _spinController.repeat();
+        if (!_ultra) _spinController.repeat();
       }
     } else if (status == AnimationStatus.dismissed) {
       _spinController.value = 0;
@@ -278,7 +292,7 @@ class _AlbumArtBoxState extends ConsumerState<AlbumArtBox>
     widget.playerService?.endInteractiveSeek();
     _rotationHapticAccumulator = 0.0;
     if (_isVinyl && _isPlaying) {
-      _spinController.repeat();
+      if (!_ultra) _spinController.repeat();
     }
     AppHaptics.confirm();
   }

@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_performance_scope.dart';
 import 'package:flick/features/player/widgets/full_bleed_artwork_frame.dart';
 
 import '../widgets/artist_credit_links.dart';
@@ -1418,6 +1419,8 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   late final Ticker _ticker;
   final ValueNotifier<int> _frame = ValueNotifier<int>(0);
   Duration _lastElapsed = Duration.zero;
+  Duration _lastPaintElapsed = Duration.zero;
+  bool _ultra = false;
 
   Duration _anchorPos = Duration.zero;
   DateTime _anchorAt = DateTime.now();
@@ -1510,10 +1513,16 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   }
 
   int _indexAt(int ms) {
-    for (var i = _ts.length - 1; i >= 0; i--) {
-      if (_ts[i] <= ms) return i;
+    var low = 0, high = _ts.length;
+    while (low < high) {
+      final mid = (low + high) ~/ 2;
+      if (_ts[mid] <= ms) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
     }
-    return -1;
+    return low - 1;
   }
 
   double _centerFor(int a) =>
@@ -1589,6 +1598,10 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
   }
 
   void _onTick(Duration elapsed) {
+    if (_ultra &&
+        elapsed - _lastPaintElapsed < const Duration(microseconds: 33333))
+      return;
+    _lastPaintElapsed = elapsed;
     final dt = ((elapsed - _lastElapsed).inMicroseconds / 1e6)
         .clamp(0.0, 0.05)
         .toDouble();
@@ -1647,7 +1660,7 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
         ? 1 - 0.66 * d
         : 0.34 - 0.18 * ((d - 1) / 3).clamp(0.0, 1.0);
     final scale = 1 - 0.1 * math.min(d, 1.0);
-    final blur = d < 1.0 ? 0.0 : math.min((d - 1) * 0.9, 2.8);
+    final blur = _ultra || d < 1.0 ? 0.0 : math.min((d - 1) * 0.9, 2.8);
 
     final end = l.words?.lastOrNull?.end;
     final singing =
@@ -1758,6 +1771,7 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
 
   @override
   Widget build(BuildContext context) {
+    _ultra = LokalPerformanceScope.of(context);
     return LayoutBuilder(
       builder: (context, c) {
         _ensureLayout(c.maxWidth, c.maxHeight);
@@ -1789,9 +1803,18 @@ class _FlowingLyricsState extends State<_FlowingLyrics>
                     Positioned(left: 0, top: dotsTop, child: _introDots()),
                   );
                 }
-                for (var i = 0; i < _lines.length; i++) {
+                var first = 0, end = _tops.length;
+                while (first < end) {
+                  final mid = (first + end) ~/ 2;
+                  if (anchorY + _tops[mid] - _offset + _heights[mid] < -80) {
+                    first = mid + 1;
+                  } else {
+                    end = mid;
+                  }
+                }
+                for (var i = first; i < _lines.length; i++) {
                   final top = anchorY + _tops[i] - _offset;
-                  if (top + _heights[i] < -80 || top > _h + 80) continue;
+                  if (top > _h + 80) break;
                   children.add(
                     Positioned(left: 0, right: 0, top: top, child: _line(i)),
                   );

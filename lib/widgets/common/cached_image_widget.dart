@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_performance_scope.dart';
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
@@ -141,9 +142,12 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
                           .ceil() *
                       64)
                   .clamp(64, 2048);
-        final decodeWidth = widget.useThumbnail && widget.thumbnailWidth != null
+        final requested = widget.useThumbnail && widget.thumbnailWidth != null
             ? widget.thumbnailWidth
             : physicalWidth;
+        final decodeWidth = LokalPerformanceScope.of(context)
+            ? (requested ?? 768).clamp(64, 768)
+            : requested;
         return imagePath.startsWith('http')
             ? _buildNetworkImage(imagePath, decodeWidth)
             : _buildFileImage(imagePath, decodeWidth);

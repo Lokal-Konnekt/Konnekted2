@@ -641,3 +641,31 @@ Validation: focused frame geometry/fallback, warm preview, suppression, loading
 and motion gating checks pass. Targeted analysis reports no errors; an existing
 unused field and style notices remain. No APK/CI build or physical device/video
 rendering validation was performed.
+
+### Full / Performance / Ultra rendering budget
+
+Appearance now has a three-segment performance selector. Legacy false/true
+preferences remain Full/Performance, and Performance stays the default. Ultra is
+explicitly opt-in and persisted across launches and theme changes. It inherits
+Performance's solid surfaces and adds a shared route-wide rendering budget:
+- suppress moving-cover/Canvas lookup and decoding, Ken Burns loops and automatic
+  vinyl rotation, retaining the saved motion preferences for when Ultra is off;
+- use flat cover flow with at most two neighbours per side, no mirrored covers
+  or broad cover shadows, retaining gesture/spring navigation;
+- cap cached/player artwork decode width to 768 physical pixels;
+- cap flowing-lyrics repaint work to about 30 Hz, remove line blur and syllable
+  lifts/feathered saveLayers, retaining word timing and clipped highlight progress;
+- yield automatic local metadata repairs during scrolling and pace background
+  reads more slowly; explicitly requested repairs keep priority.
+
+Album-art animation controllers now stop when animation is disabled or hidden,
+instead of ticking behind static art. Lyric timestamp/visible-line searches use
+binary lookup so every repaint does not scan the entire lyric document. Regular
+navigation and player sheet transitions remain animated, and audio paths are not
+changed. Turning Ultra off restores the other modes' artwork and rendering.
+
+Validation: 29 focused mode migration/persistence/pill, decoder gating/restore,
+idle ticker, cover flow, lyric layout and Settings checks pass. Targeted analysis
+has no errors; existing unused-field/non-null warnings and style notices remain.
+No APK/CI build, Samsung M06 trace, physical frame timings, thermal or battery
+measurement was performed; reduced work is not a quantified speedup claim.

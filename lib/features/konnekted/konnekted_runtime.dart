@@ -1,3 +1,4 @@
+import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/services/library_job_notification.dart';
 import 'package:flick/features/spotify/spotify_likes_sync_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
@@ -77,6 +78,10 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ref.listenManual(lokalAppearanceProvider, (_, next) {
+      LocalMetadataRepair.instance.ultraPerformanceMode =
+          next.ultraPerformanceMode;
+    }, fireImmediately: true);
     SpotifyLikesSyncService.instance.resume();
     ref.listenManual(libraryJobsProvider, (previous, next) {
       _jobNotification.update(next);

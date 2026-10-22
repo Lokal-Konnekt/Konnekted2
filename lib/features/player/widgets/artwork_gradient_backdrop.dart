@@ -4,13 +4,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/lokal_appearance.dart';
+import 'full_player_visuals.dart';
 
 /// Artwork palette, painted directly: no second artwork decode, image blur,
 /// backdrop capture, rotation texture or saveLayer on the slide-up path.
 class ArtworkGradientBackdrop extends ConsumerStatefulWidget {
-  const ArtworkGradientBackdrop({super.key, required this.colors})
-    : assert(colors.length > 0);
+  const ArtworkGradientBackdrop({
+    super.key,
+    required this.colors,
+    this.vibrant = false,
+  }) : assert(colors.length > 0);
   final List<Color> colors;
+  /// Higher-chroma, top-to-bottom ambient color reserved for the full player.
+  final bool vibrant;
   @override
   ConsumerState<ArtworkGradientBackdrop> createState() =>
       _ArtworkGradientBackdropState();
@@ -105,6 +111,7 @@ class _ArtworkGradientBackdropState
           Listenable.merge([_drift, _palette]),
           _color,
           () => _drift.value,
+          vibrant: widget.vibrant,
         ),
         size: Size.infinite,
       ),
@@ -113,13 +120,41 @@ class _ArtworkGradientBackdropState
 }
 
 class _PalettePainter extends CustomPainter {
-  _PalettePainter(Listenable repaint, this.color, this.phase)
-    : super(repaint: repaint);
+  _PalettePainter(Listenable repaint, this.color, this.phase, {
+    required this.vibrant,
+  }) : super(repaint: repaint);
   final Color Function(int) color;
   final double Function() phase;
+  final bool vibrant;
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
+    if (vibrant) {
+      final theme = FullPlayerVisuals.fromPalette([color(0), color(1), color(2)]);
+      // A dark, legible header and a stronger artwork-colored lower half.
+      // Static shader paints: no texture blur or additional image decode.
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [theme.top, theme.middle, theme.bottom],
+            stops: const [0, .53, 1],
+          ).createShader(rect),
+      );
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(.9, 1),
+            radius: 1.15,
+            colors: [theme.glow.withValues(alpha: .58),
+              theme.glow.withValues(alpha: 0)],
+          ).createShader(rect),
+      );
+      return;
+    }
     canvas.drawRect(
       rect,
       Paint()..color = Color.lerp(color(0), Colors.black, .58)!,

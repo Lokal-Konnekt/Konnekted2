@@ -2,6 +2,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'full_player_visuals.dart';
 
 /// The icon morph, button widths and pressed feedback can reverse independently.
 /// Panel resizing reads the same progress as the moving artwork.
@@ -61,29 +62,27 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
         widget.compact ? 48 : 52,
         l,
       )!;
-      final radius = lerpDouble(28, 24, l)!;
-      final primaryShare = lerpDouble(
-        lerpDouble(.46, .42, _icon.value),
-        .36,
-        l,
-      )!;
+      final radius = lerpDouble(26, 23, l)!;
+      // Balanced side buttons and a narrower central play pad.
+      // Playback changes the icon, not the widths of the three buttons.
+      final primaryShare = .36;
       return SizedBox(
         height: height,
         child: LayoutBuilder(
           builder: (context, c) {
-            final available = c.maxWidth - 20;
+            final available = c.maxWidth - 16;
             final primary = available * primaryShare;
             Widget skip(IconData icon, VoidCallback onTap, String label) =>
                 Expanded(
                   child: _TransportButton(
-                    color: Colors.white.withValues(alpha: .13),
+                    color: FullPlayerVisuals.surface,
                     radius: radius,
                     onTap: onTap,
                     label: label,
                     child: Icon(
                       icon,
                       size: lerpDouble(32, 27, l),
-                      color: Colors.white,
+                      color: FullPlayerVisuals.primaryText,
                     ),
                   ),
                 );
@@ -94,7 +93,7 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
                   widget.onPrevious,
                   l10n.previousSong,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 SizedBox(
                   width: primary,
                   child: _TransportButton(
@@ -111,7 +110,7 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 skip(Icons.skip_next_rounded, widget.onNext, l10n.nextSong),
               ],
             );

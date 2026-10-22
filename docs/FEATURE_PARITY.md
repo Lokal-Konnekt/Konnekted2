@@ -375,3 +375,21 @@ Validation: focused organizer filesystem/journal/rollback/collision/skip tests,
 cookie-dialog retry/cancel tests, session migration and copy-notification tests
 pass. Targeted Dart analysis has no errors/warnings. No APK/CI build, native
 compilation, physical Android move/grant test or live Spotify login was run.
+
+### Discovery provider stability and YouTube mix continuations
+
+Spotify selection no longer falls through the shared Discovery loader's Last.fm
+branch: Spotify shelves remain owned by their separate provider, and selection
+survives refresh, restoration and an older in-flight Last.fm response.
+
+YouTube personal-mix parsing now recognizes playlist navigation on artwork play
+buttons and responsive title runs. Named/personal mix shelves expand their own
+continuations even when the response omits its original header; command-executor
+continuations are recognized. More-page continuations preserve their browse
+parameters. Expansion is bounded and independent shelf requests run in parallel.
+Ordinary song-radio shortcuts are not relabeled as personal playlist cards.
+
+Validation: 14 focused provider-state, account/parser and fetch-fixture tests
+pass. Targeted Dart analysis has no errors/warnings. No APK/CI build or live
+Spotify/YouTube account request was run; actual returned personal mixes still
+require account/device verification.

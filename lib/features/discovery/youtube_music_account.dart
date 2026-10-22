@@ -466,8 +466,24 @@ List<LokalDiscoveryMix> parseYoutubeMusicPlaylists(
     final endpoints = <Object?>[
       for (final run in _list(_at(renderer, ['title', 'runs'])))
         _at(run, ['navigationEndpoint']),
+      for (final run in _list(
+        _at(renderer, [
+          'flexColumns',
+          0,
+          'musicResponsiveListItemFlexColumnRenderer',
+          'text',
+          'runs',
+        ]),
+      ))
+        _at(run, ['navigationEndpoint']),
       renderer['navigationEndpoint'],
       renderer['onTap'],
+      _at(renderer['thumbnailOverlay'] ?? renderer['overlay'], [
+        'musicItemThumbnailOverlayRenderer',
+        'content',
+        'musicPlayButtonRenderer',
+        'playNavigationEndpoint',
+      ]),
     ];
     final browse = endpoints
         .map((endpoint) => _at(endpoint, ['browseEndpoint']))
@@ -496,6 +512,18 @@ List<LokalDiscoveryMix> parseYoutubeMusicPlaylists(
         (id.startsWith('RD') && id.length < 8)) {
       return;
     }
+    if (browse == null &&
+        renderer['isPlaylist'] != true &&
+        !endpoints.any(
+          (endpoint) =>
+              _at(endpoint, ['watchPlaylistEndpoint']) != null ||
+              '${_at(endpoint, ['watchEndpoint', 'playlistId']) ?? ''}'
+                  .startsWith('RDTMAK'),
+        ) &&
+        endpoints.any(
+          (endpoint) => _at(endpoint, ['watchEndpoint', 'videoId']) != null,
+        ))
+      return;
     final title = _text(
       renderer['title'] ??
           _at(renderer, [
@@ -552,6 +580,22 @@ bool _hasPersonalMixShelf(Object? root) {
     if (shelf is Map && _isPersonalMixShelf(shelf)) found = true;
   });
   return found;
+}
+
+List<({Map shelf, bool named})> _personalMixShelves(Object? root) {
+  final shelves = <({Map shelf, bool named})>[];
+  _walk(root, (node) {
+    final shelf =
+        node['musicCarouselShelfRenderer'] ?? node['musicShelfRenderer'];
+    if (shelf is! Map) return;
+    final named = _isPersonalMixShelf(shelf);
+    if (named ||
+        parseYoutubeMusicPlaylists(shelf['contents'])
+            .any((mix) => mix.id.startsWith('RDTMAK'))) {
+      shelves.add((shelf: shelf, named: named));
+    }
+  });
+  return shelves;
 }
 
 List<LokalDiscoveryMix> parseYoutubeMusicMixes(Object? root) {
@@ -675,7 +719,7 @@ bool _confirmsSignedIn(Map<String, dynamic> json) {
 
 class YoutubeMusicSignedOut implements Exception {
   const YoutubeMusicSignedOut([
-    this.message = 'YouTube Music rejected the saved session. Sign in again in Integrations.',
+    this.message = 'YouTube Music rejected the saved session. Sign in again in Data → Accounts.',
   ]);
   final String message;
   @override
@@ -711,11 +755,9 @@ List<String> _continuations(Object? root) {
       final token = _at(item, ['nextContinuationData', 'continuation']);
       if (token is String && token.isNotEmpty) tokens.add(token);
     }
-    final token = _at(node, [
-      'continuationEndpoint',
-      'continuationCommand',
-      'token',
-    ]);
+    final token =
+        _at(node, ['continuationCommand', 'token']) ??
+        _at(node, ['continuationEndpoint', 'continuationCommand', 'token']);
     if (token is String && token.isNotEmpty) tokens.add(token);
     for (final item in _list(
       node['contents'] ?? node['items'] ?? node['continuationItems'],
@@ -755,7 +797,7 @@ class YoutubeMusicAccount {
     final headers = youtubeMusicHeaders(session);
     if (headers == null) {
       throw const YoutubeMusicSignedOut(
-        'Sign in to YouTube Music in Integrations.',
+        'Sign in to YouTube Music in Data → Accounts.',
       );
     }
     final uri = Uri.https('music.youtube.com', '/youtubei/v1/' + endpoint, {
@@ -854,6 +896,7 @@ class YoutubeMusicAccount {
     String browseId,
     Object? first, {
     bool stopAtMixShelf = false,
+    String? params,
   }) async {
     final pages = <Object?>[first];
     final seen = <String>{};
@@ -873,6 +916,7 @@ class YoutubeMusicAccount {
       try {
         final page = await browse(
           browseId,
+          params: params,
           continuation: token,
           timeout: left < const Duration(seconds: 5)
               ? left
@@ -942,21 +986,65 @@ class YoutubeMusicAccount {
     final mixes = <String, LokalDiscoveryMix>{
       for (final mix in parseYoutubeMusicMixes(homePages)) mix.id: mix,
     };
-    for (final endpoint in _mixShelfBrowseEndpoints(homePages)) {
-      try {
-        final first = await browse(endpoint.browseId, params: endpoint.params);
-        final result = await _pages(endpoint.browseId, first);
-        mixError ??= result.error;
-        for (final mix in parseYoutubeMusicPlaylists(
-          result.pages,
-          limit: 500,
-        )) {
+    // Home may contain only a header/seed card. Follow that shelf's own
+    // continuation, whose response omits its parent title and shelf renderer.
+    final visitedMixTokens = <String>{};
+    final shelfContexts = _personalMixShelves(homePages)
+        .where((context) {
+          final tokens = _continuations(context.shelf);
+          if (tokens.isEmpty || tokens.every(visitedMixTokens.contains))
+            return false;
+          visitedMixTokens.addAll(tokens);
+          return true;
+        })
+        .take(6)
+        .toList();
+    final shelfResults = await Future.wait(
+      shelfContexts.map(
+        (context) async => (
+          named: context.named,
+          result: await _pages('FEmusic_home', {
+            'musicCarouselShelfRenderer': context.shelf,
+          }),
+        ),
+      ),
+    );
+    for (final expanded in shelfResults) {
+      mixError ??= expanded.result.error;
+      for (final mix in parseYoutubeMusicPlaylists(
+        expanded.result.pages.skip(1).toList(),
+        limit: 500,
+      )) {
+        if (expanded.named || mix.id.startsWith('RDTMAK'))
           mixes.putIfAbsent(mix.id, () => mix);
+      }
+    }
+    final moreResults = await Future.wait(
+      _mixShelfBrowseEndpoints(homePages).take(6).map((endpoint) async {
+        try {
+          final first = await browse(
+            endpoint.browseId,
+            params: endpoint.params,
+          );
+          return await _pages(
+            endpoint.browseId,
+            first,
+            params: endpoint.params,
+          );
+        } on YoutubeMusicSignedOut {
+          rethrow;
+        } catch (_) {
+          return (
+            pages: <Object?>[],
+            error: 'YouTube Music could not load every personal mix. Refresh to retry.',
+          );
         }
-      } on YoutubeMusicSignedOut {
-        rethrow;
-      } catch (_) {
-        mixError ??= 'YouTube Music could not load every personal mix. Refresh to retry.';
+      }),
+    );
+    for (final result in moreResults) {
+      mixError ??= result.error;
+      for (final mix in parseYoutubeMusicPlaylists(result.pages, limit: 500)) {
+        mixes.putIfAbsent(mix.id, () => mix);
       }
     }
     final likedTracks = liked == null

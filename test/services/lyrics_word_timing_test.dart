@@ -110,7 +110,7 @@ void main() {
       // From the embedded tags of tuki. - Saitei Kaiwai.
       final lyrics = service.parseLyricsText(
         '[00:01.448]<00:01.448>満員電<00:02.147>車'
-        '<00:02.531>触んなっ<00:03.013>て\\n'
+        '<00:02.531>触んなっ<00:03.013>て\n'
         '[00:03.412]<00:03.412>きしょ<00:03.672>すぎな',
       );
       final raw = lyrics.lines.first.words!;
@@ -155,7 +155,7 @@ void main() {
 
     test('line-only lyrics remain untimed', () {
       final lyrics = service.parseLyricsText(
-        '[00:01.00]First line\\n[00:02.00]Second line',
+        '[00:01.00]First line\n[00:02.00]Second line',
       );
       expect(service.playbackLines(lyrics).every((l) => l.words == null), isTrue);
     });

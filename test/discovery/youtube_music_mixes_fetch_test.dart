@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,6 +37,152 @@ YoutubeMusicAccount account(http.Client client) => YoutubeMusicAccount(
   const YoutubeMusicSession(cookies: {'SAPISID': 'fixture-signing-cookie'}),
 );
 void main() {
+  test(
+    'a slow optional mix route retains cards loaded before the shared deadline',
+    () async {
+      final blocked = Completer<http.Response>();
+      final client = MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        final body = jsonDecode(request.body) as Map;
+        if (body['browseId'] == 'FEslowMore') return blocked.future;
+        if (body['browseId'] != 'FEmusic_home')
+          return http.Response(jsonEncode(signed({})), 200);
+        return http.Response(
+          jsonEncode(
+            signed({
+              'musicCarouselShelfRenderer': {
+                'header': {
+                  'musicCarouselShelfBasicHeaderRenderer': {
+                    'title': {'simpleText': 'Mixed for you'},
+                    'moreContentButton': {
+                      'buttonRenderer': {
+                        'navigationEndpoint': {
+                          'browseEndpoint': {'browseId': 'FEslowMore'},
+                        },
+                      },
+                    },
+                  },
+                },
+                'contents': [card('RDTMAKready123', 'Ready mix')],
+              },
+            }),
+          ),
+          200,
+        );
+      });
+      addTearDown(client.close);
+      final data = await account(client)
+          .fetch(budget: const Duration(milliseconds: 150));
+      expect(data.mixes.single.id, 'RDTMAKready123');
+      expect(data.mixError, isNotNull);
+    },
+  );
+
+  test(
+    'later mix pages survive a large earlier response and grid wrappers',
+    () {
+      final mixes = parseYoutubeMusicMixes([
+        {'unrelated': List.filled(41000, 0)},
+        {
+          'gridContinuation': {
+            'items': [card('RDTMAKlate123', 'Your mix')],
+          },
+        },
+      ]);
+      expect(mixes.single.id, 'RDTMAKlate123');
+    },
+  );
+
+  test(
+    'empty personal-mix header does not stop home paging before cards arrive',
+    () async {
+      var continued = false;
+      final client = MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        final body = jsonDecode(request.body) as Map;
+        if (body['browseId'] != 'FEmusic_home')
+          return http.Response(jsonEncode(signed({})), 200);
+        if (body['continuation'] != null) {
+          continued = true;
+          return http.Response(
+            jsonEncode(
+              signed({
+                'gridRenderer': {
+                  'items': [card('RDTMAKlate123', 'Your mix')],
+                },
+              }),
+            ),
+            200,
+          );
+        }
+        return http.Response(
+          jsonEncode(
+            signed({
+              'sectionListRenderer': {
+                'contents': [
+                  {
+                    'musicCarouselShelfRenderer': {
+                      'header': {
+                        'musicCarouselShelfBasicHeaderRenderer': {
+                          'title': {'simpleText': 'Mixed for you'},
+                        },
+                      },
+                      'contents': [],
+                    },
+                  },
+                ],
+                'continuations': [
+                  {
+                    'nextContinuationData': {'continuation': 'next-home'},
+                  },
+                ],
+              },
+            }),
+          ),
+          200,
+        );
+      });
+      addTearDown(client.close);
+      final data = await account(client).fetch();
+      expect(continued, isTrue);
+      expect(data.mixes.single.id, 'RDTMAKlate123');
+    },
+  );
+
+  test(
+    'provider personal mix chip supplies its real browse route and params',
+    () async {
+      final client = MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        final body = jsonDecode(request.body) as Map;
+        Object data = signed({});
+        if (body['browseId'] == 'FEmusic_home')
+          data = signed({
+            'chipCloudChipRenderer': {
+              'text': {'simpleText': 'Mixed for you'},
+              'navigationEndpoint': {
+                'browseEndpoint': {
+                  'browseId': 'FEprovidedMixes',
+                  'params': 'profile-mix-filter',
+                },
+              },
+            },
+          });
+        if (body['browseId'] == 'FEprovidedMixes') {
+          expect(body['params'], 'profile-mix-filter');
+          data = signed({
+            'gridRenderer': {
+              'items': [card('RDTMAKchip123', 'Your mix')],
+            },
+          });
+        }
+        return http.Response(jsonEncode(data), 200);
+      });
+      addTearDown(client.close);
+      expect((await account(client).fetch()).mixes.single.id, 'RDTMAKchip123');
+    },
+  );
+
   // Native title links and dimensionless artwork from desktop's youtube-mixes fixtures.
   test('desktop native mix cards keep artwork and full browser context through home pagination', () async {
     final tokens = <String>[];

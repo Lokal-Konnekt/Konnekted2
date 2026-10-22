@@ -45,6 +45,46 @@ void main() {
     now = DateTime(2026, 10, 20, 12);
   });
 
+  test('Plastic Love uses an exact original match in another storefront, never a cover artist', () async {
+    final countries = <String>[];
+    final subject = DiscoveryArtworkResolver(
+      DiscoveryHttp(
+        MockClient((request) async {
+          if (request.url.host != 'itunes.apple.com')
+            return _json({'data': []});
+          final country = request.url.queryParameters['country']!;
+          countries.add(country);
+          return _json({
+            'results': [
+              {
+                'trackName': 'Plastic Love',
+                'artistName': 'Friday Night Plans',
+                'artworkUrl100': 'https://cdn.test/cover.jpg',
+              },
+              if (country == 'gb')
+                {
+                  'trackName': 'Plastic Love',
+                  'artistName': 'Mariya Takeuchi',
+                  'artworkUrl100': 'https://cdn.test/original-100x100bb.jpg',
+                },
+            ],
+          });
+        }),
+      ),
+    );
+    expect(
+      await subject.resolve(
+        const DiscoveryArtworkRequest(
+          kind: DiscoveryArtworkKind.track,
+          artist: 'Mariya Takeuchi',
+          title: 'Plastic Love',
+        ),
+      ),
+      'https://cdn.test/original-600x600bb.jpg',
+    );
+    expect(countries, ['us', 'gb']);
+  });
+
   test(
     'uses a real portrait fallback when Deezer has no artist picture',
     () async {
@@ -351,8 +391,8 @@ void main() {
           artist: 'Band',
         );
         await Future.wait([subject.resolve(request), subject.resolve(request)]);
-        // One Deezer and one iTunes request, not two of each.
-        expect(requests, hasLength(2));
+        // One lookup: Deezer and two storefronts, shared by both callers.
+        expect(requests, hasLength(3));
         expect(
           await subject.resolve(
             const DiscoveryArtworkRequest(
@@ -362,7 +402,7 @@ void main() {
           ),
           '',
         );
-        expect(requests, hasLength(2));
+        expect(requests, hasLength(3));
       },
     );
   });

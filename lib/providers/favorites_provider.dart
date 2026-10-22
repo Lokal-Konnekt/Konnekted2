@@ -7,10 +7,7 @@ import '../services/favorites_service.dart';
 import 'player_provider.dart';
 
 /// Provider for the FavoritesService.
-final favoritesServiceProvider = Provider<FavoritesService>((ref) {
-  ref.watch(favoriteNotificationSyncProvider);
-  return FavoritesService();
-});
+final favoritesServiceProvider = Provider<FavoritesService>((ref) => FavoritesService());
 
 /// State for favorites management.
 class FavoritesState {
@@ -47,6 +44,10 @@ class FavoritesState {
 class FavoritesNotifier extends AsyncNotifier<FavoritesState> {
   @override
   Future<FavoritesState> build() async {
+    // Keep the notification listener alive for every displayed favorite state.
+    // Attach it to the consumer, not to the service: the service must not
+    // rebuild just because a notification toggled a favorite.
+    ref.watch(favoriteNotificationSyncProvider);
     final service = ref.watch(favoritesServiceProvider);
 
     final songs = await service.getFavorites();

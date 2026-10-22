@@ -8,6 +8,32 @@ class Clip {
 }
 
 void main() {
+  test('expansion can take an existing frame synchronously without a second decode', () async {
+    var created = 0;
+    final pool = SharedMotionPlayback<Clip>(
+      create: (_) async {
+        created++;
+        return Clip();
+      },
+      activate: (clip, active) async => clip.playing = active,
+      dispose: (clip) async => clip.disposed = true,
+    );
+    expect(pool.acquireExisting('not-loaded'), isNull);
+    final mini = await pool.acquire('song', 'https://video.test/canvas.mp4');
+    await mini.setActive(true);
+    mini.resource.frame = 321;
+    final preview = pool.acquireExisting('song')!;
+    expect(preview.resource, same(mini.resource));
+    expect(preview.resource.frame, 321);
+    await preview.setActive(
+      false,
+    ); // TickerMode is disabled in the pull preview.
+    expect(mini.resource.playing, isTrue);
+    expect(created, 1);
+    await preview.release(immediate: true);
+    await mini.release(immediate: true);
+  });
+
   test('full player and thumbnail share one decoder and the same frame across handoff', () async {
     var created = 0, disposed = 0;
     final pool = SharedMotionPlayback<Clip>(

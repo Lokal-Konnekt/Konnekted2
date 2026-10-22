@@ -193,7 +193,7 @@ class AndroidAudioEngine implements AudioEngine {
   Future<just_audio.AudioPlayer> _ensureSecondary() async {
     final existing = _secondary;
     if (existing != null) return existing;
-    final player = just_audio.AudioPlayer();
+    final player = just_audio.AudioPlayer(useProxyForRequestHeaders: false);
     _secondary = player;
     _attachListeners(player);
     await player.setVolume(0);

@@ -22,6 +22,25 @@ Song _song(
 void main() {
   final day = DateTime(2026, 10, 19, 9);
 
+  test('explicit refresh rerolls mixes without changing library ownership', () {
+    final library = [for (var i = 0; i < 60; i++) _song('$i')];
+    List<String> daily(int seed) => lokalMixes(
+      library: library,
+      liked: [],
+      history: [],
+      playCounts: {},
+      now: day,
+      refreshSeed: seed,
+    ).first.tracks.map((song) => song.id).toList();
+    expect(daily(0), daily(0));
+    expect(daily(1), isNot(daily(0)));
+    expect(
+      daily(1).every((id) => library.any((song) => song.id == id)),
+      isTrue,
+    );
+    expect(library, hasLength(60));
+  });
+
   test('an empty library has no mixes', () {
     expect(
       lokalMixes(library: [], liked: [], history: [], playCounts: {}),

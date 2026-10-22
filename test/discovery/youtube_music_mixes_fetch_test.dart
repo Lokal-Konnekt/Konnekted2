@@ -36,6 +36,136 @@ YoutubeMusicAccount account(http.Client client) => YoutubeMusicAccount(
   const YoutubeMusicSession(cookies: {'SAPISID': 'fixture-signing-cookie'}),
 );
 void main() {
+  // Native title links and dimensionless artwork from desktop's youtube-mixes fixtures.
+  test('desktop native mix cards keep artwork and full browser context through home pagination', () async {
+    final tokens = <String>[];
+    Map<String, Object?> nativeCard(int index) => {
+      'musicTwoRowItemRenderer': {
+        'title': {
+          'runs': [
+            {
+              'text': 'My Mix $index',
+              'navigationEndpoint': {
+                'browseEndpoint': {
+                  'browseId': 'VLRDTMAKdesktop$index',
+                  'browseEndpointContextSupportedConfigs': {
+                    'browseEndpointContextMusicConfig': {
+                      'pageType': 'MUSIC_PAGE_TYPE_PLAYLIST',
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+        'navigationEndpoint': {
+          'watchEndpoint': {
+            'playlistId': 'RDTMAKdesktop$index',
+            'videoId': 'abcdefghijk',
+          },
+        },
+        'thumbnailRenderer': {
+          'musicThumbnailRenderer': {
+            'thumbnail': {
+              'thumbnails': [
+                {'url': 'https://images.example/mix$index=w226-h226-l90-rj'},
+              ],
+            },
+          },
+        },
+      },
+    };
+    Map<String, Object?> section(List<Object?> contents, [String? next]) =>
+        signed({
+          'sectionListRenderer': {
+            'contents': contents,
+            if (next != null)
+              'continuations': [
+                {
+                  'nextContinuationData': {'continuation': next},
+                },
+              ],
+          },
+        });
+    final client = MockClient((request) async {
+      expect(request.headers['user-agent'], isNot(contains('Android WebView')));
+      if (request.method == 'GET')
+        return http.Response(
+          'ytcfg.set({"INNERTUBE_CLIENT_VERSION":"desktop-current","INNERTUBE_CONTEXT":{"client":{"platform":"DESKTOP","clientFormFactor":"UNKNOWN_FORM_FACTOR","hl":"zh-CN"}}});',
+          200,
+        );
+      final body = jsonDecode(request.body) as Map;
+      expect(body['context']['client']['platform'], 'DESKTOP');
+      expect(
+        body['context']['client']['clientFormFactor'],
+        'UNKNOWN_FORM_FACTOR',
+      );
+      expect(body['context']['client']['hl'], 'en');
+      final token = body['continuation'];
+      if (token != null) {
+        tokens.add(token as String);
+        final page = int.parse(token.toString().split('-').last);
+        if (page < 11)
+          return http.Response(
+            jsonEncode(section([], 'home-${page + 1}')),
+            200,
+          );
+        return http.Response(
+          jsonEncode(
+            section([
+              {
+                'musicCarouselShelfRenderer': {
+                  'header': {
+                    'musicCarouselShelfBasicHeaderRenderer': {
+                      'title': {
+                        'runs': [
+                          {'text': 'Mixed for you'},
+                        ],
+                      },
+                    },
+                  },
+                  'contents': List.generate(19, nativeCard),
+                },
+              },
+            ]),
+          ),
+          200,
+        );
+      }
+      if (body['browseId'] == 'FEmusic_home')
+        return http.Response(
+          jsonEncode(
+            section([
+              {
+                'musicCarouselShelfRenderer': {
+                  'contents': [],
+                  'continuations': [
+                    {
+                      'nextContinuationData': {
+                        'continuation': 'unrelated-shelf',
+                      },
+                    },
+                  ],
+                },
+              },
+            ], 'home-1'),
+          ),
+          200,
+        );
+      return http.Response(jsonEncode(signed({})), 200);
+    });
+    addTearDown(client.close);
+    final result = await account(client).fetch();
+    expect(result.mixes.length, 19);
+    expect(
+      result.mixes.first.artworkUrl,
+      'https://images.example/mix0=w544-h544-l90-rj',
+    );
+    expect(result.mixes.every((mix) => mix.artworkUrl.isNotEmpty), isTrue);
+    expect(tokens, List.generate(11, (index) => 'home-${index + 1}'));
+    expect(result.mixError, isNull);
+  });
+
   test('refresh reads current page context and mixes embedded in the signed-in home page', () async {
     forgetYoutubeMusicAccount();
     addTearDown(forgetYoutubeMusicAccount);

@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
+
+import 'youtube_music_account.dart' show youtubeMusicPageObject;
 
 import 'package:flutter/foundation.dart';
 
@@ -6,8 +9,31 @@ import 'discovery_http.dart';
 import 'discovery_models.dart';
 
 class YoutubeMusicCatalog {
-  YoutubeMusicCatalog(this.http);
+  YoutubeMusicCatalog(this.http, {this.refreshClientContext = false});
+  final bool refreshClientContext;
+  Future<Map<String, dynamic>>? _pageContext;
   final DiscoveryHttp http;
+
+  Future<Map<String, dynamic>> _loadPageContext() async {
+    try {
+      final response = await http.client
+          .get(
+            Uri.https('music.youtube.com', '/'),
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36',
+              'Accept-Language': 'en-US,en;q=0.9',
+            },
+          )
+          .timeout(http.timeout);
+      if (response.statusCode != 200 ||
+          response.bodyBytes.length > 8 * 1024 * 1024)
+        return {};
+      return youtubeMusicPageObject(utf8.decode(response.bodyBytes), 'ytcfg') ??
+          {};
+    } catch (_) {
+      return {};
+    }
+  }
 
   Future<List<DiscoveryTrack>> search(String query) async {
     if (query.trim().isEmpty) return [];
@@ -29,6 +55,15 @@ class YoutubeMusicCatalog {
     }
     // Guest WEB_REMIX, using the songs filter from Konnekted's shared
     // Innertube client. No cookies, account impersonation or stream extraction.
+    final config = refreshClientContext
+        ? await (_pageContext ??= _loadPageContext())
+        : <String, dynamic>{};
+    final context = config['INNERTUBE_CONTEXT'];
+    final client = context is Map && context['client'] is Map
+        ? (context['client'] as Map).cast<String, Object?>()
+        : <String, Object?>{};
+    final version =
+        config['INNERTUBE_CLIENT_VERSION']?.toString() ?? '1.20250101.01.00';
     final response = await http.json(
       Uri.https('music.youtube.com', '/youtubei/v1/search', {
         'prettyPrint': 'false',
@@ -36,13 +71,16 @@ class YoutubeMusicCatalog {
       headers: {
         'Origin': 'https://music.youtube.com',
         'X-YouTube-Client-Name': '67',
-        'X-YouTube-Client-Version': '1.20250101.01.00',
+        'X-YouTube-Client-Version': version,
       },
       body: {
         'context': {
           'client': {
             'clientName': 'WEB_REMIX',
-            'clientVersion': '1.20250101.01.00',
+            ...client,
+            'clientVersion': version,
+            if (config['VISITOR_DATA'] != null)
+              'visitorData': config['VISITOR_DATA'],
             'hl': 'en',
             'gl': 'US',
           },

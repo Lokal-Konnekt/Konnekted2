@@ -40,6 +40,7 @@ class LinkSyncCoordinator {
   final LinkSyncProgress initialProgress;
   late LinkSyncProgress _progress = initialProgress;
   Future<void>? _active;
+  bool _background = false;
   List<Song>? _matchCandidates;
   final _matchCache = <String, Song?>{};
   bool get busy => _active != null;
@@ -80,6 +81,7 @@ class LinkSyncCoordinator {
     int? catalogSongs,
     DateTime? completedAt,
   }) {
+    if (_background) return;
     _progress = LinkSyncProgress(
       phase: phase,
       processed: processed,
@@ -164,13 +166,21 @@ class LinkSyncCoordinator {
     await prefs.setBool('lokal.link.history_backfilled', true);
   }
 
-  Future<void> synchronize({bool importCatalog = false}) async {
+  Future<void> synchronize({
+    bool importCatalog = false,
+    bool background = false,
+  }) async {
     final active = _active;
     if (active != null) return active;
     if (!socket.connected || !Database.isInitialized) return;
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool('$_prefix.merge') != true) return;
-    await _run(() => _synchronize(importCatalog: importCatalog));
+    _background = background;
+    try {
+      await _run(() => _synchronize(importCatalog: importCatalog));
+    } finally {
+      _background = false;
+    }
   }
 
   Future<void> _synchronize({required bool importCatalog}) async {
@@ -194,20 +204,22 @@ class LinkSyncCoordinator {
       await prefs.setBool('$_prefix.owned_catalog_v2', true);
       onChanged?.call();
     }
-    await LocalMetadataRepair.instance.repairDesktopCopies(
-      onProgress: (done, total) {
-        _report(LinkSyncPhase.metadata, processed: done, total: total);
-      },
-    );
-    _report(LinkSyncPhase.lyrics);
-    await source.syncCopiedLyrics(
-      server,
-      stillCurrent: () => socket.connected,
-      onProgress: (done, total) =>
-          _report(LinkSyncPhase.lyrics, processed: done, total: total),
-    );
+    if (!_background) {
+      await LocalMetadataRepair.instance.repairDesktopCopies(
+        onProgress: (done, total) {
+          _report(LinkSyncPhase.metadata, processed: done, total: total);
+        },
+      );
+      _report(LinkSyncPhase.lyrics);
+      await source.syncCopiedLyrics(
+        server,
+        stillCurrent: () => socket.connected,
+        onProgress: (done, total) =>
+            _report(LinkSyncPhase.lyrics, processed: done, total: total),
+      );
+    }
     _requireReady();
-    _matchCandidates = List<Song>.of(await SongRepository().getAllSongs());
+    var changed = false;
     for (final kind in ['library', 'history']) {
       if (kind == 'history') await _backfillHistory();
       _requireReady();
@@ -238,6 +250,12 @@ class LinkSyncCoordinator {
         final items = reply.body['items'];
         if (items is! List || reply.body['cursor'] is! int)
           throw const FormatException('Invalid desktop sync page.');
+        if (items.isNotEmpty) {
+          changed = true;
+          _matchCandidates ??= List<Song>.of(
+            await SongRepository().getAllSongs(),
+          );
+        }
         if (kind == 'history') {
           final added = await LinkJournal.instance.mergeHistory(items);
           for (final item in added) {
@@ -269,9 +287,11 @@ class LinkSyncCoordinator {
     }
     _requireReady();
     _report(LinkSyncPhase.finalizing);
-    await LinkProfileService.sync(credentials);
-    onProfileChanged?.call();
-    MilestoneService.changes.add(null);
+    if (!_background) {
+      await LinkProfileService.sync(credentials);
+      onProfileChanged?.call();
+    }
+    if (changed || !_background) MilestoneService.changes.add(null);
   }
 
   Future<void> _materializeLibraryPage(List<Map<String, dynamic>> items) async {

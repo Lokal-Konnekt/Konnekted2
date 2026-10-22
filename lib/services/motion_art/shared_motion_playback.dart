@@ -23,30 +23,55 @@ class SharedMotionPlayback<T> {
     entry.users[token] = false;
     try {
       final resource = await entry.ready;
-      return MotionPlaybackLease._(
-        resource,
-        (value) {
-          if (!entry.users.containsKey(token)) return Future.value();
-          entry.users[token] = value;
-          return _sync(entry);
-        },
-        (immediate) async {
-          entry.users.remove(token);
-          if (entry.users.isNotEmpty) {
-            await _sync(entry);
-          } else if (immediate) {
-            await _remove(id, entry);
-          } else {
-            entry.timer = Timer(handoff, () => unawaited(_remove(id, entry)));
-          }
-        },
-      );
+      entry.resource = resource;
+      return _lease(id, entry, token, resource);
     } catch (_) {
       entry.users.remove(token);
       if (entry.users.isEmpty && identical(_entries[id], entry))
         _entries.remove(id);
       rethrow;
     }
+  }
+
+  /// Synchronous handoff for a preview: it may paint an already decoded frame
+  /// even with TickerMode disabled, without doing a lookup or creating video.
+  MotionPlaybackLease<T>? acquireExisting(String key) {
+    for (final item in _entries.entries) {
+      final entry = item.value;
+      final resource = entry.resource;
+      if (!item.key.startsWith('$key\u0000') || resource == null) continue;
+      entry.timer?.cancel();
+      final token = Object();
+      entry.users[token] = false;
+      return _lease(item.key, entry, token, resource);
+    }
+    return null;
+  }
+
+  MotionPlaybackLease<T> _lease(
+    String id,
+    _Entry<T> entry,
+    Object token,
+    T resource,
+  ) {
+    return MotionPlaybackLease._(
+      resource,
+      (value) {
+        if (!entry.users.containsKey(token)) return Future.value();
+        entry.users[token] = value;
+        return _sync(entry);
+      },
+      (immediate) async {
+        entry.users.remove(token);
+        if (entry.users.isNotEmpty) {
+          await _sync(entry);
+        } else if (immediate) {
+          await _remove(id, entry);
+        } else {
+          entry.timer = Timer(handoff, () => unawaited(_remove(id, entry)));
+        }
+      },
+    );
   }
 
   Future<void> _sync(_Entry<T> entry) {
@@ -74,6 +99,7 @@ class SharedMotionPlayback<T> {
 class _Entry<T> {
   _Entry(this.ready);
   final Future<T> ready;
+  T? resource;
   final users = <Object, bool>{};
   Timer? timer;
   bool playing = false;

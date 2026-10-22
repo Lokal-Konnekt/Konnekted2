@@ -1,3 +1,6 @@
+import 'package:flick/features/discovery/discovery_sources.dart';
+import 'package:flick/features/discovery/discovery_models.dart';
+
 import 'dart:convert';
 
 import 'package:flick/features/discovery/discovery_artwork.dart';
@@ -20,6 +23,7 @@ void main() {
 
   DiscoveryArtworkResolver resolver({
     Future<String?> Function(String)? artistPortrait,
+    Future<List<DiscoveryTrack>> Function(String)? searchSongs,
   }) {
     final client = MockClient((request) async {
       requests.add(request.url);
@@ -31,6 +35,7 @@ void main() {
       DiscoveryHttp(client),
       now: () => now,
       artistPortrait: artistPortrait,
+      searchSongs: searchSongs,
     );
   }
 
@@ -83,6 +88,123 @@ void main() {
     );
     expect(image, 'https://cdn.test/original.jpg');
   });
+
+  test('desktop YouTube fallback supplies non-library covers after Deezer and iTunes miss', () async {
+    final client = MockClient((request) async {
+      if (request.method == 'GET' && request.url.host == 'music.youtube.com') {
+        return http.Response(
+          'ytcfg.set({"INNERTUBE_CLIENT_VERSION":"fixture-current","VISITOR_DATA":"visitor"});',
+          200,
+        );
+      }
+      if (request.url.path == '/youtubei/v1/search') {
+        final body = jsonDecode(request.body) as Map;
+        expect(body['query'], 'Artist Song');
+        expect(body['context']['client']['clientVersion'], 'fixture-current');
+        expect(body['context']['client']['visitorData'], 'visitor');
+        return _json({
+          'contents': {
+            'musicShelfRenderer': {
+              'contents': [
+                {
+                  'musicResponsiveListItemRenderer': {
+                    'playlistItemData': {'videoId': 'abcdefghijk'},
+                    'flexColumns': [
+                      {
+                        'musicResponsiveListItemFlexColumnRenderer': {
+                          'text': {
+                            'runs': [
+                              {'text': 'Song'},
+                            ],
+                          },
+                        },
+                      },
+                      {
+                        'musicResponsiveListItemFlexColumnRenderer': {
+                          'text': {
+                            'runs': [
+                              {
+                                'text': 'Artist',
+                                'navigationEndpoint': {
+                                  'browseEndpoint': {'browseId': 'UCartist'},
+                                },
+                              },
+                            ],
+                          },
+                        },
+                      },
+                    ],
+                    'thumbnail': {
+                      'musicThumbnailRenderer': {
+                        'thumbnail': {
+                          'thumbnails': [
+                            {
+                              'url': 'https://cdn.test/song.jpg',
+                              'width': 226,
+                              'height': 226,
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        });
+      }
+      return _json({'data': [], 'results': []});
+    });
+    addTearDown(client.close);
+    final web = DiscoveryHttp(client);
+    final subject = DiscoveryArtworkResolver(
+      web,
+      searchSongs: YoutubeMusicCatalog(web, refreshClientContext: true).search,
+    );
+    final image = await subject.resolve(
+      const DiscoveryArtworkRequest(
+        kind: DiscoveryArtworkKind.track,
+        artist: 'Artist',
+        title: 'Song',
+      ),
+    );
+    expect(image, 'https://cdn.test/song.jpg');
+  });
+
+  test(
+    'YouTube artwork fallback rejects a different recording and failed image',
+    () async {
+      final subject = resolver(
+        searchSongs: (_) async => [
+          const DiscoveryTrack(
+            id: 'remix',
+            title: 'Song (Remix)',
+            artist: 'Artist',
+            source: DiscoverySource.youtubeMusic,
+            artwork: 'https://cdn.test/remix.jpg',
+          ),
+          const DiscoveryTrack(
+            id: 'other',
+            title: 'Song',
+            artist: 'Someone else',
+            source: DiscoverySource.youtubeMusic,
+            artwork: 'https://cdn.test/other.jpg',
+          ),
+        ],
+      );
+      expect(
+        await subject.resolve(
+          const DiscoveryArtworkRequest(
+            kind: DiscoveryArtworkKind.track,
+            title: 'Song',
+            artist: 'Artist',
+          ),
+        ),
+        '',
+      );
+    },
+  );
 
   group('discoveryImageUrl', () {
     test('rejects Last.fm placeholders and non-https images', () {

@@ -51,7 +51,7 @@ List<LokalSettingsSection> librarySettings(
         LokalSettingLink(
           label: lokalText('Manage folders'),
           description: lokalText(
-            'See and remove your folders, rescan (quick, full or deep), full library access, ReplayGain and audio preparation.',
+            'See and remove your folders, rescan (quick, full or deep), full library access.',
           ),
           onTap: () => _push(context, const LibrarySettingsScreen()),
         ),
@@ -100,14 +100,6 @@ List<LokalSettingsSection> librarySettings(
           ),
           value: scan.createPlaylistsFromM3uFiles,
           onChanged: notifier.setCreatePlaylistsFromM3uFiles,
-        ),
-        LokalSettingRow.toggle(
-          label: lokalText('Prepare audio after scanning'),
-          description: lokalText(
-            'Analyze new songs after a scan so waveform, loudness and cover-art data are ready. Unsupported formats are skipped.',
-          ),
-          value: scan.preloadAudioData,
-          onChanged: notifier.setPreloadAudioData,
         ),
       ],
     ),

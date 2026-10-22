@@ -834,13 +834,7 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
       ),
       child: child,
     ),
-    child: CachedImageWidget(
-      imagePath: song.albumArt,
-      audioSourcePath: song.filePath,
-      fit: BoxFit.cover,
-      placeholder: ColoredBox(color: flightContext.lokal.surface3),
-      errorWidget: ColoredBox(color: flightContext.lokal.surface3),
-    ),
+    child: _MiniMotionArtwork(song: song, playing: isPlaying, flight: true),
   );
 }
 
@@ -911,7 +905,12 @@ class _PullUpState extends State<_PullUp> {
 }
 
 class _MiniMotionArtwork extends ConsumerWidget {
-  const _MiniMotionArtwork({required this.song, required this.playing});
+  const _MiniMotionArtwork({
+    required this.song,
+    required this.playing,
+    this.flight = false,
+  });
+  final bool flight;
   final Song song;
   final bool playing;
   @override
@@ -926,19 +925,26 @@ class _MiniMotionArtwork extends ConsumerWidget {
             .watch(movingCoverSettingsProvider)
             .disabledSongs
             .contains(movingCoverSongKey(song));
-    final still = KonnektedArtwork(song: song, size: 42, radius: 21);
+    final still = flight
+        ? CachedImageWidget(
+            imagePath: song.albumArt,
+            audioSourcePath: song.filePath,
+            fit: BoxFit.cover,
+            placeholder: ColoredBox(color: context.lokal.surface3),
+            errorWidget: ColoredBox(color: context.lokal.surface3),
+          )
+        : KonnektedArtwork(song: song, size: 42, radius: 21);
     if (!enabled) return still;
-    return ClipOval(
-      child: MotionArtView(
-        sharedPlaybackKey: 'player:${song.id}',
-        title: song.title,
-        artist: song.artist,
-        album: song.album,
-        duration: song.duration,
-        playbackActive: playing,
-        borderRadius: BorderRadius.circular(21),
-        fallback: still,
-      ),
+    final art = MotionArtView(
+      sharedPlaybackKey: 'player:${song.id}',
+      title: song.title,
+      artist: song.artist,
+      album: song.album,
+      duration: song.duration,
+      playbackActive: playing,
+      borderRadius: flight ? null : BorderRadius.circular(21),
+      fallback: still,
     );
+    return flight ? art : ClipOval(child: art);
   }
 }

@@ -115,6 +115,19 @@ void resetKonnektedMixes() => _mixes = null;
 /// are built once and kept for the day rather than reshuffled on every play;
 /// they are rebuilt when the day turns or the library or favourites change
 /// size.
+class KonnektedMixRefresh extends Notifier<int> {
+  @override
+  int build() => 0;
+  void refresh() {
+    refreshLokalMadeForYou();
+    state++;
+  }
+}
+
+final konnektedMixRefreshProvider = NotifierProvider<KonnektedMixRefresh, int>(
+  KonnektedMixRefresh.new,
+);
+
 final konnektedMixesProvider = FutureProvider<List<LokalMix>>((ref) async {
   final library = ref.watch(konnektedLibraryProvider.select((s) => s.value));
   final liked =
@@ -123,9 +136,10 @@ final konnektedMixesProvider = FutureProvider<List<LokalMix>>((ref) async {
   // Still loading: stay loading rather than flash an empty Home.
   if (library == null) return Completer<List<LokalMix>>().future;
   if (library.isEmpty) return const [];
+  final refresh = ref.watch(konnektedMixRefreshProvider);
   final now = DateTime.now();
   final key =
-      '${now.year}-${now.month}-${now.day}|${Object.hashAll(library.map((s) => Object.hash(s.id, s.artist, s.genre, s.album)))}|${Object.hashAll(liked.map((s) => s.id))}';
+      '$refresh|${now.year}-${now.month}-${now.day}|${Object.hashAll(library.map((s) => Object.hash(s.id, s.artist, s.genre, s.album)))}|${Object.hashAll(liked.map((s) => s.id))}';
   final cached = _mixes;
   if (cached != null && cached.key == key) return cached.mixes;
   final history = ref.read(konnektedHistoryRepositoryProvider);
@@ -137,6 +151,7 @@ final konnektedMixesProvider = FutureProvider<List<LokalMix>>((ref) async {
     history: [for (final entry in recent) entry.song],
     playCounts: counts,
     now: now,
+    refreshSeed: refresh,
   );
   _mixes = (key: key, mixes: mixes);
   return mixes;

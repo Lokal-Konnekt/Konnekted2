@@ -577,6 +577,7 @@ class PlayerService {
   Future<void>? _audioInitInFlight;
   Future<void>? _appLaunchPreparationInFlight;
   Future<void> _playRequestQueue = Future<void>.value();
+  int _selectionGeneration = 0;
   Future<bool>? _rustInitInFlight;
   Future<void>? _rustCapabilityRefreshInFlight;
   Future<void>? _rustEnginePreparationInFlight;
@@ -2169,7 +2170,9 @@ class PlayerService {
     }
 
     await _configureAndroidAudioSession();
-    final player = just_audio.AudioPlayer();
+    // Android supports request headers natively. Avoid the Dart loopback
+    // proxy: a sleeping/unreachable desktop can leave its sockets pending.
+    final player = just_audio.AudioPlayer(useProxyForRequestHeaders: false);
     _justAudioPlayer = player;
     int? lastEqSessionId;
     player.androidAudioSessionIdStream.listen((sessionId) {
@@ -5024,6 +5027,7 @@ class PlayerService {
     List<Song>? playlist,
     PlaybackContext? context,
   }) {
+    final selection = ++_selectionGeneration;
     _debugLog('[UI] tap(${song.id})');
     _cancelPendingPlayback();
     if (context != null) setPlaybackContext(context);
@@ -5031,9 +5035,12 @@ class PlayerService {
     // mini-player shows a spinner before the (possibly queued) playback
     // request even starts running. Cleared by _playInternal's finally.
     if (song.isNetworkSource) isNetworkLoadingNotifier.value = true;
-    return _enqueuePlaybackRequest(
-      () => _playInternal(song, playlist: playlist),
-    );
+    return _enqueuePlaybackRequest(() async {
+      // A sleeping network source can take time to fail. Only the latest
+      // tap should run when it clears, rather than loading every stale tap.
+      if (selection != _selectionGeneration) return;
+      await _playInternal(song, playlist: playlist);
+    });
   }
 
   Future<void> _enqueuePlaybackRequest(Future<void> Function() action) {

@@ -475,3 +475,52 @@ dock/component tests pass, including same-resource/frame handoff and active-view
 ownership. No physical video-decoder/performance test or APK build was run.
 Targeted analysis has no errors; the full-player's pre-existing unused
 `_favForSongId` field warning remains.
+
+### Discovery desktop parity and motion artwork entry (October 22)
+
+Compared mobile against current desktop `electron/discoveryArtwork.js` and
+`electron/online/youtube.js`. Discovery now uses desktop's final YouTube song
+thumbnail fallback after catalogue misses, accepting only matching recordings.
+YouTube personal mixes accept dimensionless native thumbnails, retain the full
+current WEB_REMIX client context, and page home/shelf continuations separately
+with desktop's 20-token limit and existing time budget.
+
+A ticker-disabled player drag preview can synchronously borrow an already loaded
+motion frame without a lookup or second decoder. Both Hero flights retain motion
+artwork; reduced motion, background and exclusive-output suppression still apply.
+
+Validation: 54 focused discovery, parser, shared decoder and motion widget checks
+pass, including a desktop-style 19-mix continuation fixture and a warm video drag
+preview. Targeted analysis has no errors/warnings (style/deprecation notices
+remain). No APK build, live account or physical-device validation was run.
+
+### Idle desktop sync, background playback and settings
+
+Automatic journal sync now runs quietly once a minute, or after a local journal
+change. It skips full metadata/lyrics maintenance and profile refresh; those run
+when connecting or explicitly refreshing. Empty pulls no longer load every song
+or emit milestone updates. Keeping an unchanged paired server no longer rewrites
+the database and wakes library watchers. Outbox flushing and sync share one
+in-flight guard. Initial/manual merges retain progress notifications.
+
+The supplied logs show timed-out just_audio proxy connections to the desktop,
+source-readiness timeouts, and an online source resume error. Android now sends
+HTTP headers through ExoPlayer directly rather than the Dart loopback proxy
+(including the crossfade player). Queued song taps coalesce to the newest choice
+after a blocked request clears. Existing source failure invalidation and readiness
+time bounds remain; background/device reproduction still needs verification.
+
+Home Local supports pull-to-refresh even on a short page. It explicitly reseeds
+Your Mixes and their Cover Flow picks without altering the playback queue.
+Battery optimization lives in Data and an optional onboarding step, with status
+refresh on return from Android settings. Prepare audio, automatic post-scan
+preparation and ReplayGain scanning moved from Library to Data. Audio preparation
+remains an optional waveform/loudness analysis job, not a playback requirement.
+
+Published APK names are `Lokal-<version>-universal.apk` (full) and
+`Lokal-<version>-Play-universal.apk`; each still contains ARM64 and ARMv7, while
+versionCode, signing certificate and checksums remain in release metadata.
+Validation: 30 focused player/mix/onboarding/settings checks and 23 packaging
+checks pass. Settings search's stale account-location expectation was updated.
+Targeted analysis has no errors/warnings; existing style notices remain. No
+APK/CI build, live paired-device sync or physical background-playback test ran.

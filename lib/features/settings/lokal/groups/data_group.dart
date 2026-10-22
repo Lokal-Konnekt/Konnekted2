@@ -1,3 +1,8 @@
+import 'package:flick/features/settings/widgets/battery_optimization_setting.dart';
+import 'package:flick/features/settings/library_scan/library_scan_flow.dart';
+import 'package:flick/providers/library_scan_preferences_provider.dart';
+import 'package:flick/services/scan_session_controller.dart';
+
 import 'package:flick/l10n/l10n.dart';
 
 import '../lokal_settings_group.dart';
@@ -133,6 +138,71 @@ List<LokalSettingsSection> dataSettings(
         label: lokalText('ListenBrainz'),
         description: lokalText('Send your listens to ListenBrainz'),
         child: ListenBrainzSettingsTile(),
+      ),
+    ],
+  ),
+  LokalSettingsSection(
+    title: lokalText('Background'),
+    children: const [
+      LokalSettingCustom(
+        label: 'Battery optimization',
+        description: 'Allow background playback, scans and file transfers.',
+        child: BatteryOptimizationSetting(),
+      ),
+    ],
+  ),
+  LokalSettingsSection(
+    title: lokalText('Library tools'),
+    children: [
+      LokalSettingRow.toggle(
+        label: lokalText('Prepare audio after scanning'),
+        description: lokalText(
+          'Analyze new songs for waveforms, loudness and cover art. Optional; not required for playback.',
+        ),
+        value: ref.watch(libraryScanPreferencesProvider).preloadAudioData,
+        onChanged: ref
+            .read(libraryScanPreferencesProvider.notifier)
+            .setPreloadAudioData,
+      ),
+      LokalSettingCustom(
+        label: 'Prepare audio · ReplayGain scan',
+        description: 'Analyze waveforms and loudness; write ReplayGain tags.',
+        child: ValueListenableBuilder<ScanSessionStatus>(
+          valueListenable: ScanSessionController.instance.status,
+          builder: (context, status, _) {
+            final busy = status == ScanSessionStatus.running;
+            return Column(
+              children: [
+                LokalSettingRow(
+                  icon: Icons.graphic_eq_rounded,
+                  label: lokalText('Prepare audio'),
+                  description: lokalText(
+                    'Analyze audio for waveforms and loudness. Not required for playback.',
+                  ),
+                  trailing: LokalSettingButton(
+                    label: 'Run',
+                    onPressed: busy
+                        ? null
+                        : () => LibraryScanFlow.preloadAudio(context),
+                  ),
+                ),
+                LokalSettingRow(
+                  icon: Icons.speed_rounded,
+                  label: lokalText('ReplayGain scan'),
+                  description: lokalText(
+                    'Measure loudness and write ReplayGain tags.',
+                  ),
+                  trailing: LokalSettingButton(
+                    label: 'Run',
+                    onPressed: busy
+                        ? null
+                        : () => LibraryScanFlow.scanReplayGain(context),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     ],
   ),

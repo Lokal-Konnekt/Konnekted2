@@ -1464,6 +1464,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             _toggleLyrics,
             active: _showLyrics,
           ),
+          ValueListenableBuilder<Duration?>(
+            valueListenable: _player.sleepTimerRemainingNotifier,
+            builder: (_, remaining, __) => chip(
+              LucideIcons.moonStar,
+              remaining == null ? l10n.sleepTimer : _clock(remaining),
+              () => SleepTimerBottomSheet.show(context, _player),
+              active: remaining != null,
+            ),
+          ),
           if (_player.currentSongNotifier.value case final song?)
             chip(
               Icons.motion_photos_on_rounded,
@@ -1482,15 +1491,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   .disabledSongs
                   .contains(movingCoverSongKey(song)),
             ),
-          ValueListenableBuilder<Duration?>(
-            valueListenable: _player.sleepTimerRemainingNotifier,
-            builder: (_, remaining, __) => chip(
-              LucideIcons.moonStar,
-              remaining == null ? l10n.sleepTimer : _clock(remaining),
-              () => SleepTimerBottomSheet.show(context, _player),
-              active: remaining != null,
-            ),
-          ),
           ValueListenableBuilder<double>(
             valueListenable: _player.playbackSpeedNotifier,
             builder: (_, speed, __) => chip(

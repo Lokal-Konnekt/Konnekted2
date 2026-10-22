@@ -10,6 +10,28 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('native session failures explain the failed step without blaming every cookie', () async {
+    const channel = MethodChannel('test/spotify-session-error');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          channel,
+          (_) async => throw PlatformException(
+            code: 'SPOTIFY_SESSION_ERROR',
+            message: 'Web player could not load.',
+          ),
+        );
+    await expectLater(
+      const MethodChannelSpotifyOAuthBrowser(channel: channel)
+          .mintTokens('cookie'),
+      throwsA(
+        isA<SpotifyOAuthException>().having(
+          (e) => e.message,
+          'reason',
+          'Web player could not load.',
+        ),
+      ),
+    );
+  });
   test(
     'Canvas and Discovery share one real browser refresh for the same cookie',
     () async {

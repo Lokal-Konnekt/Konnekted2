@@ -7,11 +7,12 @@ class XHR {open(){}send(){}setRequestHeader(){}addEventListener(){}}
 const hash='d'.repeat(64);
 const context={window:{},location:{href:'https://open.spotify.com/'},URL,Headers,XMLHttpRequest:XHR,
   performance:{getEntriesByType:()=>[]},setInterval:()=>1,setTimeout:()=>1,clearInterval:()=>{}};
-context.window.KonnektedSpotifyTokenBridge={onSessionPayload:s=>reports.push(JSON.parse(s))};
 context.window.fetch=async url=>({clone:()=>({text:async()=>JSON.stringify(String(url).includes('clienttoken')
   ? {granted_token:{token:'web-player-client'}} : {accessToken:'web-player-access',isAnonymous:false})})});
 vm.createContext(context);
 vm.runInContext(readFileSync('assets/spotify/session_hook.js','utf8'),context);
+// Native bridge injection can follow the early page-start fallback hook.
+context.window.KonnektedSpotifyTokenBridge={postMessage:s=>reports.push(JSON.parse(s))};
 (async()=>{
  await context.window.fetch('https://open.spotify.com/get_access_token');
  await context.window.fetch('https://clienttoken.spotify.com/v1/clienttoken');

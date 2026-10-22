@@ -243,6 +243,7 @@ class MainActivity: FlutterActivity() {
         LokalSystemVolume.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LauncherIcon.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LokalLibrarySyncNotification.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
+        FileCopyService.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LokalDesktopDiscovery.register(flutterEngine.dartExecutor.binaryMessenger, this)
         YoutubeNativeResolver.initialize(applicationContext)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, YOUTUBE_CHANNEL)
@@ -1348,8 +1349,14 @@ class MainActivity: FlutterActivity() {
                             return@setMethodCallHandler
                         }
                         mainScope.launch {
-                            val minted = spotifyWebSession.mintTokens(sessionCookie)
-                            result.success(minted?.asMap())
+                            try {
+                                val minted = spotifyWebSession.mintTokens(sessionCookie)
+                                result.success(minted?.asMap())
+                            } catch (error: SpotifyWebSession.SessionException) {
+                                result.error("SPOTIFY_SESSION_ERROR", error.message, null)
+                            } catch (_: Exception) {
+                                result.error("SPOTIFY_SESSION_ERROR", "Spotify connection failed. Check your network and try again.", null)
+                            }
                         }
                     }
                     else -> result.notImplemented()

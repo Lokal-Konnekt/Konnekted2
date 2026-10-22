@@ -1,4 +1,5 @@
 import '../services/link/library_sync_notification.dart';
+import '../services/link/file_copy_notification.dart';
 import '../data/database.dart';
 import '../services/album_art_service.dart';
 import '../services/link/link_download_outbox.dart';
@@ -78,6 +79,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   LinkSyncCoordinator? _linkSync;
   final _downloadOutbox = LinkDownloadOutbox();
   final _syncNotification = LibrarySyncNotification();
+  final _copyNotification = FileCopyNotification();
   bool _socketWanted = false, _openingSocket = false, _receivingTheme = false;
   DateTime _lastLibrarySyncAt = DateTime.fromMillisecondsSinceEpoch(0);
   Map<String, dynamic>? _desktopState;
@@ -139,6 +141,7 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
     });
     ref.onDispose(() {
       _syncNotification.dispose();
+      _copyNotification.dispose();
       _disposed = true;
       if (identical(FavoritesService.remoteDelegate, this))
         FavoritesService.remoteDelegate = null;
@@ -408,8 +411,10 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
       connected: () =>
           !_disposed && generation == _generation && state.socketConnected,
       onProgress: (progress) {
-        if (!_disposed && generation == _generation)
+        if (!_disposed && generation == _generation) {
           state = state.copyWith(fileCopyProgress: progress);
+          _copyNotification.update(progress);
+        }
       },
     );
   }
@@ -430,9 +435,22 @@ class LokalRemoteController extends Notifier<LokalRemoteControllerState>
   }
 
   Future<void> copyMissingFiles(LinkCopyPlan plan) async {
+    final copier = _fileCopier();
     try {
-      await _fileCopier().copy(plan);
+      await _copyNotification.begin(state.desktopName);
+    } on Object {
+      if (!_disposed)
+        state = state.copyWith(
+          fileCopyProgress: const LinkCopyProgress(phase: LinkCopyPhase.paused),
+        );
+      throw StateError(
+        'Could not start background copying. Keep Lokal open and retry.',
+      );
+    }
+    try {
+      await copier.copy(plan);
     } finally {
+      await _copyNotification.finish(state.fileCopyProgress);
       _lastActivity = DateTime.now();
     }
   }

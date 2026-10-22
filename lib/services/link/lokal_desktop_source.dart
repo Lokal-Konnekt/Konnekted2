@@ -32,6 +32,9 @@ import '../album_art_service.dart';
 /// Desktop songs use the existing ranged network-player and bounded audio cache.
 /// The server row contains no token; encrypted storage remains the only token owner.
 class LokalDesktopSource extends NetworkSourceService {
+  LokalDesktopSource({http.Client Function()? uploadClientFactory})
+    : _uploadClientFactory = uploadClientFactory ?? GracefulHttpClient.new;
+  final http.Client Function() _uploadClientFactory;
   static final instance = LokalDesktopSource();
   final _cache = NetworkCacheService();
   final _musicStorage = DesktopMusicStorage();
@@ -643,7 +646,12 @@ class LokalDesktopSource extends NetworkSourceService {
         ),
       });
       request.contentLength = await file.length();
-      final client = GracefulHttpClient();
+      if (request.contentLength == 0) {
+        throw StateError(
+          'This audio file is empty. Re-select its music folder and retry.',
+        );
+      }
+      final client = _uploadClientFactory();
       try {
         // Bound the upload itself as well as the response: a desktop refusal
         // must not leave the streamed request waiting indefinitely for a sink.
@@ -686,10 +694,17 @@ class LokalDesktopSource extends NetworkSourceService {
                   'unsupported audio format',
                 ) ==
                 true;
+            final rawReason = body?['error'];
+            final reason = rawReason is String
+                ? rawReason.replaceAll(RegExp(r'[\x00-\x1f\x7f]'), ' ').trim()
+                : '';
+            final detail = reason.isEmpty
+                ? ''
+                : ' ${reason.length > 300 ? reason.substring(0, 300) : reason}';
             throw StateError(
               unsupported
                   ? 'Update Lokal desktop to accept this audio format ($extension).'
-                  : 'The desktop could not save this file (HTTP ${response.statusCode}).',
+                  : 'The desktop could not save this file (HTTP ${response.statusCode}).$detail',
             );
           }
         })().timeout(

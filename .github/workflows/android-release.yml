@@ -2,11 +2,24 @@ name: Release Lokal Mobile
 on:
   workflow_dispatch:
     inputs:
+      bump:
+        description: Version bump (releases the prepared 1.0.0 first)
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: Optional exact version, e.g. 1.2.0 (overrides bump)
+        type: string
+        default: ''
       flavor:
         description: APK variant (both ARM64 and ARMv7 are included)
         type: choice
         options: [full, play, both]
         default: full
+      replace_existing:
+        description: Replace the existing stable release (same version, newer APK build)
+        type: boolean
+        default: false
       build_number:
         description: Optional versionCode override (normally leave blank)
         type: string
@@ -35,6 +48,8 @@ jobs:
       tag: ${{ steps.metadata.outputs.tag }}
       previous: ${{ steps.metadata.outputs.previous }}
       sha: ${{ steps.metadata.outputs.sha }}
+      replace: ${{ steps.metadata.outputs.replace }}
+      tag_oid: ${{ steps.metadata.outputs.tag_oid }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,17 +60,23 @@ jobs:
       - name: Work out version and pin this commit
         id: metadata
         env:
+          RELEASE_REPLACE: ${{ github.event_name == 'workflow_dispatch' && inputs.replace_existing }}
+          RELEASE_BUMP: ${{ inputs.bump || 'patch' }}
+          RELEASE_VERSION: ${{ inputs.version }}
           RELEASE_CHANNEL: stable
           RELEASE_FLAVOR: ${{ inputs.flavor || 'full' }}
           RELEASE_BUILD_NUMBER: ${{ inputs.build_number }}
         run: python3 tool/release_channels.py
-      - name: Refuse to overwrite an existing release
+      - name: Check whether this release may be created or replaced
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.metadata.outputs.tag }}
+          REPLACE: ${{ steps.metadata.outputs.replace }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists. Published assets are never overwritten." >&2
+          if [ "$REPLACE" = true ]; then
+            gh release view "$TAG" --json tagName,isDraft
+          elif gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Enable replacement explicitly or choose a new version." >&2
             exit 1
           fi
       - name: Render mobile release banner
@@ -130,6 +151,8 @@ jobs:
           CODE: ${{ needs.prepare.outputs.build_number }}
           PREVIOUS: ${{ needs.prepare.outputs.previous }}
           BANNER_URL: ${{ steps.banner.outputs.url }}
+          REPLACE: ${{ needs.prepare.outputs.replace }}
+          OLD_TAG_OID: ${{ needs.prepare.outputs.tag_oid }}
           DRAFT: ${{ github.event_name == 'workflow_dispatch' && inputs.draft }}
         run: |
           cat SHA256SUMS-*.txt > SHA256SUMS
@@ -143,6 +166,31 @@ jobs:
 
           Install the full APK for sideloading. Keep the same signing identity to update in place; no uninstall is needed for signed betas, nightlies and stable releases from this repository. SHA-256 checksums and signing certificate metadata are attached.
           EOF_NOTES
+          if [ "$REPLACE" = true ]; then
+            # Save asset IDs first; remove outdated files only after uploading
+            # the verified replacement. Leave unrelated attachments untouched.
+            gh api "repos/$GH_REPO/releases/tags/$TAG" > "$RUNNER_TEMP/previous-release.json"
+            gh release upload "$TAG" ./*.apk ./*-metadata.json SHA256SUMS release-banner.png --clobber
+            # The APK and release source must refer to the same commit. Refuse
+            # to move a tag that changed while this build was running.
+            git push --force-with-lease="refs/tags/$TAG:$OLD_TAG_OID" origin "$SHA:refs/tags/$TAG"
+            note_flags=()
+            if [ -n "$PREVIOUS" ]; then note_flags+=(-f "previous_tag_name=$PREVIOUS"); fi
+            gh api --method POST "repos/$GH_REPO/releases/generate-notes" \
+              -f tag_name="$TAG" -f target_commitish="$SHA" \
+              "${note_flags[@]}" --jq .body >> "$RUNNER_TEMP/mobile-release-notes.md"
+            gh release edit "$TAG" --title "Lokal Mobile $VERSION" --latest \
+              --notes-file "$RUNNER_TEMP/mobile-release-notes.md"
+            # A published release stays published; replacing a draft keeps it
+            # a draft. The creation-only draft checkbox does not hide releases.
+            for OLD_ID in $(jq -r '.assets[] | select((.name | test("^Lokal-.*\\.apk$|^(full|play)-metadata\\.json$|^SHA256SUMS$|^release-banner\\.png$"))) | .id' "$RUNNER_TEMP/previous-release.json"); do
+              OLD_NAME=$(jq -r --argjson id "$OLD_ID" '.assets[] | select(.id == $id) | .name' "$RUNNER_TEMP/previous-release.json")
+              if [ ! -f "$OLD_NAME" ]; then
+                gh api --method DELETE "repos/$GH_REPO/releases/assets/$OLD_ID"
+              fi
+            done
+            exit 0
+          fi
           flags=(--latest)
           if [ "$DRAFT" = true ]; then flags+=(--draft); fi
           if [ -n "$PREVIOUS" ]; then flags+=(--notes-start-tag "$PREVIOUS"); fi

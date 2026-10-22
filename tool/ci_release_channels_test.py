@@ -14,6 +14,28 @@ class Channels(unittest.TestCase):
         self.assertGreater(int(stable['build_number']),1000)
         self.assertEqual(stable['prerelease'],'false')
         self.assertEqual(nightly['prerelease'],'true')
+    def test_desktop_bump_choices_and_prepared_first_release(self):
+        for bump, expected in [('patch','1.0.1'), ('minor','1.1.0'), ('major','2.0.0')]:
+            self.assertEqual(self.calc('stable', ['v1.0.0'], bump=bump)['version'], expected)
+            self.assertEqual(self.calc('stable', bump=bump)['version'], '1.0.0')
+    def test_follow_up_releases_use_latest_tag_without_pubspec_edit(self):
+        tags=['v1.0.0','v1.2.3']
+        self.assertEqual(self.calc('stable', tags)['version'], '1.2.4')
+        self.assertEqual(self.calc('stable', tags, bump='major')['version'], '2.0.0')
+        self.assertEqual(self.calc('nightly', tags)['version'], '1.2.4-nightly.7')
+        for requested in ['0.9.0', '1.2.2', '1.2.3', '2.0.0-rc.1']:
+            with self.subTest(requested=requested), self.assertRaises(ValueError):
+                self.calc('stable', tags, requested=requested)
+    def test_pushed_selected_tag_can_exceed_pubspec(self):
+        self.assertEqual(self.calc('stable', ref='refs/tags/v2.0.0')['version'],'2.0.0')
+
+    def test_explicit_replacement_keeps_version_and_advances_android_code(self):
+        self.assertEqual(self.calc('stable',['v1.0.0'],replace=True)['version'], '1.0.0')
+        self.assertEqual(self.calc('stable',['v1.0.0'],replace=True)['replace'], 'true')
+        for kwargs in [dict(replace=True), dict(tags=['v1.0.0'], replace=True, requested='2.0.0')]:
+            with self.assertRaises(ValueError): self.calc('stable', **kwargs)
+        with self.assertRaises(ValueError): self.calc('nightly',['v1.0.0'],replace=True)
+
     def test_next_run_uses_clock_not_independent_workflow_counters(self):
         earlier=calculate(self.spec,'nightly',[],'700',now=EPOCH+123456)
         later=calculate(self.spec,'stable',[],'1',now=EPOCH+123457)
@@ -28,13 +50,13 @@ class Channels(unittest.TestCase):
         self.assertEqual(self.calc('nightly',attempt='2')['tag'],'v1.0.0-nightly.7.r2')
     def test_tag_must_match_pubspec_and_manual_runs_main(self):
         self.assertEqual(self.calc('stable',ref='refs/tags/v1.0.0')['version'],'1.0.0')
-        for ref in ['refs/heads/feature','refs/tags/v2.0.0','refs/tags/v1.0.0-rc.1','refs/tags/v1.0.0\nsha=bad']:
+        for ref in ['refs/heads/feature','refs/tags/v0.9.0','refs/tags/v1.0.0-rc.1','refs/tags/v1.0.0\nsha=bad']:
             with self.subTest(ref=ref),self.assertRaises(ValueError): self.calc('stable',ref=ref)
         with self.assertRaises(ValueError): self.calc('nightly',ref='refs/tags/v1.0.0')
     def test_lower_codes_overflow_and_unmerged_versions_are_refused(self):
         for code in ['1','0','2100000001','100\nflavors=bad']:
             with self.subTest(code=code),self.assertRaises(ValueError): self.calc('stable',supplied=code)
-        with self.assertRaises(ValueError): self.calc('stable',requested='2.0.0')
+        self.assertEqual(self.calc('stable',requested='2.0.0')['version'], '2.0.0')
         self.assertEqual(self.calc('stable',supplied='900000')['build_number'],'900000')
 
 

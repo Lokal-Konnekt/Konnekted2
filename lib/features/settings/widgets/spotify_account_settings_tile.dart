@@ -129,13 +129,13 @@ class _SpotifyAccountSettingsTileState
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(lokalText('Spotify connected.'))));
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               lokalText(
-                'Could not connect Spotify. Check the sp_dc cookie and try again.',
+                error is SpotifyOAuthException ? error.message : 'Spotify connection failed. Check your network and try again.',
               ),
             ),
           ),

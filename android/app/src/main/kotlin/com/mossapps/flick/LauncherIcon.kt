@@ -36,7 +36,7 @@ object LauncherIcon {
 
     fun onStop(context: Context) {
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (!busy && !audio.isMusicActive) applyPending(context)
+        if (!busy && !FileCopyService.running && !audio.isMusicActive) applyPending(context)
     }
 
     fun register(messenger: BinaryMessenger, context: Context) {

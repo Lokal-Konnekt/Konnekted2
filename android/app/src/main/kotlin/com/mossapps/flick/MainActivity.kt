@@ -293,8 +293,7 @@ class MainActivity: FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "openDocumentTree" -> {
-                    pendingDocumentTreeResult = result
-                    openDocumentTree()
+                    openDocumentTree(result)
                 }
                 "openDocument" -> {
                     @Suppress("UNCHECKED_CAST")
@@ -305,23 +304,13 @@ class MainActivity: FlutterActivity() {
                         "audio/mpegurl",
                         "text/plain"
                     )) as List<String>
-                    if (pendingOpenDocumentResult != null) {
-                        result.error(
-                            "OPERATION_IN_PROGRESS",
-                            "Another document picker request is already in progress",
-                            null
-                        )
-                        return@setMethodCallHandler
-                    }
-                    pendingOpenDocumentResult = result
-                    openDocument(mimeTypes)
+                    openDocument(mimeTypes, result)
                 }
                 "createDocument" -> {
                     val fileName = call.argument<String>("fileName")
                     val mimeType = call.argument<String>("mimeType") ?: "audio/x-mpegurl"
                     if (fileName != null && fileName.isNotBlank()) {
-                        pendingCreateDocumentResult = result
-                        createDocument(fileName, mimeType)
+                        createDocument(fileName, mimeType, result)
                     } else {
                         result.error("INVALID_ARGUMENT", "fileName is required", null)
                     }
@@ -1443,26 +1432,26 @@ class MainActivity: FlutterActivity() {
 //         }
 //     }
 
-    private fun openDocumentTree() {
+    private fun openDocumentTree(result: MethodChannel.Result) {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
-        startActivityForResult(intent, REQUEST_OPEN_DOCUMENT_TREE)
+        launchDocumentPicker(intent, REQUEST_OPEN_DOCUMENT_TREE, result)
     }
 
-    private fun openDocument(mimeTypes: List<String>) {
+    private fun openDocument(mimeTypes: List<String>, result: MethodChannel.Result) {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
             putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes.toTypedArray())
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivityForResult(intent, REQUEST_OPEN_DOCUMENT)
+        launchDocumentPicker(intent, REQUEST_OPEN_DOCUMENT, result)
     }
 
-    private fun createDocument(fileName: String, mimeType: String) {
+    private fun createDocument(fileName: String, mimeType: String, result: MethodChannel.Result) {
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = mimeType
@@ -1470,7 +1459,35 @@ class MainActivity: FlutterActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         }
-        startActivityForResult(intent, REQUEST_CREATE_DOCUMENT)
+        launchDocumentPicker(intent, REQUEST_CREATE_DOCUMENT, result)
+    }
+
+    private val documentPickerPending: Boolean
+        get() = pendingDocumentTreeResult != null || pendingOpenDocumentResult != null ||
+            pendingCreateDocumentResult != null
+
+    private fun launchDocumentPicker(intent: Intent, requestCode: Int, result: MethodChannel.Result) {
+        if (documentPickerPending) {
+            result.error("OPERATION_IN_PROGRESS", "Another document picker is already open", null)
+            return
+        }
+        when (requestCode) {
+            REQUEST_OPEN_DOCUMENT_TREE -> pendingDocumentTreeResult = result
+            REQUEST_OPEN_DOCUMENT -> pendingOpenDocumentResult = result
+            REQUEST_CREATE_DOCUMENT -> pendingCreateDocumentResult = result
+        }
+        try {
+            // A system picker is part of the current user operation, not an
+            // intentional departure to the launcher.
+            intent.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+            startActivityForResult(intent, requestCode)
+        } catch (error: RuntimeException) {
+            pendingDocumentTreeResult = null
+            pendingOpenDocumentResult = null
+            pendingCreateDocumentResult = null
+            Log.w("Storage", "Could not launch document picker", error)
+            result.error("PICKER_UNAVAILABLE", "Android could not open the file picker. Try again from Library settings.", null)
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -5578,9 +5595,13 @@ class MainActivity: FlutterActivity() {
 
     override fun onStop() {
         super.onStop()
-        // In the background now, so swapping the launcher alias can't close
-        // the app under the listener.
-        LauncherIcon.onStop(applicationContext)
+        // onStop also runs when DocumentsUI covers us. Applying a queued
+        // theme icon there can make OEM launchers kill/restart the app before
+        // the picked URI returns (especially on first-run onboarding).
+        if (!documentPickerPending && pendingOverlayPermissionResult == null &&
+            pendingSpotifyAuthResult == null && !isChangingConfigurations) {
+            LauncherIcon.onStop(applicationContext)
+        }
     }
 
     override fun onDestroy() {

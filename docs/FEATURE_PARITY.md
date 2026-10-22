@@ -417,3 +417,18 @@ Validation: 28 focused Dart tests pass (including filter menu interactions,
 file fingerprints, uploads, identity and organizer/folder regressions). Targeted
 analysis has no errors/warnings; existing style infos remain. No APK/CI build,
 physical phone transfer, live account or launcher test was run.
+
+### Bounded missing-file preview
+
+Missing-file checking now reports its current stage and counts, offers Cancel
+check, and has a 90-second overall limit. Cancel/timeout invalidate late work
+before further progress is published. Catalogue pages fetch up to 500 rows;
+reverse-copy matching uses an ID index instead of rescanning the whole song list
+for each desktop track. A capable desktop provides a size preflight, so phone
+files without any same-size PC candidate are not read in full for SHA-256.
+Exact-content comparison remains required before treating a candidate as a copy;
+a shared size alone never hides a missing song. Older desktop versions retain
+the previous comparison path within the same cancellation/time bounds.
+
+Focused guard cancellation/timeout, fingerprint and identity tests pass. No APK
+build or physical large-library/background-storage test was run.

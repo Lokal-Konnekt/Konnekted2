@@ -23,15 +23,32 @@ class LokalPlayerMorph extends StatelessWidget {
   static bool activeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_MorphScope>() != null;
 
+  static double progressOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_MorphProgressScope>()
+          ?.progress ??
+      1;
+
   @override
-  Widget build(BuildContext context) => _MorphScope(
-    child: _ArtworkPortal(
-      progress: progress,
-      sheetOffset: sheetOffset,
-      sourceArtwork: sourceArtwork,
-      child: child,
+  Widget build(BuildContext context) => _MorphProgressScope(
+    progress: progress,
+    child: _MorphScope(
+      child: _ArtworkPortal(
+        progress: progress,
+        sheetOffset: sheetOffset,
+        sourceArtwork: sourceArtwork,
+        child: child,
+      ),
     ),
   );
+}
+
+class _MorphProgressScope extends InheritedWidget {
+  const _MorphProgressScope({required this.progress, required super.child});
+  final double progress;
+  @override
+  bool updateShouldNotify(_MorphProgressScope oldWidget) =>
+      progress != oldWidget.progress;
 }
 
 class _MorphScope extends InheritedWidget {
@@ -47,13 +64,16 @@ class LokalPlayerArtwork extends StatelessWidget {
     super.key,
     required this.child,
     this.enabled = true,
+    this.expandedRadius = 28,
   });
   final bool enabled;
+  final double expandedRadius;
   final Widget child;
 
   @override
   Widget build(BuildContext context) => _ArtworkAnchor(
     enabled: enabled && LokalPlayerMorph.activeOf(context),
+    expandedRadius: expandedRadius,
     child: child,
   );
 }
@@ -121,7 +141,11 @@ class _RenderArtworkPortal extends RenderProxyBox {
     final rect = Rect.lerp(from, to, _progress.clamp(0.0, 1.0))!;
     final scaleX = rect.width / anchor.size.width;
     final scaleY = rect.height / anchor.size.height;
-    final radius = lerpDouble(source.shortestSide / 2, 28, _progress)!;
+    final radius = lerpDouble(
+      source.shortestSide / 2,
+      anchor.expandedRadius,
+      _progress,
+    )!;
     final transform = Matrix4.identity()
       ..translateByDouble(rect.left, rect.top, 0, 1)
       ..scaleByDouble(scaleX, scaleY, 1, 1);
@@ -144,21 +168,36 @@ class _RenderArtworkPortal extends RenderProxyBox {
 }
 
 class _ArtworkAnchor extends SingleChildRenderObjectWidget {
-  const _ArtworkAnchor({required this.enabled, required super.child});
+  const _ArtworkAnchor({
+    required this.enabled,
+    required this.expandedRadius,
+    required super.child,
+  });
   final bool enabled;
+  final double expandedRadius;
   @override
   _RenderArtworkAnchor createRenderObject(BuildContext context) =>
-      _RenderArtworkAnchor(enabled);
+      _RenderArtworkAnchor(enabled, expandedRadius);
 
   @override
   void updateRenderObject(BuildContext context, _RenderArtworkAnchor object) {
     object.enabled = enabled;
+    object.expandedRadius = expandedRadius;
   }
 }
 
 class _RenderArtworkAnchor extends RenderProxyBox {
-  _RenderArtworkAnchor(this._enabled);
+  _RenderArtworkAnchor(this._enabled, this._expandedRadius);
   bool _enabled;
+  double _expandedRadius;
+  double get expandedRadius => _expandedRadius;
+  set expandedRadius(double value) {
+    if (_expandedRadius == value) return;
+    _expandedRadius = value;
+    _portal?.markNeedsPaint();
+    markNeedsPaint();
+  }
+
   _RenderArtworkPortal? _portal;
 
   set enabled(bool value) {

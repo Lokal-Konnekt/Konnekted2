@@ -127,7 +127,12 @@ final favoriteNotificationSyncProvider = Provider<void>((ref) {
   final service = ref.watch(playerServiceProvider);
   final notifier = service.favoriteNotificationToggleNotifier;
 
-  void listener() => ref.invalidate(favoritesProvider);
+  void listener() {
+    // FavoritesService caches the liked IDs per instance. Recreate that
+    // service as well as reloading its consumers after a notification toggle.
+    ref.invalidate(favoritesServiceProvider);
+    ref.invalidate(favoritesProvider);
+  }
 
   notifier.addListener(listener);
   ref.onDispose(() => notifier.removeListener(listener));

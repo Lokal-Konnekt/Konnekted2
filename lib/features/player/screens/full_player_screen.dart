@@ -80,7 +80,6 @@ class FullPlayerScreen extends ConsumerStatefulWidget {
 class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     with TickerProviderStateMixin {
   final PlayerService _player = PlayerService();
-  final FavoritesService _favorites = FavoritesService();
   final LyricsService _lyricsService = LyricsService();
 
   bool _showLyrics = false;
@@ -216,8 +215,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   Future<void> _refreshFavorite() async {
     final song = _player.currentSongNotifier.value;
     if (song == null) return;
-    final fav = await _favorites.isFavorite(song.id);
-    if (!mounted) return;
+    // Notification toggles write through PlayerService's separate service.
+    // Use a fresh reader to avoid a stale per-instance favorites cache.
+    final fav = await FavoritesService().isFavorite(song.id);
+    if (!mounted || _player.currentSongNotifier.value?.id != song.id) return;
     setState(() {
       _isFav = fav;
       _favForSongId = song.id;

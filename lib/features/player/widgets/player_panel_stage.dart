@@ -53,7 +53,12 @@ class PlayerPanelStage extends StatelessWidget {
       );
       return ClipRect(
         child: CustomMultiChildLayout(
-          delegate: _PanelLayout(queue: q, lyrics: l, artGap: artGap),
+          delegate: _PanelLayout(
+            queue: q,
+            lyrics: l,
+            artGap: artGap,
+            infoReserve: MediaQuery.textScalerOf(context).scale(72),
+          ),
           children: [
             LayoutId(
               id: _Part.queue,
@@ -111,8 +116,9 @@ class _PanelLayout extends MultiChildLayoutDelegate {
     required this.queue,
     required this.lyrics,
     required this.artGap,
+    required this.infoReserve,
   });
-  final double queue, lyrics, artGap;
+  final double queue, lyrics, artGap, infoReserve;
   static const thumb = 52.0;
   @override
   void performLayout(Size size) {
@@ -127,10 +133,12 @@ class _PanelLayout extends MultiChildLayoutDelegate {
         maxHeight: h,
       ),
     );
-    final room = math.max(0.0, h - artGap - info.height - 6);
+    // Hold sleeve geometry steady across fallback fonts with different
+    // ascent/descent metrics (e.g. Japanese, Chinese, Latin).
+    final room = math.max(0.0, h - artGap - math.min(h, infoReserve) - 6);
     final fullSide = math.min(w, room);
     final top = (room - fullSide) / 2;
-    final headerHeight = math.max(math.min(thumb, h), info.height);
+    final headerHeight = math.max(math.min(thumb, h), infoReserve);
     final artCentering = (headerHeight - math.min(thumb, h)) / 2;
     final lyricsTop = math.max(0.0, h - headerHeight - 8);
     final side = lerpDouble(fullSide, math.min(thumb, h), c)!;
@@ -174,7 +182,8 @@ class _PanelLayout extends MultiChildLayoutDelegate {
 
   @override
   bool shouldRelayout(_PanelLayout old) =>
-      old.queue != queue || old.lyrics != lyrics || old.artGap != artGap;
+      old.queue != queue || old.lyrics != lyrics || old.artGap != artGap ||
+    old.infoReserve != infoReserve;
 }
 
 /// A compact cover exits lyrics on tap or an upward swipe, without stealing

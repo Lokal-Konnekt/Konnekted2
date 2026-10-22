@@ -30,6 +30,20 @@ class PlayerArtworkImage extends StatefulWidget {
 
 class _PlayerArtworkImageState extends State<PlayerArtworkImage>
     with SingleTickerProviderStateMixin {
+  // Previous/next carousel stages may be disposed and recreated during a
+  // playlist commit. Keep a bounded set of decoded frames across those
+  // remounts so the incoming sleeve never flashes a placeholder.
+  static final Map<String, ImageInfo> _recentFrames = {};
+  static const int _maxRecentFrames = 4;
+
+  static void _rememberFrame(String key, ImageInfo info) {
+    _recentFrames.remove(key)?.dispose();
+    _recentFrames[key] = info.clone();
+    while (_recentFrames.length > _maxRecentFrames) {
+      _recentFrames.remove(_recentFrames.keys.first)?.dispose();
+    }
+  }
+
   late final _fade =
       AnimationController(
         vsync: this,
@@ -77,6 +91,18 @@ class _PlayerArtworkImageState extends State<PlayerArtworkImage>
     final key = '${song.id}|${song.albumArt}|${song.filePath}|${decodeWidth}';
     if (_requested == key) return;
     _requested = key;
+    final cached = _recentFrames.remove(key);
+    if (cached != null) {
+      _recentFrames[key] = cached;
+      // Paint a valid frame on the first build while the image provider
+      // resolves, without restarting a fade or showing a blank poster.
+      _shown?.dispose();
+      _previous?.dispose();
+      _previous = null;
+      _shown = cached.clone();
+      _shownKey = key;
+      _fade.value = 1;
+    }
     final generation = ++_generation;
     _unsubscribe();
     try {
@@ -128,6 +154,9 @@ class _PlayerArtworkImageState extends State<PlayerArtworkImage>
         frame != null &&
         _shownKey != key &&
         !MediaQuery.disableAnimationsOf(context);
+    // A transient missing/failed new source must not erase the previous
+    // decoded sleeve while the carousel and source resolver settle.
+    if (frame == null && _shown != null) return;
     _fade.stop();
     setState(() {
       _previous?.dispose();
@@ -136,6 +165,7 @@ class _PlayerArtworkImageState extends State<PlayerArtworkImage>
       _shown = frame;
       _shownKey = key;
     });
+    if (frame != null) _rememberFrame(key, frame);
     if (animate) {
       _fade.forward(from: 0);
     } else {

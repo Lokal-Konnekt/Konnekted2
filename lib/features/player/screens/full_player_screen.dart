@@ -228,7 +228,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     final song = _player.currentSongNotifier.value;
     if (song == null) return;
     HapticFeedback.selectionClick();
-    final nowFav = await _favorites.toggleFavorite(song.id);
+    // Update the shared favorites provider: the Liked library folder watches
+    // this provider, while a direct FavoritesService call left it stale.
+    final nowFav = await ref.read(favoritesProvider.notifier).toggleFavorite(song.id);
     if (!mounted) return;
     setState(() {
       _isFav = nowFav;

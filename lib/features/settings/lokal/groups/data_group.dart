@@ -105,9 +105,9 @@ List<LokalSettingsSection> dataSettings(
       LokalSettingCustom(
         label: lokalText('Spotify'),
         description: lokalText(
-          'Connect your Spotify cookie, import playlists and sync Liked Songs.',
+          'Sync new Spotify liked songs into your library Favorites.',
         ),
-        child: const SpotifyAccountSettingsTile(),
+        child: const SpotifyAccountSettingsTile(showCookie: false),
       ),
       LokalSettingCustom(
         label: lokalText('Discord Rich Presence'),

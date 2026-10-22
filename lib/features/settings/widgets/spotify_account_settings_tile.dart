@@ -14,7 +14,14 @@ import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 /// The canonical Spotify cookie entry, sharing the existing secure token store.
 class SpotifyAccountSettingsTile extends ConsumerStatefulWidget {
-  const SpotifyAccountSettingsTile({super.key});
+  const SpotifyAccountSettingsTile({
+    super.key,
+    this.showCookie = true,
+    this.showLikesSync = true,
+  });
+
+  final bool showCookie;
+  final bool showLikesSync;
   @override
   ConsumerState<SpotifyAccountSettingsTile> createState() =>
       _SpotifyAccountSettingsTileState();
@@ -117,7 +124,7 @@ class _SpotifyAccountSettingsTileState
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      LokalSettingRow(
+      if (widget.showCookie) LokalSettingRow(
         label: lokalText('Spotify'),
         description: lokalText(
           _connected
@@ -147,7 +154,7 @@ class _SpotifyAccountSettingsTileState
           ],
         ),
       ),
-      LokalSettingRow.toggle(
+      if (widget.showLikesSync) LokalSettingRow.toggle(
         label: lokalText('Sync Spotify liked songs'),
         description: lokalText(
           'Watch new Spotify likes from now on and add matching library songs to Favorites. Earlier likes are not imported.',
@@ -175,7 +182,7 @@ class _SpotifyAccountSettingsTileState
           if (mounted) setState(() => _busy = false);
         },
       ),
-      if (_syncLikes)
+      if (widget.showLikesSync && _syncLikes)
         ValueListenableBuilder<String?>(
           valueListenable: SpotifyLikesSyncService.instance.status,
           builder: (context, message, _) => message == null

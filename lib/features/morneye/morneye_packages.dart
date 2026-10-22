@@ -1616,7 +1616,8 @@ class MorneyePackages {
       }
       final decryption =
           result['decryption'] ??
-          (result['decryption_key'] != null
+          (result['decryption_key'] != null &&
+                  '${result['decryption_key']}'.trim().isNotEmpty
               ? {'strategy': 'ffmpeg.mov_key', 'key': result['decryption_key']}
               : null);
       if (decryption != null) {
@@ -1628,8 +1629,23 @@ class MorneyePackages {
             'Unsupported audio decryption descriptor',
           );
         }
-        final ext =
-            '${result['output_extension'] ?? decryption['output_extension'] ?? '.flac'}';
+        // Amazon uses an empty string for FLAC: desktop's JS `||`
+        // treats that as unspecified, whereas Dart `??` does not.
+        var ext = '.flac';
+        for (final value in [
+          result['output_extension'],
+          decryption['output_extension'],
+        ]) {
+          if (value == null || (value is String && value.trim().isEmpty))
+            continue;
+          if (value is! String)
+            throw const MorneyePackageError(
+              'Invalid decrypted audio container',
+            );
+          ext = value.trim().toLowerCase();
+          if (!ext.startsWith('.')) ext = '.$ext';
+          break;
+        }
         if (!{'.flac', '.m4a', '.mp4', '.ogg', '.opus'}.contains(ext))
           throw const MorneyePackageError('Invalid decrypted audio container');
         final target = p.join(staged.path, 'decrypted$ext');

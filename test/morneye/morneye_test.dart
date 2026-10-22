@@ -519,6 +519,8 @@ void main() {
       String? payload,
       bool requiresContainerConversion = false,
       Map<String, Object?>? decryption,
+      String? outputExtension,
+      String? decryptionKey,
     }) => {
       'initialize': (args, call) async => true,
       'searchTracks': (args, call) async => [
@@ -538,6 +540,8 @@ void main() {
           'success': true,
           'file_path': path,
           if (decryption != null) 'decryption': decryption,
+          if (outputExtension != null) 'output_extension': outputExtension,
+          if (decryptionKey != null) 'decryption_key': decryptionKey,
           if (requiresContainerConversion)
             'requires_container_conversion': true,
         };
@@ -846,6 +850,103 @@ void main() {
         expect(p.extension(result.file.path), '.flac');
         expect(result.file.readAsBytesSync(), [1, 2, 3, 4]);
         await result.cleanup();
+      },
+    );
+
+    for (final fixture in [
+      (
+        name: 'Amazon FLAC empty output extension',
+        outer: '',
+        inner: '',
+        expected: '.flac',
+      ),
+      (
+        name: 'empty outer extension uses descriptor',
+        outer: '',
+        inner: '.m4a',
+        expected: '.m4a',
+      ),
+      (
+        name: 'normalized extension remains an allowed container',
+        outer: ' FLAC ',
+        inner: '',
+        expected: '.flac',
+      ),
+    ]) {
+      test(fixture.name, () async {
+        const key = '00112233445566778899aabbccddeeff';
+        engine.scripts['amazon-container'] = downloader(
+          outputExtension: fixture.outer,
+          decryptionKey: key,
+          decryption: {
+            'strategy': 'ffmpeg.mov_key',
+            'key': key,
+            'input_format': 'mov',
+            'output_extension': fixture.inner,
+          },
+        );
+        var calls = 0;
+        final instance = MorneyePackages(
+          dir,
+          storage: storage,
+          native: native,
+          starter: engine.start,
+          audioDecryptor: (input, output, suppliedKey) async {
+            expect(p.extension(output), fixture.expected);
+            expect(suppliedKey, key);
+            calls++;
+            await File(output).writeAsBytes([1, 2, 3, 4]);
+          },
+        );
+        await instance.load();
+        addTearDown(instance.shutdown);
+        final addon = await instance.install(
+          bytes: packageBytes(manifestFor('amazon'), 'amazon-container'),
+        );
+        await instance.search(addon.key, 'song');
+        final result = await instance.download(addon.key, 't1');
+        expect(calls, 1);
+        expect(result.file.readAsBytesSync(), [1, 2, 3, 4]);
+        await result.cleanup();
+      });
+    }
+    test('clear Amazon audio with an empty decryption key does not request decryption', () async {
+      engine.scripts['clear-amazon'] = downloader(
+        decryptionKey: '',
+        outputExtension: '',
+      );
+      final addon = await packages.install(
+        bytes: packageBytes(manifestFor('amazon'), 'clear-amazon'),
+      );
+      await packages.search(addon.key, 'song');
+      final result = await packages.download(addon.key, 't1');
+      expect(result.file.readAsStringSync(), 'audio');
+      await result.cleanup();
+    });
+    test(
+      'rejects a path or command in the decrypted output extension',
+      () async {
+        engine.scripts['bad-container'] = downloader(
+          outputExtension: '../../escape.flac',
+          decryption: {
+            'strategy': 'ffmpeg.mov_key',
+            'key': '00112233445566778899aabbccddeeff',
+          },
+        );
+        final addon = await packages.install(
+          bytes: packageBytes(manifestFor('amazon'), 'bad-container'),
+        );
+        await packages.search(addon.key, 'song');
+        await expectLater(
+          packages.download(addon.key, 't1'),
+          throwsA(
+            isA<MorneyePackageError>().having(
+              (e) => e.message,
+              'container',
+              contains('Invalid decrypted audio container'),
+            ),
+          ),
+        );
       },
     );
 

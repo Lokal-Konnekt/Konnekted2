@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flick/core/theme/app_colors.dart';
-import 'package:flick/core/theme/adaptive_color_provider.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/utils/responsive.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
@@ -15,14 +13,12 @@ import 'package:flick/models/song.dart';
 import 'package:flick/features/songs/widgets/song_actions_bottom_sheet.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/providers/providers.dart';
-import 'package:flick/features/player/widgets/ambient_background.dart';
-import 'package:flick/widgets/common/blurred_song_background.dart';
-import 'package:flick/widgets/common/surface_icon_button.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/display_mode_wrapper.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
-import 'package:flick/widgets/common/glass_bottom_sheet.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
 /// Groups songs by immediate subfolder relative to [prefix] within [folderUri].
 ({List<FolderGroup> subfolders, List<Song> songs}) groupByImmediateFolder({
@@ -251,8 +247,9 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
 
   void _openRootFolder(MusicFolder folder) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FolderBrowserScreen(
+      _folderRoute(
+        context,
+        FolderBrowserScreen(
           folderUri: folder.uri,
           displayName: folder.displayName,
         ),
@@ -261,98 +258,41 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final currentSong = ref.watch(currentSongProvider);
+  Widget build(BuildContext context) => DisplayModeWrapper(
+    child: _FolderPageSurface(
+      header: _buildHeader(context),
+      child: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(color: context.lokal.accent),
+            )
+          : _folders.isEmpty
+          ? _buildEmptyState()
+          : _viewMode == FolderViewMode.tree
+          ? _buildFoldersTree()
+          : _buildRootFoldersGrid(),
+    ),
+  );
 
-    return DisplayModeWrapper(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Stack(
-          children: [
-            Positioned.fill(child: AmbientBackground(song: currentSong)),
-            SafeArea(
-              bottom: false,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context),
-                  Expanded(
-                    child: _isLoading
-                        ? Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.textSecondary,
-                            ),
-                          )
-                        : _folders.isEmpty
-                        ? _buildEmptyState()
-                        : _viewMode == FolderViewMode.tree
-                        ? _buildFoldersTree()
-                        : _buildRootFoldersGrid(),
-                  ),
-                ],
-              ),
-            ),
-          ],
+  Widget _buildHeader(BuildContext context) => LokalSettingsHeader(
+    title: l10n.folders,
+    subtitle: l10n.musicFolders(_folders.length),
+    actions: [
+      LokalSettingsHeaderAction(
+        icon: _viewMode == FolderViewMode.grid
+            ? LucideIcons.list
+            : LucideIcons.layoutGrid,
+        tooltip: lokalText(
+          _viewMode == FolderViewMode.grid ? 'Tree view' : 'Grid view',
         ),
+        onPressed: _toggleViewMode,
       ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingLg,
-        vertical: AppConstants.spacingMd,
+      LokalSettingsHeaderAction(
+        icon: Icons.sort_rounded,
+        tooltip: l10n.sortBy,
+        onPressed: _showSortSheet,
       ),
-      child: Row(
-        children: [
-          if (Navigator.of(context).canPop()) ...[
-            SurfaceIconButton.icon(
-              icon: LucideIcons.chevronLeft,
-              onPressed: () => Navigator.of(context).pop(),
-              iconColor: context.adaptiveTextPrimary,
-            ),
-            const SizedBox(width: AppConstants.spacingMd),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.folders,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: context.adaptiveTextPrimary,
-                  ),
-                ),
-                Text(
-                  l10n.musicFolders(_folders.length),
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: context.adaptiveTextTertiary),
-                ),
-              ],
-            ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SurfaceIconButton.icon(
-                icon: _viewMode == FolderViewMode.grid
-                    ? LucideIcons.list
-                    : LucideIcons.layoutGrid,
-                onPressed: _toggleViewMode,
-              ),
-              const SizedBox(width: AppConstants.spacingSm),
-              SurfaceIconButton.icon(
-                icon: Icons.sort_rounded,
-                onPressed: _showSortSheet,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+    ],
+  );
 
   Widget _buildEmptyState() {
     return Center(
@@ -362,13 +302,13 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
           Icon(
             LucideIcons.folderOpen,
             size: context.responsiveIcon(AppConstants.containerSizeLg),
-            color: context.adaptiveTextTertiary.withValues(alpha: 0.5),
+            color: context.lokal.muted2.withValues(alpha: 0.5),
           ),
           const SizedBox(height: AppConstants.spacingLg),
           Text(
             l10n.noFoldersAdded,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: context.adaptiveTextSecondary,
+              color: context.lokal.muted,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -376,7 +316,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
           Text(
             l10n.addMusicFoldersInSettings,
             style: Theme.of(context).textTheme.bodyMedium
-                ?.copyWith(color: context.adaptiveTextTertiary),
+                ?.copyWith(color: context.lokal.muted2),
           ),
         ],
       ),
@@ -543,8 +483,9 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
       ),
     );
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FolderBrowserScreen(
+      _folderRoute(
+        context,
+        FolderBrowserScreen(
           folderUri: folder.uri,
           displayName: folder.displayName,
           prefix: node.key,
@@ -685,7 +626,7 @@ class _RootFolderCardState extends State<_RootFolderCard>
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
+                        color: context.lokal.surface2,
                         borderRadius: BorderRadius.all(
                           Radius.circular(AppConstants.radiusLg),
                         ),
@@ -764,7 +705,7 @@ class _RootFolderCardState extends State<_RootFolderCard>
                           widget.entry.folder.displayName,
                           style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
-                                color: context.adaptiveTextPrimary,
+                                color: context.lokal.text,
                                 fontWeight: FontWeight.w600,
                               ),
                           maxLines: 1,
@@ -782,7 +723,7 @@ class _RootFolderCardState extends State<_RootFolderCard>
                                   : l10n.externalLabel,
                           ].join(' · '),
                           style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.adaptiveTextSecondary),
+                              ?.copyWith(color: context.lokal.muted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -834,7 +775,7 @@ class _RootFolderCardState extends State<_RootFolderCard>
     return ClipRRect(
       borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
       child: Container(
-        color: AppColors.surfaceLight,
+        color: context.lokal.surface2,
         child: const Center(
           child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
         ),
@@ -981,23 +922,10 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     });
 
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: Colors.transparent,
-        body: BlurredSongBackground(
-          child: SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(context, 0),
-                Expanded(
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+      return _FolderPageSurface(
+        header: _buildHeader(context, 0),
+        child: Center(
+          child: CircularProgressIndicator(color: context.lokal.accent),
         ),
       );
     }
@@ -1057,32 +985,15 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     final treeMode = _viewMode == FolderViewMode.tree;
     final treeNode = treeMode ? _resolveTreeNode() : null;
 
-    return Stack(
-      children: [
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          body: BlurredSongBackground(
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context, totalCount),
-                  Expanded(
-                    child: treeMode
-                        ? (treeNode!.children.isEmpty && treeNode.songs.isEmpty
-                              ? _buildEmptyState(context)
-                              : _buildTreeContent(treeNode))
-                        : subfolders.isEmpty && songs.isEmpty
-                        ? _buildEmptyState(context)
-                        : _buildContent(context, subfolders, songs),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+    return _FolderPageSurface(
+      header: _buildHeader(context, totalCount),
+      child: treeMode
+          ? (treeNode!.children.isEmpty && treeNode.songs.isEmpty
+                ? _buildEmptyState(context)
+                : _buildTreeContent(treeNode))
+          : subfolders.isEmpty && songs.isEmpty
+          ? _buildEmptyState(context)
+          : _buildContent(context, subfolders, songs),
     );
   }
 
@@ -1127,100 +1038,47 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
       if (widget.prefix.isNotEmpty)
         ...widget.prefix.split('/').map(decodeUriDisplayComponent),
     ];
-    final title = crumbs.last;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppConstants.spacingLg,
-        vertical: AppConstants.spacingMd,
-      ),
-      child: Row(
-        children: [
-          SurfaceIconButton.icon(
-            icon: LucideIcons.chevronLeft,
-            onPressed: () => Navigator.of(context).pop(),
-            iconColor: context.adaptiveTextPrimary,
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      LucideIcons.folder,
-                      size: 18,
-                      color: context.adaptiveTextSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: context.adaptiveTextPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    if (crumbs.length > 1) ...[
-                      Flexible(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: _buildParentCrumbs(context, crumbs),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppConstants.spacingSm),
-                    ],
-                    Text(
-                      l10n.items(count),
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: context.adaptiveTextTertiary),
-                    ),
-                  ],
-                ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LokalSettingsHeader(
+          title: crumbs.last,
+          subtitle: l10n.items(count),
+          actions: [
+            LokalSettingsHeaderAction(
+              icon: _viewMode == FolderViewMode.grid
+                  ? LucideIcons.list
+                  : LucideIcons.layoutGrid,
+              tooltip: lokalText(
+                _viewMode == FolderViewMode.grid ? 'Tree view' : 'Grid view',
+              ),
+              onPressed: () => _setViewMode(
+                _viewMode == FolderViewMode.grid
+                    ? FolderViewMode.tree
+                    : FolderViewMode.grid,
+              ),
+            ),
+            LokalSettingsHeaderAction(
+              icon: LucideIcons.shuffle,
+              tooltip: lokalText('Shuffle'),
+              onPressed: () => _shuffleAll(context),
+            ),
+            LokalSettingsHeaderAction(
+              icon: Icons.sort_rounded,
+              tooltip: l10n.sortBy,
+              onPressed: _showSortSheet,
+            ),
+          ],
+        ),
+        if (crumbs.length > 1)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: _buildParentCrumbs(context, crumbs)),
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SurfaceIconButton.icon(
-                icon: _viewMode == FolderViewMode.grid
-                    ? LucideIcons.list
-                    : LucideIcons.layoutGrid,
-                onPressed: () => _setViewMode(
-                  _viewMode == FolderViewMode.grid
-                      ? FolderViewMode.tree
-                      : FolderViewMode.grid,
-                ),
-                iconColor: context.adaptiveTextPrimary,
-              ),
-              const SizedBox(width: AppConstants.spacingSm),
-              SurfaceIconButton.icon(
-                icon: LucideIcons.shuffle,
-                onPressed: () => _shuffleAll(context),
-                iconColor: context.adaptiveTextPrimary,
-              ),
-              const SizedBox(width: AppConstants.spacingSm),
-              SurfaceIconButton.icon(
-                icon: Icons.sort_rounded,
-                onPressed: _showSortSheet,
-                iconColor: context.adaptiveTextPrimary,
-              ),
-            ],
-          ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -1234,7 +1092,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
             child: Icon(
               LucideIcons.chevronRight,
               size: 12,
-              color: context.adaptiveTextTertiary,
+              color: context.lokal.muted2,
             ),
           ),
         InkWell(
@@ -1247,7 +1105,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: context.adaptiveTextSecondary),
+                  ?.copyWith(color: context.lokal.muted),
             ),
           ),
         ),
@@ -1335,8 +1193,9 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
 
   void _openSubfolderKey(String key) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FolderBrowserScreen(
+      _folderRoute(
+        context,
+        FolderBrowserScreen(
           folderUri: widget.folderUri,
           displayName: widget.displayName,
           prefix: key,
@@ -1353,13 +1212,13 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
           Icon(
             LucideIcons.folderOpen,
             size: 56,
-            color: context.adaptiveTextTertiary.withValues(alpha: 0.5),
+            color: context.lokal.muted2.withValues(alpha: 0.5),
           ),
           const SizedBox(height: AppConstants.spacingMd),
           Text(
             l10n.noSongsFound,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: context.adaptiveTextSecondary,
+              color: context.lokal.muted,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1367,7 +1226,7 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
           Text(
             l10n.thisFolderAppearsToBeEmpty,
             style: Theme.of(context).textTheme.bodyMedium
-                ?.copyWith(color: context.adaptiveTextTertiary),
+                ?.copyWith(color: context.lokal.muted2),
           ),
         ],
       ),
@@ -1524,7 +1383,7 @@ class _SubfolderCardState extends State<_SubfolderCard>
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
+                        color: context.lokal.surface2,
                         borderRadius: BorderRadius.all(
                           Radius.circular(AppConstants.radiusLg),
                         ),
@@ -1603,7 +1462,7 @@ class _SubfolderCardState extends State<_SubfolderCard>
                           widget.folder.name,
                           style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
-                                color: context.adaptiveTextPrimary,
+                                color: context.lokal.text,
                                 fontWeight: FontWeight.w600,
                               ),
                           maxLines: 1,
@@ -1613,7 +1472,7 @@ class _SubfolderCardState extends State<_SubfolderCard>
                         Text(
                           l10n.songs5(widget.folder.songs.length),
                           style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.adaptiveTextSecondary),
+                              ?.copyWith(color: context.lokal.muted),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1665,7 +1524,7 @@ class _SubfolderCardState extends State<_SubfolderCard>
     return ClipRRect(
       borderRadius: BorderRadius.all(Radius.circular(AppConstants.radiusSm)),
       child: Container(
-        color: AppColors.surfaceLight,
+        color: context.lokal.surface2,
         child: const Center(
           child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
         ),
@@ -1708,11 +1567,11 @@ class _SongTile extends StatelessWidget {
                     thumbnailWidth: 92,
                     thumbnailHeight: 92,
                     placeholder: ColoredBox(
-                      color: AppColors.surface,
+                      color: context.lokal.surface,
                       child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
                     errorWidget: ColoredBox(
-                      color: AppColors.surface,
+                      color: context.lokal.surface,
                       child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
                     ),
                   ),
@@ -1728,7 +1587,7 @@ class _SongTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: context.adaptiveTextPrimary,
+                        color: context.lokal.text,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1738,7 +1597,7 @@ class _SongTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: context.adaptiveTextSecondary),
+                          ?.copyWith(color: context.lokal.muted),
                     ),
                   ],
                 ),
@@ -1747,7 +1606,7 @@ class _SongTile extends StatelessWidget {
               Text(
                 song.formattedDuration,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.adaptiveTextTertiary,
+                  color: context.lokal.muted2,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -1756,7 +1615,7 @@ class _SongTile extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 icon: Icon(
                   Icons.more_horiz_rounded,
-                  color: context.adaptiveTextSecondary,
+                  color: context.lokal.muted,
                 ),
                 onPressed: () => SongActionsBottomSheet.show(context, song),
               ),
@@ -1804,7 +1663,7 @@ class _FolderTreeViewState extends State<_FolderTreeView> {
   String _nodeKey(_FolderTreeNode node) => '${node.folderUri}::${node.key}';
 
   Color _guideColor(BuildContext context) =>
-      context.adaptiveTextTertiary.withValues(alpha: 0.25);
+      context.lokal.muted2.withValues(alpha: 0.25);
 
   void _toggleNode(_FolderTreeNode node) {
     final key = _nodeKey(node);
@@ -1963,24 +1822,14 @@ class _FolderTreeRow extends StatelessWidget {
                 vertical: AppConstants.spacingXs,
               ),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isExpanded
-                      ? [
-                          AppColors.surfaceLight.withValues(alpha: 0.92),
-                          AppColors.surface.withValues(alpha: 0.98),
-                        ]
-                      : [
-                          AppColors.surfaceLight.withValues(alpha: 0.7),
-                          AppColors.surface.withValues(alpha: 0.82),
-                        ],
-                ),
+                color: isExpanded
+                    ? context.lokal.surface2
+                    : context.lokal.surface,
                 borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                 border: Border.all(
                   color: isExpanded
-                      ? AppColors.glassBorderStrong
-                      : AppColors.glassBorder,
+                      ? context.lokal.border2
+                      : context.lokal.border,
                 ),
               ),
               child: Row(
@@ -1991,8 +1840,8 @@ class _FolderTreeRow extends StatelessWidget {
                     isExpanded ? LucideIcons.folderOpen : LucideIcons.folder,
                     size: 18,
                     color: isExpanded
-                        ? context.adaptiveTextPrimary
-                        : context.adaptiveTextSecondary,
+                        ? context.lokal.text
+                        : context.lokal.muted,
                   ),
                   const SizedBox(width: AppConstants.spacingSm),
                   Expanded(
@@ -2006,7 +1855,7 @@ class _FolderTreeRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodyLarge
                               ?.copyWith(
-                                color: context.adaptiveTextPrimary,
+                                color: context.lokal.text,
                                 fontWeight: FontWeight.w600,
                               ),
                         ),
@@ -2016,7 +1865,7 @@ class _FolderTreeRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: context.adaptiveTextTertiary),
+                              ?.copyWith(color: context.lokal.muted2),
                         ),
                       ],
                     ),
@@ -2053,7 +1902,7 @@ class _FolderTreeRow extends StatelessWidget {
             width: 4,
             height: 4,
             decoration: BoxDecoration(
-              color: context.adaptiveTextTertiary.withValues(alpha: 0.5),
+              color: context.lokal.muted2.withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
           ),
@@ -2073,7 +1922,7 @@ class _FolderTreeRow extends StatelessWidget {
             child: Icon(
               LucideIcons.chevronRight,
               size: 18,
-              color: context.adaptiveTextSecondary,
+              color: context.lokal.muted,
             ),
           ),
         ),
@@ -2085,16 +1934,16 @@ class _FolderTreeRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight.withValues(alpha: 0.85),
+        color: context.lokal.surface2.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(AppConstants.radiusRound),
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(color: context.lokal.border),
       ),
       child: Text(
         '${node.songCount}',
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: context.adaptiveTextSecondary,
+          color: context.lokal.muted,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
@@ -2234,7 +2083,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: AppBottomSheetSurface.decoration,
+      decoration: _folderSheetDecoration(context),
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.7,
       ),
@@ -2251,7 +2100,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHandle(),
+            _buildHandle(context),
             const SizedBox(height: 16),
             _buildSectionHeader(context, l10n.sortBy),
             const SizedBox(height: 8),
@@ -2259,7 +2108,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
               (option) => _buildSortTile(context, option),
             ),
             const SizedBox(height: 16),
-            Divider(color: AppColors.glassBorder, height: 1),
+            Divider(color: context.lokal.border, height: 1),
             const SizedBox(height: 12),
             _buildSectionHeader(context, l10n.folderLimit),
             const SizedBox(height: 4),
@@ -2272,7 +2121,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
                       Text(
                         l10n.foldersShownPerPage,
                         style: Theme.of(context).textTheme.bodySmall
-                            ?.copyWith(color: context.adaptiveTextTertiary),
+                            ?.copyWith(color: context.lokal.muted2),
                       ),
                     ],
                   ),
@@ -2283,7 +2132,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.glassBackgroundStrong,
+                    color: context.lokal.surface3,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -2291,7 +2140,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: context.adaptiveTextSecondary,
+                      color: context.lokal.muted,
                     ),
                   ),
                 ),
@@ -2299,10 +2148,10 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
             ),
             SliderTheme(
               data: SliderThemeData(
-                activeTrackColor: AppColors.accent,
-                inactiveTrackColor: AppColors.glassBackgroundStrong,
-                thumbColor: AppColors.textPrimary,
-                overlayColor: AppColors.textPrimary.withValues(alpha: 0.15),
+                activeTrackColor: context.lokal.accent,
+                inactiveTrackColor: context.lokal.surface3,
+                thumbColor: context.lokal.text,
+                overlayColor: context.lokal.text.withValues(alpha: 0.15),
                 trackHeight: 4,
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
               ),
@@ -2323,14 +2172,14 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
     );
   }
 
-  Widget _buildHandle() {
+  Widget _buildHandle(BuildContext context) {
     return Center(
       child: Container(
         width: 40,
         height: 4,
         margin: const EdgeInsets.only(top: 8),
         decoration: BoxDecoration(
-          color: AppColors.textTertiary,
+          color: context.lokal.muted2,
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -2345,7 +2194,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: context.adaptiveTextTertiary,
+          color: context.lokal.muted2,
           letterSpacing: 1.2,
         ),
       ),
@@ -2367,7 +2216,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: isSelected
-                ? AppColors.accent.withValues(alpha: 0.12)
+                ? context.lokal.accent.withValues(alpha: 0.12)
                 : Colors.transparent,
           ),
           child: Row(
@@ -2375,9 +2224,7 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
               Icon(
                 icon,
                 size: 20,
-                color: isSelected
-                    ? AppColors.accent
-                    : context.adaptiveTextSecondary,
+                color: isSelected ? context.lokal.accent : context.lokal.muted,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -2389,13 +2236,17 @@ class _FolderRootSortSheetState extends State<_FolderRootSortSheet> {
                         ? FontWeight.w600
                         : FontWeight.normal,
                     color: isSelected
-                        ? AppColors.accent
-                        : context.adaptiveTextPrimary,
+                        ? context.lokal.accent
+                        : context.lokal.text,
                   ),
                 ),
               ),
               if (isSelected)
-                Icon(Icons.check_rounded, size: 20, color: AppColors.accent),
+                Icon(
+                  Icons.check_rounded,
+                  size: 20,
+                  color: context.lokal.accent,
+                ),
             ],
           ),
         ),
@@ -2438,7 +2289,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: AppBottomSheetSurface.decoration,
+      decoration: _folderSheetDecoration(context),
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.7,
       ),
@@ -2455,7 +2306,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHandle(),
+            _buildHandle(context),
             const SizedBox(height: 16),
             _buildSectionHeader(context, l10n.sortBy),
             const SizedBox(height: 8),
@@ -2463,7 +2314,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
               (option) => _buildSortTile(context, option),
             ),
             const SizedBox(height: 16),
-            Divider(color: AppColors.glassBorder, height: 1),
+            Divider(color: context.lokal.border, height: 1),
             const SizedBox(height: 12),
             _buildSectionHeader(context, l10n.filterByFormat),
             const SizedBox(height: 8),
@@ -2481,14 +2332,14 @@ class _FolderBrowserSortSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildHandle() {
+  Widget _buildHandle(BuildContext context) {
     return Center(
       child: Container(
         width: 40,
         height: 4,
         margin: const EdgeInsets.only(top: 8),
         decoration: BoxDecoration(
-          color: AppColors.textTertiary,
+          color: context.lokal.muted2,
           borderRadius: BorderRadius.circular(2),
         ),
       ),
@@ -2503,7 +2354,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: context.adaptiveTextTertiary,
+          color: context.lokal.muted2,
           letterSpacing: 1.2,
         ),
       ),
@@ -2525,7 +2376,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: isSelected
-                ? AppColors.accent.withValues(alpha: 0.12)
+                ? context.lokal.accent.withValues(alpha: 0.12)
                 : Colors.transparent,
           ),
           child: Row(
@@ -2533,9 +2384,7 @@ class _FolderBrowserSortSheet extends StatelessWidget {
               Icon(
                 icon,
                 size: 20,
-                color: isSelected
-                    ? AppColors.accent
-                    : context.adaptiveTextSecondary,
+                color: isSelected ? context.lokal.accent : context.lokal.muted,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -2547,13 +2396,17 @@ class _FolderBrowserSortSheet extends StatelessWidget {
                         ? FontWeight.w600
                         : FontWeight.normal,
                     color: isSelected
-                        ? AppColors.accent
-                        : context.adaptiveTextPrimary,
+                        ? context.lokal.accent
+                        : context.lokal.text,
                   ),
                 ),
               ),
               if (isSelected)
-                Icon(Icons.check_rounded, size: 20, color: AppColors.accent),
+                Icon(
+                  Icons.check_rounded,
+                  size: 20,
+                  color: context.lokal.accent,
+                ),
             ],
           ),
         ),
@@ -2603,12 +2456,12 @@ class _FolderBrowserSortSheet extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? AppColors.accent.withValues(alpha: 0.5)
-                : AppColors.glassBorder,
+                ? context.lokal.accent.withValues(alpha: 0.5)
+                : context.lokal.border,
             width: 1,
           ),
           color: isSelected
-              ? AppColors.accent.withValues(alpha: 0.12)
+              ? context.lokal.accent.withValues(alpha: 0.12)
               : Colors.transparent,
         ),
         child: Text(
@@ -2616,10 +2469,62 @@ class _FolderBrowserSortSheet extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected ? AppColors.accent : context.adaptiveTextPrimary,
+            color: isSelected ? context.lokal.accent : context.lokal.text,
           ),
         ),
       ),
     );
   }
+}
+
+class _FolderPageSurface extends StatelessWidget {
+  const _FolderPageSurface({required this.header, required this.child});
+  final Widget header, child;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: context.lokal.bg,
+    body: SafeArea(
+      bottom: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          header,
+          Expanded(child: child),
+        ],
+      ),
+    ),
+  );
+}
+
+BoxDecoration _folderSheetDecoration(BuildContext context) => BoxDecoration(
+  color: context.lokal.surface,
+  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+  border: Border.all(color: context.lokal.border),
+);
+
+Route<void> _folderRoute(BuildContext context, Widget page) {
+  final duration = MediaQuery.disableAnimationsOf(context)
+      ? Duration.zero
+      : AppConstants.animationNormal;
+  return PageRouteBuilder<void>(
+    transitionDuration: duration,
+    reverseTransitionDuration: duration,
+    pageBuilder: (_, _, _) => page,
+    transitionsBuilder: (_, animation, _, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeInOutCubic,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(.04, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
 }

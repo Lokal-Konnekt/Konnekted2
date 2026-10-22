@@ -393,3 +393,27 @@ Validation: 14 focused provider-state, account/parser and fetch-fixture tests
 pass. Targeted Dart analysis has no errors/warnings. No APK/CI build or live
 Spotify/YouTube account request was run; actual returned personal mixes still
 require account/device verification.
+
+### Library location/quality filters, folders and desktop copy integrity
+
+Shared library song lists now combine a location filter (All, Mobile, PC, other
+sources) with one grouped quality/format menu. Format entries come from known
+bit-depth/sample-rate pairs; search, sort, Play and Shuffle use the filtered
+list. Unknown audio details remain distinct. Desktop's spectral `Suspect` tier
+is not offered because mobile has no stored spectrum verdict.
+
+Both folders views and sorting sheets use solid Lokal surfaces and common
+headers, retaining grid/tree, folder grouping, sorting and playback behavior.
+
+Desktop catalogue imports resolve preserved PC identities before metadata
+matching, keeping copied/organized local originals local. Successful uploads
+retain the receiver's track ID. A capable desktop advertises content matching:
+metadata misses get a size/SHA-256 comparison before upload, with original IDs
+retained and excluded from the reverse download preview. Older desktops keep
+the existing ID/metadata checks; the exact-content fallback requires the paired
+desktop update. No songs are deleted or reorganized by these checks.
+
+Validation: 28 focused Dart tests pass (including filter menu interactions,
+file fingerprints, uploads, identity and organizer/folder regressions). Targeted
+analysis has no errors/warnings; existing style infos remain. No APK/CI build,
+physical phone transfer, live account or launcher test was run.

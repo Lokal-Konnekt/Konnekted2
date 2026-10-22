@@ -1,5 +1,6 @@
 import '../lyrics_service.dart';
 import 'desktop_music_storage.dart';
+import 'desktop_catalogue_import.dart';
 
 import 'package:path/path.dart' as p;
 
@@ -45,7 +46,7 @@ class LokalDesktopSource extends NetworkSourceService {
   Future<String>? _legacyDirectory;
   final Map<String, Future<String>> _downloads = {};
 
-  Future<void> requireOriginalFileSupport(
+  Future<bool> requireOriginalFileSupport(
     LokalRemoteCredentials credentials,
   ) async {
     final response = await http
@@ -60,6 +61,104 @@ class LokalDesktopSource extends NetworkSourceService {
         'Update Lokal on your PC to copy missing song files both ways.',
       );
     }
+    return (jsonDecode(response.body) as Map)['contentMatching'] == true;
+  }
+
+  /// Run only for metadata misses. Content URIs are staged with the same grant
+  /// as uploads; a filesystem path/filename is never used as a fingerprint.
+  Future<Map<String, dynamic>?> originalFingerprint(Song song) async {
+    var path = song.filePath;
+    if (path == null) return null;
+    String? staged;
+    try {
+      if (path.startsWith('content://')) {
+        staged = await const MethodChannel('lokal/desktop_link')
+            .invokeMethod<String>('stageAudio', {
+              'uri': path,
+              'extension': song.fileType.toLowerCase(),
+            });
+        if (staged == null) return null;
+        path = staged;
+      } else if (path.startsWith('file://')) {
+        path = Uri.parse(path).toFilePath();
+      }
+      final file = File(path);
+      final before = await file.stat();
+      if (before.size <= 0 || before.size > 1024 * 1024 * 1024) return null;
+      final digest = await sha256.bind(file.openRead()).first;
+      final after = await file.stat();
+      if (before.size != after.size || before.modified != after.modified)
+        return null;
+      return {'size': before.size, 'sha256': digest.toString()};
+    } on Object {
+      return null; // The actual upload reports inaccessible audio normally.
+    } finally {
+      if (staged != null) {
+        try {
+          await File(staged).delete();
+        } on FileSystemException {
+          /* Already cleaned. */
+        }
+      }
+    }
+  }
+
+  Future<Map<int, String>> matchOriginalFingerprints(
+    LokalRemoteCredentials credentials,
+    List<Map<String, dynamic>> fingerprints,
+  ) async {
+    final client = _originalClientFactory();
+    try {
+      final response = await client
+          .post(
+            credentials.origin.replace(path: '/api/remote/files/match'),
+            headers: {
+              ..._headers(credentials),
+              'content-type': 'application/json',
+            },
+            body: jsonEncode({'items': fingerprints}),
+          )
+          .timeout(const Duration(minutes: 2));
+      if (response.statusCode != 200) {
+        throw StateError(
+          'Could not compare desktop originals (HTTP ${response.statusCode}). Retry before copying.',
+        );
+      }
+      final matches = (jsonDecode(response.body) as Map)['matches'] as List;
+      final result = <int, String>{};
+      for (final item in matches.cast<Map>()) {
+        final index = item['index'];
+        final id = item['trackId'];
+        if (index is! int ||
+            index < 0 ||
+            index >= fingerprints.length ||
+            id is! String ||
+            id.isEmpty) {
+          throw const FormatException('Invalid desktop file comparison.');
+        }
+        result[index] = id;
+      }
+      return result;
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<void> rememberDesktopOriginal(
+    Song song,
+    int serverId,
+    String remoteId,
+  ) async {
+    if (!Database.isInitialized) return;
+    final id = int.tryParse(song.id);
+    if (id == null) return;
+    await Database.instance.writeTxn(() async {
+      final row = await Database.songs.get(id);
+      if (row == null || !isDownloadedDesktopOriginal(row)) return;
+      row.remoteServerId = serverId;
+      row.remoteId = remoteId;
+      await Database.songs.put(row);
+    });
   }
 
   /// HEAD runs the desktop's paired-original route but sends no audio bytes.
@@ -511,6 +610,27 @@ class LokalDesktopSource extends NetworkSourceService {
     NetworkServerEntity server,
     Map<String, dynamic> track,
   ) async {
+    final remoteId = track['id']?.toString();
+    if (remoteId == null || remoteId.isEmpty) {
+      throw const FormatException('Desktop song is missing its identifier.');
+    }
+    // A copied original keeps its desktop ID when its filename/tags change.
+    // Resolve that identity before the fuzzy catalogue matcher.
+    var entity = await Database.songs
+        .filter()
+        .remoteServerIdEqualTo(server.id)
+        .remoteIdEqualTo(remoteId)
+        .findFirst();
+    if (entity != null && isDownloadedDesktopOriginal(entity)) {
+      final genre = _genre(track);
+      if (entity.genre?.trim().isNotEmpty != true &&
+          genre?.isNotEmpty == true) {
+        entity.genre = genre;
+        final localRow = entity;
+        await Database.instance.writeTxn(() => Database.songs.put(localRow));
+      }
+      return SongRepository().songFromEntity(entity);
+    }
     final journal = LinkJournal.instance;
     final key =
         track['track_key'] ??
@@ -528,14 +648,6 @@ class LokalDesktopSource extends NetworkSourceService {
       }
       return local;
     }
-    final remoteId = track['id']?.toString();
-    if (remoteId == null || remoteId.isEmpty)
-      throw const FormatException('Desktop song is missing its identifier.');
-    var entity = await Database.songs
-        .filter()
-        .remoteServerIdEqualTo(server.id)
-        .remoteIdEqualTo(remoteId)
-        .findFirst();
     entity ??= SongEntity()
       ..filePath = 'lokal://${server.id}/$remoteId'
       ..dateAdded = DateTime.now();
@@ -734,6 +846,14 @@ class LokalDesktopSource extends NetworkSourceService {
               unsupported
                   ? 'Update Lokal desktop to accept this audio format ($extension).'
                   : 'The desktop could not save this file (HTTP ${response.statusCode}).$detail',
+            );
+          }
+          if (Database.isInitialized) {
+            final server = await ensureServer(credentials);
+            await rememberDesktopOriginal(
+              song,
+              server.id,
+              body!['trackId'] as String,
             );
           }
         })().timeout(

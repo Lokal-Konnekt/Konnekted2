@@ -46,19 +46,25 @@ class LinkFileCopy {
     _check();
     onProgress(const LinkCopyProgress(phase: LinkCopyPhase.checking));
     final source = LokalDesktopSource.instance;
-    await source.requireOriginalFileSupport(credentials);
+    final contentMatching = await source.requireOriginalFileSupport(
+      credentials,
+    );
     final server = await source.ensureServer(credentials);
     final catalogue = await source.readCatalogue(credentials);
     final identity = LinkCopyIdentity(serverId: server.id, tracks: catalogue);
     final originalChecks = <String, Future<bool>>{};
+    final confirmedDesktopIds = <String>{};
     Future<bool> alreadyOnDesktop(Song song) async {
       for (final id in identity.candidates(song)) {
         _check();
         if (await originalChecks.putIfAbsent(
           id,
           () => source.hasOriginalFile(credentials, id),
-        ))
+        )) {
+          confirmedDesktopIds.add(id);
+          await source.rememberDesktopOriginal(song, server.id, id);
           return true;
+        }
       }
       return false;
     }
@@ -130,6 +136,48 @@ class LinkFileCopy {
         if (!await alreadyOnDesktop(batch[index])) missing.add(batch[index]);
       }
     }
+    // Name/duration misses are not proof a file is absent: independent scans,
+    // tag edits and organizer moves can lose the original association. Compare
+    // exact bytes before putting such songs into the upload preview.
+    if (contentMatching && missing.isNotEmpty) {
+      final unresolved = List<Song>.of(missing);
+      missing.clear();
+      for (var offset = 0; offset < unresolved.length; offset += 32) {
+        _check();
+        final batch = unresolved.skip(offset).take(32).toList();
+        final candidates = <Song>[];
+        final fingerprints = <Map<String, dynamic>>[];
+        for (final song in batch) {
+          _check();
+          final fingerprint = await source.originalFingerprint(song);
+          if (fingerprint == null) {
+            missing.add(song);
+          } else {
+            candidates.add(song);
+            fingerprints.add(fingerprint);
+          }
+        }
+        if (fingerprints.isEmpty) continue;
+        final matches = await source.matchOriginalFingerprints(
+          credentials,
+          fingerprints,
+        );
+        _check();
+        for (var index = 0; index < candidates.length; index++) {
+          final remoteId = matches[index];
+          if (remoteId == null) {
+            missing.add(candidates[index]);
+          } else {
+            confirmedDesktopIds.add(remoteId);
+            await source.rememberDesktopOriginal(
+              candidates[index],
+              server.id,
+              remoteId,
+            );
+          }
+        }
+      }
+    }
     String name(String value) =>
         value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
     String key(String artist, String title) =>
@@ -140,6 +188,7 @@ class LinkFileCopy {
     final downloads = <({Map<String, dynamic> track, Song? existing})>[];
     final seen = <String>{};
     final localDesktopIds = {
+      ...confirmedDesktopIds,
       for (final song in local)
         if (song.remoteServerId == server.id && song.remoteId != null)
           song.remoteId!,

@@ -59,7 +59,7 @@ jobs:
           python3 tool/gen_lokal_launcher_icons.py
           python3 -m unittest tool/ci_brand_icons_test.py -v
       - name: Restore compiled Rust dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 (Node 24)
         with:
           # Cargokit still invokes cargo build --locked for both ARM targets.
           # Cargo fingerprints determine which crates must be rebuilt.

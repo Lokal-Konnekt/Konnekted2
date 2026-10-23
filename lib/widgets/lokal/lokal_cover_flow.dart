@@ -196,12 +196,18 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     if (_reduceMotion || _performance)
       return (_position.value + offset / (size * 1.06)).round().clamp(0, _last);
     // Invert the actual projected spacing with a monotonic binary search.
-    final x = offset.abs() / size;
+    final normalizedOffset = offset.abs() / size;
     var lo = 0.0;
-    var hi = x > .69 ? 1 + (x - .69) / .34 : 1.0;
+    var hi = normalizedOffset > .69
+        ? 1 + (normalizedOffset - .69) / .34
+        : 1.0;
     for (var step = 0; step < 20; step++) {
       final mid = (lo + hi) / 2;
-      if (_hitDistance(mid) < x) { lo = mid; } else { hi = mid; }
+      if (_hitDistance(mid) < normalizedOffset) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
     }
     final d = offset.sign * (lo + hi) / 2;
     return (_position.value + d).round().clamp(0, _last);

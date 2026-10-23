@@ -123,35 +123,43 @@ class _LokalSwipeToQueueState extends State<LokalSwipeToQueue> {
         onHorizontalDragEnd: widget.enabled ? _end : null,
         onHorizontalDragCancel: widget.enabled ? _reset : null,
         child: ClipRect(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: ColoredBox(
-                  color: accent.withValues(alpha: 0.16),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 23),
-                      child: Icon(
-                        Icons.queue_music_rounded,
-                        size: 27,
-                        color: accent,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(end: _drag),
+            duration: _dragging
+                ? Duration.zero
+                : const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            builder: (context, offset, child) => Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: offset,
+                  child: ClipRect(
+                    child: ColoredBox(
+                      color: accent.withValues(alpha: 0.16),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 23),
+                          child: Icon(
+                            Icons.queue_music_rounded,
+                            size: 27,
+                            color: accent,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              TweenAnimationBuilder<double>(
-                tween: Tween<double>(end: _drag),
-                duration: _dragging
-                    ? Duration.zero
-                    : const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
-                builder: (context, offset, child) =>
-                    Transform.translate(offset: Offset(offset, 0), child: child),
-                child: widget.child,
-              ),
-            ],
+                Transform.translate(
+                  offset: Offset(offset, 0),
+                  child: child,
+                ),
+              ],
+            ),
+            child: widget.child,
           ),
         ),
       ),

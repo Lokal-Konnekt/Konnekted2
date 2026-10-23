@@ -635,7 +635,6 @@ class TidalService implements NetworkSourceService {
       ..discNumber = (t['volumeNumber'] as num?)?.toInt()
       ..year = _releaseYear(album?['releaseDate'] as String?)
       ..fileType = _extForQuality(t['audioQuality'] as String?)
-      ..atmosAvailable = tidalAtmosAvailable(t)
       ..albumArtPath = (cover != null && cover.isNotEmpty)
           ? '$_coverMarkerScheme$cover'
           : null

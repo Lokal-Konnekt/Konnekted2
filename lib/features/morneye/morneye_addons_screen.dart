@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 
 import 'morneye_auth_sheet.dart';
 import 'morneye_packages.dart';
@@ -80,9 +81,9 @@ mixin _MorneyePanel<T extends StatefulWidget> on State<T> {
     }
   }
 
-  void _say(String message) =>
-      ScaffoldMessenger.maybeOf(context)
-          ?.showSnackBar(SnackBar(content: Text(message)));
+  void _say(String message) {
+    if (mounted) LokalToast.show(context, message);
+  }
 
   /// Runs [work] with the panel busy; its error, if any, as a message.
   Future<R?> _run<R>(Future<R> Function() work, {String? done}) async {

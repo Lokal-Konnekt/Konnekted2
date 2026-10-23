@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -152,9 +153,7 @@ class AddToPlaylistSheet extends ConsumerWidget {
                                   }
                                   if (context.mounted) {
                                     Navigator.pop(context);
-                                    ScaffoldMessenger.of(
-                                      context,
-                                    ).showSnackBar(
+                                    LokalToast.fromSnackBar(context, 
                                       SnackBar(
                                         content: Text(
                                           songs.length == 1

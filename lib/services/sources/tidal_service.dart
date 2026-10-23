@@ -488,8 +488,9 @@ class TidalService implements NetworkSourceService {
     final mime = info['manifestMimeType'] as String?;
     if (tidalAtmosAvailable(info)) {
       throw TidalException(
-        'Tidal returned a Dolby Atmos stream. This playback path cannot decode '
-        'or verify Atmos; use Tidal on a compatible device or choose a stereo version.',
+        'This legacy Tidal source cannot process Dolby Atmos manifests. '
+        'Select the Tidal Mornye source in Lokal to request E-AC-3 JOC '
+        'through Android’s native audio engine.',
       );
     }
     final manifest = info['manifest'] as String?;

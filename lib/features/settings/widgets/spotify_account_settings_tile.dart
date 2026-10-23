@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/features/spotify/spotify_likes_sync_service.dart';
@@ -65,7 +66,7 @@ class _SpotifyAccountSettingsTileState
       await _load();
     } catch (_) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
+        LokalToast.fromSnackBar(context, 
           const SnackBar(
             content: Text('Could not remove the Spotify session. Retry.'),
           ),
@@ -101,12 +102,10 @@ class _SpotifyAccountSettingsTileState
       unawaited(SpotifyLikesSyncService.instance.sync());
       if (!mounted) return;
       ref.invalidate(konnektedSpotifyDiscoveryProvider);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(lokalText('Spotify connected.'))));
+      LokalToast.fromSnackBar(context, SnackBar(content: Text(lokalText('Spotify connected.'))));
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        LokalToast.fromSnackBar(context, 
           SnackBar(
             content: Text(
               lokalText(
@@ -170,7 +169,7 @@ class _SpotifyAccountSettingsTileState
             await SpotifyLikesSyncService.instance.setEnabled(value);
           } catch (_) {
             if (mounted)
-              ScaffoldMessenger.of(context).showSnackBar(
+              LokalToast.fromSnackBar(context, 
                 const SnackBar(
                   content: Text(
                     'Could not start watching Spotify likes. Check your cookie and retry.',

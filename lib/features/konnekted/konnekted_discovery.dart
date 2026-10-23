@@ -599,7 +599,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
               download = await fetch(
                 quality: tryAtmos
                     ? 'DOLBY_ATMOS'
-                    : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
+                    : null,
               );
               if (tryAtmos && !download.atmosEncoded) {
                 throw const DiscoveryException(
@@ -615,16 +615,14 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   (tryAtmos || tidalAtmosErrorMentionsMode(reason))) {
                 throw DiscoveryException(tidalAtmosTransportMessage(reason));
               }
-              if (!tryAtmos) rethrow;
-              if (!tidalAtmosTierUnavailable(reason)) {
+              if (tryAtmos) {
                 throw DiscoveryException(
-                  'Tidal Atmos could not be retrieved. No stereo track was substituted.',
+                  tidalAtmosTierUnavailable(reason)
+                      ? 'This source has no downloadable Atmos stream for this track. No stereo track was substituted.'
+                      : 'Atmos playback failed: $reason. No stereo track was substituted.',
                 );
               }
-              // Only an explicit unavailable-tier response permits falling
-              // back to the same provider's stereo recording.
-              onStatus?.call('Tidal Atmos is unavailable. Loading Tidal stereo…');
-              download = await fetch(quality: 'HI_RES_LOSSLESS');
+              rethrow;
             }
           } on MorneyePackageError catch (error) {
             final detail = error.message;

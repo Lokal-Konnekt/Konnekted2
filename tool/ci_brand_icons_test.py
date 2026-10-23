@@ -34,7 +34,7 @@ class BrandIconsTest(unittest.TestCase):
         # Sticker mask should be translated by the identical displacement.
         sticker = Image.open("assets/branding/lokal_icon_sticker.png").convert("RGBA")
         self.assertEqual(sticker.getpixel((360, 185))[3], 0)
-        self.assertEqual(sticker.getpixel((365, 197))[3], 255)
+        self.assertEqual(sticker.getpixel((380, 210))[3], 255)
 
     def test_android_accent_variants_and_transparency(self):
         root = Path("android/app/src/main/res")

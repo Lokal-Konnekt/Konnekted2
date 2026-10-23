@@ -68,6 +68,7 @@ void main() {
           .toList();
       expect(updates().last['title'], 'first');
       expect(updates().last['artwork'], 'https://i.scdn.co/image/first');
+      expect(service.artworkStatus, contains('Cover URL sent to Discord'));
       player.isNetworkLoadingNotifier.value = true;
       await tester.pump();
       expect(calls.where((c) => c.method == 'shutdown'), isEmpty);
@@ -118,6 +119,12 @@ void main() {
     expect(
       DiscordPresenceService.publicArtwork(
         'https://is7-ssl.mzstatic.com.evil.example/cover.jpg',
+      ),
+      isEmpty,
+    );
+    expect(
+      DiscordPresenceService.publicArtwork(
+        'https://is7-ssl.mzstatic.com/image/' + ''.padRight(310, 'x'),
       ),
       isEmpty,
     );

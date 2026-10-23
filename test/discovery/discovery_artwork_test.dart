@@ -89,6 +89,38 @@ void main() {
     now = DateTime(2026, 10, 20, 12);
   });
 
+  test('explicit Discord retry really re-queries a cached miss', () async {
+    final subject = resolver();
+    const request = DiscoveryArtworkRequest(
+      kind: DiscoveryArtworkKind.track,
+      artist: 'Knuckle G',
+      title: 'Biggest of the City',
+    );
+    expect(await subject.resolve(request), '');
+    final firstRequestCount = requests.length;
+    expect(firstRequestCount, greaterThan(0));
+
+    responses['api.deezer.com/search'] = {
+      'data': [
+        {
+          'title': 'Biggest of the City',
+          'artist': {'name': 'Knuckle G'},
+          'album': {'cover_xl': 'https://e-cdns-images.dzcdn.net/images/cover/knuckle/500x500.jpg'},
+        },
+      ],
+    };
+
+    // A normal cached miss never contacts the service again.
+    expect(await subject.resolve(request), '');
+    expect(requests, hasLength(firstRequestCount));
+
+    // Discord's later retry must clear only the negative result.
+    subject.invalidateMiss(request);
+    expect(await subject.resolve(request),
+        'https://e-cdns-images.dzcdn.net/images/cover/knuckle/500x500.jpg');
+    expect(requests.length, greaterThan(firstRequestCount));
+  });
+
   test('Plastic Love uses an exact original match in another storefront, never a cover artist', () async {
     final countries = <String>[];
     final subject = DiscoveryArtworkResolver(

@@ -28,6 +28,7 @@ import 'package:flick/features/konnekted/library/lokal_albums_artists.dart';
 import 'package:flick/features/konnekted/library/lokal_library_kit.dart';
 import 'package:flick/features/konnekted/library/lokal_navigation.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -732,55 +733,58 @@ class _SongTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final album = song.album;
     final suffix = subtitleSuffix;
-    return ListTile(
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: SizedBox(
-          width: 48,
-          height: 48,
-          child: CachedImageWidget(
-            imagePath: song.albumArt,
-            audioSourcePath: song.filePath,
-            fit: BoxFit.cover,
-            useThumbnail: true,
-            thumbnailWidth: 96,
-            thumbnailHeight: 96,
-            placeholder: ColoredBox(
-              color: AppColors.surface,
-              child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
-            ),
-            errorWidget: ColoredBox(
-              color: AppColors.surface,
-              child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
+    return LokalSwipeToQueue(
+      song: song,
+      child: ListTile(
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: CachedImageWidget(
+              imagePath: song.albumArt,
+              audioSourcePath: song.filePath,
+              fit: BoxFit.cover,
+              useThumbnail: true,
+              thumbnailWidth: 96,
+              thumbnailHeight: 96,
+              placeholder: ColoredBox(
+                color: AppColors.surface,
+                child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
+              ),
+              errorWidget: ColoredBox(
+                color: AppColors.surface,
+                child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
+              ),
             ),
           ),
         ),
-      ),
-      title: Text(
-        song.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontFamily: 'GoogleSansFlex',
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-          color: context.adaptiveTextPrimary,
+        title: Text(
+          song.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontFamily: 'GoogleSansFlex',
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            color: context.adaptiveTextPrimary,
+          ),
         ),
-      ),
-      subtitle: Text(
-        suffix != null && suffix.isNotEmpty
-            ? '${song.artist}${album != null && album.isNotEmpty ? ' · $album' : ''} · $suffix'
-            : '${song.artist}${album != null && album.isNotEmpty ? ' · $album' : ''}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontFamily: 'GoogleSansFlex',
-          fontSize: 12,
-          color: context.adaptiveTextTertiary,
+        subtitle: Text(
+          suffix != null && suffix.isNotEmpty
+              ? '${song.artist}${album != null && album.isNotEmpty ? ' · $album' : ''} · $suffix'
+              : '${song.artist}${album != null && album.isNotEmpty ? ' · $album' : ''}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontFamily: 'GoogleSansFlex',
+            fontSize: 12,
+            color: context.adaptiveTextTertiary,
+          ),
         ),
+        onTap: () => onPlay(song, playlistForMode),
+        onLongPress: () => SongActionsBottomSheet.show(context, song),
       ),
-      onTap: () => onPlay(song, playlistForMode),
-      onLongPress: () => SongActionsBottomSheet.show(context, song),
     );
   }
 }

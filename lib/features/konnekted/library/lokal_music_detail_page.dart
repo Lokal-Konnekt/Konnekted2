@@ -37,6 +37,7 @@ import 'lokal_library_groups.dart';
 import 'lokal_library_kit.dart';
 import 'lokal_online_catalogue.dart';
 import 'lokal_radio.dart';
+import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
 
 class LokalMusicDetailPage extends ConsumerStatefulWidget {
   const LokalMusicDetailPage.artist({
@@ -1227,67 +1228,71 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
 
   Widget _trackRow(_Entry row, List<_Entry> queue, int index) {
     final t = context.lokal, track = row.track.metadata;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
-      onTap: _busy ? null : () => _play(queue, start: index),
-      onLongPress: _busy ? null : () => _songActions(row),
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(9),
-        child: SizedBox.square(
-          dimension: 48,
-          child: CachedImageWidget(
-            imagePath:
-                row.owned?.albumArt ??
-                (track.artworkUrl.isEmpty ? null : track.artworkUrl),
-            audioSourcePath: row.owned?.filePath,
-            fit: BoxFit.cover,
-            placeholder: ColoredBox(
-              color: t.surface2,
-              child: Icon(Icons.music_note_rounded, color: t.muted),
-            ),
-            errorWidget: ColoredBox(
-              color: t.surface2,
-              child: Icon(Icons.music_note_rounded, color: t.muted),
-            ),
-          ),
-        ),
-      ),
-      title: Text(
-        track.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: t.text,
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
-        ),
-      ),
-      subtitle: Text(
-        widget.isArtist
-            ? track.artist
-            : '${row.track.disc != null && row.track.disc! > 1 ? '${row.track.disc} · ' : ''}${row.track.number ?? index + 1} · ${track.artist}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: t.muted, fontSize: 12),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (row.owned != null)
-            Tooltip(
-              message: lokalText('In library'),
-              child: Icon(
-                Icons.check_circle_outline_rounded,
-                color: t.accent,
-                size: 18,
+    return LokalSwipeToQueue(
+      song: row.owned ?? row.track.pending(),
+      enabled: !_busy,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+        onTap: _busy ? null : () => _play(queue, start: index),
+        onLongPress: _busy ? null : () => _songActions(row),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(9),
+          child: SizedBox.square(
+            dimension: 48,
+            child: CachedImageWidget(
+              imagePath:
+                  row.owned?.albumArt ??
+                  (track.artworkUrl.isEmpty ? null : track.artworkUrl),
+              audioSourcePath: row.owned?.filePath,
+              fit: BoxFit.cover,
+              placeholder: ColoredBox(
+                color: t.surface2,
+                child: Icon(Icons.music_note_rounded, color: t.muted),
+              ),
+              errorWidget: ColoredBox(
+                color: t.surface2,
+                child: Icon(Icons.music_note_rounded, color: t.muted),
               ),
             ),
-          IconButton(
-            tooltip: lokalText('More'),
-            icon: Icon(Icons.more_vert_rounded, color: t.muted, size: 20),
-            onPressed: _busy ? null : () => _songActions(row),
           ),
-        ],
+        ),
+        title: Text(
+          track.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: t.text,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+        subtitle: Text(
+          widget.isArtist
+              ? track.artist
+              : '${row.track.disc != null && row.track.disc! > 1 ? '${row.track.disc} · ' : ''}${row.track.number ?? index + 1} · ${track.artist}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: t.muted, fontSize: 12),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (row.owned != null)
+              Tooltip(
+                message: lokalText('In library'),
+                child: Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: t.accent,
+                  size: 18,
+                ),
+              ),
+            IconButton(
+              tooltip: lokalText('More'),
+              icon: Icon(Icons.more_vert_rounded, color: t.muted, size: 20),
+              onPressed: _busy ? null : () => _songActions(row),
+            ),
+          ],
+        ),
       ),
     );
   }

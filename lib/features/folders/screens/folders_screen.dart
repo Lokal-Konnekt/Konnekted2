@@ -19,6 +19,7 @@ import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
+import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
 
 /// Groups songs by immediate subfolder relative to [prefix] within [folderUri].
 ({List<FolderGroup> subfolders, List<Song> songs}) groupByImmediateFolder({
@@ -1541,85 +1542,88 @@ class _SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        onTap: onTap,
-        onLongPress: () => SongActionsBottomSheet.show(context, song),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppConstants.spacingMd,
-            vertical: AppConstants.spacingSm,
-          ),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                child: SizedBox(
-                  width: 46,
-                  height: 46,
-                  child: CachedImageWidget(
-                    imagePath: song.albumArt,
-                    audioSourcePath: song.filePath,
-                    fit: BoxFit.cover,
-                    useThumbnail: true,
-                    thumbnailWidth: 92,
-                    thumbnailHeight: 92,
-                    placeholder: ColoredBox(
-                      color: context.lokal.surface,
-                      child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
-                    ),
-                    errorWidget: ColoredBox(
-                      color: context.lokal.surface,
-                      child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
+    return LokalSwipeToQueue(
+      song: song,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          onTap: onTap,
+          onLongPress: () => SongActionsBottomSheet.show(context, song),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.spacingMd,
+              vertical: AppConstants.spacingSm,
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                  child: SizedBox(
+                    width: 46,
+                    height: 46,
+                    child: CachedImageWidget(
+                      imagePath: song.albumArt,
+                      audioSourcePath: song.filePath,
+                      fit: BoxFit.cover,
+                      useThumbnail: true,
+                      thumbnailWidth: 92,
+                      thumbnailHeight: 92,
+                      placeholder: ColoredBox(
+                        color: context.lokal.surface,
+                        child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
+                      ),
+                      errorWidget: ColoredBox(
+                        color: context.lokal.surface,
+                        child: FlickArtworkPlaceholder(size: 22, opacity: 0.9),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: AppConstants.spacingMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      song.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: context.lokal.text,
-                        fontWeight: FontWeight.w600,
+                const SizedBox(width: AppConstants.spacingMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        song.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: context.lokal.text,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${song.artist} • ${song.fileType.toUpperCase()}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: context.lokal.muted),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        '${song.artist} • ${song.fileType.toUpperCase()}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: context.lokal.muted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppConstants.spacingSm),
-              Text(
-                song.formattedDuration,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.lokal.muted2,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+                const SizedBox(width: AppConstants.spacingSm),
+                Text(
+                  song.formattedDuration,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.lokal.muted2,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: context.l10n.moreActions,
-                visualDensity: VisualDensity.compact,
-                icon: Icon(
-                  Icons.more_horiz_rounded,
-                  color: context.lokal.muted,
+                IconButton(
+                  tooltip: context.l10n.moreActions,
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.more_horiz_rounded,
+                    color: context.lokal.muted,
+                  ),
+                  onPressed: () => SongActionsBottomSheet.show(context, song),
                 ),
-                onPressed: () => SongActionsBottomSheet.show(context, song),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

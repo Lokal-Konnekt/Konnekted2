@@ -21,5 +21,21 @@ void main() {
     expect(tidalAtmosTransportFailure('DOLBY_ATMOS API: HTTP 502 for /dl/tid'), isTrue);
     expect(tidalAtmosTransportMessage('HTTP 502 for /dl/tid'), contains('HTTP 502'));
     expect(tidalAtmosTransportFailure('QUALITY_UNAVAILABLE'), isFalse);
+    const api502 = 'Quality DOLBY_ATMOS failed without confirmation that '
+        'the requested tier is unavailable | DOLBY_ATMOS API attempt 1: '
+        'HTTP 502 for /dl/tid; DOLBY_ATMOS API attempt 2: HTTP 502 for /dl/tid';
+    expect(tidalAtmosErrorMentionsMode(api502), isTrue);
+    expect(tidalAtmosTransportFailure(api502), isTrue);
+    expect(tidalAtmosTransportMessage(api502),
+        'Tidal Atmos unavailable: download service HTTP 502. '
+        'No Atmos stream was received. Retry later.');
+    expect(tidalAtmosErrorMentionsMode('HTTP 502 from Qobuz'), isFalse);
+    expect(tidalAtmosTierUnavailable('QUALITY_UNAVAILABLE'), isTrue);
+    expect(tidalAtmosTierUnavailable(
+        'TIDAL API did not report EAC3_JOC for this track'), isTrue);
+    expect(tidalAtmosTierUnavailable(api502), isFalse);
+    expect(tidalAtmosTransportMessage(
+        'DOLBY_ATMOS API attempt 1: TimeoutException after 0:00:30'),
+        contains('timed out'));
   });
 }

@@ -379,6 +379,7 @@ class PlaylistService {
     required String remoteId,
     required String name,
     List<String> songIds = const [],
+    String? coverArt,
     bool saveAfter = true,
   }) async {
     await _ensureLoaded();
@@ -393,6 +394,8 @@ class PlaylistService {
         songIds: songIds,
         updatedAt: now,
         sourcePath: sourcePath,
+        coverArt: coverArt,
+        clearCoverArt: coverArt == null,
       );
       final index = _playlists.indexWhere((item) => item.id == existing.id);
       if (index >= 0) {
@@ -406,6 +409,7 @@ class PlaylistService {
         createdAt: now,
         updatedAt: now,
         sourcePath: sourcePath,
+        coverArt: coverArt,
       );
       _playlists.add(playlist);
     }

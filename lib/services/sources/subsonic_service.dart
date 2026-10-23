@@ -218,13 +218,20 @@ class SubsonicService implements NetworkSourceService {
 
   /// Full song entries inside one playlist, or null when the playlist is
   /// gone. Entries are complete song objects (same shape as getAlbum).
-  Future<List<Map<String, dynamic>>?> getPlaylist(
+  Future<Map<String, dynamic>?> getPlaylistDetails(
     NetworkServerEntity server,
     String playlistId,
   ) async {
     final payload =
         await _getJson(server, 'getPlaylist', extra: {'id': playlistId});
-    final playlist = payload['playlist'] as Map<String, dynamic>?;
+    return payload['playlist'] as Map<String, dynamic>?;
+  }
+
+  Future<List<Map<String, dynamic>>?> getPlaylist(
+    NetworkServerEntity server,
+    String playlistId,
+  ) async {
+    final playlist = await getPlaylistDetails(server, playlistId);
     return (playlist?['entry'] as List<dynamic>?)?.cast<Map<String, dynamic>>();
   }
 
@@ -346,9 +353,15 @@ class SubsonicService implements NetworkSourceService {
     var songsFound = 0;
     var filesProcessed = 0;
     for (final album in albums) {
-      final albumName = album['album'] as String? ?? '';
-      final albumArtist = album['artist'] as String? ?? '';
-      final coverArt = album['coverArt'] as String?;
+      // AlbumID3 uses 'name'; some older servers also expose 'album'/'title'.
+      // Empty album-list fields must not hide valid fields from getAlbum songs.
+      final albumName = _firstText(album['name'], album['album'], album['title']);
+      final albumArtist = _firstText(
+        album['displayAlbumArtist'],
+        _joinedArtistNames(album['albumArtists']),
+        album['artist'],
+      );
+      final coverArt = _firstText(album['coverArt']);
       final year = _toInt(album['year']);
 
       try {
@@ -422,15 +435,24 @@ class SubsonicService implements NetworkSourceService {
   /// removed. Returns the number of playlists synced.
   Future<int> syncPlaylists(NetworkServerEntity server) async {
     final summaries = await getPlaylists(server);
-    final playlists = <({String remoteId, String name, List<Map<String, dynamic>> entries})>[];
+    final playlists = <({
+      String remoteId,
+      String name,
+      String? coverArt,
+      List<Map<String, dynamic>> entries,
+    })>[];
     for (final summary in summaries) {
       final remoteId = summary['id']?.toString();
       if (remoteId == null) continue;
       try {
-        final entries = await getPlaylist(server, remoteId) ?? const [];
+        final detail = await getPlaylistDetails(server, remoteId);
+        final entries = (detail?['entry'] as List<dynamic>?)
+                ?.cast<Map<String, dynamic>>() ??
+            const <Map<String, dynamic>>[];
         playlists.add((
           remoteId: remoteId,
-          name: summary['name'] as String? ?? 'Playlist',
+          name: _firstText(detail?['name'], summary['name']) ?? 'Playlist',
+          coverArt: _firstText(detail?['coverArt'], summary['coverArt']),
           entries: entries,
         ));
       } catch (e) {
@@ -464,7 +486,13 @@ class SubsonicService implements NetworkSourceService {
       }
     }
 
-    final songIdsByPlaylist = resolvePlaylistSongIds(playlists, byRemote);
+    final songIdsByPlaylist = resolvePlaylistSongIds(
+      [
+        for (final p in playlists)
+          (remoteId: p.remoteId, name: p.name, entries: p.entries),
+      ],
+      byRemote,
+    );
     final syncedPaths = <String>{};
     for (final p in playlists) {
       await _playlists.upsertNetworkPlaylist(
@@ -472,6 +500,7 @@ class SubsonicService implements NetworkSourceService {
         remoteId: p.remoteId,
         name: p.name,
         songIds: songIdsByPlaylist[p.remoteId] ?? const [],
+        coverArt: p.coverArt,
         saveAfter: false,
       );
       syncedPaths.add(
@@ -522,19 +551,24 @@ class SubsonicService implements NetworkSourceService {
     int? year,
   }) {
     final remoteId = s['id'] as String;
-    final songCoverArt = s['coverArt'] as String? ?? coverArt;
+    final songCoverArt = _firstText(s['coverArt'], coverArt);
     final durationSec = _toInt(s['duration']);
     return SongEntity()
       ..filePath = 'subsonic://${server.id}/$remoteId'
-      ..title = (s['title'] as String?) ?? 'Unknown'
-      ..artist = (s['artist'] as String?) ?? 'Unknown'
-      ..album = albumName ?? (s['album'] as String?)
-      ..albumArtist = albumArtist ?? (s['albumArtist'] as String?)
+      ..title = _firstText(s['title']) ?? 'Unknown'
+      ..artist = _firstText(s['artist'], s['displayArtist']) ?? 'Unknown'
+      ..album = _firstText(s['album'], albumName)
+      ..albumArtist = _firstText(
+        s['displayAlbumArtist'],
+        s['albumArtist'],
+        _joinedArtistNames(s['albumArtists']),
+        albumArtist,
+      )
       ..durationMs = durationSec != null ? durationSec * 1000 : null
       ..trackNumber = _toInt(s['track'])
       ..discNumber = _toInt(s['discNumber'])
-      ..year = year ?? _toInt(s['year'])
-      ..genre = s['genre'] as String?
+      ..year = _toInt(s['year']) ?? year
+      ..genre = _firstText(s['genre'])
       ..fileSize = _toInt(s['size'])
       ..fileType = s['suffix'] as String?
       ..bitrate = _toInt(s['bitRate'])
@@ -548,6 +582,26 @@ class SubsonicService implements NetworkSourceService {
       ..dateAdded = DateTime.now()
       ..lastModified = DateTime.now();
   }
+}
+
+/// Treat blank/missing fields as missing, not authoritative values. A number
+/// of OpenSubsonic servers expose only 'name' for AlbumID3, while songs
+/// provide the more detailed per-track fields.
+String? _firstText(Object? first, [Object? second, Object? third]) {
+  for (final value in [first, second, third]) {
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+  }
+  return null;
+}
+
+String? _joinedArtistNames(Object? value) {
+  if (value is! List) return null;
+  final names = [
+    for (final artist in value)
+      if (artist is Map)
+        if (_firstText(artist['name']) case final name?) name,
+  ];
+  return names.isEmpty ? null : names.join(', ');
 }
 
 /// Tolerant int cast: accepts JSON int or double, null stays null.

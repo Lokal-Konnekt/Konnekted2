@@ -314,7 +314,9 @@ class AddonSetting {
       for (final item in rawOptions.take(32)) {
         if (item is! Map) continue;
         final value = discoveryText(item['value'], maxLength: 120);
-        if (value == null || !values.add(value)) continue;
+        if (value == null ||
+            RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(value) ||
+            !values.add(value)) continue;
         options.add(AddonSettingOption(
           value,
           discoveryText(item['label'], maxLength: 80) ?? value,

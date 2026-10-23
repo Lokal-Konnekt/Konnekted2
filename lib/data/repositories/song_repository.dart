@@ -553,10 +553,16 @@ class SongRepository {
   Song songFromEntity(SongEntity entity) => _entityToSong(entity);
 
   Song _entityToSong(SongEntity entity) {
-    // Do not depend solely on the scanner's fileType: MediaStore commonly
-    // reports MP4/M4A instead of the enclosed E-AC-3 JOC codec.
+    // A MediaStore rescan may replace the encoded codec with the MP4
+    // container extension; mobile-downloaded Atmos files keep a filename
+    // suffix so ExoPlayer still receives the original JOC stream.
+    final path = entity.filePath.toLowerCase();
     final atmos = entity.fileType?.toUpperCase() == 'E-AC-3 JOC' ||
-        RegExp(r'\.atmos\.(?:m4a|mp4|ec3|eac3)
+        path.endsWith('.atmos.m4a') ||
+        path.endsWith('.atmos.mp4') ||
+        path.endsWith('.atmos.ec3') ||
+        path.endsWith('.atmos.eac3');
+    return Song(
       id: entity.id.toString(),
       title: entity.title,
       artist: entity.artist,

@@ -652,10 +652,11 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 throw DiscoveryException(tidalAtmosTransportMessage(reason));
               }
               if (tryAtmos) {
+                if (error is DiscoveryException) rethrow;
                 throw DiscoveryException(
                   tidalAtmosTierUnavailable(reason)
                       ? 'This source has no downloadable Atmos stream for this track. No stereo track was substituted.'
-                      : 'Atmos playback failed: $reason. No stereo track was substituted.',
+                      : 'Atmos download failed. No stereo track was substituted.',
                 );
               }
               rethrow;

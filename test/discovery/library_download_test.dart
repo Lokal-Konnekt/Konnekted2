@@ -17,6 +17,7 @@ void main() {
   final registered = <String>[];
   final indexed = <String>[];
   final covers = <String>[];
+  final tags = <String>[];
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -28,6 +29,7 @@ void main() {
     registered.clear();
     indexed.clear();
     covers.clear();
+    tags.clear();
   });
 
   tearDown(() => root.delete(recursive: true));
@@ -52,11 +54,31 @@ void main() {
     fallbackRoot: p.join(root.path, 'Music'),
     registerFolder: (path, name) async => registered.add(path),
     upsert: (entity) async => upserts.add(entity),
-    tag: (path, song) async => tagged,
+    tag: (path, song) async { tags.add(path); return tagged; },
     cover: (path, song, url) async => covers.add(url),
     indexMedia: (paths) async => indexed.addAll(paths),
     now: () => DateTime(2026, 10, 20),
   );
+
+  test('Atmos download remains byte-identical and retains codec identity', () async {
+    final music = Directory(p.join(root.path, 'Library'))..createSync();
+    final original = await cached.readAsBytes();
+    final joc = prepared().copyWith(
+      fileType: 'E-AC-3 JOC',
+      atmosAvailable: true,
+      atmosEncoded: true,
+    );
+    final saved = await downloader([
+      LibraryDownloadFolder(uri: 'content://music', name: 'Music',
+        path: music.path),
+    ]).save(joc, artwork: 'https://example.com/cover.jpg');
+    expect(saved.path, endsWith('.atmos.m4a'));
+    expect(await File(saved.path).readAsBytes(), original);
+    expect(upserts.single.fileType, 'E-AC-3 JOC');
+    expect(upserts.single.hasLocalEdits, isTrue);
+    expect(tags, isEmpty, reason: 'Tagging must not rewrite JOC MP4 boxes');
+    expect(covers, isEmpty, reason: 'Do not embed artwork into the Atmos container');
+  });
 
   test('copies into the first writable library folder and adds it', () async {
     final music = Directory(p.join(root.path, 'Library'))..createSync();

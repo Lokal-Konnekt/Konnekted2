@@ -171,11 +171,6 @@ _ReportData _sourceReport(Song song) {
     description: l10n.signalSourceDescription,
     fields: [
       _ReportField(l10n.signalFileFormat, format),
-      if (song.atmosAvailable)
-        _ReportField(
-          'Spatial catalogue version',
-          'Dolby Atmos available; decoded stream/output not verified',
-        ),
       _ReportField(
         song.isDsd ? l10n.signalDsdBitRate : l10n.sampleRate,
         rate == null ? l10n.signalNotReported : _formatHz(rate),

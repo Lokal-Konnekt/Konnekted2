@@ -602,6 +602,9 @@ Future<List<_PlaybackSource>> _morneyeSources(
                     : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
               );
               if (tryAtmos && !download.atmosEncoded) {
+                // The provider returned an ordinary recording. Discard the
+                // staged copy before rejecting the explicitly requested tier.
+                await download.cleanup();
                 throw const DiscoveryException(
                   'The provider did not return an E-AC-3 JOC Atmos file. No stereo track was substituted.',
                 );

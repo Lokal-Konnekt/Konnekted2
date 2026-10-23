@@ -5,7 +5,7 @@ import 'package:flick/features/discovery/discovery_artwork.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
 
 /// What can be done with a song Search found online.
-enum OnlineResultAction { play, playNext, addToQueue, download }
+enum OnlineResultAction { play, playAtmos, playNext, addToQueue, download }
 
 /// A Search result's cover: the source's, else Discovery's lookup (your
 /// library, Deezer, iTunes), else a note.
@@ -131,6 +131,12 @@ class _OnlineResultSheet extends StatelessWidget {
                     label: 'Play',
                     onTap: () => pick(OnlineResultAction.play),
                   ),
+                  if (track.atmosAvailable)
+                    _ActionRow(
+                      icon: Icons.surround_sound_rounded,
+                      label: 'Play Dolby Atmos',
+                      onTap: () => pick(OnlineResultAction.playAtmos),
+                    ),
                   _ActionRow(
                     icon: Icons.queue_play_next_rounded,
                     label: 'Play next',

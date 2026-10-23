@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 
 import '../../services/tidal_atmos_metadata.dart';
 import '../../services/atmos_playback_support.dart';
+import '../../services/atmos_diagnostics.dart';
 
 import 'morneye_host.dart';
 import 'morneye_network.dart';
@@ -241,6 +242,8 @@ class MorneyeTrack {
     this.discNumber,
     this.year,
     this.quality,
+    this.bitDepth,
+    this.sampleRate,
     this.atmosAvailable = false,
   });
 
@@ -257,8 +260,35 @@ class MorneyeTrack {
   final int? discNumber;
   final int? year;
   final String? quality;
+  final int? bitDepth;
+  final int? sampleRate;
   final bool atmosAvailable;
   String get key => provider.substring(2);
+
+  static int? _positiveInt(Object? value) {
+    final parsed = value is num ? value.toInt() : int.tryParse('$value');
+    return parsed != null && parsed > 0 ? parsed : null;
+  }
+
+  static int? _sampleRate(Map track) {
+    final raw = track['sample_rate'] ?? track['sampleRate'] ??
+        track['sampling_rate'] ?? track['samplingRate'] ??
+        track['maximum_sampling_rate'] ?? track['maxSampleRate'];
+    final value = raw is num
+        ? raw.toDouble()
+        : double.tryParse('$raw'.replaceAll(RegExp(r'\s*k(?:hz)?', caseSensitive: false), '').trim());
+    if (value == null || !value.isFinite || value <= 0) return null;
+    // Preserve 44.1 / 88.2 kHz exactly; don't truncate to 44 / 88.
+    final hz = (value <= 384 ? value * 1000 : value).round();
+    return hz >= 8000 && hz <= 768000 ? hz : null;
+  }
+
+  static int? _bitDepth(Map track) {
+    final bits = _positiveInt(track['bit_depth'] ?? track['bitDepth'] ??
+        track['bits_per_sample'] ?? track['bitsPerSample'] ??
+        track['maximum_bit_depth'] ?? track['maxBitDepth']);
+    return bits != null && bits <= 64 ? bits : null;
+  }
 
   static MorneyeTrack of(Map track, String provider) {
     final rawArtists = track['artists'];
@@ -299,7 +329,9 @@ class MorneyeTrack {
       year: int.tryParse(
         '${track['release_date'] ?? ''}'.padRight(4).substring(0, 4).trim(),
       ),
-      quality: track['audio_quality'] as String?,
+      quality: (track['audio_quality'] ?? track['audioQuality'] ?? track['quality'])?.toString(),
+      bitDepth: _bitDepth(track),
+      sampleRate: _sampleRate(track),
       atmosAvailable: tidalAtmosAvailable(track),
     );
   }
@@ -1605,6 +1637,10 @@ class MorneyePackages {
           lossless ??
           first ??
           'default';
+      if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('addon_download_start', {
+        'source': provider == 'tidal' ? 'tidal' : 'other',
+        'quality': 'DOLBY_ATMOS',
+      });
       final result = await runtime.invoke('download', [
         '${available['track_id'] ?? available['trackId'] ?? id}',
         chosen,
@@ -1612,6 +1648,9 @@ class MorneyePackages {
         {'preparedContext': prepared, 'resolutionTimeoutMs': 60000},
       ], const Duration(hours: 24));
       if (result is! Map || result['success'] != true) {
+        if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('addon_download_failed', {
+          'reason': 'addon_returned_failure',
+        });
         final message = result is Map
             ? (result['error_message'] ?? result['error'])
             : null;
@@ -1622,6 +1661,9 @@ class MorneyePackages {
         '${result['file_path'] ?? result['filePath'] ?? result['path']}',
       );
       if (!File(file).existsSync() || File(file).lengthSync() == 0) {
+        if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('addon_download_failed', {
+          'reason': 'empty_file',
+        });
         throw const MorneyePackageError('Addon produced an empty file');
       }
       final decryption =
@@ -1631,6 +1673,9 @@ class MorneyePackages {
               ? {'strategy': 'ffmpeg.mov_key', 'key': result['decryption_key']}
               : null);
       if (decryption != null) {
+        if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('postprocess_start', {
+          'stage': 'decrypt',
+        });
         if (decryption is! Map ||
             decryption['strategy'] != 'ffmpeg.mov_key' ||
             !RegExp(r'^[a-fA-F0-9]{32}$')
@@ -1678,6 +1723,10 @@ class MorneyePackages {
       // remains unchanged.
       final verifiedAtmos = quality == 'DOLBY_ATMOS' &&
           await AtmosPlaybackSupport.isJocFile(file);
+      if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('joc_validation', {
+        'encoded': verifiedAtmos,
+        'outcome': verifiedAtmos ? 'confirmed' : 'rejected',
+      });
       if (verifiedAtmos) {
         // Media3/ExoPlayer handles JOC using the licensed Android stack.
         // Never feed JOC through Symphonia/Rust or a PCM transcoder.

@@ -17,7 +17,11 @@ class DiscoveryTrack {
     this.inlineStream,
     this.artwork,
     this.atmosAvailable = false,
+    this.atmosRequested = false,
+    this.atmosDownload = false,
     this.catalogueQuality,
+    this.catalogueBitDepth,
+    this.catalogueSampleRate,
   });
 
   final String id;
@@ -42,8 +46,25 @@ class DiscoveryTrack {
   /// Catalogue flag only. The decoded output might be stereo.
   final bool atmosAvailable;
 
+  /// Explicit mobile 'Play Atmos' request; never inferred from a catalogue flag.
+  final bool atmosRequested;
+  /// A verified JOC download can be saved without an Atmos playback device.
+  final bool atmosDownload;
+
   /// Provider-reported quality, not a verified active audio output.
   final String? catalogueQuality;
+  final int? catalogueBitDepth;
+  final int? catalogueSampleRate;
+
+  DiscoveryTrack requestAtmos({bool downloadOnly = false}) => DiscoveryTrack(
+    id: id, title: title, artist: artist, source: source,
+    duration: duration, album: album, sourceUrl: sourceUrl, addonBase: addonBase,
+    addonId: addonId, sourceName: sourceName, inlineStream: inlineStream,
+    artwork: artwork, atmosAvailable: atmosAvailable, atmosRequested: true,
+    atmosDownload: downloadOnly,
+    catalogueQuality: catalogueQuality, catalogueBitDepth: catalogueBitDepth,
+    catalogueSampleRate: catalogueSampleRate,
+  );
 
   /// This track with [cover] as its artwork when it has none of its own.
   DiscoveryTrack withArtwork(String? cover) =>
@@ -63,10 +84,14 @@ class DiscoveryTrack {
           inlineStream: inlineStream,
           artwork: cover,
           atmosAvailable: atmosAvailable,
+          atmosRequested: atmosRequested,
+          atmosDownload: atmosDownload,
           catalogueQuality: catalogueQuality,
+          catalogueBitDepth: catalogueBitDepth,
+          catalogueSampleRate: catalogueSampleRate,
         );
 
-  String get key => '${source.name}:$addonId:$addonBase:$id';
+  String get key => '${source.name}:$addonId:$addonBase:$id${atmosRequested ? ':atmos' : ''}';
 }
 
 /// Safe to display: transport errors and remote response bodies never reach UI.

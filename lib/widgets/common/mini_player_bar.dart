@@ -11,7 +11,7 @@ import 'package:flick/models/mini_player_config.dart';
 import 'package:flick/widgets/navigation/bottom_bar_geometry.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
-import 'package:flick/widgets/common/marquee_widget.dart';
+import 'package:flick/widgets/common/overflow_marquee_title.dart';
 
 class MiniPlayerBar extends StatelessWidget {
   final MiniPlayerConfig config;
@@ -271,37 +271,12 @@ class MiniPlayerBar extends StatelessWidget {
     );
   }
 
-  Widget _title(BuildContext context, TextStyle style) {
-    final text = Text(
-      title,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: style,
-    );
-    if (config.titleMode != MiniPlayerTitleMode.scroll ||
-        MediaQuery.disableAnimationsOf(context) ||
-        !TickerMode.valuesOf(context).enabled) {
-      return text;
-    }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final painter = TextPainter(
-          text: TextSpan(text: title, style: style),
-          textDirection: Directionality.of(context),
-          textScaler: MediaQuery.textScalerOf(context),
-          maxLines: 1,
-        )..layout();
-        final overflows = painter.width > constraints.maxWidth;
-        painter.dispose();
-        return overflows
-            ? MarqueeWidget(
-                key: ValueKey(title),
-                child: Text(title, maxLines: 1, style: style),
-              )
-            : text;
-      },
-    );
-  }
+  Widget _title(BuildContext context, TextStyle style) => OverflowMarqueeTitle(
+    key: ValueKey('bar-title:$songId'),
+    title: title,
+    style: style,
+    enabled: config.titleMode == MiniPlayerTitleMode.scroll,
+  );
 
   Widget _control(
     BuildContext context,

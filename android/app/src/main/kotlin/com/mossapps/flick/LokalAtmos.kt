@@ -8,6 +8,7 @@ import android.media.MediaCodecList
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.os.Build
+import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 
@@ -19,6 +20,7 @@ import io.flutter.plugin.common.MethodChannel
 internal object LokalAtmos {
     private const val CHANNEL = "lokal/atmos"
     private const val JOC = "audio/eac3-joc"
+    private const val TAG = "LokalAtmos"
 
     fun register(messenger: BinaryMessenger, context: Context) {
         MethodChannel(messenger, CHANNEL).setMethodCallHandler { call, result ->
@@ -34,9 +36,11 @@ internal object LokalAtmos {
         }
     }
 
-    private fun capabilities(): Map<String, Boolean> {
+    private fun capabilities(): Map<String, Any> {
         if (Build.VERSION.SDK_INT < 28) {
-            return mapOf("available" to false, "jocDecoder" to false, "passthrough" to false)
+            Log.i(TAG, "event=capability sdk=${Build.VERSION.SDK_INT} available=false reason=sdk_unsupported")
+            return mapOf("available" to false, "jocDecoder" to false,
+                "passthrough" to false, "sdk" to Build.VERSION.SDK_INT)
         }
 
         // Only explicitly supported JOC decoders count. A generic E-AC-3
@@ -45,7 +49,10 @@ internal object LokalAtmos {
             MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { codec ->
                 !codec.isEncoder && codec.supportedTypes.any { it.equals(JOC, true) }
             }
-        } catch (_: Exception) { false }
+        } catch (error: Exception) {
+            Log.w(TAG, "event=decoder_probe_error type=${error.javaClass.simpleName}")
+            false
+        }
 
         val passthrough = if (Build.VERSION.SDK_INT >= 29) try {
             val format = AudioFormat.Builder()
@@ -58,11 +65,17 @@ internal object LokalAtmos {
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                 .build()
             AudioTrack.isDirectPlaybackSupported(format, attributes)
-        } catch (_: Exception) { false } else false
+        } catch (error: Exception) {
+            Log.w(TAG, "event=passthrough_probe_error type=${error.javaClass.simpleName}")
+            false
+        } else false
+        val available = codecSupported || passthrough
+        Log.i(TAG, "event=capability sdk=${Build.VERSION.SDK_INT} jocDecoder=$codecSupported passthrough=$passthrough available=$available")
         return mapOf(
-            "available" to (codecSupported || passthrough),
+            "available" to available,
             "jocDecoder" to codecSupported,
-            "passthrough" to passthrough
+            "passthrough" to passthrough,
+            "sdk" to Build.VERSION.SDK_INT
         )
     }
 
@@ -70,11 +83,15 @@ internal object LokalAtmos {
         val extractor = MediaExtractor()
         return try {
             extractor.setDataSource(path)
-            (0 until extractor.trackCount).any { index ->
+            val found = (0 until extractor.trackCount).any { index ->
                 val format = extractor.getTrackFormat(index)
                 format.getString(MediaFormat.KEY_MIME)?.equals(JOC, true) == true
             }
-        } catch (_: Exception) {
+            // No file path, filename, URL, or provider response is logged.
+            Log.i(TAG, "event=source_probe tracks=${extractor.trackCount} joc=$found")
+            found
+        } catch (error: Exception) {
+            Log.w(TAG, "event=source_probe_error type=${error.javaClass.simpleName}")
             false
         } finally {
             extractor.release()

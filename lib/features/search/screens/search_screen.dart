@@ -29,6 +29,8 @@ import 'package:flick/features/konnekted/library/lokal_library_kit.dart';
 import 'package:flick/features/konnekted/library/lokal_navigation.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
+import 'package:flick/services/catalogue_quality.dart';
+import 'package:flick/widgets/lokal/lokal_quality.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -770,17 +772,50 @@ class _SongTile extends ConsumerWidget {
             color: context.adaptiveTextPrimary,
           ),
         ),
-        subtitle: Text(
-          suffix != null && suffix.isNotEmpty
-              ? '${song.artist}${album != null && album.isNotEmpty ? ' · $album' : ''} · $suffix'
-              : '${song.artist}${album != null && album.isNotEmpty ? ' · $album' : ''}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontFamily: 'GoogleSansFlex',
-            fontSize: 12,
-            color: context.adaptiveTextTertiary,
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              suffix != null && suffix.isNotEmpty
+                  ? '${song.artist}${album != null && album.isNotEmpty ? ' · $album' : ''} · $suffix'
+                  : '${song.artist}${album != null && album.isNotEmpty ? ' · $album' : ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'GoogleSansFlex',
+                fontSize: 12,
+                color: context.adaptiveTextTertiary,
+              ),
+            ),
+            if (catalogueAudioDetails(
+                quality: song.resolution,
+                bitDepth: song.bitDepth,
+                sampleRate: song.sampleRate,
+                codec: song.fileType,
+              ) case final info when info.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(
+                  info,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'GoogleSansFlex',
+                    fontSize: 10.5,
+                    color: context.adaptiveTextTertiary,
+                  ),
+                ),
+              ),
+            if (song.atmosAvailable || song.atmosEncoded)
+              const Padding(
+                padding: EdgeInsets.only(top: 3),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: LokalAtmosPill(),
+                ),
+              ),
+          ],
         ),
         onTap: () => onPlay(song, playlistForMode),
         onLongPress: () => SongActionsBottomSheet.show(context, song),

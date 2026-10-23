@@ -36,7 +36,7 @@ class MiniPlayerConfig {
     this.showBorder = true,
     this.shadow = MiniPlayerShadow.subtle,
     this.textScale = 1,
-    this.titleMode = MiniPlayerTitleMode.truncate,
+    this.titleMode = MiniPlayerTitleMode.scroll,
   });
 
   static const defaultConfig = MiniPlayerConfig();
@@ -135,7 +135,7 @@ class MiniPlayerConfig {
       titleMode: choice(
         'titleMode',
         MiniPlayerTitleMode.values,
-        MiniPlayerTitleMode.truncate,
+        MiniPlayerTitleMode.scroll,
       ),
     );
   }

@@ -17,6 +17,7 @@ import 'package:flick/models/playback_context.dart';
 import 'package:flick/models/playback_state.dart';
 import 'package:flick/models/shuffle_mode.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/services/atmos_diagnostics.dart';
 import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/services/notification_service.dart';
 import 'package:flick/services/floating_player_service.dart';
@@ -4956,7 +4957,14 @@ class PlayerService {
       requiresRustDecoder: song.requiresRustDecoder,
       isAtmosJoc: song.atmosEncoded,
     );
-    if (routed != desiredEngine) {
+    if (song.atmosEncoded) {
+      AtmosDiagnostics.record('engine_routing', {
+        'codec': 'eac3_joc',
+        'desiredEngine': desiredEngine.name,
+        'engine': routed.name,
+        'reason': routed != desiredEngine ? 'joc_requires_system' : 'native_system',
+      });
+    } else if (routed != desiredEngine) {
       _debugLog(
         '[Engine] ${song.title} needs the Rust decoder '
         '(${song.fileType.toUpperCase()}); routing '
@@ -5153,6 +5161,11 @@ class PlayerService {
         _debugLog(
           '[Engine] Playback route resolved to ${activeEngine.logLabel}',
         );
+        if (song.atmosEncoded) AtmosDiagnostics.record('playback_route', {
+          'engine': activeEngine.name,
+          'encoded': true,
+          'reason': _usingRustBackend ? 'unexpected_rust_engine' : 'android_mediacodec',
+        });
         if (_usingRustBackend) {
           await _applyRustPlaybackProcessingPolicy(activeEngine);
           // ReplayGain must reach the engine before the play command so the
@@ -5161,6 +5174,10 @@ class PlayerService {
         }
         await _runWithSuppressedSequenceStateUpdates(() async {
           await _playbackManager.playTrack(song);
+        });
+        if (song.atmosEncoded) AtmosDiagnostics.record('player_loaded', {
+          'outcome': 'source_submitted',
+          'engine': activeEngine.name,
         });
         if (!_usingRustBackend && !song.atmosEncoded) {
           unawaited(_applyReplayGainForSystemTier(song));

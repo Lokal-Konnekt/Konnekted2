@@ -2,16 +2,26 @@ import 'package:flick/features/discovery/recommendation_match.dart'
     show leadArtist, recommendationKey, titleKey;
 import 'package:flick/models/song.dart';
 
-/// Linked desktop entries remain in storage for playlist/history identities,
-/// but a locally available copy takes precedence in the *displayed library*.
-///
-/// This is intentionally recording-level, not fuzzy artwork matching: require
-/// the same lead artist, normalized recording title and a known duration within
-/// two seconds. Featured-artist credit differences must not produce duplicate
-/// rows, but live/remix/edit variants must remain separate.
-///
-/// Server-only music stays visible. Nothing is removed from the database.
-List<Song> preferLocalLibrarySongs(List<Song> songs) {
+/// Visible library rows and a lookup for existing playlist IDs. An imported
+/// desktop song may be hidden in the library in favour of an equivalent local
+/// recording, but that must never make a saved playlist entry disappear.
+class PreferredLibrarySongIndex {
+  const PreferredLibrarySongIndex({
+    required this.visible,
+    required this.byId,
+  });
+
+  final List<Song> visible;
+
+  /// Includes aliases from suppressed desktop track IDs to their phone copies.
+  /// Ghost-only history tracks are intentionally absent.
+  final Map<String, Song> byId;
+}
+
+/// Recording-level matching, not fuzzy artwork matching: require a lead
+/// artist, normalized title, duration within two seconds, and compatible
+/// known album tags. Do not conflate different edits/masters.
+PreferredLibrarySongIndex preferredLibrarySongIndex(List<Song> songs) {
   String? recordingKey(Song song) {
     if (song.duration <= Duration.zero) return null;
     final artist = recommendationKey(leadArtist(song.artist));
@@ -20,8 +30,6 @@ List<Song> preferLocalLibrarySongs(List<Song> songs) {
     return '$artist\u0000$title';
   }
 
-  // Index real phone copies once, rather than comparing every local song to
-  // the full desktop catalogue. This is linear for normal library imports.
   final locallyAvailable = <String, List<Song>>{};
   for (final song in songs) {
     if (song.isNetworkSource ||
@@ -34,31 +42,41 @@ List<Song> preferLocalLibrarySongs(List<Song> songs) {
     if (key != null) (locallyAvailable[key] ??= []).add(song);
   }
 
-  bool duplicatedOnPhone(Song desktop) {
-    if (desktop.sourceType != 'lokal') return false;
+  Song? matchingPhoneCopy(Song desktop) {
+    if (desktop.sourceType != 'lokal') return null;
     final key = recordingKey(desktop);
-    if (key == null) return false;
-    return (locallyAvailable[key] ?? const <Song>[]).any((phone) {
-      final sameDuration =
-          (phone.duration - desktop.duration).abs() <=
-          const Duration(seconds: 2);
-      if (!sameDuration) return false;
+    if (key == null) return null;
+    for (final phone in locallyAvailable[key] ?? const <Song>[]) {
+      if ((phone.duration - desktop.duration).abs() >
+          const Duration(seconds: 2)) {
+        continue;
+      }
 
-      // A missing album tag is common in desktop/mobile sync and shouldn't
-      // prevent an otherwise strong recording match. Distinct *known* album
-      // titles can represent different masters and are kept separate.
       final localAlbum = recommendationKey(phone.album);
       final desktopAlbum = recommendationKey(desktop.album);
-      return localAlbum.isEmpty ||
+      if (localAlbum.isEmpty ||
           desktopAlbum.isEmpty ||
-          localAlbum == desktopAlbum;
-    });
+          localAlbum == desktopAlbum) {
+        return phone;
+      }
+    }
+    return null;
   }
 
-  return [
-    for (final song in songs)
-      if (!(song.filePath?.startsWith('ghost://') ?? false) &&
-          !duplicatedOnPhone(song))
-        song,
-  ];
+  final visible = <Song>[];
+  final byId = <String, Song>{};
+  for (final song in songs) {
+    if (song.filePath?.startsWith('ghost://') ?? false) continue;
+    final replacement = matchingPhoneCopy(song);
+    if (replacement == null) visible.add(song);
+    // Retain original IDs as aliases for playlists and other references.
+    byId[song.id] = replacement ?? song;
+  }
+  return PreferredLibrarySongIndex(visible: visible, byId: byId);
 }
+
+/// In the library, prefer phone copies to equivalent desktop records.
+/// The desktop records remain in the database; saved playlists can resolve
+/// their original IDs through [preferredLibrarySongIndex].
+List<Song> preferLocalLibrarySongs(List<Song> songs) =>
+    preferredLibrarySongIndex(songs).visible;

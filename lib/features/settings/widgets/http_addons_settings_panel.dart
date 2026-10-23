@@ -304,8 +304,9 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
       settings: choices,
       enabled: old.enabled,
     );
-    final next = [...latest.addons]..[index] = edited;
-    await _persist(_withAddons(next), 'Add-on settings saved.');
+    final addons = [...latest.addons];
+    addons[index] = edited;
+    await _persist(_withAddons(addons), 'Add-on settings saved.');
   }
 
   Future<void> _remove(int index) async {

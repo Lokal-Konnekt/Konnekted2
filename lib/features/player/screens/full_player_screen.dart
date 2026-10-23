@@ -954,6 +954,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         ),
                       ),
                     ],
+                    if (song.atmosEncoded) ...[
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => SongMetadataSheet.show(context, song),
+                        child: const LokalAtmosStreamPill(),
+                      ),
+                    ],
                     if (LokalQualityTier.of(song) case final tier?) ...[
                       const SizedBox(width: 12),
                       InkWell(

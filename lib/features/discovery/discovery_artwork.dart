@@ -113,6 +113,14 @@ class DiscoveryArtworkResolver {
   int _running = 0;
 
   /// The cover for [request], or '' when none matches.
+  /// Allow an explicit retry to requery a previous miss. Rich Presence may
+  /// need to recover after a transient API timeout, while Discovery's ordinary
+  /// five-minute miss cache should remain unchanged.
+  void invalidateMiss(DiscoveryArtworkRequest request) {
+    final id = request.cacheKey;
+    if (_cache[id]?.image.isEmpty == true) _cache.remove(id);
+  }
+
   Future<String> resolve(DiscoveryArtworkRequest request) {
     if (!request.isComplete) return Future.value('');
     final id = request.cacheKey;

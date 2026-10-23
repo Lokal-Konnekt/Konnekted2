@@ -162,6 +162,81 @@ String titleKey(String? title) => recommendationKey(
       .replaceAllMapped(_featSuffix, _stripFeatured),
 );
 
+/// Minimum accepted score for a fuzzy *artwork* match. This is never used to
+/// decide which recording to play: a wrong cover should be omitted, not guessed.
+const double artworkConfidenceThreshold = 0.84;
+
+/// How likely a remotely found cover belongs to a locally tagged track.
+/// The artist must match (including known featured-credit variants), and
+/// recording-altering versions such as remixes/edits/live recordings must agree.
+/// Only then do title spelling and word overlap produce a confidence score.
+double artworkMatchConfidence({
+  required String title,
+  required String artist,
+  required String candidateTitle,
+  required String candidateArtist,
+}) {
+  final expectedArtists = {
+    recommendationKey(mainArtist(artist)),
+    recommendationKey(leadArtist(artist)),
+  }..remove('');
+  final foundArtists = {
+    recommendationKey(mainArtist(candidateArtist)),
+    recommendationKey(leadArtist(candidateArtist)),
+  }..remove('');
+  if (expectedArtists.isEmpty || foundArtists.intersection(expectedArtists).isEmpty) {
+    return 0;
+  }
+  final wanted = titleKey(title);
+  final found = titleKey(candidateTitle);
+  if (wanted.isEmpty || found.isEmpty) return 0;
+  if (wanted == found) return 1;
+
+  // A very similar title must never let a remix, live recording or edit
+  // borrow the original recording's cover (or vice versa).
+  Set<String> versions(String value) =>
+      _versionWords.allMatches(value).map((m) => m.group(0)!.toLowerCase()).toSet();
+  final wantedVersions = versions(wanted);
+  final foundVersions = versions(found);
+  if (wantedVersions.length != foundVersions.length ||
+      !wantedVersions.containsAll(foundVersions)) {
+    return 0;
+  }
+
+  const stopWords = {'a', 'an', 'and', 'at', 'by', 'for', 'in', 'of', 'on', 'the', 'to', 'with'};
+  Set<String> important(String value) => value
+      .split(' ')
+      .where((word) => word.length >= 3 && !stopWords.contains(word))
+      .toSet();
+  final importantOverlap = important(wanted).intersection(important(found));
+  if (importantOverlap.length < 2) return 0;
+
+  final leftTokens = wanted.split(' ').toSet();
+  final rightTokens = found.split(' ').toSet();
+  final tokenOverlap = leftTokens.intersection(rightTokens).length /
+      (leftTokens.length > rightTokens.length ? leftTokens.length : rightTokens.length);
+
+  // Normalized Levenshtein similarity gives small substitutions a fair score.
+  final a = wanted.runes.toList();
+  final b = found.runes.toList();
+  var previous = List<int>.generate(b.length + 1, (i) => i);
+  for (var i = 1; i <= a.length; i++) {
+    final next = List<int>.filled(b.length + 1, 0);
+    next[0] = i;
+    for (var j = 1; j <= b.length; j++) {
+      final substitution = a[i - 1] == b[j - 1] ? 0 : 1;
+      final remove = previous[j] + 1;
+      final insert = next[j - 1] + 1;
+      final replace = previous[j - 1] + substitution;
+      next[j] = [remove, insert, replace].reduce((x, y) => x < y ? x : y);
+    }
+    previous = next;
+  }
+  final maxLength = a.length > b.length ? a.length : b.length;
+  final characterScore = 1 - previous[b.length] / maxLength;
+  return 0.8 * characterScore + 0.2 * tokenOverlap;
+}
+
 final _versionWords = RegExp(
   r'\b(?:remix|live|cover|instrumental|acoustic|karaoke|edit|sped up|slowed|nightcore)\b',
   caseSensitive: false,

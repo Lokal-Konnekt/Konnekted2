@@ -21,6 +21,30 @@ RecommendationCandidate? _match(
 ) => recommendationMatch(wanted, results, (result) => result);
 
 void main() {
+  test('artwork confidence accepts minor title wording with exact artist', () {
+    final score = artworkMatchConfidence(
+      title: 'Biggest in the City',
+      artist: 'Knuckle G',
+      candidateTitle: 'Biggest of the City (Original Mix)',
+      candidateArtist: 'Knuckle G',
+    );
+    expect(score, greaterThanOrEqualTo(artworkConfidenceThreshold));
+    expect(score, lessThan(1));
+  });
+
+  test('artwork confidence rejects remixes, wrong artists and other songs', () {
+    double score(String foundTitle, String foundArtist) => artworkMatchConfidence(
+      title: 'Biggest in the City',
+      artist: 'Knuckle G',
+      candidateTitle: foundTitle,
+      candidateArtist: foundArtist,
+    );
+    expect(score('Biggest of the City (Remix)', 'Knuckle G'), 0);
+    expect(score('Biggest of the City', 'Another Artist'), 0);
+    expect(score('Biggest in Paris', 'Knuckle G'), lessThan(artworkConfidenceThreshold));
+    expect(score('Biggest of the City', 'Knuckle G'), greaterThanOrEqualTo(artworkConfidenceThreshold));
+  });
+
   test('keys drop Latin accents and punctuation but keep other scripts', () {
     expect(recommendationKey('Beyoncé — Halo!'), 'beyonce halo');
     expect(recommendationKey('ＡＢＣ'), 'abc');

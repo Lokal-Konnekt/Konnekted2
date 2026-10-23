@@ -282,6 +282,91 @@ class DiscoveryArtworkResolver {
         /* Keep the placeholder if every artwork source fails. */
       }
     }
+    // Exact matches remain preferred. When local tags have a small wording
+    // mismatch, search a broader phrase and accept only a high-confidence
+    // match from the *same artist*. Never silently pick the first search hit.
+    if (!album) {
+      const stopWords = {'a', 'an', 'and', 'at', 'by', 'for', 'in', 'of', 'on', 'the', 'to', 'with'};
+      final keywords = titleKey(request.title)
+          .split(' ')
+          .where((word) => word.length >= 3 && !stopWords.contains(word))
+          .toList();
+      if (keywords.length >= 2) {
+        final candidates = <({double score, String title, String url})>[];
+        void consider(String title, String artist, String url) {
+          final image = allowed(url);
+          if (image.isEmpty) return;
+          final score = artworkMatchConfidence(
+            title: request.title,
+            artist: request.artist,
+            candidateTitle: title,
+            candidateArtist: artist,
+          );
+          if (score >= artworkConfidenceThreshold) {
+            candidates.add((score: score, title: title, url: image));
+          }
+        }
+
+        final broadTitle = keywords.join(' ');
+        final deezerResults = await _rows(
+          Uri.https('api.deezer.com', '/search', {
+            'q': 'artist:"${request.artist}" $broadTitle',
+            'limit': '30',
+          }),
+          'data',
+        );
+        for (final row in deezerResults) {
+          final albumArt = row['album'] is Map ? row['album'] as Map : const {};
+          final artist = row['artist'] is Map ? row['artist'] as Map : const {};
+          consider(
+            row['title']?.toString() ?? '',
+            nameOf(artist),
+            first([albumArt['cover_xl'], albumArt['cover_big']]),
+          );
+        }
+
+        for (final country in ['us', 'gb']) {
+          final itunesResults = await _rows(
+            Uri.https('itunes.apple.com', '/search', {
+              'term': '${request.artist} $broadTitle',
+              'country': country,
+              'entity': 'song',
+              'limit': '30',
+            }),
+            'results',
+          );
+          for (final row in itunesResults) {
+            final small = row['artworkUrl100'];
+            consider(
+              row['trackName']?.toString() ?? '',
+              row['artistName']?.toString() ?? '',
+              small is String ? small.replaceFirst('100x100bb', '600x600bb') : '',
+            );
+          }
+        }
+
+        if (searchSongs != null) {
+          try {
+            for (final result in await searchSongs!('${request.artist} $broadTitle')) {
+              consider(result.title, result.artist, result.artwork ?? '');
+            }
+          } catch (_) {
+            // Keep candidates already verified from other sources.
+          }
+        }
+
+        candidates.sort((a, b) => b.score.compareTo(a.score));
+        if (candidates.isNotEmpty) {
+          final best = candidates.first;
+          // Two competing, differently titled candidates with nearly equal
+          // confidence are ambiguous. Avoid showing an unrelated cover.
+          final competing = candidates.where((candidate) =>
+              titleKey(candidate.title) != titleKey(best.title) &&
+              best.score - candidate.score < 0.025);
+          if (competing.isEmpty) return best.url;
+        }
+      }
+    }
     return '';
   }
 }

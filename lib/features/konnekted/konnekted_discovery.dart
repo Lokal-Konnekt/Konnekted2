@@ -597,9 +597,17 @@ Future<List<_PlaybackSource>> _morneyeSources(
               }
             } catch (error) {
               if (!tryAtmos) rethrow;
-              // The Mornye provider or device did not return playable JOC.
-              // Request the normal stereo tier; never transcode a JOC file.
-              onStatus?.call('Atmos unavailable on this route. Using stereo…');
+              final reason = error.toString();
+              // The Tidal service distinguishes a *confirmed unavailable*
+              // Atmos tier from upstream timeouts and HTTP 5xx. A transient
+              // server failure is NOT permission to relabel stereo playback
+              // or automatically choose another provider.
+              if (tidalAtmosTransportFailure(reason)) {
+                throw DiscoveryException(tidalAtmosTransportMessage(reason));
+              }
+              // Explicitly unavailable on this route: use this same provider's
+              // stereo track rather than transcoding JOC metadata.
+              onStatus?.call('Tidal Atmos is unavailable. Loading Tidal stereo…');
               download = await fetch(quality: 'HI_RES_LOSSLESS');
             }
           } on MorneyePackageError catch (error) {
@@ -630,6 +638,24 @@ Future<List<_PlaybackSource>> _morneyeSources(
         },
       ),
   ];
+}
+
+/// The Tidal API's 502 / timeout is not evidence that the Atmos tier is
+/// unavailable. Keep the failure on the requested provider and make it
+/// actionable rather than displaying a page-long extension stack trace.
+bool tidalAtmosTransportFailure(String message) =>
+    RegExp(r'HTTP\\s*50[0-9]|TimeoutException|timed?\\s*out|network error|without confirmation',
+      caseSensitive: false).hasMatch(message);
+
+String tidalAtmosTransportMessage(String message) {
+  final status = RegExp(r'HTTP\\s*(50[0-9])', caseSensitive: false)
+      .firstMatch(message)?.group(1);
+  if (status != null) {
+    return 'Tidal Atmos server returned HTTP $status. The original Atmos '
+        'stream could not be retrieved. Retry later; no stereo replacement was played.';
+  }
+  return 'Tidal Atmos server timed out while preparing the original stream. '
+      'Retry later; no stereo replacement was played.';
 }
 
 /// One line of an add-on's download progress, "Getting Song from Qobuz…

@@ -357,6 +357,10 @@ class _KonnektedCoverFlowSectionState
         ),
         const SizedBox(height: 8),
         LokalCoverFlow(
+          // Match desktop: land on the middle pick, not the first. Recreate
+          // the flow if the shelf length changes so the initial index updates.
+          key: ValueKey(list.length),
+          initialIndex: list.length ~/ 2,
           albums: list,
           onPlay: widget.onPlay,
           onSelect: (i) => widget.onPlay(list[i].songs.first, [

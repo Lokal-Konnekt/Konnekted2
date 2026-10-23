@@ -234,6 +234,12 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
                         checked: _audioFilter == 'quality:${value.name}',
                         child: Text(lokalText(value.label)),
                       ),
+                    if (widget.songs.any((song) => song.atmosAvailable))
+                      CheckedPopupMenuItem(
+                        value: 'atmos',
+                        checked: _audioFilter == 'atmos',
+                        child: const Text('Dolby Atmos available'),
+                      ),
                     if (libraryAudioFormats(widget.songs).isNotEmpty) ...[
                       const PopupMenuDivider(),
                       PopupMenuItem(

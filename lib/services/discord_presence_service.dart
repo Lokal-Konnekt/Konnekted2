@@ -1,4 +1,5 @@
 import 'package:flick/models/song.dart';
+import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/features/discovery/discovery_artwork.dart';
 import 'package:flick/features/discovery/discovery_http.dart';
 import 'package:flick/services/graceful_http_client.dart';
@@ -43,7 +44,7 @@ class DiscordPresenceService extends ChangeNotifier {
   // Last.fm/Discovery and Discord use exactly the same remote cover lookup.
   // Embedded local artwork remains private: Discord needs a public image URL.
   late final _artwork = createDiscoveryArtworkResolver(
-    DiscoveryHttp(GracefulHttpClient(), timeout: const Duration(seconds: 4)),
+    DiscoveryHttp(GracefulHttpClient(), timeout: const Duration(seconds: 8)),
   );
   final _covers = <String, String>{};
   final _coverJobs = <String>{};
@@ -65,6 +66,19 @@ class DiscordPresenceService extends ChangeNotifier {
   bool _sdkAvailable = false;
   bool _enabled = false;
   String _status = 'Checking availability…';
+  String _artworkStatus = 'No cover checked yet';
+  String get artworkStatus => _artworkStatus;
+  String? _artworkStatusKey;
+
+  // Distinguish a failed lookup from an image that Discord fails to display.
+  // Never write artwork URLs, credentials, or private file paths to logs.
+  void _setArtworkStatus(String key, String message) {
+    if (_artworkStatusKey == key && _artworkStatus == message) return;
+    _artworkStatusKey = key;
+    _artworkStatus = message;
+    AppLog.instance.add('[Discord cover] $message');
+    notifyListeners();
+  }
   bool get enabled => _enabled;
   bool get configured =>
       _android && (int.tryParse(applicationId) ?? 0) > 0 && _sdkAvailable;
@@ -229,13 +243,15 @@ class DiscordPresenceService extends ChangeNotifier {
         DateTime.now().difference(lastFailure) >= _artworkRetryDelay;
     if (image.isEmpty && !_covers.containsKey(key) &&
         canRetry && _coverJobs.add(key)) {
+      _setArtworkStatus(key, 'Looking up public album artwork…');
       unawaited(_resolveCover(song, key));
     }
+    final selectedArtwork = image.isNotEmpty ? image : _covers[key] ?? '';
     await _channel
         .invokeMethod<void>('update', {
           'title': String.fromCharCodes(song.title.runes.take(128)),
           'state': String.fromCharCodes(song.artist.runes.take(128)),
-          'artwork': image.isNotEmpty ? image : _covers[key] ?? '',
+          'artwork': selectedArtwork,
           'album': String.fromCharCodes((song.album ?? '').runes.take(128)),
           'start': start,
           'end': end,
@@ -243,6 +259,12 @@ class DiscordPresenceService extends ChangeNotifier {
         .timeout(const Duration(seconds: 8));
     _lastSent = DateTime.now();
     _lastPublishedKey = key;
+    if (selectedArtwork.isNotEmpty) {
+      final host = Uri.parse(selectedArtwork).host;
+      _setArtworkStatus(key, 'Cover URL sent to Discord ($host); display unverified');
+    } else if (!_coverJobs.contains(key) && !canRetry) {
+      _setArtworkStatus(key, 'No usable public cover found; retry pending');
+    }
   }
 
   Future<void> _resolveCover(Song song, String key) async {
@@ -272,10 +294,12 @@ class DiscordPresenceService extends ChangeNotifier {
       final safe = publicArtwork(url);
       if (safe.isNotEmpty) {
         _covers[key] = safe;
+        _setArtworkStatus(key, 'Public cover found; sending to Discord…');
         _coverFailures.remove(key);
         _coverRetryTimers.remove(key)?.cancel();
       } else {
         _recordArtworkFailure(key);
+        _setArtworkStatus(key, 'No matching public cover URL was found');
       }
       while (_covers.length > 100) {
         _covers.remove(_covers.keys.first);
@@ -288,6 +312,7 @@ class DiscordPresenceService extends ChangeNotifier {
       }
     } catch (_) {
       _recordArtworkFailure(key);
+      _setArtworkStatus(key, 'Public cover lookup failed; will retry');
       /* Keep the current activity; never upload a local cover. */
     } finally {
       _coverJobs.remove(key);
@@ -321,7 +346,9 @@ class DiscordPresenceService extends ChangeNotifier {
         uri.userInfo.isNotEmpty ||
         uri.hasQuery ||
         uri.hasFragment ||
-        (uri.hasPort && uri.port != 443)) {
+        (uri.hasPort && uri.port != 443) ||
+      // The Social SDK specifies a 300-character maximum image asset value.
+      uri.toString().length > 300) {
       return '';
     }
     const hosts = {

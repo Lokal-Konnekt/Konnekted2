@@ -596,11 +596,12 @@ String? _firstText(Object? first, [Object? second, Object? third]) {
 
 String? _joinedArtistNames(Object? value) {
   if (value is! List) return null;
-  final names = [
-    for (final artist in value)
-      if (artist is Map)
-        if (_firstText(artist['name']) case final name?) name,
-  ];
+  final names = <String>[];
+  for (final artist in value) {
+    if (artist is! Map) continue;
+    final name = _firstText(artist['name']);
+    if (name != null) names.add(name);
+  }
   return names.isEmpty ? null : names.join(', ');
 }
 

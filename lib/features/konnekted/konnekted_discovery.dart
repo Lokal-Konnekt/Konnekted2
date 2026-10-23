@@ -556,7 +556,6 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 sourceName: addon.displayName,
                 artwork: song.thumbnail,
                 atmosAvailable: song.atmosAvailable,
-                tidalUrl: song.tidalUrl,
               ),
             ),
         ],

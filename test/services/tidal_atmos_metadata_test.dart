@@ -22,6 +22,21 @@ void main() {
     }, 'a-1234567890');
     expect(track.atmosAvailable, isTrue);
     expect(track.quality, 'High');
+
+    final linked = MorneyeTrack.of({
+      'id': 'tidal:123',
+      'name': 'Atmos version',
+      'audio_modes': 'DOLBY_ATMOS',
+      'external_links': {
+        'tidal_track': 'https://tidal.com/browse/track/123',
+      },
+    }, 'a-1234567890');
+    expect(linked.tidalUrl.toString(), 'https://tidal.com/browse/track/123');
+    expect(MorneyeTrack.of({
+      'id': '123',
+      'audio_modes': 'DOLBY_ATMOS',
+      'external_urls': 'https://tidal.com.evil.example/track/123',
+    }, 'a-1234567890').tidalUrl, isNull);
   });
 
   test('lossless, hi-res and multichannel alone do not prove Atmos', () {

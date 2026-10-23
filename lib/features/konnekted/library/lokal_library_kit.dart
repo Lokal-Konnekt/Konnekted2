@@ -17,6 +17,7 @@ import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
 
 /// Shared pieces of Lokal's Library screens: Apple Music's iOS layout on the
 /// theme's own solid background, glass only for the small round buttons.
@@ -405,77 +406,81 @@ class LokalTrackRow extends ConsumerWidget {
     final available =
         song.sourceType != 'lokal' ||
         (ref.watch(lokalSongAvailableProvider(song)).value ?? false);
-    return InkWell(
-      onTap: available ? onTap : null,
-      onLongPress: () => _actions(context),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 6, 4, 6),
-        child: Row(
-          children: [
-            if (number != null)
-              SizedBox(
-                width: 30,
-                child: Text(
-                  lokalText("{arg0}", args: {'arg0': number}),
-                  style: LokalTheme.label(t, size: 13),
+    return LokalSwipeToQueue(
+      song: song,
+      enabled: available,
+      child: return InkWell(
+        onTap: available ? onTap : null,
+        onLongPress: () => _actions(context),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 6, 4, 6),
+          child: Row(
+            children: [
+              if (number != null)
+                SizedBox(
+                  width: 30,
+                  child: Text(
+                    lokalText("{arg0}", args: {'arg0': number}),
+                    style: LokalTheme.label(t, size: 13),
+                  ),
+                )
+              else
+                KonnektedArtwork(song: song, size: 48, radius: 8),
+              SizedBox(width: number != null ? 4 : 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      song.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: available ? t.text : t.muted2,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        if (second.isNotEmpty)
+                          Expanded(
+                            child: Text(
+                              second,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 13, color: t.muted),
+                            ),
+                          ),
+                        if (LokalQualityTier.of(song) case final tier?) ...[
+                          const SizedBox(width: 8),
+                          LokalQualityPill(tier: tier),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
-              )
-            else
-              KonnektedArtwork(song: song, size: 48, radius: 8),
-            SizedBox(width: number != null ? 4 : 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    song.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+              ),
+              if (song.sourceType == 'lokal')
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    lokalText('PC'),
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: available ? t.text : t.muted2,
+                      color: available ? t.accent : t.muted2,
+                      fontSize: 10,
+                      fontFamily: 'DMMono',
                     ),
                   ),
-                  Row(
-                    children: [
-                      if (second.isNotEmpty)
-                        Expanded(
-                          child: Text(
-                            second,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13, color: t.muted),
-                          ),
-                        ),
-                      if (LokalQualityTier.of(song) case final tier?) ...[
-                        const SizedBox(width: 8),
-                        LokalQualityPill(tier: tier),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (song.sourceType == 'lokal')
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Text(
-                  lokalText('PC'),
-                  style: TextStyle(
-                    color: available ? t.accent : t.muted2,
-                    fontSize: 10,
-                    fontFamily: 'DMMono',
-                  ),
                 ),
+              ?trailing,
+              IconButton(
+                tooltip: lokalText('More'),
+                onPressed: () => _actions(context),
+                icon: Icon(Icons.more_horiz_rounded, color: t.muted),
               ),
-            ?trailing,
-            IconButton(
-              tooltip: lokalText('More'),
-              onPressed: () => _actions(context),
-              icon: Icon(Icons.more_horiz_rounded, color: t.muted),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

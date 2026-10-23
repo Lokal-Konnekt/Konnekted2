@@ -23,6 +23,7 @@ class LokalAppearance {
     this.performanceMode = true,
     this.ultraPerformanceMode = false,
     this.fullscreenCover = false,
+    this.unboxedPlayerControls = false,
   });
 
   final LokalThemeId theme;
@@ -47,6 +48,7 @@ class LokalAppearance {
 
   /// Edge-to-edge artwork behind full-player controls, with no live blur.
   final bool fullscreenCover;
+  final bool unboxedPlayerControls;
 
   static const minTextScale = 0.7;
   static const maxTextScale = 1.5;
@@ -61,6 +63,7 @@ class LokalAppearance {
     bool? performanceMode,
     bool? ultraPerformanceMode,
     bool? fullscreenCover,
+    bool? unboxedPlayerControls,
   }) => LokalAppearance(
     theme: theme ?? this.theme,
     accent: clearAccent ? null : (accent ?? this.accent),
@@ -68,6 +71,7 @@ class LokalAppearance {
     performanceMode: performanceMode ?? this.performanceMode,
     ultraPerformanceMode: ultraPerformanceMode ?? this.ultraPerformanceMode,
     fullscreenCover: fullscreenCover ?? this.fullscreenCover,
+    unboxedPlayerControls: unboxedPlayerControls ?? this.unboxedPlayerControls,
   );
 
   Map<String, Object?> toJson() => {
@@ -77,6 +81,7 @@ class LokalAppearance {
     'performanceMode': performanceMode,
     'ultraPerformanceMode': ultraPerformanceMode,
     'fullscreenCover': fullscreenCover,
+    'unboxedPlayerControls': unboxedPlayerControls,
   };
 
   factory LokalAppearance.fromJson(Map<String, Object?> json) {
@@ -93,6 +98,7 @@ class LokalAppearance {
           (json['performanceMode'] as bool? ?? true),
       ultraPerformanceMode: json['ultraPerformanceMode'] as bool? ?? false,
       fullscreenCover: json['fullscreenCover'] as bool? ?? false,
+      unboxedPlayerControls: json['unboxedPlayerControls'] as bool? ?? false,
     );
   }
 
@@ -104,7 +110,8 @@ class LokalAppearance {
       other.textScale == textScale &&
       other.performanceMode == performanceMode &&
       other.ultraPerformanceMode == ultraPerformanceMode &&
-      other.fullscreenCover == fullscreenCover;
+      other.fullscreenCover == fullscreenCover &&
+      other.unboxedPlayerControls == unboxedPlayerControls;
 
   @override
   int get hashCode => Object.hash(
@@ -114,6 +121,7 @@ class LokalAppearance {
     performanceMode,
     ultraPerformanceMode,
     fullscreenCover,
+    unboxedPlayerControls,
   );
 }
 
@@ -199,6 +207,9 @@ class LokalAppearanceNotifier extends Notifier<LokalAppearance> {
 
   Future<void> setTextScale(double value) =>
       _commit(state.copyWith(textScale: value));
+
+  Future<void> setUnboxedPlayerControls(bool value) =>
+      _commit(state.copyWith(unboxedPlayerControls: value));
 
   Future<void> setFullscreenCover(bool value) =>
       _commit(state.copyWith(fullscreenCover: value));

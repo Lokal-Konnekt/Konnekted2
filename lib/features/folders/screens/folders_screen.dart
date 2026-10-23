@@ -1544,7 +1544,7 @@ class _SongTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return LokalSwipeToQueue(
       song: song,
-      child: return Material(
+      child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(AppConstants.radiusLg),

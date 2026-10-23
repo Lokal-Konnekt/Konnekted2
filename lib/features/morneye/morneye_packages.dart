@@ -7,6 +7,8 @@ import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import '../../services/tidal_atmos_metadata.dart';
+
 import 'morneye_host.dart';
 import 'morneye_network.dart';
 import 'morneye_runtime.dart';
@@ -238,6 +240,7 @@ class MorneyeTrack {
     this.discNumber,
     this.year,
     this.quality,
+    this.atmosAvailable = false,
   });
 
   /// `a-<package key>`.
@@ -253,6 +256,7 @@ class MorneyeTrack {
   final int? discNumber;
   final int? year;
   final String? quality;
+  final bool atmosAvailable;
 
   String get key => provider.substring(2);
 
@@ -296,6 +300,7 @@ class MorneyeTrack {
         '${track['release_date'] ?? ''}'.padRight(4).substring(0, 4).trim(),
       ),
       quality: track['audio_quality'] as String?,
+      atmosAvailable: tidalAtmosAvailable(track),
     );
   }
 }

@@ -77,7 +77,7 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
   final _client = http.Client();
   final _cancel = Completer<void>();
   late final _progress = LokalStatusSnack(
-    () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
+    () => mounted ? context : null,
   );
   LokalCataloguePage? _page;
   bool _online = false,

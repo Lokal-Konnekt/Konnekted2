@@ -45,7 +45,7 @@ class AtmosPlaybackSupport {
     if (codec != 'eac3' && codec != 'e-ac-3' && codec != 'ec-3' &&
         codec != 'eac3-joc') return false;
     final profile = '${stream['profile'] ?? ''}'.trim();
-    return RegExp(r'(?:dolby[^\\r\\n]*atmos|\\bjoc\\b)', caseSensitive: false)
+    return RegExp(r'(?:dolby[^\r\n]*atmos|\bjoc\b)', caseSensitive: false)
         .hasMatch(profile);
   }
 

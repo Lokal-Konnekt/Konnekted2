@@ -106,6 +106,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   final _carouselKey = GlobalKey<SongStageCarouselState>();
   final _playerBoundsKey = GlobalKey();
   final _posterAnchorKey = GlobalKey();
+  final _infoAnchorKey = GlobalKey();
   double? _posterBottom;
   bool _posterMeasurePending = false;
 
@@ -116,10 +117,20 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
       _posterMeasurePending = false;
       if (!mounted || _showLyrics || _queue.engaged) return;
       final slot = _posterAnchorKey.currentContext?.findRenderObject();
+      final info = _infoAnchorKey.currentContext?.findRenderObject();
       final frame = _playerBoundsKey.currentContext?.findRenderObject();
-      if (slot is! RenderBox || frame is! RenderBox || !slot.hasSize) return;
-      final bottom =
-          slot.localToGlobal(Offset(0, slot.size.height), ancestor: frame).dy +
+      if (slot is! RenderBox ||
+          info is! RenderBox ||
+          frame is! RenderBox ||
+          !slot.hasSize ||
+          !info.hasSize) {
+        return;
+      }
+      // End the poster dissolve below the actual artist/quality row.
+      final bottom = math.max(
+            slot.localToGlobal(Offset(0, slot.size.height), ancestor: frame).dy,
+            info.localToGlobal(Offset(0, info.size.height), ancestor: frame).dy,
+          ) +
           8;
       if (_posterBottom == null || (_posterBottom! - bottom).abs() > .5) {
         setState(() => _posterBottom = bottom);
@@ -460,7 +471,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               fit: StackFit.expand,
               children: [
                 ArtworkGradientBackdrop(colors: colors, vibrant: true),
-                ArtworkMeshBlurBackdrop(song: song),
+                ArtworkMeshBlurBackdrop(
+                  song: song,
+                  preserveArtworkContrast: fullCover,
+                ),
                 if (fullCover)
                   FadeTransition(
                     opacity: _canvasChrome,
@@ -471,10 +485,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Color(0x99000000),
-                              Color(0x16000000),
-                              Color(0x18000000),
-                              Color(0x48000000),
+                              Color(0x33000000),
+                               Color(0x08000000),
+                               Color(0x10000000),
+                               Color(0x40000000),
                             ],
                             stops: [0, .28, .66, 1],
                           ),
@@ -755,6 +769,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                             morphEnabled: current,
                             controlsOpacity: canvas ? _canvasChrome.value : 1,
                             bannerBottom: _posterBottom,
+                            // Still covers begin below the status bar.
+                            topInset: canvas ? 0 : 12,
                             child: child!,
                           ),
                         );
@@ -891,6 +907,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             );
           },
           info: (context, p) => SizedBox(
+            key: _infoAnchorKey,
             width: double.infinity,
             child: AnimatedSwitcher(
             duration: _animate

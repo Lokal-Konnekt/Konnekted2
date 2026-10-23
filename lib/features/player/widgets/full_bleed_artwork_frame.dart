@@ -9,6 +9,7 @@ class FullBleedArtworkFrame extends StatelessWidget {
     required this.canvas,
     required this.child,
     this.bannerBottom,
+    this.topInset = 0,
     this.morphEnabled = true,
     this.controlsOpacity = 1,
   });
@@ -18,6 +19,8 @@ class FullBleedArtworkFrame extends StatelessWidget {
   final bool morphEnabled;
   final Widget child;
   final double? bannerBottom;
+  /// Extra space above still artwork, ignored by Canvas and thumbnails.
+  final double topInset;
 
   @override
   Widget build(BuildContext context) {
@@ -46,32 +49,31 @@ class FullBleedArtworkFrame extends StatelessWidget {
                         MediaQuery.paddingOf(context).top +
                         56)
                 .clamp(0.0, constraints.maxHeight);
-        // The transparent tail reveals the existing palette backdrop.
+        // Still covers start below the status bar and fade through the
+        // artist row, without painting a dark contrast scrim over the cover.
+        final inset = topInset * progress;
         return Align(
           alignment: Alignment.topCenter,
-          child: SizedBox(
-            width: constraints.maxWidth,
-            height: height,
-            child: LokalPlayerArtwork(
-              enabled: morphEnabled,
-              expandedRadius: 0,
-              child: ShaderMask(
-                blendMode: BlendMode.dstIn,
-                shaderCallback: (rect) => LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white,
-                    Colors.white,
-                    Colors.white.withValues(alpha: 1 - progress),
-                  ],
-                  stops: [0, .68, 1],
-                ).createShader(rect),
-                child: CustomPaint(
-                  foregroundPainter: _ArtworkContrast(
-                    constraints.maxHeight,
-                    progress,
-                  ),
+          child: Padding(
+            padding: EdgeInsets.only(top: inset),
+            child: SizedBox(
+              width: constraints.maxWidth,
+              height: (height - inset).clamp(0.0, constraints.maxHeight),
+              child: LokalPlayerArtwork(
+                enabled: morphEnabled,
+                expandedRadius: 0,
+                child: ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (rect) => LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white,
+                      Colors.white,
+                      Colors.white.withValues(alpha: 1 - progress),
+                    ],
+                    stops: [0, .68, 1],
+                  ).createShader(rect),
                   child: SizedBox.expand(child: child),
                 ),
               ),
@@ -83,9 +85,8 @@ class FullBleedArtworkFrame extends StatelessWidget {
   }
 }
 
-/// Matches the full player's scrim in viewport coordinates. It travels with
-/// the real artwork, fading away at the mini-player endpoint. Painting the
-/// scrim behind the sleeve separately keeps the exposed palette consistent.
+/// Canvas-only contrast: still artwork retains its undimmed original colors.
+/// This follows the video during the mini-player morph.
 class _ArtworkContrast extends CustomPainter {
   const _ArtworkContrast(this.viewportHeight, this.progress);
   final double viewportHeight, progress;

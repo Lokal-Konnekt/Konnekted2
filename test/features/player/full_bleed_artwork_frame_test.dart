@@ -30,6 +30,32 @@ void main() {
     );
   }
 
+  testWidgets('still art starts lower and extends to the artist row', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 930);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: FullBleedArtworkFrame(
+          canvas: false,
+          bannerBottom: 650,
+          topInset: 18,
+          child: ColoredBox(
+            key: ValueKey('lowered-art'),
+            color: Colors.red,
+          ),
+        ),
+      ),
+    );
+    final art = find.byKey(const ValueKey('lowered-art'));
+    expect(tester.getTopLeft(art).dy, 18);
+    expect(tester.getSize(art), const Size(430, 632));
+    expect(find.byType(ShaderMask), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('mini-player Hero bounds keep the whole thumbnail', (
     tester,
   ) async {

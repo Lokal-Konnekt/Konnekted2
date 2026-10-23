@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/konnekted/library/lokal_navigation.dart';
@@ -18,7 +19,7 @@ class PlayerNavigation {
   Future<void> queueSong(BuildContext context, Song song) async {
     await playerService.addToQueue(song);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    LokalToast.fromSnackBar(context, 
       SnackBar(
         content: Text(l10n.queued(song.title)),
         duration: const Duration(seconds: 2),

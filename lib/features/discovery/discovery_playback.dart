@@ -27,7 +27,7 @@ class DiscoveryPlaybackCache {
     Future<Directory> Function()? directory,
     Set<String> Function()? protectedPaths,
     this.maxFileBytes = 128 * 1024 * 1024,
-    this.maxCacheBytes = 384 * 1024 * 1024,
+    this.maxCacheBytes = 1024 * 1024 * 1024,
     this.downloadTimeout = const Duration(minutes: 2),
     this.rangeBytes = 10 * 1024 * 1024,
     Future<void> Function(String audio, String cover)? embedCover,
@@ -74,7 +74,11 @@ class DiscoveryPlaybackCache {
     try {
       final root = await _directory();
       await root.create(recursive: true);
-      await _reserve(root, maxFileBytes);
+      // 128MB was reserved for *every* track even when it occupied only
+      // a few MB, leading to false "cache full" failures on populated queues.
+      // Known lengths reserve exactly their bytes; unknown lengths grow
+      // incrementally under the same hard cache ceiling.
+      await _reserve(root, audio.length ?? 0);
       if (cancelled) throw const DiscoveryException('Request cancelled.');
       // Random suffix prevents overwriting a cached file currently in use.
       // Names contain neither titles nor signed URLs/tokens.
@@ -90,6 +94,11 @@ class DiscoveryPlaybackCache {
       var received = 0;
       Future<void> write(List<int> chunk) async {
         if (prefix.length < 64) prefix.addAll(chunk.take(64 - prefix.length));
+        if (audio.length == null) {
+          // Include existing .part bytes in the next space calculation;
+          // _reserve never evicts an active, recently modified .part file.
+          await _reserve(root, chunk.length);
+        }
         await output!.writeFrom(chunk);
         received += chunk.length;
         onProgress?.call(received);
@@ -351,8 +360,7 @@ class DiscoveryPlaybackCache {
     for (final entry in files) {
       if (total + reservation <= maxCacheBytes) break;
       if (protected.contains(entry.file.path)) continue;
-      // Another lookup's download still under way (songs coming up are
-      // looked up side by side).
+      // Do not evict in-flight downloads while multiple lookups are active.
       if (p.extension(entry.file.path) == '.part' &&
           DateTime.now().difference(entry.stat.modified) < downloadTimeout) {
         continue;

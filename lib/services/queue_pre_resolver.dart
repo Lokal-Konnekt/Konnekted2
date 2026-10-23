@@ -141,7 +141,10 @@ class QueuePreResolver {
   /// Files of songs looked up lately: kept by the playback cache.
   Set<String> get resolvedPaths => {
     for (final entry in _recent.values)
-      if (entry.song.filePath case final String path) path,
+      if (_now().difference(entry.at) < ttl &&
+          _stillUsable(entry.song) &&
+          _fileExists(entry.song))
+        if (entry.song.filePath case final String path) path,
   };
 
   void attach(PreResolveHost host) {

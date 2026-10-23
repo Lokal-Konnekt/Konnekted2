@@ -417,7 +417,11 @@ class AndroidAudioEngine implements AudioEngine {
     _loadedTrack = track;
     await _configurePlayer(player);
 
-    final cfg = _crossfadeConfigProvider();
+    // Passthrough and object-based Atmos rendering cannot be crossfaded as
+    // PCM. Preserve the original JOC frames and use a single player.
+    final cfg = track.atmosEncoded
+        ? AndroidCrossfadeConfig.disabled
+        : _crossfadeConfigProvider();
     if (cfg.enabled) {
       // Crossfade needs a single-track source so the engine can intercept the
       // tail; a ConcatenatingAudioSource would auto-advance with a hard cut.
@@ -591,7 +595,7 @@ class AndroidAudioEngine implements AudioEngine {
   void updateTrack(Song track) {}
 
   void _maybeArmCrossfade(just_audio.AudioPlayer player, Duration pos) {
-    if (_crossfadeArmed) return;
+    if (_crossfadeArmed || _loadedTrack?.atmosEncoded == true) return;
     final cfg = _crossfadeConfigProvider();
     final duration = player.duration;
     if (!shouldArmCrossfade(

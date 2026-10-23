@@ -76,7 +76,7 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
     if (label == null ||
         label.contains('://') ||
         label.contains('/') ||
-        label.contains(r'\') ||
+        label.contains(String.fromCharCode(92)) ||
         RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(label)) {
       return fallback;
     }

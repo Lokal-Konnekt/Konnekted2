@@ -1282,6 +1282,8 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                     }),
                     onChanged: (v) => setState(() => _seekDrag = v),
                     onChangeEnd: (v) async {
+                      // One double-pulse on release, not on continuous drag updates.
+                      AppHaptics.doublePulse();
                       final id = _player.currentSongNotifier.value?.id;
                       try {
                         await _player.seek(

@@ -276,6 +276,79 @@ void main() {
     expect(await directory.list().toList(), isEmpty);
   });
 
+  test('hi-res add-ons have a 512 MiB bounded file limit', () async {
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(MockClient((_) async => fail('No request'))),
+      directory: () async => directory,
+    );
+    expect(cache.maxFileBytes, 512 * 1024 * 1024);
+    expect(cache.maxCacheBytes, 1024 * 1024 * 1024);
+    expect(cache.downloadTimeout, const Duration(minutes: 6));
+  });
+
+  test('a declared 200 MiB recording passes the old 128 MiB preflight', () async {
+    final client = MockClient.streaming((_, _) async => http.StreamedResponse(
+      Stream.value(flacHeader),
+      200,
+      contentLength: 200 * 1024 * 1024,
+    ));
+    addTearDown(client.close);
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(client),
+      directory: () async => directory,
+      probe: (_) async => fail('Incomplete audio must never be probed'),
+    );
+    await expectLater(
+      cache.prepare(fixtureTrack, fixtureAudio),
+      throwsA(isA<DiscoveryException>().having(
+        (e) => e.message,
+        'must reject incomplete transfer, not the old size cap',
+        contains('incomplete'),
+      )),
+    );
+    expect(await directory.list().toList(), isEmpty);
+  });
+
+  test('a declared file above the new cap stays rejected', () async {
+    final client = MockClient.streaming((_, _) async => http.StreamedResponse(
+      const Stream<List<int>>.empty(),
+      200,
+      contentLength: 513 * 1024 * 1024,
+    ));
+    addTearDown(client.close);
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(client),
+      directory: () async => directory,
+      probe: (_) async => fail('Oversized audio must never be probed'),
+    );
+    await expectLater(
+      cache.prepare(fixtureTrack, fixtureAudio),
+      throwsA(isA<DiscoveryException>().having(
+        (e) => e.message,
+        'bounded audio file',
+        contains('audio response exceeds'),
+      )),
+    );
+    expect(await directory.list().toList(), isEmpty);
+  });
+
+  test('oversized add-on JSON has a distinct metadata error', () async {
+    final client = MockClient.streaming((_, _) async => http.StreamedResponse(
+      const Stream<List<int>>.empty(),
+      200,
+      contentLength: DiscoveryHttp.jsonLimit + 1,
+    ));
+    addTearDown(client.close);
+    await expectLater(
+      DiscoveryHttp(client).json(Uri.parse('https://addon.example/stream/id')),
+      throwsA(isA<DiscoveryException>().having(
+        (e) => e.message,
+        'metadata rather than audio',
+        contains('JSON metadata'),
+      )),
+    );
+  });
+
   test('oversized declared or chunked download is bounded and partial file removed', () async {
     for (final declared in [true, false]) {
       final client = MockClient.streaming(

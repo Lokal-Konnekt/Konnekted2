@@ -67,8 +67,9 @@ class AtmosPlaybackSupport {
     final session = await FFprobeKit.getMediaInformation(path, 12000);
     final info = await session.getMediaInformation();
     return [
-      for (final stream in info?.getStreams() ?? [])
-        Map<String, dynamic>.from(stream.getAllProperties()),
+      for (final stream in info?.getStreams() ?? const [])
+        if (stream.getAllProperties() case final props?)
+          Map<String, dynamic>.from(props),
     ];
   }
 

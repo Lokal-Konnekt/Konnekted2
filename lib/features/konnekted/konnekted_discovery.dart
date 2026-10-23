@@ -599,7 +599,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
               download = await fetch(
                 quality: tryAtmos
                     ? 'DOLBY_ATMOS'
-                    : null,
+                    : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
               );
               if (tryAtmos && !download.atmosEncoded) {
                 throw const DiscoveryException(

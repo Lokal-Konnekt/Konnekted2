@@ -971,7 +971,15 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                         ),
                       ),
                     ],
-                    if (LokalQualityTier.of(song) case final tier?) ...[
+                    if (song.atmosEncoded) ...[
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => SongMetadataSheet.show(context, song),
+                        child: const LokalAtmosStreamPill(),
+                      ),
+                    ],
+                    if (!song.atmosEncoded &&
+                        LokalQualityTier.of(song) case final tier?) ...[
                       const SizedBox(width: 12),
                       InkWell(
                         onTap: () => SongMetadataSheet.show(context, song),

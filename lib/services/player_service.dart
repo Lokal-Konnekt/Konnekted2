@@ -4954,6 +4954,7 @@ class PlayerService {
     final routed = resolveEngineForSong(
       preferred: desiredEngine,
       requiresRustDecoder: song.requiresRustDecoder,
+      isAtmosJoc: song.atmosEncoded,
     );
     if (routed != desiredEngine) {
       _debugLog(
@@ -5161,7 +5162,7 @@ class PlayerService {
         await _runWithSuppressedSequenceStateUpdates(() async {
           await _playbackManager.playTrack(song);
         });
-        if (!_usingRustBackend) {
+        if (!_usingRustBackend && !song.atmosEncoded) {
           unawaited(_applyReplayGainForSystemTier(song));
         }
         _ensurePositionSaveTimer();

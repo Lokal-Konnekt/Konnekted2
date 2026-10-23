@@ -198,7 +198,7 @@ class DiscoveryPlaybackCache {
 
   /// Moves [source], a file an add-on already downloaded, into the cache
   /// and checks it like a downloaded one.
-  Future<Song> adopt(DiscoveryTrack track, File source) async {
+  Future<Song> adopt(DiscoveryTrack track, File source, {bool atmosEncoded = false}) async {
     if (_busy) {
       throw const DiscoveryException('Another recording is being prepared.');
     }
@@ -219,7 +219,7 @@ class DiscoveryPlaybackCache {
           .fold<List<int>>([], (all, chunk) => all..addAll(chunk));
       String format;
       try {
-        format = sniffAudioContainer(prefix);
+        format = atmosEncoded ? 'm4a' : sniffAudioContainer(prefix);
       } on DiscoveryException {
         // Containers only the add-on's own probe knows: it named the file.
         format = p.extension(source.path).replaceFirst('.', '').toLowerCase();
@@ -236,7 +236,9 @@ class DiscoveryPlaybackCache {
         // Another volume: copy instead.
         ready = await source.copy(target);
       }
-      final song = await _verified(track, ready, format, hash);
+      final song = atmosEncoded
+          ? await _verifiedAtmos(track, ready, hash)
+          : await _verified(track, ready, format, hash);
       ready = null; // Ownership passes to bounded cache / PlayerService.
       return song;
     } finally {
@@ -246,6 +248,28 @@ class DiscoveryPlaybackCache {
         _busy = false;
       }
     }
+  }
+
+  /// An Android MediaExtractor-confirmed E-AC-3 JOC stream. Do not use
+  /// Symphonia or a PCM metadata decoder: Atmos objects must reach Android's
+  /// licensed E-AC-3 JOC implementation unchanged.
+  Future<Song> _verifiedAtmos(DiscoveryTrack track, File ready, String hash) async {
+    final artwork = await _cover(track, ready, embed: false);
+    return Song(
+      id: 'discovery:$hash',
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      albumArt: artwork,
+      duration: track.duration ?? Duration.zero,
+      fileType: 'E-AC-3 JOC',
+      filePath: ready.path,
+      sourcePackage: 'konnekted.discovery',
+      isExternal: true,
+      atmosAvailable: true,
+      atmosEncoded: true,
+      remoteId: track.id,
+    );
   }
 
   /// The native probe's verdict on [ready], as a song to play.
@@ -290,6 +314,7 @@ class DiscoveryPlaybackCache {
       // Signed media URLs remain in memory, never in the playback queue.
       remoteId: track.sourceUrl?.toString() ?? track.id,
       sourcePackage: 'konnekted.discovery',
+      atmosAvailable: track.atmosAvailable,
       isExternal: true,
     );
   }
@@ -303,7 +328,7 @@ class DiscoveryPlaybackCache {
 
   /// Downloads [track]'s cover next to [ready]; null when it has none or
   /// it can't be fetched (the song still plays, without a picture).
-  Future<String?> _cover(DiscoveryTrack track, File ready) async {
+  Future<String?> _cover(DiscoveryTrack track, File ready, {bool embed = true}) async {
     final url = Uri.tryParse(track.artwork ?? '');
     if (url == null || url.scheme != 'https') return null;
     final file = File(coverPath(ready.path));
@@ -323,7 +348,7 @@ class DiscoveryPlaybackCache {
       // Also embed it in the audio's tags, so the file keeps its cover if
       // it is saved to the library.
       try {
-        await _embedCover(ready.path, file.path);
+        if (embed) await _embedCover(ready.path, file.path);
       } catch (_) {}
       return file.path;
     } catch (_) {

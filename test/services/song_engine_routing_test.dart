@@ -34,6 +34,24 @@ void main() {
       }
     });
 
+    test('verified E-AC-3 JOC routes to Android Media3 from every selected engine', () {
+      for (final preferred in AudioEngineType.values) {
+        expect(
+          resolveEngineForSong(
+            preferred: preferred,
+            requiresRustDecoder: false,
+            isAtmosJoc: true,
+          ),
+          AudioEngineType.normalAndroid,
+          reason: 'Atmos objects cannot pass through the Rust PCM decoder',
+        );
+      }
+      final song = _song(id: 'joc', fileType: 'E-AC-3 JOC', filePath: '/music/atmos.m4a')
+          .copyWith(atmosEncoded: true, atmosAvailable: true);
+      expect(song.atmosEncoded, isTrue);
+      expect(song.filePath, '/music/atmos.m4a');
+    });
+
     test('routes Rust-decoder containers to the shared Rust output', () {
       expect(
         resolveEngineForSong(

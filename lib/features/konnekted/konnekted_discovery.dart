@@ -26,6 +26,7 @@ import 'package:flick/features/spotify/spotify_web_api.dart';
 import 'package:flick/features/spotify/spotify_oauth.dart';
 import 'package:flick/features/spotify/spotify_storage.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/services/atmos_playback_support.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
@@ -554,18 +555,23 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 addonId: addon.key,
                 sourceName: addon.displayName,
                 artwork: song.thumbnail,
+                atmosAvailable: song.atmosAvailable,
               ),
             ),
         ],
         play: (found) async {
           final progress = MorneyeProgressText(found.title, addon.displayName);
           var finished = false;
-          final MorneyeDownload download;
+          MorneyeDownload download;
+          final tryAtmos = found.atmosAvailable &&
+              await AtmosPlaybackSupport.available;
           try {
-            download = await packages.download(
-              addon.key,
-              found.id,
-              onProgress: ({percent, message}) {
+            Future<MorneyeDownload> fetch({String? quality}) =>
+                packages.download(
+                  addon.key,
+                  found.id,
+                  quality: quality,
+                  onProgress: ({percent, message}) {
                 // A runtime winding down after a failure or a cancel says
                 // nothing more: no stale "downloading" after the error.
                 if (finished) return;
@@ -577,6 +583,24 @@ Future<List<_PlaybackSource>> _morneyeSources(
               },
               cancel: cancel,
             );
+            try {
+              download = await fetch(
+                quality: tryAtmos
+                    ? 'DOLBY_ATMOS'
+                    : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
+              );
+              if (tryAtmos && !download.atmosEncoded) {
+                onStatus?.call(
+                  'Tidal supplied stereo rather than Dolby Atmos; playing the received format.',
+                );
+              }
+            } catch (error) {
+              if (!tryAtmos) rethrow;
+              // The Mornye provider or device did not return playable JOC.
+              // Request the normal stereo tier; never transcode a JOC file.
+              onStatus?.call('Atmos unavailable on this route. Using stereo…');
+              download = await fetch(quality: 'HI_RES_LOSSLESS');
+            }
           } on MorneyePackageError catch (error) {
             throw DiscoveryException(error.message);
           } on MorneyeRuntimeError catch (error) {
@@ -594,7 +618,11 @@ Future<List<_PlaybackSource>> _morneyeSources(
             finished = true;
           }
           try {
-            return await cache().adopt(found, download.file);
+            return await cache().adopt(
+              found,
+              download.file,
+              atmosEncoded: download.atmosEncoded,
+            );
           } finally {
             await download.cleanup();
           }

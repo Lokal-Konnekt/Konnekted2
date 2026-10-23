@@ -245,6 +245,7 @@ class MainActivity: FlutterActivity() {
         LokalAppUpdater.register(flutterEngine.dartExecutor.binaryMessenger, this)
         LokalLibrarySyncNotification.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LokalHaptics.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
+        LokalAtmos.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         FileCopyService.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         LokalDesktopDiscovery.register(flutterEngine.dartExecutor.binaryMessenger, this)
         YoutubeNativeResolver.initialize(applicationContext)

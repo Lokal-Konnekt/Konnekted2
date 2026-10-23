@@ -11,6 +11,7 @@ import '../../data/database.dart';
 import '../../data/repositories/song_repository.dart';
 import '../library_scanner_service.dart' show ScanProgress;
 import '../network_cache_service.dart';
+import '../tidal_atmos_metadata.dart';
 import 'network_source_service.dart';
 
 /// Tidal client over the reverse-engineered web/OAuth2 surface.
@@ -485,6 +486,13 @@ class TidalService implements NetworkSourceService {
       query: {'playbackmode': 'STREAM', 'assetpresentation': 'FULL'},
     );
     final mime = info['manifestMimeType'] as String?;
+    if (tidalAtmosAvailable(info)) {
+      throw TidalException(
+        'This legacy Tidal source cannot process Dolby Atmos manifests. '
+        'Select the Tidal Mornye source in Lokal to request E-AC-3 JOC '
+        'through Android’s native audio engine.',
+      );
+    }
     final manifest = info['manifest'] as String?;
     if (mime != 'application/vnd.tidal.bts' || manifest == null) {
       throw TidalException(

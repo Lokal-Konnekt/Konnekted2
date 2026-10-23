@@ -105,6 +105,13 @@ class Song {
   /// 'subsonic' | 'webdav' | 'jellyfin'.
   final String? sourceType;
 
+  /// Tidal catalogue advertises an Atmos version. Does not verify the
+  /// decoded stream or the output device (which may be stereo).
+  final bool atmosAvailable;
+  /// True for a locally inspected E-AC-3 JOC stream. This describes the
+  /// encoded source; the Android device must still support a JOC output path.
+  final bool atmosEncoded;
+
   /// The server's song id (Subsonic song id, WebDAV file URL, Jellyfin Item.Id).
   final String? remoteId;
 
@@ -145,6 +152,8 @@ class Song {
     this.isExternal = false,
     this.sourcePackage,
     this.sourceType,
+    this.atmosAvailable = false,
+    this.atmosEncoded = false,
     this.remoteId,
     this.remoteServerId,
   });
@@ -263,6 +272,8 @@ class Song {
     bool? isExternal,
     String? sourcePackage,
     String? sourceType,
+    bool? atmosAvailable,
+    bool? atmosEncoded,
     String? remoteId,
     int? remoteServerId,
   }) {
@@ -300,6 +311,8 @@ class Song {
       isExternal: isExternal ?? this.isExternal,
       sourcePackage: sourcePackage ?? this.sourcePackage,
       sourceType: sourceType ?? this.sourceType,
+      atmosAvailable: atmosAvailable ?? this.atmosAvailable,
+      atmosEncoded: atmosEncoded ?? this.atmosEncoded,
       remoteId: remoteId ?? this.remoteId,
       remoteServerId: remoteServerId ?? this.remoteServerId,
     );

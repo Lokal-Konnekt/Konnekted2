@@ -19,6 +19,7 @@ import 'package:flick/features/morneye/morneye_service.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
+import 'package:flick/widgets/lokal/lokal_quality.dart';
 
 /// Songs you don't have, under your library's results: desktop's Search
 /// "online" block. One source at a time (YouTube Music or an add-on you
@@ -551,6 +552,13 @@ class _OnlineTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: t.muted, fontSize: 13),
                   ),
+                  if (track.atmosAvailable) ...[
+                    const SizedBox(height: 4),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: LokalAtmosPill(),
+                    ),
+                  ],
                 ],
               ),
             ),

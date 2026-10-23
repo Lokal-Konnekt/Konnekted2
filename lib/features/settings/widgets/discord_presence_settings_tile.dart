@@ -16,7 +16,7 @@ class DiscordPresenceSettingsTile extends StatelessWidget {
       builder: (context, _) => LokalSettingRow.toggle(
         label: lokalText('Discord Rich Presence'),
         description: lokalText(
-          '${service.status} · Share what you’re listening to',
+          '${service.status} · ${service.artworkStatus} · Share what you’re listening to',
         ),
         value: service.enabled && service.configured,
         enabled: service.configured,

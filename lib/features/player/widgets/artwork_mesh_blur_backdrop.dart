@@ -74,7 +74,7 @@ class _ArtworkMeshBlurBackdropState
   Animation<double>? _route;
   String? _requested;
   int _generation = 0;
-  bool _performance = true;
+  bool _ultraPerformance = false;
   bool _reduceMotion = false;
 
   String get _key => [
@@ -112,7 +112,7 @@ class _ArtworkMeshBlurBackdropState
   void _syncMotion([AnimationStatus? status]) {
     final settled = _route == null ||
         _route!.status == AnimationStatus.completed;
-    if (_performance || _reduceMotion || !TickerMode.of(context) || !settled) {
+    if (_ultraPerformance || _reduceMotion || !TickerMode.of(context) || !settled) {
       _drift.stop(canceled: false);
     } else if (!_drift.isAnimating) {
       _drift.repeat();
@@ -240,7 +240,7 @@ class _ArtworkMeshBlurBackdropState
     while (_layers.length > _maxLayers) {
       _layers.removeAt(0).dispose();
     }
-    if (_reduceMotion || _performance || _layers.length == 1) {
+    if (_reduceMotion || _ultraPerformance || _layers.length == 1) {
       _fade.value = 1;
       _pruneLayers();
     } else {
@@ -277,7 +277,9 @@ class _ArtworkMeshBlurBackdropState
   @override
   Widget build(BuildContext context) {
     final appearance = ref.watch(lokalAppearanceProvider);
-    _performance = appearance.performanceMode || appearance.ultraPerformanceMode;
+    // Regular Performance Mode keeps the ambient mesh alive; only Ultra
+    // disables decorative animation. System reduced-motion is independent.
+    _ultraPerformance = appearance.ultraPerformanceMode;
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
     _syncMotion();
     return RepaintBoundary(

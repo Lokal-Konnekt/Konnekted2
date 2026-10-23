@@ -445,6 +445,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
                             '${source.id}:${result.track.id}',
                           ),
                           onTap: () => _play(source, result),
+                          onAtmos: () => _play(source, result, atmos: true),
                           onMore: () => _actions(source, result),
                           onQueue: () => _enqueue(source, result, next: false),
                         ),

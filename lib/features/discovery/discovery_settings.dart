@@ -220,7 +220,7 @@ class DiscoverySettingsStore {
                 'endpoint': addon.endpoint,
                 'label': addon.label,
                 'token': addon.token,
-                'settings': addon.settings,
+                if (addon.settings.isNotEmpty) 'settings': addon.settings,
                 'enabled': addon.enabled,
               },
           ],

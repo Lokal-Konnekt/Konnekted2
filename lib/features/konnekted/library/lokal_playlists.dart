@@ -86,11 +86,10 @@ Song? lokalPlaylistSong(Playlist playlist, String id, Map<String, Song> libraryB
 List<Song> lokalPlaylistSongs(
   Playlist playlist,
   Map<String, Song> libraryById,
-) => [
-  for (final id in playlist.songIds)
-    if (lokalPlaylistSong(playlist, id, libraryById) case final song?)
-      song,
-];
+) => playlist.songIds
+    .map((id) => lokalPlaylistSong(playlist, id, libraryById))
+    .whereType<Song>()
+    .toList(growable: false);
 
 Future<String?> _askName(
   BuildContext context, {
@@ -521,9 +520,17 @@ class LokalPlaylistPage extends ConsumerWidget {
             searchHint: 'Search in playlist',
             onRemove: playlist.isNetworkSource
                 ? null
-                : (song) => ref
-                      .read(playlistsProvider.notifier)
-                      .removeSongFromPlaylist(playlist.id, song.id),
+                : (song) {
+                    // Aliased desktop entries display their phone copy, but
+                    // removing must target the ID stored in this playlist.
+                    final originalId = playlist.songIds.firstWhere(
+                      (id) => lokalPlaylistSong(playlist, id, libraryById)?.id == song.id,
+                      orElse: () => song.id,
+                    );
+                    unawaited(ref
+                        .read(playlistsProvider.notifier)
+                        .removeSongFromPlaylist(playlist.id, originalId));
+                  },
           ),
       ],
     );

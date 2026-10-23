@@ -557,6 +557,8 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 artwork: song.thumbnail,
                 atmosAvailable: song.atmosAvailable,
                 catalogueQuality: song.quality,
+                catalogueBitDepth: song.bitDepth,
+                catalogueSampleRate: song.sampleRate,
               ),
             ),
         ],
@@ -564,8 +566,17 @@ Future<List<_PlaybackSource>> _morneyeSources(
           final progress = MorneyeProgressText(found.title, addon.displayName);
           var finished = false;
           MorneyeDownload download;
-          final tryAtmos = found.atmosAvailable &&
-              await AtmosPlaybackSupport.available;
+          // Normal Play stays on the provider's configured stereo/lossless
+          // tier. Only an explicit user request opts in to E-AC-3 JOC.
+          if (found.atmosRequested && !found.atmosAvailable) {
+            throw const DiscoveryException('This track has no advertised Atmos version.');
+          }
+          final tryAtmos = found.atmosRequested;
+          if (tryAtmos && !await AtmosPlaybackSupport.available) {
+            throw const DiscoveryException(
+              'This Android device does not report an E-AC-3 JOC decoder or direct Atmos output. No stereo track was substituted.',
+            );
+          }
           try {
             Future<MorneyeDownload> fetch({String? quality}) =>
                 packages.download(
@@ -591,8 +602,8 @@ Future<List<_PlaybackSource>> _morneyeSources(
                     : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
               );
               if (tryAtmos && !download.atmosEncoded) {
-                onStatus?.call(
-                  'Tidal supplied stereo rather than Dolby Atmos; playing the received format.',
+                throw const DiscoveryException(
+                  'The provider did not return an E-AC-3 JOC Atmos file. No stereo track was substituted.',
                 );
               }
             } catch (error) {

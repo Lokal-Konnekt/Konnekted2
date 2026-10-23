@@ -5,7 +5,6 @@ import 'package:isar_community/isar.dart';
 import 'package:flick/data/database.dart';
 import 'package:flick/models/playlist.dart';
 import 'package:flick/models/song.dart';
-import 'package:flick/services/player_service.dart';
 import 'package:flick/services/playlist_service.dart';
 import 'package:flick/services/sources/network_source_service.dart';
 import 'package:flick/services/sources/subsonic_service.dart';
@@ -122,11 +121,14 @@ class PlaylistsNotifier extends AsyncNotifier<PlaylistsState> {
 
   Future<bool> addSongToPlaylist(String playlistId, String songId, {Song? song}) async {
     final service = ref.read(playlistServiceProvider);
-    final success = await service.addSongToPlaylist(playlistId, songId);
-
-    if (success && song != null) {
-      unawaited(PlayerService().addToQueue(song));
-    }
+    // Song objects from online search may not be in SongRepository yet.
+    // Persist their metadata with the playlist rather than unexpectedly
+    // adding the song to the playback queue.
+    final success = await service.addSongToPlaylist(
+      playlistId,
+      songId,
+      song: song,
+    );
 
     if (success && ref.mounted) {
       ref.invalidateSelf();

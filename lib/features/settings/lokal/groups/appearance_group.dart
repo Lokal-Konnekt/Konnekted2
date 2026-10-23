@@ -98,6 +98,12 @@ List<LokalSettingsSection> appearanceSettings(
       title: lokalText('Now Playing'),
       children: [
         LokalSettingRow.toggle(
+          label: lokalText('Unboxed player controls'),
+          description: lokalText('Remove button backgrounds while keeping the same icons and layout.'),
+          value: appearance.unboxedPlayerControls,
+          onChanged: look.setUnboxedPlayerControls,
+        ),
+        LokalSettingRow.toggle(
           label: lokalText('Fullscreen cover'),
           description: lokalText(
             'Extend album covers behind the header and fade them into the player. Spotify Canvas fills the screen.',

@@ -27,6 +27,7 @@ import 'package:flick/features/spotify/spotify_oauth.dart';
 import 'package:flick/features/spotify/spotify_storage.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/atmos_playback_support.dart';
+import 'package:flick/services/atmos_diagnostics.dart';
 import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
@@ -568,11 +569,22 @@ Future<List<_PlaybackSource>> _morneyeSources(
           MorneyeDownload download;
           // Normal Play stays on the provider's configured stereo/lossless
           // tier. Only an explicit user request opts in to E-AC-3 JOC.
+          if (found.atmosAvailable || found.atmosRequested) {
+            AtmosDiagnostics.record('request', {
+              'source': 'morneye',
+              'requested': found.atmosRequested,
+              'downloadOnly': found.atmosDownload,
+              'available': found.atmosAvailable,
+              'mode': found.atmosRequested ? 'atmos' : 'normal',
+            });
+          }
           if (found.atmosRequested && !found.atmosAvailable) {
+            AtmosDiagnostics.record('request_rejected', {'reason': 'catalogue_not_atmos'});
             throw const DiscoveryException('This track has no advertised Atmos version.');
           }
           final tryAtmos = found.atmosRequested;
           if (tryAtmos && !found.atmosDownload && !await AtmosPlaybackSupport.available) {
+            AtmosDiagnostics.record('request_rejected', {'reason': 'decoder_unavailable'});
             throw const DiscoveryException(
               'This Android device does not report an E-AC-3 JOC decoder or direct Atmos output. No stereo track was substituted.',
             );
@@ -596,11 +608,22 @@ Future<List<_PlaybackSource>> _morneyeSources(
               cancel: cancel,
             );
             try {
+              if (tryAtmos) AtmosDiagnostics.record('download_start', {
+                'quality': 'DOLBY_ATMOS',
+                'downloadOnly': found.atmosDownload,
+              });
               download = await fetch(
                 quality: tryAtmos
                     ? 'DOLBY_ATMOS'
                     : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
               );
+              if (tryAtmos) {
+                AtmosDiagnostics.record('download_complete', {
+                  'quality': 'DOLBY_ATMOS',
+                  'encoded': download.atmosEncoded,
+                  'outcome': download.atmosEncoded ? 'joc_confirmed' : 'not_joc',
+                });
+              }
               if (tryAtmos && !download.atmosEncoded) {
                 // The provider returned an ordinary recording. Discard the
                 // staged copy before rejecting the explicitly requested tier.
@@ -611,6 +634,16 @@ Future<List<_PlaybackSource>> _morneyeSources(
               }
             } catch (error) {
               final reason = error.toString();
+              if (tryAtmos || found.atmosAvailable) {
+                AtmosDiagnostics.record('download_error', {
+                  'errorClass': error.runtimeType.toString(),
+                  'reason': tidalAtmosTransportFailure(reason)
+                      ? 'network_failure'
+                      : tidalAtmosTierUnavailable(reason)
+                          ? 'tier_unavailable'
+                          : 'download_or_probe_failure',
+                });
+              }
               // An addon can request Atmos from its own settings even when
               // this device did not enable the native JOC path. Do not rely
               // on tryAtmos alone to classify a failed Atmos API request.
@@ -656,11 +689,26 @@ Future<List<_PlaybackSource>> _morneyeSources(
             finished = true;
           }
           try {
-            return await cache().adopt(
+            if (tryAtmos) AtmosDiagnostics.record('cache_adopt_start', {
+              'encoded': download.atmosEncoded,
+              'mode': found.atmosDownload ? 'download' : 'playback',
+            });
+            final adopted = await cache().adopt(
               found,
               download.file,
               atmosEncoded: download.atmosEncoded,
             );
+            if (tryAtmos) AtmosDiagnostics.record('cache_adopt_done', {
+              'encoded': adopted.atmosEncoded,
+              'outcome': 'ready',
+            });
+            return adopted;
+          } catch (error) {
+            if (tryAtmos) AtmosDiagnostics.record('cache_adopt_error', {
+              'errorClass': error.runtimeType.toString(),
+              'reason': 'cache_failure',
+            });
+            rethrow;
           } finally {
             await download.cleanup();
           }

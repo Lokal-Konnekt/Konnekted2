@@ -4954,6 +4954,7 @@ class PlayerService {
     final routed = resolveEngineForSong(
       preferred: desiredEngine,
       requiresRustDecoder: song.requiresRustDecoder,
+      isAtmosJoc: song.atmosEncoded,
     );
     if (routed != desiredEngine) {
       _debugLog(

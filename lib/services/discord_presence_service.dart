@@ -273,22 +273,29 @@ class DiscordPresenceService extends ChangeNotifier {
       if (_artworkResolver != null) {
         url = await _artworkResolver(song);
       } else {
-        url = await _artwork.resolve(
-          DiscoveryArtworkRequest(
-            kind: DiscoveryArtworkKind.track,
-            title: song.title,
-            artist: song.artist,
-          ),
+        final trackRequest = DiscoveryArtworkRequest(
+          kind: DiscoveryArtworkKind.track,
+          title: song.title,
+          artist: song.artist,
         );
+        // After a previous miss, bypass only the negative cache entry.
+        // Otherwise the 45-second retry would return the cached empty result
+        // for five minutes without making a single new lookup.
+        if (_coverFailures.containsKey(key)) {
+          _artwork.invalidateMiss(trackRequest);
+        }
+        url = await _artwork.resolve(trackRequest);
         if (publicArtwork(url).isEmpty &&
             song.album?.trim().isNotEmpty == true) {
-          url = await _artwork.resolve(
-            DiscoveryArtworkRequest(
-              kind: DiscoveryArtworkKind.album,
-              title: song.album!,
-              artist: song.albumArtist ?? song.artist,
-            ),
+          final albumRequest = DiscoveryArtworkRequest(
+            kind: DiscoveryArtworkKind.album,
+            title: song.album!,
+            artist: song.albumArtist ?? song.artist,
           );
+          if (_coverFailures.containsKey(key)) {
+            _artwork.invalidateMiss(albumRequest);
+          }
+          url = await _artwork.resolve(albumRequest);
         }
       }
       final safe = publicArtwork(url);

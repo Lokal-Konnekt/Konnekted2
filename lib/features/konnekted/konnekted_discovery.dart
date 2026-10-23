@@ -584,13 +584,13 @@ Future<List<_PlaybackSource>> _morneyeSources(
               cancel: cancel,
             );
             try {
-              download = await fetch(quality: tryAtmos ? 'DOLBY_ATMOS' : null);
+              download = await fetch(quality: tryAtmos ? 'DOLBY_ATMOS' : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null));
             } catch (error) {
               if (!tryAtmos) rethrow;
               // The Mornye provider or device did not return playable JOC.
               // Request the normal stereo tier; never transcode a JOC file.
               onStatus?.call('Atmos unavailable on this route. Using stereo…');
-              download = await fetch();
+              download = await fetch(quality: 'HI_RES_LOSSLESS');
             }
           } on MorneyePackageError catch (error) {
             throw DiscoveryException(error.message);

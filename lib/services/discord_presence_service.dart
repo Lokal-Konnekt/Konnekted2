@@ -78,6 +78,10 @@ class DiscordPresenceService extends ChangeNotifier {
   // Distinguish a failed lookup from an image that Discord fails to display.
   // Never write artwork URLs, credentials, or private file paths to logs.
   void _setArtworkStatus(String key, String message) {
+    // A slow remote artwork lookup may finish after a next/previous action.
+    // Never show the previous song's failure as the current song's status.
+    final current = _player?.currentSongNotifier.value;
+    if (current == null || _songKey(current) != key) return;
     if (_artworkStatusKey == key && _artworkStatus == message) return;
     _artworkStatusKey = key;
     _artworkStatus = message;

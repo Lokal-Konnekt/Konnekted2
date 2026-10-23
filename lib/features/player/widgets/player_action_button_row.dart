@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -461,7 +462,7 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
             setState(() {});
             widget.playerService.refreshNotificationState();
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              LokalToast.fromSnackBar(context, 
                 SnackBar(
                   content: Text(
                     newState

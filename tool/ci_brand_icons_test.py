@@ -2,6 +2,9 @@
 import unittest
 from pathlib import Path
 from PIL import Image
+import io
+
+from gen_lokal_launcher_icons import HUB_SHIFT, SIZE, source_bytes
 
 class BrandIconsTest(unittest.TestCase):
     def test_sticker_mask_alignment_and_square_art(self):
@@ -13,6 +16,25 @@ class BrandIconsTest(unittest.TestCase):
         self.assertEqual(mask.getpixel((0, 0))[3], 0)
         self.assertEqual(mask.getpixel((445, 255))[3], 255)
         self.assertEqual(mask.getpixel((260, 256))[3], 0)
+
+    def test_hub_and_sticker_are_recentered_together(self):
+        # The existing master has its outer hub ring roughly at (254.5,246.5).
+        # Move it to (256.5,256.5) without changing the CD's proportions.
+        self.assertEqual(HUB_SHIFT, (2, 10))
+        source = Image.open(io.BytesIO(source_bytes())).convert("RGBA")
+        source = source.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+        aligned = Image.open("assets/branding/lokal_icon.png").convert("RGBA")
+        dx, dy = HUB_SHIFT
+        # A central hub pixel must be sampled from the shifted source.
+        self.assertEqual(aligned.getpixel((256, 256)),
+                         source.getpixel((256 - dx, 256 - dy)))
+        # The upper-left corner remains solid full bleed, never white/clear.
+        self.assertEqual(aligned.getpixel((0, 0)),
+                         source.getpixel((dx - 1, dy - 1)))
+        # Sticker mask should be translated by the identical displacement.
+        sticker = Image.open("assets/branding/lokal_icon_sticker.png").convert("RGBA")
+        self.assertEqual(sticker.getpixel((360, 185))[3], 0)
+        self.assertEqual(sticker.getpixel((365, 197))[3], 255)
 
     def test_android_accent_variants_and_transparency(self):
         root = Path("android/app/src/main/res")

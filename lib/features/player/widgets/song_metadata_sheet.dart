@@ -64,6 +64,10 @@ class SongMetadataSheet extends StatelessWidget {
                 ? '${song.fileType.toUpperCase()} (${song.dsdRateLabel})'
                 : song.fileType.toUpperCase(),
           ),
+          if (song.atmosEncoded)
+            _buildMetadataRow(
+              context, 'Spatial audio source', 'Dolby Atmos (verified E-AC-3 JOC)',
+            ),
           if (song.resolution != null && !song.isDsd)
             _buildMetadataRow(context, l10n.resolution, song.resolution!),
           if (song.albumArtist != null)

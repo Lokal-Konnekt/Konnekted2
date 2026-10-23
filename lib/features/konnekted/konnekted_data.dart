@@ -91,10 +91,20 @@ final konnektedFavoritesProvider = Provider<AsyncValue<List<Song>>>(
       _homeData(ref.watch(favoritesProvider), (state) => state.favoriteSongs),
 );
 
-final konnektedLibraryProvider = Provider<AsyncValue<List<Song>>>(
+/// Keep playlist ID resolution tied to the same deduplication decision as
+/// the displayed library: hidden desktop duplicates resolve to phone copies.
+final konnektedLibraryIndexProvider =
+    Provider<AsyncValue<PreferredLibrarySongIndex>>(
   (ref) => _homeData(
     ref.watch(songsProvider),
-    (state) => preferLocalLibrarySongs(state.songs),
+    (state) => preferredLibrarySongIndex(state.songs),
+  ),
+);
+
+final konnektedLibraryProvider = Provider<AsyncValue<List<Song>>>(
+  (ref) => _homeData(
+    ref.watch(konnektedLibraryIndexProvider),
+    (index) => index.visible,
   ),
 );
 

@@ -5,7 +5,7 @@ import 'package:flick/features/discovery/discovery_artwork.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
 
 /// What can be done with a song Search found online.
-enum OnlineResultAction { play, playNext, addToQueue, download, openInTidal }
+enum OnlineResultAction { play, playNext, addToQueue, download }
 
 /// A Search result's cover: the source's, else Discovery's lookup (your
 /// library, Deezer, iTunes), else a note.
@@ -141,12 +141,6 @@ class _OnlineResultSheet extends StatelessWidget {
                     label: 'Add to queue',
                     onTap: () => pick(OnlineResultAction.addToQueue),
                   ),
-                  if (track.atmosAvailable && track.tidalUrl != null)
-                    _ActionRow(
-                      icon: Icons.open_in_new_rounded,
-                      label: 'Open in Tidal (Atmos-capable devices)',
-                      onTap: () => pick(OnlineResultAction.openInTidal),
-                    ),
                   _ActionRow(
                     icon: Icons.download_rounded,
                     label: saving ? 'Downloading…' : 'Download to library',

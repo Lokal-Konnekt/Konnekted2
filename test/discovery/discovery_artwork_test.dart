@@ -17,6 +17,50 @@ http.Response _json(Object body) => http.Response(
 );
 
 void main() {
+  test('Discord/Discovery resolves Knuckle G local title variant from a broad lookup', () async {
+    final terms = <String>[];
+    final client = MockClient((request) async {
+      if (request.url.host == 'itunes.apple.com') {
+        final term = request.url.queryParameters['term'] ?? '';
+        terms.add(term);
+        if (term == 'Knuckle G biggest city') {
+          return _json({
+            'results': [
+              {
+                'trackName': 'Biggest of the City',
+                'artistName': 'Other Artist',
+                'artworkUrl100': 'https://is7-ssl.mzstatic.com/other-100x100bb.jpg',
+              },
+              {
+                'trackName': 'Biggest of the City (Remix)',
+                'artistName': 'Knuckle G',
+                'artworkUrl100': 'https://is7-ssl.mzstatic.com/remix-100x100bb.jpg',
+              },
+              {
+                'trackName': 'Biggest of the City',
+                'artistName': 'Knuckle G',
+                'artworkUrl100': 'https://is7-ssl.mzstatic.com/original-100x100bb.jpg',
+              },
+            ],
+          });
+        }
+        return _json({'results': []});
+      }
+      return _json({'data': []});
+    });
+    addTearDown(client.close);
+    final actual = await DiscoveryArtworkResolver(DiscoveryHttp(client)).resolve(
+      const DiscoveryArtworkRequest(
+        kind: DiscoveryArtworkKind.track,
+        artist: 'Knuckle G',
+        title: 'Biggest in the City',
+      ),
+    );
+    expect(terms, contains('Knuckle G biggest city'));
+    expect(actual, 'https://is7-ssl.mzstatic.com/original-600x600bb.jpg');
+  });
+
+
   late List<Uri> requests;
   late Map<String, Object> responses;
   late DateTime now;

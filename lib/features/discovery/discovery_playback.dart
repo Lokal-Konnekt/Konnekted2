@@ -26,9 +26,9 @@ class DiscoveryPlaybackCache {
     DiscoveryAudioProbe? probe,
     Future<Directory> Function()? directory,
     Set<String> Function()? protectedPaths,
-    this.maxFileBytes = 128 * 1024 * 1024,
+    this.maxFileBytes = 512 * 1024 * 1024,
     this.maxCacheBytes = 1024 * 1024 * 1024,
-    this.downloadTimeout = const Duration(minutes: 2),
+    this.downloadTimeout = const Duration(minutes: 6),
     this.rangeBytes = 10 * 1024 * 1024,
     Future<void> Function(String audio, String cover)? embedCover,
   }) : _embedCover = embedCover ?? _embedCoverInFile,
@@ -74,8 +74,8 @@ class DiscoveryPlaybackCache {
     try {
       final root = await _directory();
       await root.create(recursive: true);
-      // 128MB was reserved for *every* track even when it occupied only
-      // a few MB, leading to false "cache full" failures on populated queues.
+      // The maximum track size was previously reserved in full even when only
+      // a few MB were needed, causing false cache-full errors in queues.
       // Known lengths reserve exactly their bytes; unknown lengths grow
       // incrementally under the same hard cache ceiling.
       await _reserve(root, audio.length ?? 0);

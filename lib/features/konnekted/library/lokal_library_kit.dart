@@ -14,6 +14,7 @@ import 'package:flick/l10n/l10n.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -37,14 +38,9 @@ Future<void> lokalPlay(
         .play(shuffle ? list.first : (start ?? list.first), playlist: list);
   } catch (_) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          lokalText(
-            'Couldn’t play this song. Check that its file or server is available.',
-          ),
-        ),
-      ),
+    LokalToast.show(
+      context,
+      lokalText('Couldn’t play this song. Check that its file or server is available.'),
     );
   }
 }
@@ -60,9 +56,7 @@ Future<void> lokalQueueAll(
     await player.addToQueue(song);
   }
   if (!context.mounted) return;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(l10n.addedSongsToQueue(songs.length))));
+  LokalToast.show(context, l10n.addedSongsToQueue(songs.length));
 }
 
 /// Pushes a Library page on the navigator the caller lives in.

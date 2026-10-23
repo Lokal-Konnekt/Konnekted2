@@ -3,6 +3,7 @@ import 'package:flick/l10n/l10n.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/features/internet_radio/radio_providers.dart';
@@ -108,7 +109,7 @@ Future<void> _editCatalogUrl(BuildContext context, WidgetRef ref) async {
   final uri = Uri.tryParse(url.trim());
   if (url.trim().isNotEmpty && (uri == null || uri.scheme != 'https')) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    LokalToast.fromSnackBar(context, 
       SnackBar(content: Text(lokalText('Use an https link to a JSON file.'))),
     );
     return;

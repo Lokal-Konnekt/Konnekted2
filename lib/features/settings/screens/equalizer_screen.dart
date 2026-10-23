@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path_provider/path_provider.dart';
@@ -85,9 +86,7 @@ class _EqualizerScreenState extends ConsumerState<EqualizerScreen> {
           graphicGainsDb: List<double>.filled(10, 0.0, growable: false),
           parametricBands: entry.bands,
         );
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
+    LokalToast.fromSnackBar(context, 
         SnackBar(
           content: Text(l10n.appliedAutoeqFor(entry.displayName)),
           behavior: SnackBarBehavior.floating,
@@ -551,9 +550,7 @@ class _PresetsSheetState extends ConsumerState<_PresetsSheet> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
+    LokalToast.fromSnackBar(context, 
         SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }
@@ -3556,13 +3553,11 @@ class _ConvolverSection extends ConsumerWidget {
           .setConvolverIr(storedPath, displayName);
       await loadConvolverIr(storedPath);
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l10n.loadedIr(displayName))));
+        LokalToast.fromSnackBar(context, SnackBar(content: Text(l10n.loadedIr(displayName))));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l10n.couldNotLoadIr(e))));
+        LokalToast.fromSnackBar(context, SnackBar(content: Text(l10n.couldNotLoadIr(e))));
       }
     }
   }

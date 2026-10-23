@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:isar_community/isar.dart';
 
 import '../../../core/utils/app_haptics.dart';
@@ -105,7 +106,7 @@ class _NetworkSourcesScreenState extends State<NetworkSourcesScreen> {
     } catch (e) {
       if (mounted) {
         final authFailure = _isAuthFailure(e);
-        ScaffoldMessenger.of(context).showSnackBar(
+        LokalToast.fromSnackBar(context, 
           SnackBar(
             duration: const Duration(seconds: 6),
             content: Text(

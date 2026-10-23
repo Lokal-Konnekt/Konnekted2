@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -135,11 +136,7 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
   }
 
   void _say(String message) {
-    ScaffoldMessenger.maybeOf(context)
-      ?..removeCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-      );
+    if (mounted) LokalToast.show(context, message);
   }
 
   Future<void> _openAllFilesAccessSettings() async {

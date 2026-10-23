@@ -20,6 +20,7 @@ import 'package:flick/providers/album_color_provider.dart';
 import 'package:flick/providers/navigation_provider.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/widgets/lokal/lokal_player_route.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
@@ -241,14 +242,9 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell>
       await ref.read(playerProvider.notifier).play(song, playlist: songs);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            lokalText(
-              'Couldn’t play this song. Check that its file or server is available.',
-            ),
-          ),
-        ),
+      LokalToast.show(
+        context,
+        lokalText('Couldn’t play this song. Check that its file or server is available.'),
       );
     }
   }
@@ -267,11 +263,10 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell>
         SystemNavigator.pop();
       } else {
         _lastBack = now;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(lokalText('Press back again to exit')),
-            duration: Duration(seconds: 2),
-          ),
+        LokalToast.show(
+          context,
+          lokalText('Press back again to exit'),
+          duration: const Duration(seconds: 2),
         );
       }
     }

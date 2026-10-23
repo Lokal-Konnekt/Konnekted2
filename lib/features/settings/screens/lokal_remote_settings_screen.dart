@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -97,9 +98,7 @@ class _LokalRemoteSettingsScreenState
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context)
-      ..removeCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    if (mounted) LokalToast.show(context, message);
   }
 
   String _safeMessage(Object error) => error is LokalRemoteException

@@ -3,6 +3,7 @@ import 'material_player_thumb.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/player_volume_control.dart';
@@ -129,9 +130,7 @@ class PlayerControls extends StatelessWidget {
                               playerService.toggleShuffle();
                               final next =
                                   playerService.shuffleModeNotifier.value;
-                              ScaffoldMessenger.of(context)
-                                ..hideCurrentSnackBar()
-                                ..showSnackBar(
+                              LokalToast.fromSnackBar(context, 
                                   SnackBar(
                                     content: Text(l10n.shuffle2(next.label)),
                                     behavior: SnackBarBehavior.floating,
@@ -234,9 +233,7 @@ class PlayerControls extends StatelessWidget {
                               AppHaptics.tap();
                               playerService.toggleLoopMode();
                               final next = playerService.loopModeNotifier.value;
-                              ScaffoldMessenger.of(context)
-                                ..hideCurrentSnackBar()
-                                ..showSnackBar(
+                              LokalToast.fromSnackBar(context, 
                                   SnackBar(
                                     content: Text(l10n.repeat(next.label)),
                                     behavior: SnackBarBehavior.floating,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -178,7 +179,7 @@ class _TokenInputSheetState extends State<_TokenInputSheet> {
       await widget.onConnect(token);
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
+        LokalToast.fromSnackBar(context, 
           SnackBar(
             content: Text(l10n.listenbrainzConnected2),
             behavior: SnackBarBehavior.floating,
@@ -207,7 +208,7 @@ class _TokenInputSheetState extends State<_TokenInputSheet> {
         mode: LaunchMode.externalApplication,
       );
       if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        LokalToast.fromSnackBar(context, 
           SnackBar(
             content: Text(l10n.couldNotOpenBrowser),
             behavior: SnackBarBehavior.floating,
@@ -216,7 +217,7 @@ class _TokenInputSheetState extends State<_TokenInputSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        LokalToast.fromSnackBar(context, 
           SnackBar(
             content: Text(l10n.couldNotOpenLink2(e)),
             behavior: SnackBarBehavior.floating,

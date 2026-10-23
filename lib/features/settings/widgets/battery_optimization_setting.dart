@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flick/services/permission_service.dart';
 import 'package:flick/widgets/lokal/settings/lokal_settings_kit.dart';
 
@@ -56,7 +57,7 @@ class _BatteryOptimizationSettingState extends State<BatteryOptimizationSetting>
       await _refresh();
     } catch (_) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
+        LokalToast.fromSnackBar(context, 
           const SnackBar(
             content: Text(
               'Couldn’t open battery settings. Try Android Settings › Apps › Lokal › Battery.',

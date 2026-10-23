@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flick/providers/providers.dart';
@@ -128,14 +129,14 @@ class _BluetoothSettingsScreenState
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
     if (result.ok) {
-      messenger.showSnackBar(
+      LokalToast.fromSnackBar(context, 
         SnackBar(
           content: Text(l10n.codecApplied(BluetoothCodecType.label(codecType))),
           duration: const Duration(seconds: 2),
         ),
       );
     } else {
-      messenger.showSnackBar(
+      LokalToast.fromSnackBar(context, 
         SnackBar(
           content: Text(l10n.codecForcingUnavailableOnThisDevice),
           action: SnackBarAction(
@@ -153,7 +154,7 @@ class _BluetoothSettingsScreenState
     if (!mounted) return;
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (!ok && messenger != null) {
-      messenger.showSnackBar(
+      LokalToast.fromSnackBar(context, 
         SnackBar(
           content: Text(l10n.developerOptionsIsDisabledEnableIt),
           duration: Duration(seconds: 5),

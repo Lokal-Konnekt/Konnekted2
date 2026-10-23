@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flick/services/lyrics_service.dart';
 import 'package:flick/services/lyrics_translation_service.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -79,7 +80,7 @@ class _LyricsSublineButtonsState extends State<LyricsSublineButtons> {
         _busy = false;
       });
       widget.onChanged(null);
-      ScaffoldMessenger.of(context).showSnackBar(
+      LokalToast.fromSnackBar(context, 
         const SnackBar(
           content: Text('These lyrics are already in your system language.'),
         ),
@@ -95,7 +96,7 @@ class _LyricsSublineButtonsState extends State<LyricsSublineButtons> {
     });
     widget.onChanged(result);
     if (result == null)
-      ScaffoldMessenger.of(context).showSnackBar(
+      LokalToast.fromSnackBar(context, 
         SnackBar(
           content: Text(
             mode == 'romanize'

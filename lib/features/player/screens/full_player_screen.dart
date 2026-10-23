@@ -25,6 +25,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -352,12 +353,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     try {
       await LibraryDownloader().save(song, artwork: song.albumArt);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      LokalToast.fromSnackBar(context, 
         const SnackBar(content: Text('Saved to your music library')),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      LokalToast.fromSnackBar(context, 
         SnackBar(content: Text('Could not save track: $error')),
       );
     }

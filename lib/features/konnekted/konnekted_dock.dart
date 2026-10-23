@@ -13,6 +13,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
@@ -634,12 +635,9 @@ class KonnektedMiniPlayer extends ConsumerWidget {
       await action();
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              lokalText('Playback couldn’t be changed. Please try again.'),
-            ),
-          ),
+        LokalToast.show(
+          context,
+          lokalText('Playback couldn’t be changed. Please try again.'),
         );
       }
     }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/l10n/l10n.dart';
@@ -108,14 +109,8 @@ abstract final class LibraryScanFlow {
   ///
   /// Returns the folder that was added, or `null` when nothing was.
   static Future<MusicFolder?> addFolder(BuildContext context) async {
-    final messenger = ScaffoldMessenger.maybeOf(context);
     void say(String message) {
-      if (messenger == null || !messenger.mounted) return;
-      messenger
-        ..removeCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-        );
+      if (context.mounted) LokalToast.show(context, message);
     }
 
     if (ScanSessionController.instance.isActive) {
@@ -249,9 +244,8 @@ abstract final class LibraryScanFlow {
     bool countSongs = true,
   }) async {
     final controller = ScanSessionController.instance;
-    final messenger = ScaffoldMessenger.maybeOf(context);
     if (controller.isActive) {
-      messenger?.showSnackBar(
+      LokalToast.fromSnackBar(context, 
         const SnackBar(
           content: Text('Wait for the current scan to finish.'),
           behavior: SnackBarBehavior.floating,
@@ -288,9 +282,8 @@ abstract final class LibraryScanFlow {
     final result = controller.result.value;
     if (status == ScanSessionStatus.complete &&
         result != null &&
-        messenger != null &&
-        messenger.mounted) {
-      messenger.showSnackBar(
+        context.mounted) {
+      LokalToast.fromSnackBar(context, 
         SnackBar(
           content: Text('${result.title}: ${scanResultHeadline(result)}'),
           behavior: SnackBarBehavior.floating,

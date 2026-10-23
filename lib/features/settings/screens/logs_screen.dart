@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -98,8 +99,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       ClipboardData(text: entries.map(_format).join('\n')),
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(l10n.logsCopied)));
+    LokalToast.fromSnackBar(context, SnackBar(content: Text(l10n.logsCopied)));
   }
 
   Future<void> _shareAll(List<LogEntry> entries) async {
@@ -124,8 +124,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    LokalToast.fromSnackBar(context, SnackBar(content: Text(message)));
   }
 
   // ponytail: unlisted dpaste paste, anonymous, 30-day expiry. Not private —

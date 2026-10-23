@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/services.dart';
 import 'package:flick/services/android_audio_device_service.dart';
 
@@ -15,7 +16,6 @@ Future<void> openAndroidOutputChooser(BuildContext context) async {
     error = 'Output selection requires the updated Android app.';
   }
   if (error != null && context.mounted) {
-    ScaffoldMessenger.maybeOf(context)
-        ?.showSnackBar(SnackBar(content: Text(error)));
+    LokalToast.fromSnackBar(context, SnackBar(content: Text(error)));
   }
 }

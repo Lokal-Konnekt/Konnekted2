@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -296,16 +297,14 @@ class _LastFmSettingsTileState extends ConsumerState<LastFmSettingsTile>
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    LokalToast.fromSnackBar(context, SnackBar(content: Text(message)));
   }
 
   void _showSuccess(String message) {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    LokalToast.fromSnackBar(context, SnackBar(content: Text(message)));
   }
 
   Future<void> _showConnectedBottomSheet(String username) async {

@@ -27,6 +27,7 @@ class DiscoveryHttp {
       headers: {'Accept': 'application/json', ...headers},
       body: body,
       maxBytes: jsonLimit,
+      isMetadata: true,
       deadline: timeout,
       onChunk: bytes.add,
       cancel: cancel,
@@ -45,6 +46,7 @@ class DiscoveryHttp {
     Map<String, String> headers = const {},
     Map<String, Object?>? body,
     required int maxBytes,
+    bool isMetadata = false,
     required Duration deadline,
     required FutureOr<void> Function(List<int>) onChunk,
     Future<void>? cancel,
@@ -150,8 +152,10 @@ class DiscoveryHttp {
         });
       }
       if ((response.contentLength ?? 0) > maxBytes) {
-        throw const DiscoveryException(
-          'The response exceeds the download size limit.',
+        throw DiscoveryException(
+          isMetadata
+              ? 'The source returned too much JSON metadata (2 MiB limit).'
+              : 'The audio response exceeds the per-track download limit.',
         );
       }
       var received = 0;
@@ -164,8 +168,10 @@ class DiscoveryHttp {
         final chunk = chunks.current;
         received += chunk.length;
         if (received > maxBytes) {
-          throw const DiscoveryException(
-            'The response exceeds the download size limit.',
+          throw DiscoveryException(
+            isMetadata
+                ? 'The source returned too much JSON metadata (2 MiB limit).'
+                : 'The audio response exceeds the per-track download limit.',
           );
         }
         await onChunk(chunk);

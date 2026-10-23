@@ -187,10 +187,12 @@ without a registered server, while a plain URL in `filePath` is not a reliable
 cross-engine interface. Therefore this adapter stages a real local file.
 
 * API JSON: 2 MiB maximum, 15-second absolute deadline, HTTP 200 only, no redirects.
-* Media: streamed to disk with backpressure, 128 MiB maximum per file, two-minute
+  Oversized JSON is reported separately from oversized media to identify the
+  failing stage without exposing add-on response bodies.
+* Media: streamed to disk with backpressure, 512 MiB maximum per file, six-minute
   absolute deadline. Declared **and actual** body size are bounded. Empty,
   incomplete, oversized, cancelled or failed downloads are removed.
-* Cache: `<application-cache>/discovery_audio`, 384 MiB cap, capacity reserved
+* Cache: `<application-cache>/discovery_audio`, 1 GiB cap, capacity reserved
   before download. Eviction is oldest-first and protects current, explicitly
   queued and up-next files exposed by PlayerService. If they consume the budget,
   the request fails instead of deleting those files. The UI serializes preparation.

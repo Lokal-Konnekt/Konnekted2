@@ -666,7 +666,7 @@ bool tidalAtmosErrorMentionsMode(String message) =>
 /// A remote network fault is not proof that the catalogue's Atmos edition is
 /// missing. All error paths must use the same concise, non-sensitive message.
 bool tidalAtmosTransportFailure(String message) =>
-    RegExp(r'HTTP\\s*5\\d\\d|TimeoutException|timed?\\s*out|SocketException|without confirmation',
+    RegExp(r'HTTP\s*5\d\d|TimeoutException|timed?\s*out|SocketException|without confirmation',
       caseSensitive: false).hasMatch(message);
 
 /// Only a deterministic response permits a stereo fallback. Unknown errors,
@@ -676,13 +676,13 @@ bool tidalAtmosTierUnavailable(String message) =>
       caseSensitive: false).hasMatch(message);
 
 String tidalAtmosTransportMessage(String message) {
-  final status = RegExp(r'HTTP\\s*(5\\d\\d)', caseSensitive: false)
+  final status = RegExp(r'HTTP\s*(5\d\d)', caseSensitive: false)
       .firstMatch(message)?.group(1);
   if (status != null) {
     return 'Tidal Atmos unavailable: download service HTTP $status. '
         'No Atmos stream was received. Retry later.';
   }
-  if (RegExp(r'TimeoutException|timed?\\s*out',
+  if (RegExp(r'TimeoutException|timed?\s*out',
           caseSensitive: false).hasMatch(message)) {
     return 'Tidal Atmos unavailable: download service timed out. '
         'No Atmos stream was received. Retry later.';

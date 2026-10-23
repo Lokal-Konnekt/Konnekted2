@@ -10,6 +10,9 @@ void main() {
     expect(catalogueQualityLabel('16bit/44.1kHz'), '16-bit / 44.1 kHz');
     expect(catalogueQualityLabel('24bit'), '24-bit');
     expect(catalogueQualityLabel('HI_RES_LOSSLESS'), 'Hi-res lossless');
+    expect(catalogueQualityLabel('1411kbps'), '1411kbps');
+    expect(catalogueAudioDetails(quality: '1411kbps'), '1411kbps');
+    expect(catalogueAudioDetails(quality: '320kbps'), '320kbps');
     expect(catalogueQualityLabel(null), '');
     expect(catalogueQualityLabel(''), '');
   });

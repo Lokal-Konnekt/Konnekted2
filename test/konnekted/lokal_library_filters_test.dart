@@ -14,6 +14,7 @@ Song track(
   int? rate = 96000,
   String type = 'FLAC',
   String? resolution,
+  bool atmosAvailable = false,
 }) => Song(
   id: id,
   title: id,
@@ -25,6 +26,7 @@ Song track(
   bitDepth: bits,
   sampleRate: rate,
   resolution: resolution,
+  atmosAvailable: atmosAvailable,
 );
 
 void main() {
@@ -66,6 +68,15 @@ void main() {
       isFalse,
     );
   });
+  test('Atmos catalogue filter does not conflate hi-res stereo with Atmos', () {
+    final immersive = track('atmos', source: 'tidal', atmosAvailable: true);
+    final stereo = track('stereo', source: 'tidal');
+    expect(libraryAudioFilterLabel('atmos'), 'Dolby Atmos available');
+    expect(matchesLibraryFilters(immersive, LokalSongLocation.all, 'atmos'), isTrue);
+    expect(matchesLibraryFilters(stereo, LokalSongLocation.all, 'atmos'), isFalse);
+    expect(matchesLibraryFilters(local, LokalSongLocation.phone, 'atmos'), isFalse);
+  });
+
   test('combined menu includes only unique known formats in numeric order', () {
     final songs = [
       local,

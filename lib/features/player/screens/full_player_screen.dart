@@ -5,6 +5,7 @@ import 'package:flick/features/player/widgets/full_player_visuals.dart';
 import 'package:flick/features/player/widgets/full_bleed_artwork_frame.dart';
 
 import '../widgets/artist_credit_links.dart';
+import 'package:flick/widgets/common/overflow_marquee_title.dart';
 
 import 'package:flick/core/theme/lokal_appearance.dart';
 
@@ -926,10 +927,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                   child: InkWell(
                     onTap: () => openLokalAlbumForSong(context, song),
                     borderRadius: BorderRadius.circular(8),
-                    child: Text(
-                      song.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: OverflowMarqueeTitle(
+                      key: ValueKey('full-title:${song.id}'),
+                      title: song.title,
                       style: TextStyle(
                         fontFamily: _font,
                         fontSize: lerpDouble(titleSize, 18, p),

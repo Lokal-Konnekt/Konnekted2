@@ -3,6 +3,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/lokal_appearance.dart';
+import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'full_player_visuals.dart';
 
@@ -73,25 +74,33 @@ class _PlayerTransportControlsState extends ConsumerState<PlayerTransportControl
       final radius = lerpDouble(26, 23, l)!;
       // Balanced side buttons and a narrower central play pad.
       // Playback changes the icon, not the widths of the three buttons.
-      final primaryShare = .36;
+      final primaryShare = unboxed ? .24 : .36;
       return SizedBox(
         height: height,
         child: LayoutBuilder(
           builder: (context, c) {
             final available = c.maxWidth - 16;
             final primary = available * primaryShare;
+            // The unboxed layout uses a narrower central hit region so both
+            // skip glyph centers move inward symmetrically. For a 360dp row,
+            // reducing the central share from 36% to 24% moves each skip
+            // center 20.6dp closer to the play icon.
+
             Widget skip(IconData icon, VoidCallback onTap, String label) =>
                 Expanded(
                   child: _TransportButton(
                     color: unboxed ? Colors.transparent : FullPlayerVisuals.surface,
                     radius: radius,
+                    unboxed: unboxed,
                     onTap: onTap,
                     label: label,
-                    child: Icon(
-                      unboxed ? (icon == Icons.skip_previous_rounded ? Icons.skip_previous : Icons.skip_next) : icon,
-                      size: unboxed ? lerpDouble(43, 34, l) : lerpDouble(29, 26, l),
-                      color: FullPlayerVisuals.primaryText,
-                    ),
+                    child: unboxed
+                        ? _AppleSkipIcon(
+                            previous: icon == Icons.skip_previous_rounded,
+                            size: lerpDouble(40, 32, l)!,
+                            color: FullPlayerVisuals.primaryText,
+                          )
+                        : Icon(icon, size: lerpDouble(29, 26, l), color: FullPlayerVisuals.primaryText),
                   ),
                 );
             return Row(
@@ -106,6 +115,7 @@ class _PlayerTransportControlsState extends ConsumerState<PlayerTransportControl
                   width: primary,
                   child: _TransportButton(
                     key: const ValueKey('player-play-button'),
+                    unboxed: unboxed,
                     color: unboxed ? Colors.transparent : widget.accent,
                     radius: radius,
                     onTap: widget.onPlayPause,
@@ -140,12 +150,14 @@ class _TransportButton extends StatefulWidget {
     super.key,
     required this.color,
     required this.radius,
+    required this.unboxed,
     required this.onTap,
     required this.label,
     required this.child,
   });
   final Color color;
   final double radius;
+  final bool unboxed;
   final VoidCallback onTap;
   final String label;
   final Widget child;
@@ -171,13 +183,45 @@ class _TransportButtonState extends State<_TransportButton> {
           color: widget.color,
           borderRadius: BorderRadius.circular(widget.radius),
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onHighlightChanged: (value) => setState(() => _pressed = value),
-            onTap: widget.onTap,
-            child: Center(child: widget.child),
-          ),
+          child: widget.unboxed
+              ? GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (_) => setState(() => _pressed = true),
+                  onTapCancel: () => setState(() => _pressed = false),
+                  onTapUp: (_) => setState(() => _pressed = false),
+                  onTap: () { AppHaptics.tap(); widget.onTap(); },
+                  child: Center(child: widget.child),
+                )
+              : InkWell(
+                  onHighlightChanged: (value) => setState(() => _pressed = value),
+                  onTap: () { AppHaptics.tap(); widget.onTap(); },
+                  child: Center(child: widget.child),
+                ),
         ),
       ),
+    ),
+  );
+}
+
+/// Apple Music-style double chevrons with a terminal bar, no background.
+class _AppleSkipIcon extends StatelessWidget {
+  const _AppleSkipIcon({required this.previous, required this.size, required this.color});
+  final bool previous;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: size,
+    height: size,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (previous) Container(width: size * .085, height: size * .53, color: color),
+        Icon(previous ? Icons.fast_rewind_rounded : Icons.fast_forward_rounded,
+          size: size * .78, color: color),
+        if (!previous) Container(width: size * .085, height: size * .53, color: color),
+      ],
     ),
   );
 }

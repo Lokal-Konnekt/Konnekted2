@@ -10,7 +10,7 @@ bool tidalAtmosAvailable(Map<dynamic, dynamic> track) {
 
   for (final key in const [
     'audio_mode', 'audioMode', 'audio_quality', 'audioQuality',
-    'spatial_audio', 'spatialAudio',
+    'spatial_audio', 'spatialAudio', 'audio_modes', 'audioModes',
   ]) {
     if (isMode(track[key])) return true;
   }

@@ -554,6 +554,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 addonId: addon.key,
                 sourceName: addon.displayName,
                 artwork: song.thumbnail,
+                atmosAvailable: song.atmosAvailable,
               ),
             ),
         ],

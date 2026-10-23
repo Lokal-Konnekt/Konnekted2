@@ -86,7 +86,7 @@ class DiscoveryTrack {
           catalogueSampleRate: catalogueSampleRate,
         );
 
-  String get key => '${source.name}:$addonId:$addonBase:$id';
+  String get key => '${source.name}:$addonId:$addonBase:$id${atmosRequested ? ':atmos' : ''}';
 }
 
 /// Safe to display: transport errors and remote response bodies never reach UI.

@@ -150,3 +150,37 @@ class LokalQualityPill extends StatelessWidget {
     ),
   );
 }
+
+
+/// Dolby Atmos is a Tidal catalogue mode, NOT a PCM quality tier.
+/// In particular, this never asserts that the current output is Atmos.
+class LokalAtmosPill extends StatelessWidget {
+  const LokalAtmosPill({super.key});
+
+  static const String description =
+      'Dolby Atmos available on Tidal. The current stream/output may be stereo.';
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: description,
+    child: Semantics(
+      label: description,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFF8E51FF).withValues(alpha: .15),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFFA684FF).withValues(alpha: .25)),
+        ),
+        child: Text(
+          'ATMOS',
+          style: LokalTheme.label(
+            context.lokal,
+            size: 10,
+            color: const Color(0xFFC4B4FF),
+          ).copyWith(letterSpacing: .4),
+        ),
+      ),
+    ),
+  );
+}

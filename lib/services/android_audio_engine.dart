@@ -8,6 +8,7 @@ import 'package:flick/models/playback_state.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/audio_engine.dart';
 import 'package:flick/core/utils/dev_log.dart';
+import 'package:flick/services/atmos_diagnostics.dart';
 
 typedef AndroidAudioSourcesBuilder = Future<just_audio.AudioSource> Function();
 typedef AndroidAudioSourceBuilder = Future<just_audio.AudioSource> Function(
@@ -156,6 +157,7 @@ class AndroidAudioEngine implements AudioEngine {
   just_audio.AudioPlayer? _player;
   PlaybackState _state = PlaybackState.empty(AudioEngineType.normalAndroid);
   Song? _loadedTrack;
+  String? _lastAtmosPlaybackState;
   List<String> _playlistSignature = const <String>[];
   bool _awaitingInitialSeek = false;
   bool _loadedSingleTrackOnly = false;
@@ -205,6 +207,18 @@ class AndroidAudioEngine implements AudioEngine {
     _subscriptions.add(
       player.playerStateStream.listen((state) {
         if (!identical(player, _player)) return;
+        final song = _loadedTrack;
+        if (song?.atmosEncoded == true) {
+          final status = '${state.processingState.name}:${state.playing}';
+          if (status != _lastAtmosPlaybackState) {
+            _lastAtmosPlaybackState = status;
+            AtmosDiagnostics.record('playback_state', {
+              'stage': state.processingState.name,
+              'outcome': state.playing ? 'playing' : 'paused_or_buffering',
+              'codec': 'eac3_joc',
+            });
+          }
+        }
         _emit(_state.copyWith(isPlaying: state.playing && !_sourceFailed));
       }),
     );
@@ -266,6 +280,11 @@ class AndroidAudioEngine implements AudioEngine {
       player.processingStateStream.listen((state) {
         if (!identical(player, _player)) return;
         if (state == just_audio.ProcessingState.completed) {
+          if (_loadedTrack?.atmosEncoded == true) {
+            AtmosDiagnostics.record('playback_end', {
+              'codec': 'eac3_joc', 'outcome': 'completed',
+            });
+          }
           onTrackEnded?.call();
         }
       }),
@@ -274,13 +293,24 @@ class AndroidAudioEngine implements AudioEngine {
     _subscriptions.add(
       player.errorStream.listen((error) {
         if (!identical(player, _player)) return;
-        devLog(
-          '[Playback] Android player error: '
-          'code=${error.code} message=${error.message} index=${error.index} '
-          'trackId=${_loadedTrack?.id} '
-          'trackFileType=${_loadedTrack?.fileType} '
-          'trackTitle=${_loadedTrack?.title}',
-        );
+        if (_loadedTrack?.atmosEncoded == true) {
+          // Media3/ExoPlayer errors sometimes contain file:// paths or
+          // signed source URLs. Log only the error code and error class.
+          AtmosDiagnostics.record('playback_error', {
+            'errorCode': error.code,
+            'errorClass': error.runtimeType.toString(),
+            'reason': 'android_player_error',
+            'codec': 'eac3_joc',
+          });
+        } else {
+          devLog(
+            '[Playback] Android player error: '
+            'code=${error.code} message=${error.message} index=${error.index} '
+            'trackId=${_loadedTrack?.id} '
+            'trackFileType=${_loadedTrack?.fileType} '
+            'trackTitle=${_loadedTrack?.title}',
+          );
+        }
         _sourceFailed = true;
         _playlistSignature = const [];
         _emit(_state.copyWith(isPlaying: false));
@@ -415,6 +445,14 @@ class AndroidAudioEngine implements AudioEngine {
         listEquals(_playlistSignature, nextSignature);
 
     _loadedTrack = track;
+    _lastAtmosPlaybackState = null;
+    if (track.atmosEncoded) {
+      AtmosDiagnostics.record('native_load_start', {
+        'codec': 'eac3_joc',
+        'engine': 'normalAndroid',
+        'crossfadeDisabled': true,
+      });
+    }
     await _configurePlayer(player);
 
     // Passthrough and object-based Atmos rendering cannot be crossfaded as

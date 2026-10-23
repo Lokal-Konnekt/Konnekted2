@@ -53,6 +53,11 @@ jobs:
         with:
           cache: 'true'
 
+      - name: Generate full-bleed CD launcher assets
+        run: |
+          python3 -m pip install --disable-pip-version-check Pillow
+          python3 tool/gen_lokal_launcher_icons.py
+          python3 -m unittest tool/ci_brand_icons_test.py -v
       - name: Restore compiled Rust dependencies
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:

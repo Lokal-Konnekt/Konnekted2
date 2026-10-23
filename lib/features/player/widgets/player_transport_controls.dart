@@ -74,13 +74,18 @@ class _PlayerTransportControlsState extends ConsumerState<PlayerTransportControl
       final radius = lerpDouble(26, 23, l)!;
       // Balanced side buttons and a narrower central play pad.
       // Playback changes the icon, not the widths of the three buttons.
-      final primaryShare = .36;
+      final primaryShare = unboxed ? .24 : .36;
       return SizedBox(
         height: height,
         child: LayoutBuilder(
           builder: (context, c) {
             final available = c.maxWidth - 16;
             final primary = available * primaryShare;
+            // The unboxed layout uses a narrower central hit region so both
+            // skip glyph centers move inward symmetrically. For a 360dp row,
+            // reducing the central share from 36% to 24% moves each skip
+            // center 20.6dp closer to the play icon.
+
             Widget skip(IconData icon, VoidCallback onTap, String label) =>
                 Expanded(
                   child: _TransportButton(

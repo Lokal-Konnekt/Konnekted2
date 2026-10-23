@@ -409,7 +409,7 @@ class LokalTrackRow extends ConsumerWidget {
     return LokalSwipeToQueue(
       song: song,
       enabled: available,
-      child: return InkWell(
+      child: InkWell(
         onTap: available ? onTap : null,
         onLongPress: () => _actions(context),
         child: Padding(

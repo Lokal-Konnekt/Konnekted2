@@ -88,8 +88,8 @@ class _PlayerTransportControlsState extends ConsumerState<PlayerTransportControl
                     onTap: onTap,
                     label: label,
                     child: Icon(
-                      icon,
-                      size: lerpDouble(29, 26, l),
+                      unboxed ? (icon == Icons.skip_previous_rounded ? Icons.skip_previous : Icons.skip_next) : icon,
+                      size: unboxed ? lerpDouble(43, 34, l) : lerpDouble(29, 26, l),
                       color: FullPlayerVisuals.primaryText,
                     ),
                   ),
@@ -110,12 +110,18 @@ class _PlayerTransportControlsState extends ConsumerState<PlayerTransportControl
                     radius: radius,
                     onTap: widget.onPlayPause,
                     label: widget.playing ? l10n.pause : l10n.play,
-                    child: AnimatedIcon(
-                      icon: AnimatedIcons.play_pause,
-                      progress: _icon,
-                      size: lerpDouble(33, 29, l),
-                      color: unboxed ? FullPlayerVisuals.primaryText : widget.onAccent,
-                    ),
+                    child: unboxed
+                        ? Icon(
+                            widget.playing ? Icons.pause : Icons.play_arrow,
+                            size: lerpDouble(62, 44, l),
+                            color: FullPlayerVisuals.primaryText,
+                          )
+                        : AnimatedIcon(
+                            icon: AnimatedIcons.play_pause,
+                            progress: _icon,
+                            size: lerpDouble(33, 29, l),
+                            color: widget.onAccent,
+                          ),
                   ),
                 ),
                 const SizedBox(width: 8),

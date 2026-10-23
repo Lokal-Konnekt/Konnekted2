@@ -348,7 +348,7 @@ class DiscoveryArtworkResolver {
         if (searchSongs != null) {
           try {
             for (final result in await searchSongs!('${request.artist} $broadTitle')) {
-              consider(result.title, result.artist, result.artwork);
+              consider(result.title, result.artist, result.artwork ?? '');
             }
           } catch (_) {
             // Keep candidates already verified from other sources.

@@ -18,6 +18,7 @@ class DiscoveryTrack {
     this.artwork,
     this.atmosAvailable = false,
     this.atmosRequested = false,
+    this.atmosDownload = false,
     this.catalogueQuality,
     this.catalogueBitDepth,
     this.catalogueSampleRate,
@@ -47,17 +48,20 @@ class DiscoveryTrack {
 
   /// Explicit mobile 'Play Atmos' request; never inferred from a catalogue flag.
   final bool atmosRequested;
+  /// A verified JOC download can be saved without an Atmos playback device.
+  final bool atmosDownload;
 
   /// Provider-reported quality, not a verified active audio output.
   final String? catalogueQuality;
   final int? catalogueBitDepth;
   final int? catalogueSampleRate;
 
-  DiscoveryTrack requestAtmos() => DiscoveryTrack(
+  DiscoveryTrack requestAtmos({bool downloadOnly = false}) => DiscoveryTrack(
     id: id, title: title, artist: artist, source: source,
     duration: duration, album: album, sourceUrl: sourceUrl, addonBase: addonBase,
     addonId: addonId, sourceName: sourceName, inlineStream: inlineStream,
     artwork: artwork, atmosAvailable: atmosAvailable, atmosRequested: true,
+    atmosDownload: downloadOnly,
     catalogueQuality: catalogueQuality, catalogueBitDepth: catalogueBitDepth,
     catalogueSampleRate: catalogueSampleRate,
   );
@@ -81,6 +85,7 @@ class DiscoveryTrack {
           artwork: cover,
           atmosAvailable: atmosAvailable,
           atmosRequested: atmosRequested,
+          atmosDownload: atmosDownload,
           catalogueQuality: catalogueQuality,
           catalogueBitDepth: catalogueBitDepth,
           catalogueSampleRate: catalogueSampleRate,

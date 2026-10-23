@@ -1098,6 +1098,9 @@ class MorneyePackages {
     final network = MorneyeNetwork(
       MorneyePermissions.fromJson(addon.manifest['permissions']),
       userAgent: 'Lokal/$appVersion',
+      requestTimeout: addon.name.toLowerCase().contains('tidal')
+          ? const Duration(seconds: 75)
+          : const Duration(seconds: 30),
     );
     try {
       final saved = storage.read(addon.key, 'connection');

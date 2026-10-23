@@ -18,7 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
 
-OnlineSource _source(String id, String name, List<String> titles, {bool atmos = false}) =>
+OnlineSource _source(String id, String name, List<String> titles, {bool atmos = false, String? quality}) =>
     OnlineSource(
       id: id,
       name: name,
@@ -32,6 +32,7 @@ OnlineSource _source(String id, String name, List<String> titles, {bool atmos = 
               artist: 'Artist',
               source: DiscoverySource.morneye,
               atmosAvailable: atmos,
+              catalogueQuality: quality,
             ),
           ),
       ],
@@ -131,13 +132,14 @@ Future<void> _pump(
 void main() {
   testWidgets('Atmos availability is shown in search without promising playback', (tester) async {
     await _pump(tester, sources: [
-      _source('a-tidal', 'Tidal', ['Immersive catalogue track'], atmos: true),
+      _source('a-tidal', 'Tidal', ['Immersive catalogue track'], atmos: true, quality: '24bit/96kHz'),
       _source('yt', 'YouTube Music', ['Stereo only']),
     ]);
     await tester.tap(find.text('Tidal'));
     await tester.pumpAndSettle();
     expect(find.text('Immersive catalogue track'), findsOneWidget);
     expect(find.text('ATMOS'), findsOneWidget);
+    expect(find.text('24-bit / 96 kHz'), findsOneWidget);
     // The Tidal catalogue mode belongs to search metadata. It is not
     // promoted into a verified playback-quality or output badge.
     await tester.tap(find.text('YouTube Music'));

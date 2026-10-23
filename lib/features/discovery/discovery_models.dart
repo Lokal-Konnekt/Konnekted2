@@ -17,6 +17,7 @@ class DiscoveryTrack {
     this.inlineStream,
     this.artwork,
     this.atmosAvailable = false,
+    this.catalogueQuality,
   });
 
   final String id;
@@ -41,6 +42,9 @@ class DiscoveryTrack {
   /// Catalogue flag only. The decoded output might be stereo.
   final bool atmosAvailable;
 
+  /// Provider-reported quality, not a verified active audio output.
+  final String? catalogueQuality;
+
   /// This track with [cover] as its artwork when it has none of its own.
   DiscoveryTrack withArtwork(String? cover) =>
       artwork != null || cover == null || cover.isEmpty
@@ -59,6 +63,7 @@ class DiscoveryTrack {
           inlineStream: inlineStream,
           artwork: cover,
           atmosAvailable: atmosAvailable,
+          catalogueQuality: catalogueQuality,
         );
 
   String get key => '${source.name}:$addonId:$addonBase:$id';

@@ -282,6 +282,7 @@ class MorneyeNetwork {
     HttpClient? client,
     MorneyeLookup? lookup,
     this.userAgent = 'Lokal',
+    this.requestTimeout = const Duration(seconds: 30),
   }) : cookies = cookies ?? MorneyeCookieJar(),
        _client = client ?? (HttpClient()..autoUncompress = true),
        _lookup = lookup ?? InternetAddress.lookup;
@@ -291,6 +292,8 @@ class MorneyeNetwork {
   final HttpClient _client;
   final MorneyeLookup _lookup;
   final String userAgent;
+  /// Allows slow signed catalogue endpoints more time without slowing all add-ons.
+  final Duration requestTimeout;
 
   /// The add-on's OAuth state (tokens, a pending login); kept with its cookies.
   Map<String, Object?> auth = {};
@@ -335,8 +338,9 @@ class MorneyeNetwork {
     String? body,
     Map<String, String> headers = const {},
     bool directMedia = false,
-    Duration timeout = const Duration(seconds: 30),
+    Duration? timeout,
   }) async {
+    final deadline = timeout ?? requestTimeout;
     var url = morneyeValidateUrl(raw, permissions);
     var sent = {
       for (final entry in headers.entries)
@@ -344,7 +348,7 @@ class MorneyeNetwork {
     };
     for (var hop = 0; hop <= 5; hop++) {
       await _checkAddress(url);
-      final request = await _client.openUrl(method, url).timeout(timeout);
+      final request = await _client.openUrl(method, url).timeout(deadline);
       request.followRedirects = false;
       final names = sent.keys.map((k) => k.toLowerCase()).toSet();
       if (!names.contains('user-agent')) {
@@ -369,7 +373,7 @@ class MorneyeNetwork {
         request.contentLength = bytes.length;
         request.add(bytes);
       }
-      final response = await request.close().timeout(timeout);
+      final response = await request.close().timeout(deadline);
       if (!directMedia) {
         final setCookies = response.headers[HttpHeaders.setCookieHeader];
         if (setCookies != null && setCookies.isNotEmpty) {
@@ -432,7 +436,7 @@ class MorneyeNetwork {
     );
     final bytes = BytesBuilder(copy: false);
     await for (final chunk in response.body.timeout(
-      const Duration(seconds: 30),
+      requestTimeout,
     )) {
       bytes.add(chunk);
       if (bytes.length > 16 * 1024 * 1024) {

@@ -69,7 +69,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell>
   }
 
   void _select(KonnektedTab tab) {
-    AppHaptics.selection();
+    AppHaptics.doublePulse();
     nestedNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     _tab.value = tab;
     _dockCollapsed.value = false;

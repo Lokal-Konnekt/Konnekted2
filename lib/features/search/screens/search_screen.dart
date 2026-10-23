@@ -735,7 +735,7 @@ class _SongTile extends ConsumerWidget {
     final suffix = subtitleSuffix;
     return LokalSwipeToQueue(
       song: song,
-      child: return ListTile(
+      child: ListTile(
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: SizedBox(

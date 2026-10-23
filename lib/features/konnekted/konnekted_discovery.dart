@@ -572,7 +572,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
             throw const DiscoveryException('This track has no advertised Atmos version.');
           }
           final tryAtmos = found.atmosRequested;
-          if (tryAtmos && !await AtmosPlaybackSupport.available) {
+          if (tryAtmos && !found.atmosDownload && !await AtmosPlaybackSupport.available) {
             throw const DiscoveryException(
               'This Android device does not report an E-AC-3 JOC decoder or direct Atmos output. No stereo track was substituted.',
             );

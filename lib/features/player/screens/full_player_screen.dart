@@ -501,6 +501,9 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                           child: LayoutBuilder(
                             builder: (context, c) {
                               final compact = c.maxHeight < 640;
+                              final appleStyle = ref.watch(lokalAppearanceProvider.select(
+                                (appearance) => appearance.unboxedPlayerControls,
+                              ));
                               return AnimatedBuilder(
                                 animation: _lyricsProgress,
                                 builder: (context, _) {
@@ -534,10 +537,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                       _seekRow(),
                                       // The timeline sits above the transport pads,
                                       // rather than being visually glued to them.
-                                      SizedBox(height: compact ? 12 : 24),
+                                      // Apple Music screenshot: the timeline-to-
+                                      // transport gap is ~28px shorter than the
+                                      // legacy boxed player's gap at 706px width.
+                                      SizedBox(height: compact ? 12 : (appleStyle ? 4 : 24)),
                                       SizedBox(
                                         height: lerpDouble(
-                                          compact ? 6 : 10,
+                                          compact ? 6 : (appleStyle ? 2 : 10),
                                           6,
                                           l,
                                         ),

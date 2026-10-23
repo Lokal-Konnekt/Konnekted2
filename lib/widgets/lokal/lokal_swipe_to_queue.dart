@@ -7,6 +7,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Spotify-style swipe to the right on a track row to append it to the queue.

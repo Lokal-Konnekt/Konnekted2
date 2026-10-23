@@ -629,7 +629,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 // staged copy before rejecting the explicitly requested tier.
                 await download.cleanup();
                 throw const DiscoveryException(
-                  'The provider did not return an E-AC-3 JOC Atmos file. No stereo track was substituted.',
+                  'Lokal could not verify the downloaded source as E-AC-3 JOC Dolby Atmos. No stereo track was substituted. Check Atmos diagnostics.',
                 );
               }
             } catch (error) {
@@ -653,10 +653,14 @@ Future<List<_PlaybackSource>> _morneyeSources(
               }
               if (tryAtmos) {
                 if (error is DiscoveryException) rethrow;
+                final rejectedProbe = error is MorneyePackageError &&
+                    error.message.startsWith('The requested Atmos source');
                 throw DiscoveryException(
-                  tidalAtmosTierUnavailable(reason)
-                      ? 'This source has no downloadable Atmos stream for this track. No stereo track was substituted.'
-                      : 'Atmos download failed. No stereo track was substituted.',
+                  rejectedProbe
+                      ? 'The requested Dolby Atmos stream was not verified as E-AC-3 JOC. Check Atmos diagnostics for the actual codec and probe result. No stereo track was substituted.'
+                      : tidalAtmosTierUnavailable(reason)
+                          ? 'This source has no downloadable Atmos stream for this track. No stereo track was substituted.'
+                          : 'Atmos download failed. No stereo track was substituted.',
                 );
               }
               rethrow;

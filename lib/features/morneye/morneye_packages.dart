@@ -1660,6 +1660,25 @@ class MorneyePackages {
       var file = host.file(
         '${result['file_path'] ?? result['filePath'] ?? result['path']}',
       );
+      if (quality == 'DOLBY_ATMOS') {
+        // Diagnose provider tier negotiation without logging track IDs,
+        // filesystem paths, signed URLs, manifest credentials or raw results.
+        final claimed = '${result['audio_quality'] ?? result['audioQuality'] ?? result['quality'] ?? ''}'
+            .trim().toUpperCase().replaceAll(RegExp(r'[ -]'), '_');
+        final extension = p.extension(file).toLowerCase();
+        AtmosDiagnostics.record('addon_response', {
+          'quality': 'DOLBY_ATMOS',
+          'reason': claimed == 'DOLBY_ATMOS'
+              ? 'provider_claimed_atmos'
+              : claimed == 'HI_RES_LOSSLESS' || claimed == 'LOSSLESS' || claimed == 'HIGH'
+                  ? 'provider_claimed_stereo'
+                  : 'provider_quality_unspecified',
+          'container': {'.flac', '.m4a', '.mp4', '.ec3', '.eac3'}
+                  .contains(extension)
+              ? extension.replaceFirst('.', '')
+              : 'other',
+        });
+      }
       if (!File(file).existsSync() || File(file).lengthSync() == 0) {
         if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('addon_download_failed', {
           'reason': 'empty_file',
@@ -1727,6 +1746,16 @@ class MorneyePackages {
         'encoded': verifiedAtmos,
         'outcome': verifiedAtmos ? 'confirmed' : 'rejected',
       });
+      if (quality == 'DOLBY_ATMOS' && !verifiedAtmos) {
+        // Refuse the unverified source *before* ordinary postprocessors or
+        // transcoding can rewrite its container and obscure the failure.
+        // A rejected source never silently substitutes a stereo recording.
+        throw const MorneyePackageError(
+          'The requested Atmos source could not be verified as E-AC-3 JOC. '
+          'The provider may have returned stereo or the probe could not read '
+          'the container. Check the Atmos diagnostic log.',
+        );
+      }
       if (verifiedAtmos) {
         // Media3/ExoPlayer handles JOC using the licensed Android stack.
         // Never feed JOC through Symphonia/Rust or a PCM transcoder.

@@ -124,7 +124,7 @@ void main() {
     );
     expect(
       DiscordPresenceService.publicArtwork(
-        'https://is7-ssl.mzstatic.com/image/' + 'x' * 310,
+        'https://is7-ssl.mzstatic.com/image/' + ''.padRight(310, 'x'),
       ),
       isEmpty,
     );

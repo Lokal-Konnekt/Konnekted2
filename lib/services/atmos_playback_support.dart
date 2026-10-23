@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:ffmpeg_kit_flutter_new_audio/ffprobe_kit.dart';
 import 'package:flick/services/atmos_diagnostics.dart';
+import 'package:flick/services/atmos_dec3_probe.dart';
 
 /// Android's MediaExtractor can report the generic audio/eac3 MIME for an
 /// E-AC-3 JOC track. In that case, independently inspect the *file* with
@@ -73,12 +74,13 @@ class AtmosPlaybackSupport {
     ];
   }
 
-  /// Verify the staged local audio, never the catalogue. A native false may
-  /// mean generic MIME, not a stereo file, hence the second probe.
-  /// [probeStreams] injects an isolated FFprobe result in unit tests.
+  /// Verify staged audio, not the catalogue. Android can expose generic
+  /// audio/eac3, while FFprobe can omit the JOC extension in its profile.
+  /// Read the EC3SpecificBox as a final source-level verification.
   static Future<bool> isJocFile(
     String path, {
     Future<List<Map<String, dynamic>>> Function(String path)? probeStreams,
+    Future<AtmosBoxProbe> Function(String path)? probeDec3,
   }) async {
     var native = false;
     try {
@@ -102,35 +104,57 @@ class AtmosPlaybackSupport {
       return true;
     }
 
+    var ffprobeVerified = false;
+    var ffprobeCodec = 'unverified';
     try {
       final streams = await (probeStreams ?? _probeStreams)(path);
       final audio = streams.where((entry) =>
           '${entry['codec_type'] ?? 'audio'}'.toLowerCase() == 'audio');
-      final verified = audio.any(isJocProfile);
+      ffprobeVerified = audio.any(isJocProfile);
+      ffprobeCodec = _codecCategory(streams);
       AtmosDiagnostics.record('ffprobe_result', {
-        'codec': _codecCategory(streams),
+        'codec': ffprobeCodec,
         'trackCount': streams.length,
-        'encoded': verified,
-        'outcome': verified ? 'confirmed' : 'not_confirmed',
+        'encoded': ffprobeVerified,
+        'outcome': ffprobeVerified ? 'confirmed' : 'not_confirmed',
       });
-      AtmosDiagnostics.record('source_probe', {
-        'encoded': verified,
-        'codec': verified ? 'eac3_joc' : _codecCategory(streams),
-        'source': 'ffprobe',
-        'outcome': verified ? 'confirmed' : 'not_confirmed',
-      });
-      return verified;
     } catch (error) {
-      // A missing / failing probe must never approve an Atmos file.
       AtmosDiagnostics.record('ffprobe_error', {
         'errorClass': error.runtimeType.toString(),
         'reason': 'probe_unavailable',
       });
-      AtmosDiagnostics.record('source_probe', {
-        'encoded': false, 'codec': 'unverified',
-        'outcome': 'probe_failed',
-      });
-      return false;
     }
+    if (ffprobeVerified) {
+      AtmosDiagnostics.record('source_probe', {
+        'encoded': true, 'codec': 'eac3_joc', 'source': 'ffprobe',
+        'outcome': 'confirmed',
+      });
+      return true;
+    }
+
+    // FFprobe codec_name=eac3 without a JOC profile is inconclusive.
+    // Dolby's MP4 EC3SpecificBox carries an independent object-extension flag.
+    AtmosBoxProbe dec3;
+    try {
+      dec3 = await (probeDec3 ?? inspectAtmosDec3)(path);
+    } catch (error) {
+      dec3 = const AtmosBoxProbe(verified: false, reason: 'probe_unavailable');
+      AtmosDiagnostics.record('dec3_probe_error', {
+        'errorClass': error.runtimeType.toString(),
+      });
+    }
+    AtmosDiagnostics.record('dec3_probe', {
+      'encoded': dec3.verified,
+      'codec': dec3.ec3SampleEntry ? 'eac3' : ffprobeCodec,
+      'reason': dec3.reason,
+      'outcome': dec3.verified ? 'confirmed' : 'not_confirmed',
+    });
+    AtmosDiagnostics.record('source_probe', {
+      'encoded': dec3.verified,
+      'codec': dec3.verified ? 'eac3_joc' : ffprobeCodec,
+      'source': 'dec3',
+      'outcome': dec3.verified ? 'confirmed' : 'not_confirmed',
+    });
+    return dec3.verified;
   }
 }

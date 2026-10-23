@@ -241,6 +241,7 @@ class MorneyeTrack {
     this.year,
     this.quality,
     this.atmosAvailable = false,
+    this.tidalUrl,
   });
 
   /// `a-<package key>`.
@@ -257,6 +258,27 @@ class MorneyeTrack {
   final int? year;
   final String? quality;
   final bool atmosAvailable;
+  /// Verified HTTPS link published by the Tidal extension, not an audio URL.
+  final Uri? tidalUrl;
+
+  static Uri? _verifiedTidalUrl(Map track) {
+    final links = track['external_links'];
+    final candidates = [
+      if (links is Map) links['tidal_track'],
+      track['external_urls'],
+      track['external_url'],
+    ];
+    for (final value in candidates) {
+      if (value is! String) continue;
+      final url = Uri.tryParse(value);
+      if (url == null || url.scheme != 'https' ||
+          !(url.host == 'tidal.com' || url.host.endsWith('.tidal.com'))) {
+        continue;
+      }
+      if (url.pathSegments.contains('track')) return url;
+    }
+    return null;
+  }
 
   String get key => provider.substring(2);
 
@@ -301,6 +323,7 @@ class MorneyeTrack {
       ),
       quality: track['audio_quality'] as String?,
       atmosAvailable: tidalAtmosAvailable(track),
+      tidalUrl: _verifiedTidalUrl(track),
     );
   }
 }

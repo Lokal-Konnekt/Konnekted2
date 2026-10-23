@@ -105,6 +105,17 @@ class AddToPlaylistSheet extends ConsumerWidget {
                             .where((id) => songIds.contains(id))
                             .length >=
                             songs.length;
+                        // Older app versions could save an online ID without
+                        // its metadata. Permit selecting that playlist again
+                        // to repair the entry rather than trapping it as
+                        // "Missing song" behind a disabled row.
+                        final needsMetadataRepair = isAlreadyAdded &&
+                            songs.any((song) =>
+                                playlist.songIds.contains(song.id) &&
+                                !playlist.songSnapshots.containsKey(song.id) &&
+                                (song.isPending ||
+                                    song.filePath?.isNotEmpty != true ||
+                                    song.filePath!.startsWith('http')));
                         return ListTile(
                           leading: Container(
                             width: 48,
@@ -138,7 +149,7 @@ class AddToPlaylistSheet extends ConsumerWidget {
                                   color: AppColors.accent,
                                 )
                               : null,
-                          onTap: isAlreadyAdded
+                          onTap: isAlreadyAdded && !needsMetadataRepair
                               ? null
                               : () async {
                                   final notifier = ref.read(

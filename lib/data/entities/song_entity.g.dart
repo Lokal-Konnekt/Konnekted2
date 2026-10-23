@@ -159,6 +159,7 @@ const SongEntitySchema = CollectionSchema(
       type: IsarType.long,
     ),
     r'year': PropertySchema(id: 37, name: r'year', type: IsarType.long),
+    r'atmosAvailable': PropertySchema(id: 38, name: r'atmosAvailable', type: IsarType.bool),
   },
 
   estimateSize: _songEntityEstimateSize,
@@ -465,6 +466,7 @@ void _songEntitySerialize(
   writer.writeString(offsets[35], object.title);
   writer.writeLong(offsets[36], object.trackNumber);
   writer.writeLong(offsets[37], object.year);
+  writer.writeBool(offsets[38], object.atmosAvailable);
 }
 
 SongEntity _songEntityDeserialize(
@@ -513,6 +515,7 @@ SongEntity _songEntityDeserialize(
   object.title = reader.readString(offsets[35]);
   object.trackNumber = reader.readLongOrNull(offsets[36]);
   object.year = reader.readLongOrNull(offsets[37]);
+  object.atmosAvailable = reader.readBoolOrNull(offsets[38]);
   return object;
 }
 
@@ -599,6 +602,8 @@ P _songEntityDeserializeProp<P>(
       return (reader.readLongOrNull(offset)) as P;
     case 37:
       return (reader.readLongOrNull(offset)) as P;
+    case 38:
+      return (reader.readBoolOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }

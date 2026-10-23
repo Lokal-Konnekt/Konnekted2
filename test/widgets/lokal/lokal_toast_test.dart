@@ -19,7 +19,7 @@ void main() {
     final label = find.text('Playback cache has reached its limit');
     expect(label, findsOneWidget);
     final center = tester.getCenter(label);
-    final size = tester.getSize(find.byType(MaterialApp));
+    final size = MediaQuery.sizeOf(screen);
     expect(center.dx, closeTo(size.width / 2, size.width * .15));
     expect(center.dy, lessThan(size.height * .25));
     await tester.pump(const Duration(seconds: 3));

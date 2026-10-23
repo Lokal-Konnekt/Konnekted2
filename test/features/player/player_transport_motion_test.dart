@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flick/features/player/widgets/player_transport_controls.dart';
 
@@ -56,4 +59,33 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('Apple glyph centers follow the screenshot quarter-width layout',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          lokalInitialAppearanceProvider.overrideWithValue(
+            const LokalAppearance(unboxedPlayerControls: true)),
+        ],
+        child: MaterialApp(home: Scaffold(body: Center(child: SizedBox(
+          width: 360,
+          child: PlayerTransportControls(
+            playing: false, compact: false, lyricsProgress: 0,
+            accent: Colors.white, onAccent: Colors.black,
+            onPrevious: () {}, onNext: () {}, onPlayPause: () {},
+          ),
+        )))),
+      ));
+      await tester.pump();
+      final bounds = tester.getRect(find.byType(PlayerTransportControls));
+      final prev = tester.getCenter(find.byKey(const ValueKey('apple-skip-previous'))).dx;
+      final play = tester.getCenter(find.byKey(const ValueKey('apple-play-pause'))).dx;
+      final next = tester.getCenter(find.byKey(const ValueKey('apple-skip-next'))).dx;
+      expect(prev, closeTo(bounds.left + bounds.width * .25, .1));
+      expect(play, closeTo(bounds.left + bounds.width * .50, .1));
+      expect(next, closeTo(bounds.left + bounds.width * .75, .1));
+      expect(find.byType(AnimatedIcon), findsNothing);
+    },
+  );
+
 }

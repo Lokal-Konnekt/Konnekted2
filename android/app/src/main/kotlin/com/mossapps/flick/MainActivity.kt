@@ -216,7 +216,17 @@ class MainActivity: FlutterActivity() {
             // The default constructor auto-registers generated plugins. This
             // activity registers them explicitly so cached engines and the
             // method-channel setup share one deterministic path.
-            engine = FlutterEngine(context.applicationContext, null, false)
+            // The S25 Ultra's Vulkan/Impeller path has reported device-specific
+            // regressions. Select the legacy renderer before engine creation;
+            // ordinary appearance/performance modes cannot change this later.
+            val engineArgs = RendererCompatibility.flutterEngineArgs(
+                Build.MANUFACTURER,
+                Build.MODEL,
+            )
+            if (engineArgs != null) {
+                Log.w("LokalRenderer", "Galaxy S25 Ultra: using Skia renderer compatibility mode")
+            }
+            engine = FlutterEngine(context.applicationContext, engineArgs, false)
             ensurePluginsRegistered(engine)
             engine.dartExecutor.executeDartEntrypoint(
                 DartExecutor.DartEntrypoint.createDefault()

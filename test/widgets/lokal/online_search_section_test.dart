@@ -140,12 +140,22 @@ void main() {
     expect(find.text('Immersive catalogue track'), findsOneWidget);
     expect(find.text('ATMOS'), findsOneWidget);
     expect(find.text('24-bit / 96 kHz'), findsOneWidget);
+    await tester.longPress(find.text('Immersive catalogue track'));
+    await tester.pumpAndSettle();
+    expect(find.text('Play Dolby Atmos'), findsOneWidget);
+    expect(find.text('Download Dolby Atmos'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     // The Tidal catalogue mode belongs to search metadata. It is not
     // promoted into a verified playback-quality or output badge.
     await tester.tap(find.text('YouTube Music'));
     await tester.pumpAndSettle();
     expect(find.text('Stereo only'), findsOneWidget);
     expect(find.text('ATMOS'), findsNothing);
+    await tester.longPress(find.text('Stereo only'));
+    await tester.pumpAndSettle();
+    expect(find.text('Play Dolby Atmos'), findsNothing);
+    expect(find.text('Download Dolby Atmos'), findsNothing);
   });
 
   testWidgets('add-ons appear as sources and their results play on tap', (

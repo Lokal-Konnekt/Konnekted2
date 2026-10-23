@@ -3,6 +3,7 @@ import 'lyrics_source_button.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fading_marquee_widget/fading_marquee_widget.dart';
@@ -118,9 +119,7 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
+    LokalToast.fromSnackBar(context, 
         SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }

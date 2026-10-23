@@ -10,6 +10,10 @@ class Playlist {
   final DateTime? updatedAt;
   final String? sourcePath;
 
+  /// Opaque coverArt ID supplied by the server for network playlists.
+  /// Stored separately from song artwork; local playlists leave it null.
+  final String? coverArt;
+
   /// Timestamp of when each song was added to this playlist, keyed by song id.
   /// Songs without an entry (legacy playlists, imported lists) fall back to
   /// their position in [songIds] when sorting by "Date Added".
@@ -51,6 +55,7 @@ class Playlist {
     required this.createdAt,
     this.updatedAt,
     this.sourcePath,
+    this.coverArt,
     this.songAddedAt = const {},
   });
 
@@ -61,6 +66,8 @@ class Playlist {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? sourcePath,
+    String? coverArt,
+    bool clearCoverArt = false,
     Map<String, DateTime>? songAddedAt,
   }) {
     return Playlist(
@@ -70,6 +77,7 @@ class Playlist {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       sourcePath: sourcePath ?? this.sourcePath,
+      coverArt: clearCoverArt ? null : (coverArt ?? this.coverArt),
       songAddedAt: songAddedAt ?? this.songAddedAt,
     );
   }
@@ -82,6 +90,7 @@ class Playlist {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'sourcePath': sourcePath,
+      'coverArt': coverArt,
       'songAddedAt': {
         for (final entry in songAddedAt.entries)
           entry.key: entry.value.toIso8601String(),
@@ -100,6 +109,7 @@ class Playlist {
           ? DateTime.parse(json['updatedAt'] as String)
           : null,
       sourcePath: json['sourcePath'] as String?,
+      coverArt: json['coverArt'] as String?,
       songAddedAt: {
         for (final entry in rawAddedAt.entries)
           entry.key: DateTime.parse(entry.value as String),

@@ -24,14 +24,14 @@ Map<String, dynamic> _albumListResponse() => {
           'album': [
             {
               'id': 'al-1',
-              'album': 'Nightshift',
+              'name': 'Nightshift',
               'artist': 'The Moths',
               'coverArt': 'al-1',
               'year': 2021,
             },
             {
               'id': 'al-2',
-              'album': 'Drift',
+              'name': 'Drift',
               'artist': 'Solo',
               'coverArt': 'al-2',
               'year': 2023,
@@ -124,14 +124,8 @@ void main() {
     final songs = <SongEntity>[];
     for (final album in albums) {
       final rawSongs = await service.getAlbum(server, album['id'] as String);
-      songs.addAll(rawSongs.map((s) => SubsonicService.buildSongEntity(
-            server,
-            s,
-            albumName: album['album'] as String?,
-            albumArtist: album['artist'] as String?,
-            coverArt: album['coverArt'] as String?,
-            year: (album['year'] as num?)?.toInt(),
-          )));
+      songs.addAll(rawSongs.map((s) =>
+          SubsonicService.buildAlbumSongEntity(server, album, s)));
     }
 
     // Traversal: one album-list page (short page stops pagination), two albums.

@@ -1,6 +1,9 @@
 import 'package:flick/l10n/l10n.dart';
 
 import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:flick/services/sources/subsonic_service.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
@@ -13,6 +16,65 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'lokal_library_kit.dart';
 import 'lokal_song_browser.dart';
+
+
+/// A server playlist's cover is independent of its constituent tracks.
+/// Fetch through authenticated getCoverArt rather than exposing auth in URLs.
+final _subsonicPlaylistCoverProvider = FutureProvider.autoDispose
+    .family<Uint8List?, ({int serverId, String coverId})>((ref, key) async {
+  final cacheKey = key.serverId.toString() + '|' + key.coverId;
+  final cached = _playlistCoverCache.remove(cacheKey);
+  if (cached != null) {
+    _playlistCoverCache[cacheKey] = cached;
+    return cached;
+  }
+  final servers = await ref.watch(networkServersProvider.future);
+  final server = servers.where((item) => item.id == key.serverId).firstOrNull;
+  if (server == null || server.protocol != 'subsonic') return null;
+  final bytes = await SubsonicService.instance.getCoverArt(server, key.coverId);
+  if (bytes.isEmpty || bytes.length > 4 * 1024 * 1024) return null;
+  final image = Uint8List.fromList(bytes);
+  _playlistCoverCache[cacheKey] = image;
+  while (_playlistCoverCache.length > 16) {
+    _playlistCoverCache.remove(_playlistCoverCache.keys.first);
+  }
+  return image;
+});
+
+final Map<String, Uint8List> _playlistCoverCache = {};
+
+/// Prefer a Navidrome playlist's own artwork, using a song collage when the
+/// server has no cover, is offline, or the request fails.
+class LokalPlaylistArtwork extends ConsumerWidget {
+  const LokalPlaylistArtwork({
+    super.key,
+    required this.playlist,
+    required this.songs,
+  });
+
+  final Playlist playlist;
+  final List<Song> songs;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final coverId = playlist.coverArt?.trim();
+    final serverId = playlist.networkServerId;
+    final fallback = LokalCollage(songs: songs);
+    if (serverId == null || coverId == null || coverId.isEmpty) {
+      return fallback;
+    }
+    final cover = ref.watch(_subsonicPlaylistCoverProvider(
+      (serverId: serverId, coverId: coverId),
+    )).value;
+    if (cover == null) return fallback;
+    return Image.memory(
+      cover,
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      errorBuilder: (context, error, stackTrace) => fallback,
+    );
+  }
+}
 
 /// A playlist's songs in its own order, from the library.
 List<Song> lokalPlaylistSongs(Playlist playlist, List<Song> library) {
@@ -225,7 +287,7 @@ class LokalPlaylistsPage extends ConsumerWidget {
                         dimension: 64,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: LokalCollage(songs: songs),
+                          child: LokalPlaylistArtwork(playlist: playlist, songs: songs),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -402,7 +464,7 @@ class LokalPlaylistPage extends ConsumerWidget {
               dimension: (width * .62).clamp(150.0, 300.0),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: LokalCollage(songs: songs),
+                child: LokalPlaylistArtwork(playlist: playlist, songs: songs),
               ),
             ),
             const SizedBox(height: 16),

@@ -644,11 +644,11 @@ Future<List<_PlaybackSource>> _morneyeSources(
 /// unavailable. Keep the failure on the requested provider and make it
 /// actionable rather than displaying a page-long extension stack trace.
 bool tidalAtmosTransportFailure(String message) =>
-    RegExp(r'HTTP\\s*50[0-9]|TimeoutException|timed?\\s*out|network error|without confirmation',
+    RegExp(r'HTTP\s*50[0-9]|TimeoutException|timed?\s*out|network error|without confirmation',
       caseSensitive: false).hasMatch(message);
 
 String tidalAtmosTransportMessage(String message) {
-  final status = RegExp(r'HTTP\\s*(50[0-9])', caseSensitive: false)
+  final status = RegExp(r'HTTP\s*(50[0-9])', caseSensitive: false)
       .firstMatch(message)?.group(1);
   if (status != null) {
     return 'Tidal Atmos server returned HTTP $status. The original Atmos '

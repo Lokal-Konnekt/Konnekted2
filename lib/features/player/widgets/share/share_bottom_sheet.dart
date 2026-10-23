@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:path_provider/path_provider.dart';
@@ -169,8 +170,7 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
           fileName: 'konnekted_card_${DateTime.now().millisecondsSinceEpoch}',
         );
         if (mounted)
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(l10n.savedToGallery)));
+          LokalToast.fromSnackBar(context, SnackBar(content: Text(l10n.savedToGallery)));
       } else {
         final cache = await getTemporaryDirectory();
         final directory = await Directory('${cache.path}/share_cards')

@@ -8,6 +8,7 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 import '../../services/tidal_atmos_metadata.dart';
+import '../../services/atmos_playback_support.dart';
 
 import 'morneye_host.dart';
 import 'morneye_network.dart';
@@ -494,12 +495,14 @@ class MorneyeAccess {
 
 /// The finished download.
 class MorneyeDownload {
-  MorneyeDownload(this.file, this.metadata, this.info, this._staging);
+  MorneyeDownload(this.file, this.metadata, this.info, this._staging, {this.atmosEncoded = false});
 
   final File file;
   final Map<String, Object?> metadata;
   final Map<String, Object?> info;
   final Directory _staging;
+  /// True only after Android MediaExtractor identified an E-AC-3 JOC stream.
+  final bool atmosEncoded;
 
   Future<void> cleanup() async {
     if (_staging.existsSync()) await _staging.delete(recursive: true);
@@ -1724,6 +1727,24 @@ class MorneyePackages {
           if (moved != null) file = host.file('$moved');
         }
       }
+      // Mornye can fetch the original E-AC-3 JOC container. Inspect it
+      // before the FLAC conversion/probe (both would discard Atmos objects).
+      // If Tidal fell back to stereo, this returns false and normal handling
+      // remains unchanged.
+      final verifiedAtmos = quality == 'DOLBY_ATMOS' &&
+          await AtmosPlaybackSupport.isJocFile(file);
+      if (verifiedAtmos) {
+        // Media3/ExoPlayer handles JOC using the licensed Android stack.
+        // Never feed JOC through Symphonia/Rust or a PCM transcoder.
+        return MorneyeDownload(
+          File(file),
+          {...track.cast<String, Object?>(), ...result.cast<String, Object?>()},
+          const {'codec': 'eac3-joc', 'format': 'isomp4'},
+          staged,
+          atmosEncoded: true,
+        );
+      }
+
       Map<String, Object?> info;
       if (requiresContainerConversion) {
         // Symphonia may not probe a FLAC bitstream wrapped in an MP4/DASH

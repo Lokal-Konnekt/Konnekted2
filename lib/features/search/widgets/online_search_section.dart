@@ -171,8 +171,18 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     if (mounted) _progress.fail(message);
   }
 
-  Future<void> _play(OnlineSource source, OnlineResult result) async {
+  Future<void> _play(OnlineSource source, OnlineResult result, {bool atmos = false}) async {
     if (!await _verify(source)) return;
+    if (atmos) {
+      if (!result.track.atmosAvailable) {
+        _say('This track has no advertised Dolby Atmos version.');
+        return;
+      }
+      if (!await AtmosPlaybackSupport.available) {
+        _say('This device does not report an E-AC-3 JOC decoder or direct Atmos output.');
+        return;
+      }
+    }
     unawaited(
       ref
           .read(recentSearchTracksProvider.notifier)
@@ -184,10 +194,11 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
             ),
           ),
     );
+    final requested = atmos ? result.track.requestAtmos() : result.track;
     final pending =
         (widget.pendingSong ??
         (source, track) =>
-            onlinePendingSong(source.id, track))(source, result.track);
+            onlinePendingSong(source.id, track))(source, requested);
     // Enter the player immediately. Its pending resolver owns cancellation,
     // so a later tap/skip can never be overtaken by this page's download.
     await ref.read(playerProvider.notifier).play(pending, playlist: [pending]);
@@ -296,6 +307,8 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     switch (action) {
       case OnlineResultAction.play:
         await _play(source, result);
+      case OnlineResultAction.playAtmos:
+        await _play(source, result, atmos: true);
       case OnlineResultAction.playNext:
         await _enqueue(source, result, next: true);
       case OnlineResultAction.addToQueue:
@@ -509,6 +522,7 @@ class _OnlineTile extends StatelessWidget {
     required this.result,
     required this.busy,
     required this.onTap,
+    required this.onAtmos,
     required this.onQueue,
     required this.onMore,
   });
@@ -516,6 +530,7 @@ class _OnlineTile extends StatelessWidget {
   final OnlineResult result;
   final bool busy;
   final VoidCallback onTap;
+  final VoidCallback onAtmos;
   final Future<void> Function() onQueue;
   final VoidCallback onMore;
 
@@ -591,7 +606,15 @@ class _OnlineTile extends StatelessWidget {
                                   style: TextStyle(color: t.muted, fontSize: 10)),
                               ),
                             ),
-                          if (track.atmosAvailable) const LokalAtmosPill(),
+                          if (track.atmosAvailable)
+                            Tooltip(
+                              message: 'Play original Dolby Atmos (requires an Android E-AC-3 JOC decoder or direct output)',
+                              child: InkWell(
+                                onTap: busy ? null : onAtmos,
+                                borderRadius: BorderRadius.circular(6),
+                                child: const LokalAtmosPill(),
+                              ),
+                            ),
                         ],
                       ),
                     ],

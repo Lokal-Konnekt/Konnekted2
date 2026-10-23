@@ -1,7 +1,7 @@
 """Generate theme-matching launcher icons from Lokal's full-bleed CD artwork.
 
-The source is pinned to the exact desktop branding commit, not a floating
-branch. The binary is cached locally after its SHA-256 is verified.
+The same artwork is vendored in both repositories; its SHA-256 is verified
+before generation and the build requires no network access.
   python3 tool/gen_lokal_launcher_icons.py
 
 Keep STICKER_RECT and ROUNDED_RADIUS in sync with desktop's
@@ -12,15 +12,10 @@ from __future__ import annotations
 import hashlib
 import io
 from pathlib import Path
-from urllib.request import urlopen
 
 from PIL import Image, ImageDraw
 
 SOURCE = Path("assets/branding/lokal_cd_source.webp")
-SOURCE_URL = (
-    "https://raw.githubusercontent.com/CHEYCKIT/lokal/"
-    "01c40f4931e1e7245c309db3808c6e2b44700b39/public/lokal-cd-source.webp"
-)
 SOURCE_SHA256 = "1cc34114b178d7983dbfc8d5b4418769f22254237d542c101fa2c7cd74a5c7c3"
 LOGO = Path("assets/branding/lokal_icon.png")
 STICKER = Path("assets/branding/lokal_icon_sticker.png")
@@ -57,19 +52,12 @@ STICKER_RECT = (0.703, 0.358, 0.287, 0.270, 0.050)
 
 
 def source_bytes() -> bytes:
-    if SOURCE.is_file():
-        data = SOURCE.read_bytes()
-        if hashlib.sha256(data).hexdigest() == SOURCE_SHA256:
-            return data
-
-    with urlopen(SOURCE_URL, timeout=30) as response:
-        data = response.read()
+    # The source binary is checked into both repos, so offline local and CI
+    # builds generate identical icons without network dependencies.
+    data = SOURCE.read_bytes()
     if hashlib.sha256(data).hexdigest() != SOURCE_SHA256:
-        raise ValueError("Pinned Lokal CD source checksum mismatch")
-    SOURCE.parent.mkdir(parents=True, exist_ok=True)
-    SOURCE.write_bytes(data)
+        raise ValueError("Lokal CD artwork has changed without updating its checksum")
     return data
-
 
 def build_master() -> tuple[Image.Image, Image.Image]:
     base = Image.open(io.BytesIO(source_bytes())).convert("RGBA")

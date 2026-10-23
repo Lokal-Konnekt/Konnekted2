@@ -1,4 +1,5 @@
 import 'package:flick/features/appearance/lokal_performance_selector.dart';
+import 'package:flick/features/player/player_button_style_selector.dart';
 import 'package:flick/features/settings/widgets/spotify_account_settings_tile.dart';
 
 import 'dart:async';
@@ -149,6 +150,12 @@ List<LokalSettingsSection> appearanceSettings(
     LokalSettingsSection(
       title: lokalText('Interface'),
       children: [
+        LokalSettingRow(
+          label: lokalText('Player buttons'),
+          description: lokalText('Keep the same controls with or without button backgrounds.'),
+          stacked: true,
+          trailing: const PlayerButtonStyleSelector(),
+        ),
         LokalSettingRow(
           label: lokalText('Language'),
           description: lokalText(

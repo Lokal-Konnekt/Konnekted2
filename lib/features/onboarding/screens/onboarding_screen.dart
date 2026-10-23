@@ -1,4 +1,5 @@
 import 'package:flick/features/link/lokal_desktop_link_screen.dart';
+import 'package:flick/features/player/player_button_style_selector.dart';
 import 'package:flick/l10n/l10n.dart';
 
 import 'dart:async';
@@ -503,6 +504,18 @@ class _LookPage extends ConsumerWidget {
             HapticFeedback.selectionClick();
             notifier.setAccent(accent);
           },
+        ),
+        const SizedBox(height: 28),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text('PLAYER BUTTONS'),
+              SizedBox(height: 12),
+              PlayerButtonStyleSelector(),
+            ],
+          ),
         ),
       ],
     );

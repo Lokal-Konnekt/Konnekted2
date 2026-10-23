@@ -144,7 +144,7 @@ class _OnlineResultSheet extends StatelessWidget {
                   if (track.atmosAvailable && track.tidalUrl != null)
                     _ActionRow(
                       icon: Icons.open_in_new_rounded,
-                      label: 'Open in Tidal for Atmos playback',
+                      label: 'Open in Tidal (Atmos-capable devices)',
                       onTap: () => pick(OnlineResultAction.openInTidal),
                     ),
                   _ActionRow(

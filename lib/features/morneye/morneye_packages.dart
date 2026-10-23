@@ -1669,6 +1669,24 @@ class MorneyePackages {
         }
         file = target;
       }
+      // Mornye can fetch the original E-AC-3 JOC container. Inspect it
+      // before the FLAC conversion/probe (both would discard Atmos objects).
+      // If Tidal fell back to stereo, this returns false and normal handling
+      // remains unchanged.
+      final verifiedAtmos = quality == 'DOLBY_ATMOS' &&
+          await AtmosPlaybackSupport.isJocFile(file);
+      if (verifiedAtmos) {
+        // Media3/ExoPlayer handles JOC using the licensed Android stack.
+        // Never feed JOC through Symphonia/Rust or a PCM transcoder.
+        return MorneyeDownload(
+          File(file),
+          {...track.cast<String, Object?>(), ...result.cast<String, Object?>()},
+          const {'codec': 'eac3-joc', 'format': 'isomp4'},
+          staged,
+          atmosEncoded: true,
+        );
+      }
+
       final requiresContainerConversion =
           result['requires_container_conversion'] == true ||
           result['requiresContainerConversion'] == true;
@@ -1703,24 +1721,6 @@ class MorneyePackages {
           if (moved != null) file = host.file('$moved');
         }
       }
-      // Mornye can fetch the original E-AC-3 JOC container. Inspect it
-      // before the FLAC conversion/probe (both would discard Atmos objects).
-      // If Tidal fell back to stereo, this returns false and normal handling
-      // remains unchanged.
-      final verifiedAtmos = quality == 'DOLBY_ATMOS' &&
-          await AtmosPlaybackSupport.isJocFile(file);
-      if (verifiedAtmos) {
-        // Media3/ExoPlayer handles JOC using the licensed Android stack.
-        // Never feed JOC through Symphonia/Rust or a PCM transcoder.
-        return MorneyeDownload(
-          File(file),
-          {...track.cast<String, Object?>(), ...result.cast<String, Object?>()},
-          const {'codec': 'eac3-joc', 'format': 'isomp4'},
-          staged,
-          atmosEncoded: true,
-        );
-      }
-
       Map<String, Object?> info;
       if (requiresContainerConversion) {
         // Symphonia may not probe a FLAC bitstream wrapped in an MP4/DASH

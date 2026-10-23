@@ -7,6 +7,7 @@ void main() {
       'audioQuality': 'LOW', 'audioModes': ['STEREO', 'DOLBY_ATMOS'],
     }), isTrue);
     expect(tidalAtmosAvailable({'audio_mode': 'DOLBY_ATMOS'}), isTrue);
+    expect(tidalAtmosAvailable({'audio_modes': 'DOLBY_ATMOS'}), isTrue);
     expect(tidalAtmosAvailable({'audio_quality': 'DOLBY_ATMOS'}), isTrue);
   });
 

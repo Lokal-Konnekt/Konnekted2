@@ -290,6 +290,7 @@ class DiscoveryPlaybackCache {
       // Signed media URLs remain in memory, never in the playback queue.
       remoteId: track.sourceUrl?.toString() ?? track.id,
       sourcePackage: 'konnekted.discovery',
+      atmosAvailable: track.atmosAvailable,
       isExternal: true,
     );
   }

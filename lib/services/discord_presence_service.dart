@@ -45,6 +45,11 @@ class DiscordPresenceService extends ChangeNotifier {
   // Embedded local artwork remains private: Discord needs a public image URL.
   late final _artwork = createDiscoveryArtworkResolver(
     DiscoveryHttp(GracefulHttpClient(), timeout: const Duration(seconds: 8)),
+    onSourceFailure: (host, reason) {
+      // These diagnostics can distinguish a source API outage from an
+      // unavailable recording without logging URLs or private file paths.
+      AppLog.instance.add('[Discord cover] $host: $reason');
+    },
   );
   final _covers = <String, String>{};
   final _coverJobs = <String>{};

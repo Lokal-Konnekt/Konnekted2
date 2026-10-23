@@ -124,15 +124,8 @@ void main() {
     final songs = <SongEntity>[];
     for (final album in albums) {
       final rawSongs = await service.getAlbum(server, album['id'] as String);
-      songs.addAll(rawSongs.map((s) => SubsonicService.buildSongEntity(
-            server,
-            s,
-            // Model real AlbumID3 getAlbumList2 payloads (name, not album).
-            albumName: album['name'] as String?,
-            albumArtist: album['artist'] as String?,
-            coverArt: album['coverArt'] as String?,
-            year: (album['year'] as num?)?.toInt(),
-          )));
+      songs.addAll(rawSongs.map((s) =>
+          SubsonicService.buildAlbumSongEntity(server, album, s)));
     }
 
     // Traversal: one album-list page (short page stops pagination), two albums.

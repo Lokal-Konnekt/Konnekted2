@@ -74,6 +74,36 @@ void main() {
       expect(updated.songIds, ['a', 'b', 'c']);
     });
 
+    test('network playlist cover ID survives updates and reloads', () async {
+      final service = PlaylistService();
+      final initial = await service.upsertNetworkPlaylist(
+        serverId: 7,
+        remoteId: 'artwork',
+        name: 'With art',
+        coverArt: 'pl-cover-1',
+      );
+      expect(initial.coverArt, 'pl-cover-1');
+      final readBack = PlaylistService();
+      final persisted = await readBack.getPlaylist(initial.id);
+      expect(persisted!.coverArt, 'pl-cover-1');
+
+      final changed = await service.upsertNetworkPlaylist(
+        serverId: 7,
+        remoteId: 'artwork',
+        name: 'New cover',
+        coverArt: 'pl-cover-2',
+      );
+      expect(changed.coverArt, 'pl-cover-2');
+      expect(Playlist.fromJson(changed.toJson()).coverArt, 'pl-cover-2');
+
+      final removed = await service.upsertNetworkPlaylist(
+        serverId: 7,
+        remoteId: 'artwork',
+        name: 'No cover',
+      );
+      expect(removed.coverArt, isNull);
+    });
+
     test('mirrors survive a reload from prefs', () async {
       final service = PlaylistService();
       await service.upsertNetworkPlaylist(

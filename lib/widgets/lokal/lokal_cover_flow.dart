@@ -338,19 +338,20 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final ad = d.abs();
     final side = d.sign;
     final near = ad.clamp(0.0, 1.0);
+    final hinge = near * near * (3 - 2 * near);
     // Position each side cover by its INNER hinge: at one item the hinge is
     // barely beyond the centre artwork edge (.52 * size vs .50 * size).
     // The Hermite curve has a matching .34 slope at d = 1; swipes cannot
     // lurch when an adjacent cover moves into the farther stacked panels.
     final dx = reduce ? d * size * 1.06
-        : side * size * (_innerDistance(ad) + .5 * near);
+        : side * size * (_innerDistance(ad) + .5 * hinge);
     // Flutter's positive Y angle brings the LEFT edge forward. Therefore
     // left covers rotate positive, right covers negative: OUTER edges forward.
     final angle = reduce ? 0.0
         : -side * (2 * near - near * near) * 70 * math.pi / 180;
     final depth = reduce ? 0.0 : -size * _depthDistance(ad);
     // Move the pivot continuously from centre to inner edge during drags.
-    final pivot = reduce ? .5 : .5 - side * .5 * near;
+    final pivot = reduce ? .5 : .5 - side * .5 * hinge;
     final facing = i == _index;
     final flip = facing ? _flip.value : 0.0;
 

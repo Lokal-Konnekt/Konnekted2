@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -200,7 +201,7 @@ class _Uac2PreferencesSectionsState
                   await service.clearDeclinedUsbDevices();
                   ref.invalidate(declinedUsbDevicesProvider);
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    LokalToast.fromSnackBar(context, 
                       SnackBar(
                         content: Text(l10n.usbDacAutoBitPerfectOffers),
                         behavior: SnackBarBehavior.floating,
@@ -468,13 +469,12 @@ class _Uac2PreferencesSectionsState
     ref.invalidate(killIsochronousUsbOnQuitProvider);
     if (!context.mounted) return;
     if (!applied && value) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.bitPerfectUsbDacCouldNot)));
+      LokalToast.fromSnackBar(context, SnackBar(content: Text(l10n.bitPerfectUsbDacCouldNot)));
       return;
     }
     if (changed) {
       if (value && EqEngineHint.parametricPeqActive) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        LokalToast.fromSnackBar(context, 
           SnackBar(
             content: Text(l10n.bitPerfectEnabledParametricEqIs),
             behavior: SnackBarBehavior.floating,
@@ -903,7 +903,7 @@ class _Uac2PreferencesSectionsState
         ref.invalidate(uac2BitPerfectEnabledProvider);
         ref.invalidate(uac2ExclusiveDacModeProvider);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          LokalToast.fromSnackBar(context, 
             SnackBar(content: Text(l10n.uac2PreferencesResetSuccessfully)),
           );
         }

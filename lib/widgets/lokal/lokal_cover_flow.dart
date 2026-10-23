@@ -466,7 +466,9 @@ class _Reflection extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [Color(0x6AFFFFFF), Color(0x00FFFFFF)],
-            stops: [0, .85],
+            // The shader is sized to the square cover, but only its first
+            // 30% is displayed; fade completely before the clip boundary.
+            stops: [0, .30],
           ).createShader(rect),
           child: Transform(
             alignment: Alignment.center,

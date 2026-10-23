@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/scheduler.dart' show TickerCanceled;
 import 'package:flutter/services.dart';
 import 'package:flick/models/song.dart';
@@ -143,8 +144,7 @@ class SongStageCarouselState extends State<SongStageCarousel>
       if (mounted) {
         await _moveTo(0);
         if (mounted)
-          ScaffoldMessenger.maybeOf(context)
-              ?.showSnackBar(SnackBar(content: Text(error.toString())));
+          LokalToast.fromSnackBar(context, SnackBar(content: Text(error.toString())));
       }
     } finally {
       _committing = false;

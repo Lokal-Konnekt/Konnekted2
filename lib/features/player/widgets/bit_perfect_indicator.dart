@@ -48,30 +48,14 @@ class BitPerfectIndicator extends ConsumerWidget {
       return GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (song.atmosAvailable) ...[
-              const LokalAtmosPill(),
-              const SizedBox(width: 5),
-            ],
-            LokalQualityPill(tier: tier, icon: state.icon),
-          ],
-        ),
+        child: LokalQualityPill(tier: tier, icon: state.icon),
       );
     }
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (song.atmosAvailable) ...[
-            const LokalAtmosPill(),
-            const SizedBox(width: 5),
-          ],
-          Container(
+      child: Container(
         padding: EdgeInsets.symmetric(
           horizontal: context.responsive(4.0, 5.0, 6.0),
           vertical: 2,
@@ -114,8 +98,6 @@ class BitPerfectIndicator extends ConsumerWidget {
             ),
           ],
         ),
-          ),
-        ],
       ),
     );
   }

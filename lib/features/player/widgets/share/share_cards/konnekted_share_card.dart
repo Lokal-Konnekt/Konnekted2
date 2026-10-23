@@ -122,7 +122,8 @@ class KonnektedShareCard extends StatelessWidget {
                       children: [
                         SizedBox.square(
                           dimension: 24,
-                          child: Stack(
+                          child: ClipOval(
+                            child: Stack(
                             fit: StackFit.expand,
                             children: [
                               Image.asset(LokalLogo.asset),
@@ -132,6 +133,7 @@ class KonnektedShareCard extends StatelessWidget {
                                 colorBlendMode: BlendMode.srcIn,
                               ),
                             ],
+                            ),
                           ),
                         ),
                         const SizedBox(width: 9),

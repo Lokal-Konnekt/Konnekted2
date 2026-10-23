@@ -11,6 +11,7 @@ import 'konnekted_data.dart';
 
 import 'package:flick/features/library_jobs/library_jobs.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'package:flick/providers/app_build_info_provider.dart';
 
@@ -57,10 +58,10 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   late final WidgetIntentHandler _widgetIntents;
   late final ProviderSubscription<PlayerState> _widgetSync;
   late final _jobProgress = LokalStatusSnack(
-    () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
+    () => mounted ? context : null,
   );
   late final _playbackProgress = LokalStatusSnack(
-    () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
+    () => mounted ? context : null,
   );
   void _onPreparationStatus() {
     if (!mounted) return;
@@ -245,21 +246,16 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void _onOnlinePlaybackError() {
     final message = _player.onlinePlaybackError.value;
     if (!mounted || message == null) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.removeCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(content: Text(message)));
+    LokalToast.show(context, message);
   }
 
   void _onPlaybackDesync() {
     if (!mounted || !_player.playbackDesyncedNotifier.value) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(lokalText('Playback needs to be synchronized')),
-        action: SnackBarAction(
-          label: lokalText('Sync'),
-          onPressed: () => _run('Playback sync', _player.syncNow),
-        ),
-      ),
+    LokalToast.show(
+      context,
+      lokalText('Playback needs to be synchronized'),
+      actionLabel: lokalText('Sync'),
+      onAction: () => _run('Playback sync', _player.syncNow),
     );
   }
 

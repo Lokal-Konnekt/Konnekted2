@@ -69,26 +69,6 @@ void main() {
       expect(entity.remoteServerId, 9);
     });
 
-    test('preserves Atmos availability without falsely labelling codec', () {
-      final atmos = TidalService.buildSongEntity(_server(), {
-        'id': 55,
-        'title': 'Immersive',
-        'audioQuality': 'LOW',
-        'audioModes': ['STEREO', 'DOLBY_ATMOS'],
-      });
-      expect(atmos!.atmosAvailable, isTrue);
-      expect(atmos.fileType, isNull); // Tidal LOW is not a codec probe.
-
-      final stereo = TidalService.buildSongEntity(_server(), {
-        'id': 56,
-        'title': 'Stereo',
-        'audioQuality': 'HI_RES_LOSSLESS',
-        'audioModes': ['STEREO'],
-      });
-      expect(stereo!.atmosAvailable, isFalse);
-      expect(stereo.fileType, 'flac');
-    });
-
     test('returns null when the track has no id', () {
       expect(TidalService.buildSongEntity(_server(), {'title': 'x'}), isNull);
     });

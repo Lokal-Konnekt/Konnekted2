@@ -16,6 +16,7 @@ import 'package:flick/services/motion_art/moving_cover_settings.dart';
 
 import '../widgets/player_transport_controls.dart';
 import '../widgets/artwork_gradient_backdrop.dart';
+import '../widgets/artwork_mesh_blur_backdrop.dart';
 import '../widgets/lyric_motion_line.dart';
 import '../widgets/material_player_thumb.dart';
 
@@ -457,6 +458,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
               fit: StackFit.expand,
               children: [
                 ArtworkGradientBackdrop(colors: colors, vibrant: true),
+                ArtworkMeshBlurBackdrop(song: song),
                 if (fullCover)
                   FadeTransition(
                     opacity: _canvasChrome,

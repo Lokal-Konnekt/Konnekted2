@@ -353,25 +353,12 @@ class SubsonicService implements NetworkSourceService {
     var songsFound = 0;
     var filesProcessed = 0;
     for (final album in albums) {
-      // AlbumID3 uses 'name'; some older servers also expose 'album'/'title'.
-      // Empty album-list fields must not hide valid fields from getAlbum songs.
       final albumName = _firstText(album['name'], album['album'], album['title']);
-      final albumArtist = _firstText(
-        album['displayAlbumArtist'],
-        _joinedArtistNames(album['albumArtists']),
-        album['artist'],
-      );
-      final coverArt = _firstText(album['coverArt']);
-      final year = _toInt(album['year']);
 
       try {
         final rawSongs = await getAlbum(server, album['id'] as String);
         final entities = rawSongs
-            .map((s) => buildSongEntity(server, s,
-                albumName: albumName,
-                albumArtist: albumArtist,
-                coverArt: coverArt,
-                year: year))
+            .map((s) => buildAlbumSongEntity(server, album, s))
             .toList();
         await _repo.upsertSongs(entities);
         syncedRemoteIds.addAll(entities.map((e) => e.remoteId!));
@@ -535,6 +522,29 @@ class SubsonicService implements NetworkSourceService {
       result[p.remoteId] = ids;
     }
     return result;
+  }
+
+  /// The exact mapping used by syncLibrary from an AlbumID3 summary and
+  /// a per-track getAlbum Child. Tests call this same function so a synthetic
+  /// fixture can no longer conceal a wrong field name.
+  @visibleForTesting
+  static SongEntity buildAlbumSongEntity(
+    NetworkServerEntity server,
+    Map<String, dynamic> album,
+    Map<String, dynamic> song,
+  ) {
+    return buildSongEntity(
+      server,
+      song,
+      albumName: _firstText(album['name'], album['album'], album['title']),
+      albumArtist: _firstText(
+        album['displayAlbumArtist'],
+        _joinedArtistNames(album['albumArtists']),
+        album['artist'],
+      ),
+      coverArt: _firstText(album['coverArt']),
+      year: _toInt(album['year']),
+    );
   }
 
   /// Map a raw Subsonic song map to a [SongEntity] tagged

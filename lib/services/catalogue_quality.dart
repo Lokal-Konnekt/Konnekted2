@@ -6,7 +6,7 @@ String catalogueQualityLabel(String? value) {
   final bits = RegExp(r'(?:^|[^0-9])(16|24|32)\s*-?\s*bits?', caseSensitive: false)
       .firstMatch(text)?.group(1);
   final khz = RegExp(
-    r'(\d{2,3}(?:\.\d+)?)\s*k(?:hz)?',
+    r'(?<![\d.])(\d{2,3}(?:\.\d+)?)\s*k(?:hz)?(?![a-z])',
     caseSensitive: false,
   ).firstMatch(text)?.group(1);
   if (bits != null || khz != null) {

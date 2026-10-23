@@ -134,6 +134,8 @@ void main() {
       _source('a-tidal', 'Tidal', ['Immersive catalogue track'], atmos: true),
       _source('yt', 'YouTube Music', ['Stereo only']),
     ]);
+    await tester.tap(find.text('Tidal'));
+    await tester.pumpAndSettle();
     expect(find.text('Immersive catalogue track'), findsOneWidget);
     expect(find.text('ATMOS'), findsOneWidget);
     // The Tidal catalogue mode belongs to search metadata. It is not

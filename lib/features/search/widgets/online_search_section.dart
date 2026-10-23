@@ -21,6 +21,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/services/catalogue_quality.dart';
+import 'package:flick/services/atmos_playback_support.dart';
 import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
 
 /// Songs you don't have, under your library's results: desktop's Search
@@ -561,15 +562,22 @@ class _OnlineTile extends StatelessWidget {
                       style: TextStyle(color: t.muted, fontSize: 13),
                     ),
                     if (track.atmosAvailable ||
-                        catalogueQualityLabel(track.catalogueQuality).isNotEmpty) ...[
+                        catalogueAudioDetails(
+                          quality: track.catalogueQuality,
+                          bitDepth: track.catalogueBitDepth,
+                          sampleRate: track.catalogueSampleRate,
+                        ).isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          if (catalogueQualityLabel(track.catalogueQuality)
-                              case final quality when quality.isNotEmpty)
+                          if (catalogueAudioDetails(
+                              quality: track.catalogueQuality,
+                              bitDepth: track.catalogueBitDepth,
+                              sampleRate: track.catalogueSampleRate,
+                            ) case final quality when quality.isNotEmpty)
                             Tooltip(
                               message: 'Catalogue quality, not the verified playback output',
                               child: Container(

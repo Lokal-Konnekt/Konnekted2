@@ -32,6 +32,22 @@ class LokalToast {
     );
   }
 
+  /// Compatibility route for existing SnackBar call sites. Preserve their
+  /// content, action and duration while replacing the bottom placement.
+  static void fromSnackBar(BuildContext context, SnackBar snack) {
+    _present(
+      context,
+      _ToastData(
+        message: '',
+        content: snack.content,
+        actionLabel: snack.action?.label,
+        onAction: snack.action?.onPressed,
+      ),
+      owner: null,
+      duration: snack.duration,
+    );
+  }
+
   /// A live status that stays until [dismiss] is called with the same owner.
   static void progress(BuildContext context, String message, {required Object owner}) {
     _present(context, _ToastData(message: message, loading: true),
@@ -83,11 +99,13 @@ class _ToastData {
   const _ToastData({
     required this.message,
     this.loading = false,
+    this.content,
     this.actionLabel,
     this.onAction,
   });
   final String message;
   final bool loading;
+  final Widget? content;
   final String? actionLabel;
   final VoidCallback? onAction;
 }
@@ -150,16 +168,16 @@ class _ToastHost extends StatelessWidget {
                             const SizedBox(width: 12),
                           ],
                           Flexible(
-                            child: Text(
-                              notice.message,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
+                            child: DefaultTextStyle(
                               style: TextStyle(
                                 color: scheme.onSurface,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                                 height: 1.3,
                               ),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              child: notice.content ?? Text(notice.message),
                             ),
                           ),
                           if (notice.actionLabel != null && notice.onAction != null) ...[

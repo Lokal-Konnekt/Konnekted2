@@ -68,7 +68,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
 
   final _client = http.Client();
   late final _progress = LokalStatusSnack(
-    () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
+    () => mounted ? context : null,
   );
   List<OnlineSource>? _sources;
   String? _chosen;

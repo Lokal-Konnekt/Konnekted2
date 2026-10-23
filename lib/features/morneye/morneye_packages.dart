@@ -275,7 +275,7 @@ class MorneyeTrack {
         track['maximum_sampling_rate'] ?? track['maxSampleRate'];
     final value = raw is num
         ? raw.toDouble()
-        : double.tryParse('$raw'.replaceAll(RegExp(r'(?i)\\s*k(?:hz)?'), '').trim());
+        : double.tryParse('$raw'.replaceAll(RegExp(r'\s*k(?:hz)?', caseSensitive: false), '').trim());
     if (value == null || !value.isFinite || value <= 0) return null;
     // Preserve 44.1 / 88.2 kHz exactly; don't truncate to 44 / 88.
     final hz = (value <= 384 ? value * 1000 : value).round();

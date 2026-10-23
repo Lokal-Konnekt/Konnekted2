@@ -261,9 +261,12 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
                 child: SizedBox(
                   height: size * 1.40,
                   width: constraints.maxWidth,
-                  child: AnimatedBuilder(
-                    animation: _animation,
-                    builder: (context, _) => _stage(size),
+                  child: ColoredBox(
+                    color: Colors.black, // iTunes' dark stage makes the mirrored floor read correctly.
+                    child: AnimatedBuilder(
+                      animation: _animation,
+                      builder: (context, _) => _stage(size),
+                    ),
                   ),
                 ),
               ),

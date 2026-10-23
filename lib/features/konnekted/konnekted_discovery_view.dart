@@ -80,7 +80,7 @@ class _KonnektedDiscoveryViewState
 
   /// What's being got ready, on one line updated in place.
   late final _progress = LokalStatusSnack(
-    () => mounted ? ScaffoldMessenger.maybeOf(context) : null,
+    () => mounted ? context : null,
   );
 
   @override

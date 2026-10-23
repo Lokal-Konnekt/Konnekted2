@@ -17,7 +17,10 @@ class DiscoveryTrack {
     this.inlineStream,
     this.artwork,
     this.atmosAvailable = false,
+    this.atmosRequested = false,
     this.catalogueQuality,
+    this.catalogueBitDepth,
+    this.catalogueSampleRate,
   });
 
   final String id;
@@ -42,8 +45,22 @@ class DiscoveryTrack {
   /// Catalogue flag only. The decoded output might be stereo.
   final bool atmosAvailable;
 
+  /// Explicit mobile 'Play Atmos' request; never inferred from a catalogue flag.
+  final bool atmosRequested;
+
   /// Provider-reported quality, not a verified active audio output.
   final String? catalogueQuality;
+  final int? catalogueBitDepth;
+  final int? catalogueSampleRate;
+
+  DiscoveryTrack requestAtmos() => DiscoveryTrack(
+    id: id, title: title, artist: artist, source: source,
+    duration: duration, album: album, sourceUrl: sourceUrl, addonBase: addonBase,
+    addonId: addonId, sourceName: sourceName, inlineStream: inlineStream,
+    artwork: artwork, atmosAvailable: atmosAvailable, atmosRequested: true,
+    catalogueQuality: catalogueQuality, catalogueBitDepth: catalogueBitDepth,
+    catalogueSampleRate: catalogueSampleRate,
+  );
 
   /// This track with [cover] as its artwork when it has none of its own.
   DiscoveryTrack withArtwork(String? cover) =>
@@ -63,7 +80,10 @@ class DiscoveryTrack {
           inlineStream: inlineStream,
           artwork: cover,
           atmosAvailable: atmosAvailable,
+          atmosRequested: atmosRequested,
           catalogueQuality: catalogueQuality,
+          catalogueBitDepth: catalogueBitDepth,
+          catalogueSampleRate: catalogueSampleRate,
         );
 
   String get key => '${source.name}:$addonId:$addonBase:$id';

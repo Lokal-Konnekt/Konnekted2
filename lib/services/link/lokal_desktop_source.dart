@@ -786,6 +786,11 @@ class LokalDesktopSource extends NetworkSourceService {
 
     var path = song.filePath!;
     if (path.startsWith('file://')) path = Uri.parse(path).toFilePath();
+    // Preserve the real library filename before staging a scoped-storage URI.
+    // Staging paths use temporary UUIDs and must never become desktop names.
+    final originalFilename = path.startsWith('content://')
+        ? null
+        : p.basename(path);
     final pathExtension = normalize(
       Uri.tryParse(path)?.path.split('.').last ?? '',
     );
@@ -853,6 +858,7 @@ class LokalDesktopSource extends NetworkSourceService {
               'artist': song.artist,
               'album': song.album,
               'extension': extension,
+              if (originalFilename != null) 'originalFilename': originalFilename,
               'sha256': digest.toString(),
             }),
           ),

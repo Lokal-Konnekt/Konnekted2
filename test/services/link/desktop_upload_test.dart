@@ -47,6 +47,8 @@ void main() {
         ) as Map;
         expect(metadata['extension'], 'flac');
         expect(metadata['title'], '駅');
+        expect(metadata['originalFilename'], 'song.flac');
+        expect(metadata['originalFilename'], isNot(contains(root.path)));
         final received = await stream.toBytes();
         expect(received, original);
         expect(metadata['sha256'], sha256.convert(received).toString());
@@ -58,6 +60,26 @@ void main() {
     );
     await source.uploadToDesktop(song(), credentials);
     expect(await file.readAsBytes(), original);
+  });
+  test('transmits Unicode original filename without directory information', () async {
+    final original = await file.readAsBytes();
+    file = await file.rename('${root.path}/The Motion Epic - L’été.FLAC');
+    final source = LokalDesktopSource(
+      uploadClientFactory: () => MockClient.streaming((request, stream) async {
+        final metadata = jsonDecode(
+          utf8.decode(base64Url.decode(request.headers['x-link-metadata']!)),
+        ) as Map;
+        expect(metadata['originalFilename'], 'The Motion Epic - L’été.FLAC');
+        expect(metadata['extension'], 'flac');
+        expect(metadata['originalFilename'], isNot(contains(root.path)));
+        expect(await stream.toBytes(), original);
+        return http.StreamedResponse(
+          Stream.value(utf8.encode('{"ok":true,"trackId":"pc-43"}')),
+          200,
+        );
+      }),
+    );
+    await source.uploadToDesktop(song(), credentials);
   });
   test(
     'retains the desktop reason for HTTP 400 instead of hiding it',

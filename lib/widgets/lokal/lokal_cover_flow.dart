@@ -17,8 +17,9 @@ typedef LokalCoverBuilder = Widget Function(AlbumGroup album);
 
 /// iPod-style Cover Flow (design spec §7.1).
 ///
-/// The facing album sits flat and forward; its neighbours turn 70° away and
-/// stack behind, each with a floor reflection. Drag to spin with momentum,
+/// The facing album sits flat and forward; its neighbours hinge around their
+/// inside edge so the outside edge comes towards the viewer, like iTunes.
+/// Covers stack tightly behind each other with a mirrored floor reflection. Drag to spin with momentum,
 /// settle on the nearest album with a spring, and feel a tick for every
 /// album that passes. With [onSelect], one tap on any cover brings it forward
 /// and selects it (Home plays it straight away); long-press the facing cover
@@ -80,12 +81,33 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
 
   // Width the finger travels to move one album; set per layout.
   double _albumWidth = 120;
+
+  // Same C1-continuous spacing curve as desktop Cover Flow. At one cover the
+  // inside edge is .52 * size from centre, and each further panel adds .34.
+  static double _innerDistance(double distance) {
+    final a = distance.abs();
+    if (a >= 1) return .52 + (a - 1) * .34;
+    return .66 * a - .10 * a * a - .04 * a * a * a;
+  }
+
+  // Hit testing follows projected artwork centres, not unprojected matrices.
+  static double _hitDistance(double distance) {
+    final a = distance.abs();
+    final t = math.min(1.0, a);
+    return _innerDistance(a) + .17 * (2 * t - t * t);
+  }
+
+  static double _depthDistance(double distance) {
+    final a = distance.abs();
+    if (a >= 1) return .15 + (a - 1) * .055;
+    return .20 * a - .005 * a * a - .045 * a * a * a;
+  }
   double _stageWidth = 0;
 
   static const _spring = SpringDescription(
     mass: 1,
-    stiffness: 170,
-    damping: 26,
+    stiffness: 135,
+    damping: 24,
   );
 
   int get _last => math.max(0, widget.albums.length - 1);
@@ -120,7 +142,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   void _settle({double velocity = 0}) {
     if (!mounted || _disposing) return;
     // Momentum carries roughly a third of a second of the fling.
-    final projected = _position.value + velocity * .32;
+    final projected = _position.value + velocity * .30;
     final target = projected.round().clamp(0, _last).toDouble();
     if (_reduceMotion) {
       _position.value = target;
@@ -173,10 +195,15 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final offset = x - _stageWidth / 2;
     if (_reduceMotion || _performance)
       return (_position.value + offset / (size * 1.06)).round().clamp(0, _last);
-    final near = size * .82;
-    final d = offset.abs() <= near
-        ? math.asin((offset / near).clamp(-1.0, 1.0)) / (math.pi / 2)
-        : offset.sign * (1 + (offset.abs() - near) / (size * .75));
+    // Invert the actual projected spacing with a monotonic binary search.
+    final x = offset.abs() / size;
+    var lo = 0.0;
+    var hi = x > .69 ? 1 + (x - .69) / .34 : 1.0;
+    for (var step = 0; step < 20; step++) {
+      final mid = (lo + hi) / 2;
+      if (_hitDistance(mid) < x) { lo = mid; } else { hi = mid; }
+    }
+    final d = offset.sign * (lo + hi) / 2;
     return (_position.value + d).round().clamp(0, _last);
   }
 
@@ -199,8 +226,8 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final album = widget.albums[_index];
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = math.min(220.0, constraints.maxWidth * .52);
-        _albumWidth = size * .6;
+        final size = math.min(250.0, constraints.maxWidth * .60);
+        _albumWidth = size * .55;
         _stageWidth = constraints.maxWidth;
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -232,7 +259,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
                 onTapUp: (details) =>
                     _select(_indexAt(details.localPosition.dx, size)),
                 child: SizedBox(
-                  height: size * 1.42,
+                  height: size * 1.40,
                   width: constraints.maxWidth,
                   child: AnimatedBuilder(
                     animation: _animation,
@@ -308,21 +335,19 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final ad = d.abs();
     final side = d.sign;
     final near = ad.clamp(0.0, 1.0);
-    // Facing album to first neighbour: slide out, turn, and sink back.
-    // A sine path separates covers early while both are still face-on.
-    // Normalize perspective by cover size so phone density cannot make them
-    // intersect again. The original iPod Cover Flow leaves a clear front-facing cover and
-    // fans its neighbours behind it. Give each side cover its own spacing
-    // and depth instead of flattening the whole stack onto one plane.
-    final dx = reduce
-        ? d * size * 1.06
-        : ad <= 1
-        ? side * size * .82 * math.sin(near * math.pi / 2)
-        : side * (size * .82 + (ad - 1) * size * .75);
-    final angle = reduce ? 0.0 : -side * near * 70 * math.pi / 180;
-    final depth = reduce
-        ? 0.0
-        : -size * (.22 * near + .08 * math.max(0, ad - 1));
+    // Position each side cover by its INNER hinge: at one item the hinge is
+    // barely beyond the centre artwork edge (.52 * size vs .50 * size).
+    // The Hermite curve has a matching .34 slope at d = 1; swipes cannot
+    // lurch when an adjacent cover moves into the farther stacked panels.
+    final dx = reduce ? d * size * 1.06
+        : side * size * (_innerDistance(ad) + .5 * near);
+    // Flutter's positive Y angle brings the LEFT edge forward. Therefore
+    // left covers rotate positive, right covers negative: OUTER edges forward.
+    final angle = reduce ? 0.0
+        : -side * (2 * near - near * near) * 70 * math.pi / 180;
+    final depth = reduce ? 0.0 : -size * _depthDistance(ad);
+    // Move the pivot continuously from centre to inner edge during drags.
+    final pivot = reduce ? .5 : .5 - side * .5 * near;
     final facing = i == _index;
     final flip = facing ? _flip.value : 0.0;
 
@@ -346,7 +371,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
           mainAxisSize: MainAxisSize.min,
           children: [
             _Front(cover: cover, size: size, shadow: !_performance),
-            if (!_performance) SizedBox(height: size * .02),
+            if (!_performance) SizedBox(height: size * .005),
             if (!_performance)
               _Reflection(
                 size: size,
@@ -361,10 +386,9 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
       key: ValueKey(album.key),
       top: size * .06,
       child: Transform(
-        // Rotate around the centre of the square album artwork, not the
-        // centre of the much taller artwork-plus-reflection column. That
-        // misplaced pivot is what made covers tilt and overlap oddly.
-        origin: Offset(size / 2, size / 2),
+        // Hinge at the inner cover edge (with continuous pivot interpolation).
+        // Y stays at artwork centre, never at artwork-plus-reflection centre.
+        origin: Offset(size * pivot, size / 2),
         transform: matrix,
         child: GestureDetector(
           onTap: () => _select(i),
@@ -427,7 +451,7 @@ class _Reflection extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: size,
-    height: size * .32,
+    height: size * .30,
     child: ClipRect(
       child: OverflowBox(
         alignment: Alignment.topCenter,
@@ -437,8 +461,8 @@ class _Reflection extends StatelessWidget {
           shaderCallback: (rect) => const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0x47FFFFFF), Color(0x00FFFFFF)],
-            stops: [0, .32],
+            colors: [Color(0x6AFFFFFF), Color(0x00FFFFFF)],
+            stops: [0, .85],
           ).createShader(rect),
           child: Transform(
             alignment: Alignment.center,

@@ -241,6 +241,8 @@ class MorneyeTrack {
     this.discNumber,
     this.year,
     this.quality,
+    this.bitDepth,
+    this.sampleRate,
     this.atmosAvailable = false,
   });
 
@@ -257,8 +259,30 @@ class MorneyeTrack {
   final int? discNumber;
   final int? year;
   final String? quality;
+  final int? bitDepth;
+  final int? sampleRate;
   final bool atmosAvailable;
   String get key => provider.substring(2);
+
+  static int? _positiveInt(Object? value) {
+    final parsed = value is num ? value.toInt() : int.tryParse('$value');
+    return parsed != null && parsed > 0 ? parsed : null;
+  }
+
+  static int? _sampleRate(Map track) {
+    final value = _positiveInt(track['sample_rate'] ?? track['sampleRate'] ??
+        track['sampling_rate'] ?? track['samplingRate']);
+    if (value == null) return null;
+    // Provider APIs may describe a sample rate in kHz rather than Hz.
+    final hz = value <= 384 ? value * 1000 : value;
+    return hz >= 8000 && hz <= 768000 ? hz : null;
+  }
+
+  static int? _bitDepth(Map track) {
+    final bits = _positiveInt(track['bit_depth'] ?? track['bitDepth'] ??
+        track['bits_per_sample'] ?? track['bitsPerSample']);
+    return bits != null && bits <= 64 ? bits : null;
+  }
 
   static MorneyeTrack of(Map track, String provider) {
     final rawArtists = track['artists'];
@@ -299,7 +323,9 @@ class MorneyeTrack {
       year: int.tryParse(
         '${track['release_date'] ?? ''}'.padRight(4).substring(0, 4).trim(),
       ),
-      quality: track['audio_quality'] as String?,
+      quality: (track['audio_quality'] ?? track['audioQuality'] ?? track['quality'])?.toString(),
+      bitDepth: _bitDepth(track),
+      sampleRate: _sampleRate(track),
       atmosAvailable: tidalAtmosAvailable(track),
     );
   }

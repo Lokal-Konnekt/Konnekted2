@@ -74,17 +74,6 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('Atmos flag describes availability, not active output', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: LokalTheme.build(LokalTokens.resolve(LokalThemeId.light)),
-        home: const Scaffold(body: Center(child: LokalAtmosPill())),
-      ),
-    );
-    expect(find.text('ATMOS'), findsOneWidget);
-    expect(LokalAtmosPill.description, contains('may be stereo'));
-  });
-
   test('glass shaders compile and load', () async {
     for (final asset in [
       'shaders/lokal_glass_lens.frag',

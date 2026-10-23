@@ -328,10 +328,14 @@ class _ArtworkMeshPainter extends CustomPainter {
         final v = y / _rows;
         final baseX = (u * 1.36 - .18) * size.width;
         final baseY = (v * 1.36 - .18) * size.height;
+        // Integer harmonics guarantee identical positions AND velocities
+        // at each cycle boundary, with no visible snap or sudden reversal.
+        // Overlapping 1x/2x/3x waves make the motion look organic while
+        // staying mathematically seamless across infinite repeats.
         final waveX = math.sin(t + v * 5.1 + u * 2.3) +
-            .48 * math.cos(t * .7 + u * 5.4);
-        final waveY = math.cos(t * .83 + u * 4.6 + v * 2.1) +
-            .42 * math.sin(t * 1.1 + v * 5);
+            .48 * math.cos(2 * t + u * 5.4);
+        final waveY = math.cos(2 * t + u * 4.6 + v * 2.1) +
+            .42 * math.sin(3 * t + v * 5);
         positions.add(Offset(
           baseX + waveX * size.width * .055,
           baseY + waveY * size.height * .043,

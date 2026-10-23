@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -40,7 +41,7 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
   Future<void> _onSelect(CastDevice device) async {
     await ref.read(castProvider.notifier).connect(device);
     if (mounted) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      LokalToast.fromSnackBar(context, 
         SnackBar(
           content: Text(l10n.castingTo2(device.name)),
           duration: const Duration(seconds: 2),

@@ -584,7 +584,16 @@ Future<List<_PlaybackSource>> _morneyeSources(
               cancel: cancel,
             );
             try {
-              download = await fetch(quality: tryAtmos ? 'DOLBY_ATMOS' : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null));
+              download = await fetch(
+                quality: tryAtmos
+                    ? 'DOLBY_ATMOS'
+                    : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
+              );
+              if (tryAtmos && !download.atmosEncoded) {
+                onStatus?.call(
+                  'Tidal supplied stereo rather than Dolby Atmos; playing the received format.',
+                );
+              }
             } catch (error) {
               if (!tryAtmos) rethrow;
               // The Mornye provider or device did not return playable JOC.
@@ -609,7 +618,11 @@ Future<List<_PlaybackSource>> _morneyeSources(
             finished = true;
           }
           try {
-            return await cache().adopt(found, download.file, atmosEncoded: download.atmosEncoded);
+            return await cache().adopt(
+              found,
+              download.file,
+              atmosEncoded: download.atmosEncoded,
+            );
           } finally {
             await download.cleanup();
           }

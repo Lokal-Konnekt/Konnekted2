@@ -10,7 +10,11 @@ import 'package:flick/models/audio_engine_type.dart';
 AudioEngineType resolveEngineForSong({
   required AudioEngineType preferred,
   required bool requiresRustDecoder,
+  bool isAtmosJoc = false,
 }) {
+  // Rust/Oboe PCM decoding discards JOC object metadata. Keep verified
+  // Dolby Digital Plus with Atmos on Android's Media3/AudioTrack path.
+  if (isAtmosJoc) return AudioEngineType.normalAndroid;
   if (!requiresRustDecoder || preferred.usesRustBackend) {
     return preferred;
   }

@@ -36,6 +36,40 @@ void main() {
     _album('Third', [_track('3a', 'Third')]),
   ];
 
+  testWidgets('Home Cover Flow starts centered for odd and even shelves', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final four = [...albums, _album('Fourth', [_track('4a', 'Fourth')])];
+
+    Widget shelf(List<AlbumGroup> entries) => _app(
+      LokalCoverFlow(
+        key: ValueKey(entries.length),
+        albums: entries,
+        initialIndex: entries.length ~/ 2,
+        cover: (_) => const ColoredBox(color: Colors.blueGrey),
+        onPlay: (_, _) {},
+      ),
+    );
+
+    await tester.pumpWidget(shelf(albums));
+    expect(
+      tester.getSemantics(find.bySemanticsLabel(RegExp('^Cover Flow'))).value,
+      '2 of 3',
+    );
+    expect(find.text('Second'), findsOneWidget);
+
+    // Async recommendations can increase the shelf length while Home is open.
+    await tester.pumpWidget(shelf(four));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSemantics(find.bySemanticsLabel(RegExp('^Cover Flow'))).value,
+      '3 of 4',
+    );
+    expect(find.text('Third'), findsOneWidget);
+    semantics.dispose();
+  });
+
   testWidgets(
     'removing cover flow during a drag does not query a dead context',
     (tester) async {

@@ -587,8 +587,8 @@ class SubsonicService implements NetworkSourceService {
 /// Treat blank/missing fields as missing, not authoritative values. A number
 /// of OpenSubsonic servers expose only 'name' for AlbumID3, while songs
 /// provide the more detailed per-track fields.
-String? _firstText(Object? first, [Object? second, Object? third]) {
-  for (final value in [first, second, third]) {
+String? _firstText(Object? first, [Object? second, Object? third, Object? fourth]) {
+  for (final value in [first, second, third, fourth]) {
     if (value is String && value.trim().isNotEmpty) return value.trim();
   }
   return null;

@@ -281,7 +281,7 @@ class YoutubeMusicCatalog {
   }
 }
 
-/// A manifest-provided select control; values are sent only to the addon's API.
+/// Supported manifest option for an HTTP add-on select setting.
 class AddonSettingOption {
   const AddonSettingOption(this.value, this.label);
   final String value;
@@ -303,7 +303,48 @@ class AddonSetting {
       if (entry is! Map) continue;
       final key = discoveryText(entry['key'], maxLength: 40);
       if (key == null ||
-          !RegExp(r'^[A-Za-z][A-Za-z0-9_]*
+          !RegExp(r'^[A-Za-z][A-Za-z0-9_]*$').hasMatch(key) ||
+          key == 'q' ||
+          !used.add(key)) continue;
+      // Select controls declare an explicit finite set of values.
+      final rawOptions = entry['options'];
+      if (rawOptions is! List) continue;
+      final options = <AddonSettingOption>[];
+      final values = <String>{};
+      for (final item in rawOptions.take(32)) {
+        if (item is! Map) continue;
+        final value = discoveryText(item['value'], maxLength: 120);
+        if (value == null || !values.add(value)) continue;
+        options.add(AddonSettingOption(
+          value,
+          discoveryText(item['label'], maxLength: 80) ?? value,
+        ));
+      }
+      if (options.isEmpty) continue;
+      final requestedDefault = discoveryText(entry['default'], maxLength: 120);
+      final defaultValue = values.contains(requestedDefault)
+          ? requestedDefault!
+          : options.first.value;
+      result.add(AddonSetting(
+        key,
+        discoveryText(entry['label'], maxLength: 80) ?? key,
+        defaultValue,
+        List.unmodifiable(options),
+      ));
+    }
+    return List.unmodifiable(result);
+  }
+}
+
+class AddonHealth {
+  const AddonHealth(this.name, {
+    required this.cacheAllowed,
+    this.settings = const [],
+  });
+  final String name;
+  final bool cacheAllowed;
+  final List<AddonSetting> settings;
+}
 
 class ResolvedDiscoveryAudio {
   const ResolvedDiscoveryAudio(
@@ -418,9 +459,8 @@ class DiscoveryAddon {
           /* optional metadata */
         }
       }
-      // BitChord's reference wire format uses artworkURL (and optionally
-      // albumArtworkURL). Never hand a non-HTTPS/credential-bearing URL
-      // to the player or its artwork downloader.
+      // BitChord's wire format uses artworkURL and albumArtworkURL.
+      // Invalid/unsafe URLs must not be fetched by the player.
       String? artwork;
       for (final key in [
         'artworkURL', 'albumArtworkURL', 'artworkUrl',
@@ -432,7 +472,7 @@ class DiscoveryAddon {
           artwork = requireHttps(candidate).toString();
           break;
         } on DiscoveryException {
-          // Invalid artwork is optional; never block search or playback.
+          // Artwork is optional; an invalid URL never fails the search.
         }
       }
       tracks.putIfAbsent(
@@ -488,292 +528,6 @@ class DiscoveryAddon {
     }
     return parseStream(
       track.inlineStream ?? await _get(['stream', track.id], query: settings, cancel: cancel),
-    );
-  }
-
-  ResolvedDiscoveryAudio parseStream(Map<String, dynamic> json) {
-    if (json['error'] != null) {
-      throw const DiscoveryException(
-        'The addon could not resolve this recording.',
-      );
-    }
-    if (json['encrypted'] != null && json['encrypted'] != false) {
-      throw const DiscoveryException(
-        'Encrypted audio is not supported by this adapter.',
-      );
-    }
-    if (json['drm'] != null && json['drm'] != false) {
-      throw const DiscoveryException(
-        'DRM audio is not supported by this adapter.',
-      );
-    }
-    if (json['headers'] != null &&
-        !(json['headers'] is Map && (json['headers'] as Map).isEmpty)) {
-      throw const DiscoveryException(
-        'Use a signed media URL; custom media headers are not supported.',
-      );
-    }
-    final url = discoveryText(json['url'], maxLength: 8192);
-    if (url == null) {
-      throw const DiscoveryException('The addon returned no playable URL.');
-    }
-    final uri = requireHttps(url);
-    for (final key in [
-      'manifest',
-      'mediaType',
-      'format',
-      'container',
-      'containerFormat',
-      'mimeType',
-    ]) {
-      final value = json[key];
-      if (value != null && value is! String) {
-        throw const DiscoveryException(
-          'The addon returned invalid transport metadata.',
-        );
-      }
-      if (value is String &&
-          RegExp(
-            r'hls|dash|mpegurl|m3u8|mpd',
-            caseSensitive: false,
-          ).hasMatch(value)) {
-        throw const DiscoveryException(
-          'This source uses HLS/DASH. A progressive audio file is required.',
-        );
-      }
-    }
-    if (RegExp(r'\.(m3u8|mpd)$', caseSensitive: false).hasMatch(uri.path)) {
-      throw const DiscoveryException(
-        'A playlist URL cannot be played as an audio file.',
-      );
-    }
-    // An explicitly configured LAN addon may serve its own media. An addon
-    // cannot redirect the downloader to a different literal/private host.
-    if (uri.origin != base.origin) {
-      final host = uri.host.toLowerCase();
-      if (InternetAddress.tryParse(host) != null ||
-          !host.contains('.') ||
-          host.endsWith('.') ||
-          [
-            '.localhost',
-            '.local',
-            '.internal',
-            '.lan',
-            '.home',
-          ].any(host.endsWith)) {
-        throw const DiscoveryException(
-          'The addon returned a disallowed media host.',
-        );
-      }
-    }
-    return ResolvedDiscoveryAudio(uri);
-  }
-}
-).hasMatch(key) ||
-          key == 'q' ||
-          !used.add(key)) continue;
-      // Selection controls are the only settings with a declared value set.
-      final rawOptions = entry['options'];
-      if (rawOptions is! List) continue;
-      final options = <AddonSettingOption>[];
-      final values = <String>{};
-      for (final item in rawOptions.take(32)) {
-        if (item is! Map) continue;
-        final value = discoveryText(item['value'], maxLength: 120);
-        if (value == null || !values.add(value)) continue;
-        options.add(AddonSettingOption(
-          value,
-          discoveryText(item['label'], maxLength: 80) ?? value,
-        ));
-      }
-      if (options.isEmpty) continue;
-      final requestedDefault = discoveryText(entry['default'], maxLength: 120);
-      final defaultValue = values.contains(requestedDefault)
-          ? requestedDefault!
-          : options.first.value;
-      result.add(AddonSetting(
-        key,
-        discoveryText(entry['label'], maxLength: 80) ?? key,
-        defaultValue,
-        List.unmodifiable(options),
-      ));
-    }
-    return List.unmodifiable(result);
-  }
-}
-
-class AddonHealth {
-  const AddonHealth(this.name, {
-    required this.cacheAllowed,
-    this.settings = const [],
-  });
-  final String name;
-  final bool cacheAllowed;
-  final List<AddonSetting> settings;
-}
-
-class ResolvedDiscoveryAudio {
-  const ResolvedDiscoveryAudio(
-    this.url, {
-    this.length,
-    this.headers = const {},
-  });
-  final Uri url;
-
-  /// The file's size when it must be fetched in parts (YouTube serves big
-  /// single requests slowly): each part asks for a `range` of it.
-  final int? length;
-
-  /// Headers the media host expects, e.g. the client's own User-Agent.
-  final Map<String, String> headers;
-}
-
-/// Reference-compatible, deliberately limited progressive-audio addon client.
-/// See README.md for the exact supported protocol and credential boundary.
-class DiscoveryAddon {
-  DiscoveryAddon(
-    this.http, {
-    required String endpoint,
-    String token = '',
-    this.configId,
-    this.displayName = 'Music addon',
-  }) : base = normalizeAddonEndpoint(endpoint),
-       _token = token.trim() {
-    if (_token.length > 4096 || RegExp(r'[\x00-\x20\x7f]').hasMatch(_token)) {
-      throw const DiscoveryException(
-        'The bearer token contains invalid characters.',
-      );
-    }
-  }
-
-  final DiscoveryHttp http;
-  final Uri base;
-  final String _token;
-  final String? configId;
-  final String displayName;
-
-  Uri _endpoint(List<String> suffix, [Map<String, String>? query]) =>
-      base.replace(
-        pathSegments: [...base.pathSegments, ...suffix],
-        queryParameters: query,
-      );
-
-  Future<Map<String, dynamic>> _get(
-    List<String> suffix, {
-    Map<String, String>? query,
-    Future<void>? cancel,
-  }) => http.json(
-    _endpoint(suffix, query),
-    headers: {if (_token.isNotEmpty) 'Authorization': 'Bearer $_token'},
-    cancel: cancel,
-  );
-
-  Future<AddonHealth> health({Future<void>? cancel}) async {
-    final json = await _get(['manifest.json'], cancel: cancel);
-    final id = discoveryText(json['id']);
-    final resources = json['resources'];
-    if (id == null ||
-        resources is! List ||
-        !resources.contains('search') ||
-        !resources.contains('stream')) {
-      throw const DiscoveryException(
-        'The addon must declare an id and search + stream resources.',
-      );
-    }
-    final flag = json['allowDownloads'];
-    // Unknown policy values fail closed: this player needs a temporary file.
-    final allowed =
-        flag == null ||
-        flag == true ||
-        flag == 1 ||
-        flag == '1' ||
-        flag == 'true';
-    return AddonHealth(
-      discoveryText(json['name']) ?? id,
-      cacheAllowed: allowed,
-    );
-  }
-
-  Future<List<DiscoveryTrack>> search(String query) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return [];
-    if (trimmed.length > 200) {
-      throw const DiscoveryException('Search is limited to 200 characters.');
-    }
-    final json = await _get(['search'], query: {'q': trimmed});
-    final rows = json['tracks'];
-    if (rows is! List) {
-      throw const DiscoveryException(
-        'The addon search response must contain a tracks array.',
-      );
-    }
-    final tracks = <String, DiscoveryTrack>{};
-    for (final row in rows.take(500)) {
-      if (row is! Map<String, dynamic>) continue;
-      final id = discoveryText(row['id'], maxLength: 1024);
-      final title = discoveryText(row['title']);
-      if (id == null || title == null || id == '.' || id == '..') continue;
-      Uri? sourceUrl;
-      final source = discoveryText(row['sourceURL'], maxLength: 8192);
-      if (source != null) {
-        try {
-          sourceUrl = requireHttps(source);
-        } on DiscoveryException {
-          /* optional metadata */
-        }
-      }
-      tracks.putIfAbsent(
-        id,
-        () => DiscoveryTrack(
-          id: id,
-          title: title,
-          artist: discoveryText(row['artist']) ?? 'Artist not supplied',
-          album: discoveryText(row['album']),
-          duration: discoveryDuration(row['duration']),
-          source: DiscoverySource.addon,
-          addonBase: base,
-          addonId: configId,
-          sourceName: displayName,
-          sourceUrl: sourceUrl,
-          // Retain security-relevant fields with inline URLs, not just the URL.
-          inlineStream: row['streamURL'] == null
-              ? null
-              : {...row, 'url': row['streamURL']},
-        ),
-      );
-      if (tracks.length == 50) break;
-    }
-    if (rows.isNotEmpty && tracks.isEmpty) {
-      throw const DiscoveryException(
-        'The addon returned tracks without usable ids and titles.',
-      );
-    }
-    return tracks.values.toList(growable: false);
-  }
-
-  Future<ResolvedDiscoveryAudio> resolve(
-    DiscoveryTrack track, {
-    Future<void>? cancel,
-  }) async {
-    if (track.source != DiscoverySource.addon ||
-        track.addonId != configId ||
-        track.addonBase != base ||
-        track.id.isEmpty ||
-        track.id.length > 1024 ||
-        track.id == '.' ||
-        track.id == '..') {
-      throw const DiscoveryException(
-        'This result belongs to a different source. Search again.',
-      );
-    }
-    final manifest = await health(cancel: cancel);
-    if (!manifest.cacheAllowed) {
-      throw const DiscoveryException(
-        'This addon disallows downloads. Temporary caching is required by this player.',
-      );
-    }
-    return parseStream(
-      track.inlineStream ?? await _get(['stream', track.id], cancel: cancel),
     );
   }
 

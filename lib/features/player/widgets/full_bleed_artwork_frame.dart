@@ -9,7 +9,6 @@ class FullBleedArtworkFrame extends StatelessWidget {
     required this.canvas,
     required this.child,
     this.bannerBottom,
-    this.topInset = 0,
     this.morphEnabled = true,
     this.controlsOpacity = 1,
   });
@@ -19,8 +18,6 @@ class FullBleedArtworkFrame extends StatelessWidget {
   final bool morphEnabled;
   final Widget child;
   final double? bannerBottom;
-  /// Extra space above still artwork, ignored by Canvas and thumbnails.
-  final double topInset;
 
   @override
   Widget build(BuildContext context) {
@@ -49,33 +46,29 @@ class FullBleedArtworkFrame extends StatelessWidget {
                         MediaQuery.paddingOf(context).top +
                         56)
                 .clamp(0.0, constraints.maxHeight);
-        // Still covers start below the status bar and fade through the
-        // artist row, without painting a dark contrast scrim over the cover.
-        final inset = topInset * progress;
+        // Stay flush with the top screen edge; the extended banner
+        // continues through the artist row with an undimmed cover.
         return Align(
           alignment: Alignment.topCenter,
-          child: Padding(
-            padding: EdgeInsets.only(top: inset),
-            child: SizedBox(
-              width: constraints.maxWidth,
-              height: (height - inset).clamp(0.0, constraints.maxHeight),
-              child: LokalPlayerArtwork(
-                enabled: morphEnabled,
-                expandedRadius: 0,
-                child: ShaderMask(
-                  blendMode: BlendMode.dstIn,
-                  shaderCallback: (rect) => LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white,
-                      Colors.white,
-                      Colors.white.withValues(alpha: 1 - progress),
-                    ],
-                    stops: [0, .68, 1],
-                  ).createShader(rect),
-                  child: SizedBox.expand(child: child),
-                ),
+          child: SizedBox(
+            width: constraints.maxWidth,
+            height: height,
+            child: LokalPlayerArtwork(
+              enabled: morphEnabled,
+              expandedRadius: 0,
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (rect) => LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white,
+                    Colors.white,
+                    Colors.white.withValues(alpha: 1 - progress),
+                  ],
+                  stops: [0, .68, 1],
+                ).createShader(rect),
+                child: SizedBox.expand(child: child),
               ),
             ),
           ),

@@ -58,7 +58,14 @@ void main() {
     expect(atmos.catalogueBitDepth, 24);
     expect(atmos.catalogueSampleRate, 96000);
     expect(atmos.key, isNot(stereo.key));
+    expect(atmos.atmosDownload, isFalse);
+    final download = stereo.requestAtmos(downloadOnly: true);
+    expect(download.atmosRequested, isTrue);
+    expect(download.atmosDownload, isTrue);
+    expect(download.key, atmos.key, reason: 'Both request the same JOC source');
     expect(atmos.withArtwork('https://example.test/cover.jpg').atmosRequested,
+        isTrue);
+    expect(download.withArtwork('https://example.test/cover.jpg').atmosDownload,
         isTrue);
   });
 

@@ -20,6 +20,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
+import 'package:flick/services/catalogue_quality.dart';
 
 /// Songs you don't have, under your library's results: desktop's Search
 /// "online" block. One source at a time (YouTube Music or an add-on you
@@ -552,11 +553,31 @@ class _OnlineTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: t.muted, fontSize: 13),
                   ),
-                  if (track.atmosAvailable) ...[
+                  if (track.atmosAvailable ||
+                      catalogueQualityLabel(track.catalogueQuality).isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: LokalAtmosPill(),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (catalogueQualityLabel(track.catalogueQuality)
+                            case final quality when quality.isNotEmpty)
+                          Tooltip(
+                            message: 'Catalogue quality, not the verified playback output',
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: t.muted.withValues(alpha: .35)),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(quality,
+                                style: TextStyle(color: t.muted, fontSize: 10)),
+                            ),
+                          ),
+                        if (track.atmosAvailable) const LokalAtmosPill(),
+                      ],
                     ),
                   ],
                 ],

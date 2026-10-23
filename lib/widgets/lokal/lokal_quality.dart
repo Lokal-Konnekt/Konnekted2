@@ -158,7 +158,7 @@ class LokalAtmosPill extends StatelessWidget {
   const LokalAtmosPill({super.key});
 
   static const String description =
-      'Dolby Atmos available on Tidal. The current stream/output may be stereo.';
+      'Tidal offers an Atmos version. Lokal currently plays the stereo version; Atmos playback requires a compatible Tidal app and device.';
 
   @override
   Widget build(BuildContext context) => Tooltip(

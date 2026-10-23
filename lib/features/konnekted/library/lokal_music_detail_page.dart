@@ -1231,7 +1231,7 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
     return LokalSwipeToQueue(
       song: row.owned ?? row.track.pending(),
       enabled: !_busy,
-      child: return ListTile(
+      child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
         onTap: _busy ? null : () => _play(queue, start: index),
         onLongPress: _busy ? null : () => _songActions(row),

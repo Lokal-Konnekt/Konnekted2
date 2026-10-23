@@ -15,6 +15,7 @@ import '../widgets/motion_art_widget.dart';
 import 'package:flick/services/motion_art/moving_cover_settings.dart';
 
 import '../widgets/player_transport_controls.dart';
+import 'package:flick/features/player/player_button_appearance.dart';
 import '../widgets/artwork_gradient_backdrop.dart';
 import '../widgets/artwork_mesh_blur_backdrop.dart';
 import '../widgets/lyric_motion_line.dart';
@@ -1321,7 +1322,10 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   Widget _transport(bool compact, double lyricsProgress) =>
       ValueListenableBuilder<bool>(
         valueListenable: _player.isPlayingNotifier,
-        builder: (context, playing, _) => PlayerTransportControls(
+        builder: (context, playing, _) => ValueListenableBuilder<bool>(
+          valueListenable: PlayerButtonAppearance.instance,
+          builder: (context, unboxed, _) => PlayerTransportControls(
+          unboxed: unboxed,
           compact: compact,
           tallerButtons: true,
           lyricsProgress: lyricsProgress,
@@ -1336,6 +1340,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
           onNext: () =>
               _carouselKey.currentState?.animateToNext() ?? _player.next(),
           onPlayPause: () => _player.togglePlayPause(),
+          ),
         ),
       );
 

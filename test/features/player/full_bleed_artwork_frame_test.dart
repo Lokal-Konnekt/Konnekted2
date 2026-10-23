@@ -30,7 +30,7 @@ void main() {
     );
   }
 
-  testWidgets('still art starts lower and extends to the artist row', (
+  testWidgets('still art stays flush at top and reaches the artist row', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(430, 930);
@@ -41,7 +41,6 @@ void main() {
         home: FullBleedArtworkFrame(
           canvas: false,
           bannerBottom: 650,
-          topInset: 18,
           child: ColoredBox(
             key: ValueKey('lowered-art'),
             color: Colors.red,
@@ -50,8 +49,8 @@ void main() {
       ),
     );
     final art = find.byKey(const ValueKey('lowered-art'));
-    expect(tester.getTopLeft(art).dy, 18);
-    expect(tester.getSize(art), const Size(430, 632));
+    expect(tester.getTopLeft(art).dy, 0);
+    expect(tester.getSize(art), const Size(430, 650));
     expect(find.byType(ShaderMask), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

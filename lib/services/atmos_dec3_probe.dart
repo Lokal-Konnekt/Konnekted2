@@ -46,13 +46,13 @@ Future<Uint8List> _read(RandomAccessFile file, int offset, int count) async {
 
 Future<_Box?> _box(RandomAccessFile file, int offset, int end) async {
   if (end - offset < 8) return null;
-  final header = await _read(file!, offset, 8);
+  final header = await _read(file, offset, 8);
   if (header.length < 8) return null;
   var length = _u32(header);
   var headerSize = 8;
   if (length == 1) {
     if (end - offset < 16) return null;
-    final extended = await _read(file!, offset + 8, 8);
+    final extended = await _read(file, offset + 8, 8);
     if (extended.length != 8) return null;
     length = _u64(extended, 0);
     headerSize = 16;
@@ -142,7 +142,7 @@ Future<AtmosBoxProbe> inspectAtmosDec3(String path) async {
             final count = _u32(fixed, 4);
             var entryPos = box.payload + 8;
             for (var i = 0; i < count && i < 256 && !verified; i++) {
-              final entry = await _box(file, entryPos, box.end);
+              final entry = await _box(file!, entryPos, box.end);
               if (entry == null) {
                 corrupt = true;
                 break;
@@ -156,7 +156,7 @@ Future<AtmosBoxProbe> inspectAtmosDec3(String path) async {
                   corrupt = true;
                 } else {
                   while (childPos + 8 <= entry.end && !verified) {
-                    final child = await _box(file, childPos, entry.end);
+                    final child = await _box(file!, childPos, entry.end);
                     if (child == null) {
                       corrupt = true;
                       break;

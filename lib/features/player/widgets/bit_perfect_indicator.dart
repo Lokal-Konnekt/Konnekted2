@@ -43,6 +43,14 @@ class BitPerfectIndicator extends ConsumerWidget {
     );
     final label = _getSongQuality(song);
 
+    if (song.atmosEncoded) {
+      return GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: const LokalAtmosStreamPill(),
+      );
+    }
+
     // Desktop Lokal's tier and colours; the verified/locked mark rides along.
     if (LokalQualityTier.of(song) case final tier?) {
       return GestureDetector(

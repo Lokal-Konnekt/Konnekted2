@@ -524,6 +524,7 @@ class _OnlineTile extends StatelessWidget {
     final duration = track.duration;
     return LokalSwipeToQueue(
       onQueue: onQueue,
+      enabled: !busy,
       child: InkWell(
         onTap: busy ? null : onTap,
         onLongPress: onMore,

@@ -95,11 +95,14 @@ class DiscoveryArtworkResolver {
     DateTime Function()? now,
     this.artistPortrait,
     this.searchSongs,
+    this.onSourceFailure,
   }) : _now = now ?? DateTime.now;
 
   final DiscoveryHttp _http;
   final Future<List<DiscoveryTrack>> Function(String query)? searchSongs;
   final Future<String?> Function(String name)? artistPortrait;
+  /// Optional diagnostics; source domains only, never request URLs or tokens.
+  final void Function(String source, String reason)? onSourceFailure;
   final DateTime Function() _now;
 
   static const maxEntries = 1000;
@@ -167,7 +170,15 @@ class DiscoveryArtworkResolver {
     try {
       final data = (await _http.json(url))[field];
       return data is List ? data.whereType<Map>().toList() : const [];
-    } catch (_) {
+    } catch (error) {
+      final failure = error.toString();
+      onSourceFailure?.call(url.host, failure.contains('429')
+          ? 'rate limited'
+          : failure.contains('403') || failure.contains('401')
+              ? 'access refused'
+              : failure.contains('timed out') || failure.contains('timeout')
+                  ? 'timed out'
+                  : 'request failed');
       return const [];
     }
   }
@@ -436,11 +447,15 @@ class DiscoveryLocalArtwork {
 /// Shared remote artwork pipeline for Last.fm/Discovery and Discord presence.
 /// Exact track/artist matching plus Deezer, US/GB Apple Music storefronts,
 /// and verified YouTube Music fallbacks stay identical across both features.
-DiscoveryArtworkResolver createDiscoveryArtworkResolver(DiscoveryHttp web) {
+DiscoveryArtworkResolver createDiscoveryArtworkResolver(
+  DiscoveryHttp web, {
+  void Function(String source, String reason)? onSourceFailure,
+}) {
   final youtube = YoutubeMusicCatalog(web, refreshClientContext: true);
   return DiscoveryArtworkResolver(
     web,
     searchSongs: youtube.search,
+    onSourceFailure: onSourceFailure,
     artistPortrait: (name) async {
       final api = AppleMusicMetadataService.instance;
       final artist = await api.resolveArtist(name);

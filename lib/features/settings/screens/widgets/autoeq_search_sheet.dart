@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
@@ -136,9 +137,7 @@ class _AutoEqSearchSheetState extends State<_AutoEqSearchSheet> {
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
+    LokalToast.fromSnackBar(context, 
         SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
       );
   }

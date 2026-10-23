@@ -131,10 +131,6 @@ class SongEntity {
   @Index()
   String? sourceType;
 
-  /// Whether Tidal explicitly advertises a Dolby Atmos version.
-  /// Null means no metadata was provided, not that playback is stereo.
-  bool? atmosAvailable;
-
   /// The server's song id (Subsonic song id, WebDAV file URL, Jellyfin Item.Id).
   @Index()
   String? remoteId;

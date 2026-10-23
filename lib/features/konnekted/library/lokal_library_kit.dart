@@ -448,6 +448,10 @@ class LokalTrackRow extends ConsumerWidget {
                             style: TextStyle(fontSize: 13, color: t.muted),
                           ),
                         ),
+                      if (song.atmosAvailable) ...[
+                        const SizedBox(width: 8),
+                        const LokalAtmosPill(),
+                      ],
                       if (LokalQualityTier.of(song) case final tier?) ...[
                         const SizedBox(width: 8),
                         LokalQualityPill(tier: tier),

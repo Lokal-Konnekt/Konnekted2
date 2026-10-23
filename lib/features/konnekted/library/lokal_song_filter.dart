@@ -24,6 +24,7 @@ enum LokalSongLocation {
 /// Quality and exact PCM resolution share one mutually exclusive menu.
 String libraryAudioFilterLabel(String filter) {
   if (filter == 'all') return 'All formats and qualities';
+  if (filter == 'atmos') return 'Dolby Atmos available';
   if (filter.startsWith('quality:')) {
     return LokalQualityTier.values.byName(filter.substring(8)).label;
   }
@@ -52,6 +53,7 @@ bool matchesLibraryFilters(
 ) {
   if (!location.includes(song)) return false;
   if (audioFilter == 'all') return true;
+  if (audioFilter == 'atmos') return song.atmosAvailable;
   if (audioFilter.startsWith('quality:')) {
     return (LokalQualityTier.of(song) ?? LokalQualityTier.unknown).name ==
         audioFilter.substring(8);

@@ -69,7 +69,10 @@ class _ArtworkGradientBackdropState
   void _configure() {
     final settled =
         _route == null || _route!.status == AnimationStatus.completed;
-    if (_performance || _reduceMotion || !settled) {
+    // The vibrant palette is only an immediate fallback behind the artwork
+    // mesh. Its painter does not use the drift phase, so never drive an
+    // unnecessary second animation beneath the active blur.
+    if (widget.vibrant || _performance || _reduceMotion || !settled) {
       _drift.stop();
     } else if (!_drift.isAnimating) {
       _drift.repeat(reverse: true);

@@ -161,6 +161,11 @@ class LibraryDownloader {
       throw const DiscoveryException('The downloaded song is gone. Try again.');
     }
     final extension = p.extension(source).toLowerCase();
+    // Mark saved Atmos files in the filename as well as the DB. A later
+    // filesystem scan may replace the codec field with the MP4 container
+    // extension; the suffix keeps the original JOC routing identifiable.
+    final savedExtension = prepared.atmosEncoded
+        ? '.atmos$extension' : extension;
     final folders = await _folders();
     final directories = MusicLibraryPath.directories(
       artist: prepared.artist,
@@ -200,9 +205,9 @@ class LibraryDownloader {
       try {
         final dir = Directory(target.dir);
         await dir.create(recursive: true);
-        var path = p.join(dir.path, fileName(prepared, extension));
+        var path = p.join(dir.path, fileName(prepared, savedExtension));
         for (var n = 2; File(path).existsSync(); n++) {
-          path = p.join(dir.path, fileName(prepared, ' ($n)$extension'));
+          path = p.join(dir.path, fileName(prepared, ' ($n)$savedExtension'));
         }
         copy = await File(source).copy(path);
       } on FileSystemException {
@@ -210,7 +215,9 @@ class LibraryDownloader {
       }
 
       if (target.fallback) await _registerFolder(target.root, folderName);
-      final tagged = await _tag(copy.path, prepared);
+      // Rust tag editors may rewrite the MP4 audio sample description;
+      // preserve E-AC-3 JOC bitstream metadata byte for byte.
+      final tagged = prepared.atmosEncoded ? false : await _tag(copy.path, prepared);
       final stat = await copy.stat();
       final now = _now();
       await _upsert(
@@ -220,7 +227,9 @@ class LibraryDownloader {
           ..artist = prepared.artist
           ..album = prepared.album
           ..durationMs = prepared.duration.inMilliseconds
-          ..fileType = extension.replaceFirst('.', '').toUpperCase()
+          ..fileType = prepared.atmosEncoded
+              ? 'E-AC-3 JOC'
+              : extension.replaceFirst('.', '').toUpperCase()
           ..fileSize = stat.size
           ..sampleRate = prepared.sampleRate
           ..bitDepth = prepared.bitDepth
@@ -235,7 +244,8 @@ class LibraryDownloader {
           ..hasLocalEdits = !tagged,
       );
       await _indexMedia([copy.path]);
-      if (artwork != null && artwork.isNotEmpty) {
+      // For JOC, do not embed artwork by rewriting the downloaded MP4.
+      if (!prepared.atmosEncoded && artwork != null && artwork.isNotEmpty) {
         try {
           await _cover(copy.path, prepared, artwork);
         } catch (_) {

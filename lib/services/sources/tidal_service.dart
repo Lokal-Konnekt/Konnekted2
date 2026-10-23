@@ -11,6 +11,7 @@ import '../../data/database.dart';
 import '../../data/repositories/song_repository.dart';
 import '../library_scanner_service.dart' show ScanProgress;
 import '../network_cache_service.dart';
+import '../tidal_atmos_metadata.dart';
 import 'network_source_service.dart';
 
 /// Tidal client over the reverse-engineered web/OAuth2 surface.
@@ -485,6 +486,12 @@ class TidalService implements NetworkSourceService {
       query: {'playbackmode': 'STREAM', 'assetpresentation': 'FULL'},
     );
     final mime = info['manifestMimeType'] as String?;
+    if (tidalAtmosAvailable(info)) {
+      throw TidalException(
+        'Tidal returned a Dolby Atmos stream. This playback path cannot decode '
+        'or verify Atmos; use Tidal on a compatible device or choose a stereo version.',
+      );
+    }
     final manifest = info['manifest'] as String?;
     if (mime != 'application/vnd.tidal.bts' || manifest == null) {
       throw TidalException(
@@ -628,6 +635,7 @@ class TidalService implements NetworkSourceService {
       ..discNumber = (t['volumeNumber'] as num?)?.toInt()
       ..year = _releaseYear(album?['releaseDate'] as String?)
       ..fileType = _extForQuality(t['audioQuality'] as String?)
+      ..atmosAvailable = tidalAtmosAvailable(t)
       ..albumArtPath = (cover != null && cover.isNotEmpty)
           ? '$_coverMarkerScheme$cover'
           : null

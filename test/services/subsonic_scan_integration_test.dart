@@ -24,14 +24,14 @@ Map<String, dynamic> _albumListResponse() => {
           'album': [
             {
               'id': 'al-1',
-              'album': 'Nightshift',
+              'name': 'Nightshift',
               'artist': 'The Moths',
               'coverArt': 'al-1',
               'year': 2021,
             },
             {
               'id': 'al-2',
-              'album': 'Drift',
+              'name': 'Drift',
               'artist': 'Solo',
               'coverArt': 'al-2',
               'year': 2023,
@@ -127,7 +127,8 @@ void main() {
       songs.addAll(rawSongs.map((s) => SubsonicService.buildSongEntity(
             server,
             s,
-            albumName: album['album'] as String?,
+            // Model real AlbumID3 getAlbumList2 payloads (name, not album).
+            albumName: album['name'] as String?,
             albumArtist: album['artist'] as String?,
             coverArt: album['coverArt'] as String?,
             year: (album['year'] as num?)?.toInt(),

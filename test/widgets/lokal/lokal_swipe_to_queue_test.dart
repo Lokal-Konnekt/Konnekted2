@@ -9,7 +9,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: LokalSwipeToQueue(
-            onQueue: () => queued++,
+            onQueue: () { queued++; },
             child: const ListTile(title: Text('Track')),
           ),
         ),
@@ -29,7 +29,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: LokalSwipeToQueue(
-            onQueue: () => queued++,
+            onQueue: () { queued++; },
             child: const ListTile(title: Text('Track')),
           ),
         ),
@@ -54,7 +54,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: LokalSwipeToQueue(
-            onQueue: () => queued++,
+            onQueue: () { queued++; },
             child: ListTile(
               title: const Text('Track'),
               onTap: () => taps++,
@@ -82,7 +82,7 @@ void main() {
         home: Scaffold(
           body: LokalSwipeToQueue(
             enabled: false,
-            onQueue: () => queued++,
+            onQueue: () { queued++; },
             child: const ListTile(title: Text('Track')),
           ),
         ),

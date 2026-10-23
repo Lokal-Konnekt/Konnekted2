@@ -7,8 +7,8 @@ import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'full_player_visuals.dart';
 
-/// The icon morph, button widths and pressed feedback can reverse independently.
-/// Panel resizing reads the same progress as the moving artwork.
+/// Both transport styles share playback callbacks, hit regions and animations.
+/// The boxed layout remains identical; Apple Music changes only the unboxed UI.
 class PlayerTransportControls extends ConsumerStatefulWidget {
   const PlayerTransportControls({
     super.key,
@@ -22,12 +22,13 @@ class PlayerTransportControls extends ConsumerStatefulWidget {
     required this.onNext,
     required this.onPlayPause,
   });
+
   final bool playing, compact;
-  /// Taller pads for the modern full player; lyrics pose stays compact.
   final bool tallerButtons;
   final double lyricsProgress;
   final Color accent, onAccent;
   final VoidCallback onPrevious, onNext, onPlayPause;
+
   @override
   ConsumerState<PlayerTransportControls> createState() =>
       _PlayerTransportControlsState();
@@ -40,6 +41,7 @@ class _PlayerTransportControlsState extends ConsumerState<PlayerTransportControl
     duration: const Duration(milliseconds: 320),
     value: widget.playing ? 1 : 0,
   );
+
   @override
   void didUpdateWidget(PlayerTransportControls oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -62,7 +64,9 @@ class _PlayerTransportControlsState extends ConsumerState<PlayerTransportControl
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _icon,
     builder: (context, _) {
-      final unboxed = ref.watch(lokalAppearanceProvider.select((a) => a.unboxedPlayerControls));
+      final unboxed = ref.watch(lokalAppearanceProvider.select(
+        (appearance) => appearance.unboxedPlayerControls,
+      ));
       final l = widget.lyricsProgress.clamp(0.0, 1.0);
       final height = lerpDouble(
         widget.tallerButtons
@@ -72,72 +76,90 @@ class _PlayerTransportControlsState extends ConsumerState<PlayerTransportControl
         l,
       )!;
       final radius = lerpDouble(26, 23, l)!;
-      // Balanced side buttons and a narrower central play pad.
-      // Playback changes the icon, not the widths of the three buttons.
-      final primaryShare = unboxed ? .24 : .36;
+
+      Widget skip(bool previous) => _TransportButton(
+        color: unboxed ? Colors.transparent : FullPlayerVisuals.surface,
+        radius: radius,
+        unboxed: unboxed,
+        pulseCount: unboxed ? 3 : 1,
+        onTap: previous ? widget.onPrevious : widget.onNext,
+        label: previous ? l10n.previousSong : l10n.nextSong,
+        child: unboxed
+            ? _AppleTransportGlyph(
+                key: ValueKey(previous ? 'apple-skip-previous' : 'apple-skip-next'),
+                glyph: previous ? _AppleGlyph.previous : _AppleGlyph.next,
+                size: lerpDouble(44, 34, l)!,
+                color: FullPlayerVisuals.primaryText,
+              )
+            : Icon(
+                previous ? Icons.skip_previous_rounded : Icons.skip_next_rounded,
+                size: lerpDouble(29, 26, l),
+                color: FullPlayerVisuals.primaryText,
+              ),
+      );
+
+      final play = _TransportButton(
+        key: const ValueKey('player-play-button'),
+        unboxed: unboxed,
+        pulseCount: unboxed ? 2 : 1,
+        color: unboxed ? Colors.transparent : widget.accent,
+        radius: radius,
+        onTap: widget.onPlayPause,
+        label: widget.playing ? l10n.pause : l10n.play,
+        child: unboxed
+            ? _AppleTransportGlyph(
+                key: const ValueKey('apple-play-pause'),
+                glyph: widget.playing ? _AppleGlyph.pause : _AppleGlyph.play,
+                size: lerpDouble(62, 44, l)!,
+                color: FullPlayerVisuals.primaryText,
+              )
+            : AnimatedIcon(
+                icon: AnimatedIcons.play_pause,
+                progress: _icon,
+                size: lerpDouble(33, 29, l),
+                color: widget.onAccent,
+              ),
+      );
+
       return SizedBox(
         height: height,
         child: LayoutBuilder(
           builder: (context, c) {
-            final available = c.maxWidth - 16;
-            final primary = available * primaryShare;
-            // The unboxed layout uses a narrower central hit region so both
-            // skip glyph centers move inward symmetrically. For a 360dp row,
-            // reducing the central share from 36% to 24% moves each skip
-            // center 20.6dp closer to the play icon.
-
-            Widget skip(IconData icon, VoidCallback onTap, String label) =>
-                Expanded(
-                  child: _TransportButton(
-                    color: unboxed ? Colors.transparent : FullPlayerVisuals.surface,
-                    radius: radius,
-                    unboxed: unboxed,
-                    onTap: onTap,
-                    label: label,
-                    child: unboxed
-                        ? _AppleSkipIcon(
-                            previous: icon == Icons.skip_previous_rounded,
-                            size: lerpDouble(40, 32, l)!,
-                            color: FullPlayerVisuals.primaryText,
-                          )
-                        : Icon(icon, size: lerpDouble(29, 26, l), color: FullPlayerVisuals.primaryText),
-                  ),
-                );
-            return Row(
-              children: [
-                skip(
-                  Icons.skip_previous_rounded,
-                  widget.onPrevious,
-                  l10n.previousSong,
+            if (unboxed) {
+              // Screenshot reference: on the 706px-wide Apple Music player
+              // the three glyph centers are x=176, 354, 530, i.e. 25/50/75%.
+              // Keeping the hit regions distinct from the glyphs preserves
+              // that precise spacing at every width and avoids visible boxes.
+              final quarter = c.maxWidth / 4;
+              final sideWidth = quarter.clamp(48.0, 76.0).toDouble();
+              final playWidth = (quarter * 1.05).clamp(52.0, 96.0).toDouble();
+              return Stack(children: [
+                Positioned(
+                  top: 0, bottom: 0,
+                  left: quarter - sideWidth / 2, width: sideWidth,
+                  child: skip(true),
                 ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: primary,
-                  child: _TransportButton(
-                    key: const ValueKey('player-play-button'),
-                    unboxed: unboxed,
-                    color: unboxed ? Colors.transparent : widget.accent,
-                    radius: radius,
-                    onTap: widget.onPlayPause,
-                    label: widget.playing ? l10n.pause : l10n.play,
-                    child: unboxed
-                        ? Icon(
-                            widget.playing ? Icons.pause : Icons.play_arrow,
-                            size: lerpDouble(62, 44, l),
-                            color: FullPlayerVisuals.primaryText,
-                          )
-                        : AnimatedIcon(
-                            icon: AnimatedIcons.play_pause,
-                            progress: _icon,
-                            size: lerpDouble(33, 29, l),
-                            color: widget.onAccent,
-                          ),
-                  ),
+                Positioned(
+                  top: 0, bottom: 0,
+                  left: c.maxWidth / 2 - playWidth / 2, width: playWidth,
+                  child: play,
                 ),
-                const SizedBox(width: 8),
-                skip(Icons.skip_next_rounded, widget.onNext, l10n.nextSong),
-              ],
-            );
+                Positioned(
+                  top: 0, bottom: 0,
+                  left: quarter * 3 - sideWidth / 2, width: sideWidth,
+                  child: skip(false),
+                ),
+              ]);
+            }
+            // Retain the original boxed button widths and gap.
+            final primary = (c.maxWidth - 16) * .36;
+            return Row(children: [
+              Expanded(child: skip(true)),
+              const SizedBox(width: 8),
+              SizedBox(width: primary, child: play),
+              const SizedBox(width: 8),
+              Expanded(child: skip(false)),
+            ]);
           },
         ),
       );
@@ -154,19 +176,35 @@ class _TransportButton extends StatefulWidget {
     required this.onTap,
     required this.label,
     required this.child,
+    this.pulseCount = 1,
   });
+
   final Color color;
   final double radius;
   final bool unboxed;
   final VoidCallback onTap;
   final String label;
   final Widget child;
+  final int pulseCount;
+
   @override
   State<_TransportButton> createState() => _TransportButtonState();
 }
 
 class _TransportButtonState extends State<_TransportButton> {
   bool _pressed = false;
+
+  void _activate() {
+    if (widget.pulseCount == 3) {
+      AppHaptics.triplePulse();
+    } else if (widget.pulseCount == 2) {
+      AppHaptics.doublePulse();
+    } else {
+      AppHaptics.tap();
+    }
+    widget.onTap();
+  }
+
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
@@ -189,12 +227,12 @@ class _TransportButtonState extends State<_TransportButton> {
                   onTapDown: (_) => setState(() => _pressed = true),
                   onTapCancel: () => setState(() => _pressed = false),
                   onTapUp: (_) => setState(() => _pressed = false),
-                  onTap: () { AppHaptics.tap(); widget.onTap(); },
+                  onTap: _activate,
                   child: Center(child: widget.child),
                 )
               : InkWell(
                   onHighlightChanged: (value) => setState(() => _pressed = value),
-                  onTap: () { AppHaptics.tap(); widget.onTap(); },
+                  onTap: _activate,
                   child: Center(child: widget.child),
                 ),
         ),
@@ -203,25 +241,77 @@ class _TransportButtonState extends State<_TransportButton> {
   );
 }
 
-/// Apple Music-style double chevrons with a terminal bar, no background.
-class _AppleSkipIcon extends StatelessWidget {
-  const _AppleSkipIcon({required this.previous, required this.size, required this.color});
-  final bool previous;
+enum _AppleGlyph { previous, play, pause, next }
+
+/// Screenshot-derived silhouettes: overlapping double triangles with NO
+/// terminal bar, unlike backward.end.fill and Material's rounded fast rewind.
+class _AppleTransportGlyph extends StatelessWidget {
+  const _AppleTransportGlyph({
+    super.key, required this.glyph, required this.size, required this.color,
+  });
+  final _AppleGlyph glyph;
   final double size;
   final Color color;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: size,
-    height: size,
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (previous) Container(width: size * .085, height: size * .53, color: color),
-        Icon(previous ? Icons.fast_rewind_rounded : Icons.fast_forward_rounded,
-          size: size * .78, color: color),
-        if (!previous) Container(width: size * .085, height: size * .53, color: color),
-      ],
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: size,
+    child: CustomPaint(
+      painter: _AppleTransportPainter(glyph: glyph, color: color),
     ),
   );
+}
+
+class _AppleTransportPainter extends CustomPainter {
+  const _AppleTransportPainter({required this.glyph, required this.color});
+  final _AppleGlyph glyph;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color..isAntiAlias = true;
+    final w = size.width, h = size.height;
+    if (glyph == _AppleGlyph.pause) {
+      final barWidth = w * .105, barHeight = h * .60;
+      final top = (h - barHeight) / 2;
+      for (final x in [w * .32, w * .57]) {
+        canvas.drawRRect(RRect.fromRectAndRadius(
+          Rect.fromLTWH(x, top, barWidth, barHeight),
+          Radius.circular(w * .018),
+        ), paint);
+      }
+      return;
+    }
+    void triangle(double tipX, double baseX, double top, double bottom) {
+      final path = Path()
+        ..moveTo(tipX, (top + bottom) / 2)
+        ..lineTo(baseX, top)
+        ..lineTo(baseX, bottom)
+        ..close();
+      canvas.drawPath(path, paint);
+      canvas.drawPath(path, Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * .018
+        ..strokeJoin = StrokeJoin.round
+        ..isAntiAlias = true);
+    }
+    if (glyph == _AppleGlyph.play) {
+      triangle(w * .77, w * .23, h * .17, h * .83);
+      return;
+    }
+    final left = w * .13, step = w * .365;
+    final top = h * .25, bottom = h * .75;
+    if (glyph == _AppleGlyph.next) {
+      triangle(left + step, left, top, bottom);
+      triangle(left + step * 2, left + step, top, bottom);
+    } else {
+      triangle(left + step, left + step * 2, top, bottom);
+      triangle(left, left + step, top, bottom);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AppleTransportPainter old) =>
+      old.glyph != glyph || old.color != color;
 }

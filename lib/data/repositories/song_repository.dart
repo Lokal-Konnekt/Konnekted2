@@ -585,7 +585,6 @@ class SongRepository {
       relativeFolderPath: entity.relativeFolderPath,
       dateAdded: entity.dateAdded,
       sourceType: entity.sourceType,
-      atmosAvailable: entity.atmosAvailable ?? false,
       remoteId: entity.remoteId,
       remoteServerId: entity.remoteServerId,
     );

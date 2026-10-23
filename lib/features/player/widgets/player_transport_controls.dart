@@ -10,6 +10,7 @@ class PlayerTransportControls extends StatefulWidget {
   const PlayerTransportControls({
     super.key,
     required this.playing,
+    this.unboxed = false,
     required this.compact,
     this.tallerButtons = false,
     required this.lyricsProgress,
@@ -20,6 +21,7 @@ class PlayerTransportControls extends StatefulWidget {
     required this.onPlayPause,
   });
   final bool playing, compact;
+  final bool unboxed;
   /// Taller pads for the modern full player; lyrics pose stays compact.
   final bool tallerButtons;
   final double lyricsProgress;
@@ -80,7 +82,7 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
             Widget skip(IconData icon, VoidCallback onTap, String label) =>
                 Expanded(
                   child: _TransportButton(
-                    color: FullPlayerVisuals.surface,
+                    color: widget.unboxed ? Colors.transparent : FullPlayerVisuals.surface,
                     radius: radius,
                     onTap: onTap,
                     label: label,
@@ -103,7 +105,7 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
                   width: primary,
                   child: _TransportButton(
                     key: const ValueKey('player-play-button'),
-                    color: widget.accent,
+                    color: widget.unboxed ? Colors.transparent : widget.accent,
                     radius: radius,
                     onTap: widget.onPlayPause,
                     label: widget.playing ? l10n.pause : l10n.play,
@@ -111,7 +113,7 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
                       icon: AnimatedIcons.play_pause,
                       progress: _icon,
                       size: lerpDouble(33, 29, l),
-                      color: widget.onAccent,
+                      color: widget.unboxed ? FullPlayerVisuals.primaryText : widget.onAccent,
                     ),
                   ),
                 ),

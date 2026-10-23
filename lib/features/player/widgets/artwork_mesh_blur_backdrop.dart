@@ -10,6 +10,20 @@ import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/album_art_service.dart';
 
+/// Continuous mesh displacement normalized to the viewport size.
+///
+/// Only integer harmonics are permitted: identical position and first
+/// derivative at phase 0 and 1 prevent the visible snap of a reset.
+@visibleForTesting
+Offset artworkMeshWaveOffset(double phase, double u, double v) {
+  final t = phase * math.pi * 2;
+  final x = math.sin(t + v * 5.1 + u * 2.3) +
+      .48 * math.cos(2 * t + u * 5.4);
+  final y = math.cos(2 * t + u * 4.6 + v * 2.1) +
+      .42 * math.sin(3 * t + v * 5);
+  return Offset(x * .055, y * .043);
+}
+
 /// Artwork-driven mesh blur. Preserves the contrasting color regions in the
 /// cover instead of reducing the entire image to one dominant hue.
 ///
@@ -320,7 +334,7 @@ class _ArtworkMeshPainter extends CustomPainter {
     final positions = <Offset>[];
     final coordinates = <Offset>[];
     final indices = <int>[];
-    final t = phase() * math.pi * 2;
+    final frame = phase();
     // 18% overscan in both axes prevents gaps during mesh displacement.
     for (var y = 0; y <= _rows; y++) {
       for (var x = 0; x <= _columns; x++) {
@@ -328,19 +342,13 @@ class _ArtworkMeshPainter extends CustomPainter {
         final v = y / _rows;
         final baseX = (u * 1.36 - .18) * size.width;
         final baseY = (v * 1.36 - .18) * size.height;
-        // Integer harmonics guarantee identical positions AND velocities
-        // at each cycle boundary, with no visible snap or sudden reversal.
-        // Overlapping 1x/2x/3x waves make the motion look organic while
-        // staying mathematically seamless across infinite repeats.
-        final waveX = math.sin(t + v * 5.1 + u * 2.3) +
-            .48 * math.cos(2 * t + u * 5.4);
-        final waveY = math.cos(2 * t + u * 4.6 + v * 2.1) +
-            .42 * math.sin(3 * t + v * 5);
+        final wave = artworkMeshWaveOffset(frame, u, v);
         positions.add(Offset(
-          baseX + waveX * size.width * .055,
-          baseY + waveY * size.height * .043,
+          baseX + wave.dx * size.width,
+          baseY + wave.dy * size.height,
         ));
-        coordinates.add(Offset(u * 224, v * 224));
+        coordinates.add(Offset(u * _ArtworkMeshBlurBackdropState._dimension,
+            v * _ArtworkMeshBlurBackdropState._dimension));
       }
     }
     for (var y = 0; y < _rows; y++) {

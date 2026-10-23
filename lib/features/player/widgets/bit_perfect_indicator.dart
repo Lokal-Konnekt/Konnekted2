@@ -114,6 +114,7 @@ class BitPerfectIndicator extends ConsumerWidget {
             ),
           ],
         ),
+          ),
         ],
       ),
     );

@@ -4,7 +4,9 @@ from pathlib import Path
 from PIL import Image
 import io
 
-from gen_lokal_launcher_icons import HUB_SHIFT, SIZE, source_bytes
+# Import through the repository package so unittest works from the repo root
+# (including `python -m unittest tool/ci_brand_icons_test.py` in release CI).
+from tool.gen_lokal_launcher_icons import HUB_SHIFT, SIZE, source_bytes
 
 class BrandIconsTest(unittest.TestCase):
     def test_sticker_mask_alignment_and_square_art(self):

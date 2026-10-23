@@ -35,6 +35,7 @@ import 'package:flick/features/player/widgets/song_stage_carousel.dart';
 import 'package:flick/features/player/widgets/player_artwork_image.dart';
 import 'package:flick/features/queue/screens/queue_screen.dart';
 import 'package:flick/widgets/lokal/lokal_like_burst.dart';
+import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/widgets/lokal/lokal_player_artwork.dart';
 import 'package:flick/widgets/lokal/lokal_pull_to_dismiss.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
@@ -229,7 +230,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   Future<void> _toggleFavorite() async {
     final song = _player.currentSongNotifier.value;
     if (song == null) return;
-    HapticFeedback.selectionClick();
+    AppHaptics.selection();
     // Update the shared favorites provider: the Liked library folder watches
     // this provider, while a direct FavoritesService call left it stale.
     final nowFav = await ref.read(favoritesProvider.notifier).toggleFavorite(song.id);

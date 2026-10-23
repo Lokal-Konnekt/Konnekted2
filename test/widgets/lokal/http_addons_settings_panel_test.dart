@@ -151,4 +151,62 @@ void main() {
     expect(find.text('Home music'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('manifest name and quality control are persisted and editable', (
+    tester,
+  ) async {
+    final store = _MemoryStore(const DiscoverySettings());
+    final client = MockClient((request) async {
+      expect(request.url.path, '/private/manifest.json');
+      return http.Response(jsonEncode({
+        'id': 'qobuz',
+        'name': 'Qobuz [Heisenbergg]',
+        'resources': ['search', 'stream'],
+        'settings': [
+          {
+            'key': 'quality',
+            'default': 'LOSSLESS',
+            'options': [
+              {'value': 'LOSSLESS'},
+              {'value': 'HI_RES'},
+              {'value': 'HIGH'},
+            ],
+          },
+        ],
+      }), 200, headers: {'content-type': 'application/json'});
+    });
+    addTearDown(client.close);
+    await tester.pumpWidget(
+      _host(HttpAddonsSettingsPanel(store: store, client: client)),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('http-addon-manifest-url')),
+      'https://music.example/private/manifest.json',
+    );
+    await tester.tap(find.byKey(const ValueKey('http-addon-add')));
+    for (var frame = 0; frame < 40 && store.saves == 0; frame++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.pump();
+    expect(store.settings.addons.single.displayName, 'Qobuz [Heisenbergg]');
+    expect(store.settings.addons.single.settings['quality'], 'LOSSLESS');
+    expect(find.text('Qobuz [Heisenbergg]'), findsOneWidget);
+    final id = store.settings.addons.single.id;
+    await tester.tap(find.byKey(ValueKey('http-addon-settings-$id')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('http-addon-setting-quality')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('HI_RES').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(store.settings.addons.single.settings['quality'], 'HI_RES');
+    await tester.tap(find.byKey(ValueKey('http-addon-enabled-$id')));
+    await tester.pumpAndSettle();
+    expect(store.settings.addons.single.enabled, isFalse);
+    expect(store.settings.addons.single.settings['quality'], 'HI_RES');
+    expect(tester.takeException(), isNull);
+  });
+
 }

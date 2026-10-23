@@ -281,10 +281,71 @@ class YoutubeMusicCatalog {
   }
 }
 
+/// Supported manifest option for an HTTP add-on select setting.
+class AddonSettingOption {
+  const AddonSettingOption(this.value, this.label);
+  final String value;
+  final String label;
+}
+
+class AddonSetting {
+  const AddonSetting(this.key, this.label, this.defaultValue, this.options);
+  final String key;
+  final String label;
+  final String defaultValue;
+  final List<AddonSettingOption> options;
+
+  static List<AddonSetting> parse(Object? raw) {
+    if (raw is! List) return const [];
+    final result = <AddonSetting>[];
+    final used = <String>{};
+    for (final entry in raw.take(16)) {
+      if (entry is! Map) continue;
+      final key = discoveryText(entry['key'], maxLength: 40);
+      if (key == null ||
+          !RegExp(r'^[A-Za-z][A-Za-z0-9_]*$').hasMatch(key) ||
+          key == 'q' ||
+          !used.add(key)) continue;
+      // Select controls declare an explicit finite set of values.
+      final rawOptions = entry['options'];
+      if (rawOptions is! List) continue;
+      final options = <AddonSettingOption>[];
+      final values = <String>{};
+      for (final item in rawOptions.take(32)) {
+        if (item is! Map) continue;
+        final value = discoveryText(item['value'], maxLength: 120);
+        if (value == null ||
+            RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(value) ||
+            !values.add(value)) continue;
+        options.add(AddonSettingOption(
+          value,
+          discoveryText(item['label'], maxLength: 80) ?? value,
+        ));
+      }
+      if (options.isEmpty) continue;
+      final requestedDefault = discoveryText(entry['default'], maxLength: 120);
+      final defaultValue = values.contains(requestedDefault)
+          ? requestedDefault!
+          : options.first.value;
+      result.add(AddonSetting(
+        key,
+        discoveryText(entry['label'], maxLength: 80) ?? key,
+        defaultValue,
+        List.unmodifiable(options),
+      ));
+    }
+    return List.unmodifiable(result);
+  }
+}
+
 class AddonHealth {
-  const AddonHealth(this.name, {required this.cacheAllowed});
+  const AddonHealth(this.name, {
+    required this.cacheAllowed,
+    this.settings = const [],
+  });
   final String name;
   final bool cacheAllowed;
+  final List<AddonSetting> settings;
 }
 
 class ResolvedDiscoveryAudio {
@@ -312,6 +373,7 @@ class DiscoveryAddon {
     String token = '',
     this.configId,
     this.displayName = 'Music addon',
+    this.settings = const {},
   }) : base = normalizeAddonEndpoint(endpoint),
        _token = token.trim() {
     if (_token.length > 4096 || RegExp(r'[\x00-\x20\x7f]').hasMatch(_token)) {
@@ -326,6 +388,7 @@ class DiscoveryAddon {
   final String _token;
   final String? configId;
   final String displayName;
+  final Map<String, String> settings;
 
   Uri _endpoint(List<String> suffix, [Map<String, String>? query]) =>
       base.replace(
@@ -366,6 +429,7 @@ class DiscoveryAddon {
     return AddonHealth(
       discoveryText(json['name']) ?? id,
       cacheAllowed: allowed,
+      settings: AddonSetting.parse(json['settings']),
     );
   }
 
@@ -375,7 +439,7 @@ class DiscoveryAddon {
     if (trimmed.length > 200) {
       throw const DiscoveryException('Search is limited to 200 characters.');
     }
-    final json = await _get(['search'], query: {'q': trimmed});
+    final json = await _get(['search'], query: {...settings, 'q': trimmed});
     final rows = json['tracks'];
     if (rows is! List) {
       throw const DiscoveryException(
@@ -397,6 +461,35 @@ class DiscoveryAddon {
           /* optional metadata */
         }
       }
+      // BitChord's wire format uses artworkURL and albumArtworkURL.
+      // Invalid/unsafe URLs must not be fetched by the player.
+      String? artwork;
+      for (final key in [
+        'artworkURL', 'albumArtworkURL', 'artworkUrl',
+        'albumArtworkUrl', 'coverUrl', 'thumbnailUrl',
+      ]) {
+        final candidate = discoveryText(row[key], maxLength: 8192);
+        if (candidate == null) continue;
+        try {
+          final imageUrl = requireHttps(candidate);
+          // The configured add-on itself may be on a private network, but an
+          // arbitrary search result must not point the image fetch at a
+          // different local/private host.
+          if (imageUrl.origin != base.origin) {
+            final host = imageUrl.host.toLowerCase();
+            if (InternetAddress.tryParse(host) != null ||
+                !host.contains('.') ||
+                host.endsWith('.') ||
+                const [
+                  '.localhost', '.local', '.internal', '.lan', '.home',
+                ].any(host.endsWith)) continue;
+          }
+          artwork = imageUrl.toString();
+          break;
+        } on DiscoveryException {
+          // Artwork is optional; an invalid URL never fails the search.
+        }
+      }
       tracks.putIfAbsent(
         id,
         () => DiscoveryTrack(
@@ -410,6 +503,7 @@ class DiscoveryAddon {
           addonId: configId,
           sourceName: displayName,
           sourceUrl: sourceUrl,
+          artwork: artwork,
           // Retain security-relevant fields with inline URLs, not just the URL.
           inlineStream: row['streamURL'] == null
               ? null
@@ -448,7 +542,7 @@ class DiscoveryAddon {
       );
     }
     return parseStream(
-      track.inlineStream ?? await _get(['stream', track.id], cancel: cancel),
+      track.inlineStream ?? await _get(['stream', track.id], query: settings, cancel: cancel),
     );
   }
 

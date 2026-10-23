@@ -86,7 +86,8 @@ query, fragment, control characters and dot path segments are rejected. A path
 credential is supported and secured with the rest of the settings.
 
 If supplied, the optional token is sent as `Authorization: Bearer <token>` only
-on these API requests. No arbitrary query-setting or cookie passthrough exists.
+on these API requests. Only validated, locally saved manifest select settings are forwarded as query
+parameters on search and stream requests; no arbitrary cookie passthrough exists.
 
 ### 1. Health: `GET {base}/manifest.json`
 
@@ -95,11 +96,21 @@ on these API requests. No arbitrary query-setting or cookie passthrough exists.
   "id": "my-authorized-library",
   "name": "My music library",
   "resources": ["search", "stream"],
-  "allowDownloads": true
+  "allowDownloads": true,
+  "settings": [
+    {"key": "quality", "default": "LOSSLESS",
+     "options": [{"value": "LOSSLESS"}, {"value": "HI_RES"}, {"value": "HIGH"}]}
+  ]
 }
 ```
 
 Requires a nonempty string `id` and both declared resources. `name` is optional.
+The manifest's safe, human-readable `name` is used as the source label (rather
+than the host or credential-bearing path). Manifest select settings are shown
+under the source's settings button; the chosen values are stored securely and
+sent as URL query parameters to both `/search` and `/stream/{id}`. Existing
+saved sources can open that button to discover newly declared settings.
+
 Health means the manifest was reachable and the resources were declared; it
 does not claim that every search or audio download will succeed. An absent
 `allowDownloads` uses the reference protocol default of true. Only true, 1,
@@ -129,7 +140,10 @@ seconds. Malformed rows are skipped, duplicate IDs collapsed, and at most 50
 results shown from the first 500 entries. A nonempty array with no usable rows
 is an error. `sourceURL` is an optional adapter extension for the canonical
 source page; supply a public, non-secret URL. It is metadata, not a local file.
-Artwork fields are not fetched, avoiding automatic third-party image requests.
+Optional HTTPS `artworkURL` or `albumArtworkURL` metadata is propagated from
+search into the downloaded Song: the bounded image fetch saves the cover
+beside cached audio so the main player and notification can display it.
+Untrusted/non-HTTPS artwork is skipped without interrupting search or playback.
 
 An optional `streamURL` on a search row skips the stream lookup; all accompanying
 transport/encryption/header flags are retained and validated. For short-lived
@@ -152,7 +166,8 @@ HLS/DASH transport or playlist extension is rejected. Absent or boolean false
 `encrypted`/`drm` is accepted; other values fail closed. `manifest`, `mediaType`,
 `format`, `container`, `containerFormat` and `mimeType` are checked for unsupported
 transport. Provider quality/sample-rate/bit-depth claims are never used as
-verified playback metadata. No quality tier is forced; the server uses its default.
+verified playback metadata. The server receives the chosen valid manifest quality value when configured;
+otherwise it uses its default.
 
 Media requests have **no addon Authorization header**, even to the same host.
 Use a short-lived signed media URL if authentication is needed. Neither API nor

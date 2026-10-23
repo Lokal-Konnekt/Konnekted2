@@ -70,6 +70,19 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
         addons: List.unmodifiable(addons),
       ).validated();
 
+  // A display name must not disclose a path token or an embedded URL.
+  String _manifestLabel(String name, String fallback) {
+    final label = discoveryText(name, maxLength: 80);
+    if (label == null ||
+        label.contains('://') ||
+        label.contains('/') ||
+        label.contains(String.fromCharCode(92)) ||
+        RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(label)) {
+      return fallback;
+    }
+    return label;
+  }
+
   Future<void> _add() async {
     final current = _settings;
     final raw = _url.text.trim();
@@ -104,7 +117,10 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
         RegExp(r'^www\\.'),
         '',
       );
-      final baseLabel = host.isEmpty ? 'Music source' : host;
+      final baseLabel = _manifestLabel(
+        health.name,
+        host.isEmpty ? 'Music source' : host,
+      );
       var label = baseLabel;
       var suffix = 2;
       while (current.addons.any(
@@ -116,8 +132,12 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
       final addon = DiscoveryAddonConfig(
         id: DiscoveryAddonConfig.createId(),
         endpoint: endpoint,
-        // Keep path tokens and remote manifest fields out of the UI label.
+        // Safe manifest name, never the credential-bearing endpoint.
         label: label,
+        settings: {
+          for (final setting in health.settings)
+            setting.key: setting.defaultValue,
+        },
         enabled: true,
       ).validated();
       final next = _withAddons([...current.addons, addon]);
@@ -165,11 +185,128 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
       endpoint: old.endpoint,
       label: old.label,
       token: old.token,
+      settings: old.settings,
       enabled: enabled,
     );
     final addons = [...current.addons];
     addons[index] = updated;
     await _persist(_withAddons(addons), 'Source updated.');
+  }
+
+  Future<void> _editSettings(int index) async {
+    final current = _settings;
+    if (_busy || current == null || index < 0 || index >= current.addons.length) {
+      return;
+    }
+    final old = current.addons[index];
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    AddonHealth health;
+    try {
+      health = await DiscoveryAddon(
+        DiscoveryHttp(_client),
+        endpoint: old.endpoint,
+        token: old.token,
+      ).health();
+    } catch (error) {
+      if (mounted) setState(() => _error = discoveryError(error));
+      return;
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    if (!mounted) return;
+    final selected = <String, String>{
+      for (final setting in health.settings)
+        setting.key: setting.options.any(
+          (option) => option.value == old.settings[setting.key],
+        )
+          ? old.settings[setting.key]!
+          : setting.defaultValue,
+    };
+    final choices = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text('Settings · ${old.displayName}'),
+          content: SizedBox(
+            width: 380,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: health.settings.isEmpty
+                    ? [const Text('This add-on has no configurable options.')]
+                    : [
+                        for (final setting in health.settings)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: DropdownButtonFormField<String>(
+                              key: ValueKey('http-addon-setting-${setting.key}'),
+                              value: selected[setting.key],
+                              decoration: InputDecoration(
+                                labelText: setting.label,
+                                border: const OutlineInputBorder(),
+                              ),
+                              isExpanded: true,
+                              items: [
+                                for (final option in setting.options)
+                                  DropdownMenuItem(
+                                    value: option.value,
+                                    child: Text(option.label),
+                                  ),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setDialogState(
+                                    () => selected[setting.key] = value,
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                      ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(
+                Map<String, String>.from(selected),
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choices == null) return;
+    final latest = _settings;
+    if (latest == null || index >= latest.addons.length ||
+        latest.addons[index].id != old.id ||
+        latest.addons[index].endpoint != old.endpoint) return;
+    final domain = Uri.parse(old.endpoint).host.toLowerCase().replaceFirst(
+      RegExp(r'^www\.'),
+      '',
+    );
+    final label = old.label == domain || old.label == 'Music addon'
+        ? _manifestLabel(health.name, domain)
+        : old.label;
+    final edited = DiscoveryAddonConfig(
+      id: old.id,
+      endpoint: old.endpoint,
+      label: label,
+      token: old.token,
+      settings: choices,
+      enabled: old.enabled,
+    );
+    final addons = [...latest.addons];
+    addons[index] = edited;
+    await _persist(_withAddons(addons), 'Add-on settings saved.');
   }
 
   Future<void> _remove(int index) async {
@@ -284,6 +421,12 @@ class _HttpAddonsSettingsPanelState extends State<HttpAddonsSettingsPanel> {
                       onChanged: _busy
                           ? null
                           : (enabled) => _setEnabled(index, enabled),
+                    ),
+                    IconButton(
+                      key: ValueKey('http-addon-settings-${addons[index].id}'),
+                      tooltip: 'Settings for ${addons[index].displayName}',
+                      onPressed: _busy ? null : () => _editSettings(index),
+                      icon: const Icon(Icons.settings_outlined),
                     ),
                     IconButton(
                       tooltip: 'Remove ${addons[index].displayName}',

@@ -11,6 +11,7 @@ class DiscoveryAddonConfig {
     required this.endpoint,
     this.label = '',
     this.token = '',
+    this.settings = const {},
     this.enabled = false,
   });
 
@@ -18,6 +19,7 @@ class DiscoveryAddonConfig {
   final String endpoint;
   final String label;
   final String token;
+  final Map<String, String> settings;
   final bool enabled;
 
   // Endpoints can contain credentials, so never derive a name from them.
@@ -47,11 +49,22 @@ class DiscoveryAddonConfig {
     } catch (_) {
       throw const DiscoveryException('The addon URL is invalid.');
     }
+    if (settings.length > 16 ||
+        settings.entries.any((entry) =>
+          entry.key.length > 40 ||
+          !RegExp(r'^[A-Za-z][A-Za-z0-9_]*$').hasMatch(entry.key) ||
+          entry.key == 'q' ||
+          entry.value.isEmpty ||
+          entry.value.length > 120 ||
+          RegExp(r'[\x00-\x1f\x7f]').hasMatch(entry.value))) {
+      throw const DiscoveryException('The addon settings are invalid.');
+    }
     return DiscoveryAddonConfig(
       id: id,
       endpoint: normalizedEndpoint,
       label: label.trim(),
       token: trimmedToken,
+      settings: Map.unmodifiable(settings),
       enabled: enabled,
     );
   }
@@ -177,7 +190,19 @@ class DiscoverySettingsStore {
       label: value['label'] as String,
       token: value['token'] as String,
       enabled: value['enabled'] as bool,
+      settings: value['settings'] == null
+          ? const {}
+          : _decodeSettings(value['settings']),
     );
+  }
+
+  static Map<String, String> _decodeSettings(Object? raw) {
+    if (raw is! Map || raw.length > 16 ||
+        raw.keys.any((key) => key is! String) ||
+        raw.values.any((value) => value is! String)) {
+      throw const FormatException();
+    }
+    return Map<String, String>.from(raw);
   }
 
   Future<void> save(DiscoverySettings settings) async {
@@ -195,6 +220,7 @@ class DiscoverySettingsStore {
                 'endpoint': addon.endpoint,
                 'label': addon.label,
                 'token': addon.token,
+                if (addon.settings.isNotEmpty) 'settings': addon.settings,
                 'enabled': addon.enabled,
               },
           ],

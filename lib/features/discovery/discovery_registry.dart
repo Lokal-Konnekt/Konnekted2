@@ -16,6 +16,7 @@ class DiscoverySourceRegistry {
             token: config.token,
             configId: config.id,
             displayName: config.displayName,
+            settings: config.settings,
           ),
       ]);
 

@@ -131,4 +131,26 @@ void main() {
     expect(preferLocalLibrarySongs([pc, phone]).map((s) => s.id),
         ['phone']);
   });
+  test('playlist lookup retains IDs hidden by deduplication', () {
+    final phone = song('phone', 'Same song', '/music/song.flac');
+    final desktop = song('desktop', 'Same song', 'lokal://1/song',
+        source: 'lokal');
+    final ghost = song('ghost', 'History', 'ghost://1/history',
+        source: 'lokal');
+    final index = preferredLibrarySongIndex([desktop, phone, ghost]);
+
+    expect(index.visible.map((s) => s.id), ['phone']);
+    expect(index.byId['desktop'], same(phone));
+    expect(index.byId['phone'], same(phone));
+    expect(index.byId.containsKey('ghost'), isFalse);
+  });
+
+  test('a nonmatching desktop version keeps its own playlist identity', () {
+    final phone = song('phone', 'Same song', '/music/song.flac');
+    final remix = song('remix', 'Same song (Live)', 'lokal://1/live',
+        source: 'lokal');
+    final index = preferredLibrarySongIndex([phone, remix]);
+    expect(index.byId['remix'], same(remix));
+    expect(index.visible, [phone, remix]);
+  });
 }

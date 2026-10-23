@@ -596,24 +596,41 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 );
               }
             } catch (error) {
-              if (!tryAtmos) rethrow;
               final reason = error.toString();
-              // The Tidal service distinguishes a *confirmed unavailable*
-              // Atmos tier from upstream timeouts and HTTP 5xx. A transient
-              // server failure is NOT permission to relabel stereo playback
-              // or automatically choose another provider.
-              if (tidalAtmosTransportFailure(reason)) {
+              // An addon can request Atmos from its own settings even when
+              // this device did not enable the native JOC path. Do not rely
+              // on tryAtmos alone to classify a failed Atmos API request.
+              if (tidalAtmosTransportFailure(reason) &&
+                  (tryAtmos || tidalAtmosErrorMentionsMode(reason))) {
                 throw DiscoveryException(tidalAtmosTransportMessage(reason));
               }
-              // Explicitly unavailable on this route: use this same provider's
-              // stereo track rather than transcoding JOC metadata.
+              if (!tryAtmos) rethrow;
+              if (!tidalAtmosTierUnavailable(reason)) {
+                throw DiscoveryException(
+                  'Tidal Atmos could not be retrieved. No stereo track was substituted.',
+                );
+              }
+              // Only an explicit unavailable-tier response permits falling
+              // back to the same provider's stereo recording.
               onStatus?.call('Tidal Atmos is unavailable. Loading Tidal stereo…');
               download = await fetch(quality: 'HI_RES_LOSSLESS');
             }
           } on MorneyePackageError catch (error) {
-            throw DiscoveryException(error.message);
+            final detail = error.message;
+            throw DiscoveryException(
+              tidalAtmosTransportFailure(detail) &&
+                      tidalAtmosErrorMentionsMode(detail)
+                  ? tidalAtmosTransportMessage(detail)
+                  : detail,
+            );
           } on MorneyeRuntimeError catch (error) {
-            throw DiscoveryException(error.message);
+            final detail = error.toString();
+            throw DiscoveryException(
+              tidalAtmosTransportFailure(detail) &&
+                      tidalAtmosErrorMentionsMode(detail)
+                  ? tidalAtmosTransportMessage(detail)
+                  : detail,
+            );
           } on DiscoveryException {
             rethrow;
           } catch (_) {
@@ -640,22 +657,38 @@ Future<List<_PlaybackSource>> _morneyeSources(
   ];
 }
 
-/// The Tidal API's 502 / timeout is not evidence that the Atmos tier is
-/// unavailable. Keep the failure on the requested provider and make it
-/// actionable rather than displaying a page-long extension stack trace.
+/// Detects explicit Atmos requests even if no local native JOC decoder
+/// was selected (e.g. user-configured download quality in an addon).
+bool tidalAtmosErrorMentionsMode(String message) =>
+    RegExp(r'DOLBY[_ -]?ATMOS|EAC3[_ -]?JOC|Tidal Atmos',
+      caseSensitive: false).hasMatch(message);
+
+/// A remote network fault is not proof that the catalogue's Atmos edition is
+/// missing. All error paths must use the same concise, non-sensitive message.
 bool tidalAtmosTransportFailure(String message) =>
-    RegExp(r'HTTP\s*50[0-9]|TimeoutException|timed?\s*out|network error|without confirmation',
+    RegExp(r'HTTP\\s*5\\d\\d|TimeoutException|timed?\\s*out|SocketException|without confirmation',
+      caseSensitive: false).hasMatch(message);
+
+/// Only a deterministic response permits a stereo fallback. Unknown errors,
+/// repeated 502s, expired tickets and verification failures remain errors.
+bool tidalAtmosTierUnavailable(String message) =>
+    RegExp(r'QUALITY_UNAVAILABLE|QUALITY_NOT_AVAILABLE|CODEC_UNAVAILABLE|TIDAL API did not report EAC3_JOC|returned lower tier than requested',
       caseSensitive: false).hasMatch(message);
 
 String tidalAtmosTransportMessage(String message) {
-  final status = RegExp(r'HTTP\s*(50[0-9])', caseSensitive: false)
+  final status = RegExp(r'HTTP\\s*(5\\d\\d)', caseSensitive: false)
       .firstMatch(message)?.group(1);
   if (status != null) {
-    return 'Tidal Atmos server returned HTTP $status. The original Atmos '
-        'stream could not be retrieved. Retry later; no stereo replacement was played.';
+    return 'Tidal Atmos unavailable: download service HTTP $status. '
+        'No Atmos stream was received. Retry later.';
   }
-  return 'Tidal Atmos server timed out while preparing the original stream. '
-      'Retry later; no stereo replacement was played.';
+  if (RegExp(r'TimeoutException|timed?\\s*out',
+          caseSensitive: false).hasMatch(message)) {
+    return 'Tidal Atmos unavailable: download service timed out. '
+        'No Atmos stream was received. Retry later.';
+  }
+  return 'Tidal Atmos unavailable: download service failed. '
+      'No Atmos stream was received. Retry later.';
 }
 
 /// One line of an add-on's download progress, "Getting Song from Qobuz…

@@ -256,9 +256,9 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
 
   /// Desktop's "Save to library": downloads the song through the same
   /// source, then copies it into your music folder and library.
-  Future<void> _download(OnlineSource source, OnlineResult result) async {
+  Future<void> _download(OnlineSource source, OnlineResult result, {bool atmos = false}) async {
     if (!await _verify(source)) return;
-    final track = result.track;
+    final track = atmos ? result.track.requestAtmos(downloadOnly: true) : result.track;
     final key = '${source.id}:${track.id}';
     if (!_saving.add(key)) return;
     setState(() {});
@@ -315,6 +315,8 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
         await _enqueue(source, result, next: false);
       case OnlineResultAction.download:
         await _download(source, result);
+      case OnlineResultAction.downloadAtmos:
+        await _download(source, result, atmos: true);
     }
   }
 

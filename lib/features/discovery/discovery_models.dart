@@ -16,6 +16,7 @@ class DiscoveryTrack {
     this.sourceName,
     this.inlineStream,
     this.artwork,
+    this.atmosAvailable = false,
   });
 
   final String id;
@@ -37,6 +38,9 @@ class DiscoveryTrack {
   /// show it.
   final String? artwork;
 
+  /// Catalogue flag only. The decoded output might be stereo.
+  final bool atmosAvailable;
+
   /// This track with [cover] as its artwork when it has none of its own.
   DiscoveryTrack withArtwork(String? cover) =>
       artwork != null || cover == null || cover.isEmpty
@@ -54,6 +58,7 @@ class DiscoveryTrack {
           sourceName: sourceName,
           inlineStream: inlineStream,
           artwork: cover,
+          atmosAvailable: atmosAvailable,
         );
 
   String get key => '${source.name}:$addonId:$addonBase:$id';

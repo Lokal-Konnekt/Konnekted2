@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/discovery/discovery_artwork.dart';
@@ -299,6 +300,19 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
         await _enqueue(source, result, next: false);
       case OnlineResultAction.download:
         await _download(source, result);
+      case OnlineResultAction.openInTidal:
+        final link = result.track.tidalUrl;
+        if (link != null) {
+          try {
+            final opened = await launchUrl(
+              link,
+              mode: LaunchMode.externalApplication,
+            );
+            if (!opened) _say('Could not open Tidal on this device.');
+          } catch (_) {
+            _say('Could not open Tidal on this device.');
+          }
+        }
     }
   }
 

@@ -92,7 +92,11 @@ void main() {
       'http://192.168.1.2/art',
       '/local/cover',
       'https://i.scdn.co/image/a?token=private',
-      'https://example.com/a.jpg',
+      'https://192.168.1.22/cover.jpg',
+      'https://localhost/cover.jpg',
+      'https://music.local/cover.jpg',
+      'https://intranet.lan/art.jpg',
+      'https://cdn.example.com/cover.jpg?token=private',
     ]) {
       expect(DiscordPresenceService.publicArtwork(url), isEmpty);
     }
@@ -102,6 +106,17 @@ void main() {
       ),
       isNotEmpty,
     );
+    // External album artwork isn't restricted to a fixed provider allowlist.
+    // Tidal, alternative Apple storefronts and independent CDNs are valid.
+    for (final url in [
+      'https://resources.tidal.com/images/a/b/c/1280x1280.jpg',
+      'https://example.com/album-cover.jpg',
+      'https://is21-ssl.mzstatic.com/image/thumb/album/600x600bb.jpg',
+      'https://lh3.googleusercontent.com/some-safe-public-art',
+    ]) {
+      expect(DiscordPresenceService.publicArtwork(url), url);
+    }
+
     // The Last.fm resolver may return a different regional Apple CDN;
     // Discord must not silently discard the identical valid cover.
     expect(

@@ -26,7 +26,8 @@ class LokalLogo extends StatelessWidget {
       label: lokalText('Lokal'),
       child: SizedBox.square(
         dimension: size,
-        child: Stack(
+        child: ClipOval(
+          child: Stack(
           fit: StackFit.expand,
           children: [
             Image.asset(
@@ -47,6 +48,7 @@ class LokalLogo extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
       ),
     );

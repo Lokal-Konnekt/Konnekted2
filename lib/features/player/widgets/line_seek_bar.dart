@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/core/constants/app_constants.dart';
 import 'package:flick/core/theme/app_colors.dart';
 
@@ -91,6 +92,7 @@ class _LineSeekBarState extends State<LineSeekBar>
     final finalPosition = _displayPosition;
     _interactivePosition = null;
     widget.onChanged(finalPosition);
+    AppHaptics.selection();
     widget.onChangeEnd?.call(finalPosition);
     if (mounted) setState(() {});
   }
@@ -99,6 +101,7 @@ class _LineSeekBarState extends State<LineSeekBar>
     final width = constraints.maxWidth;
     final newPos = _positionFromDx(details.localPosition.dx, width);
     widget.onChanged(newPos);
+    AppHaptics.selection();
     widget.onChangeEnd?.call(newPos);
   }
 
@@ -149,6 +152,7 @@ class _LineSeekBarState extends State<LineSeekBar>
     _isFineScrubbing = false;
     _interactivePosition = null;
     widget.onChanged(finalPosition);
+    AppHaptics.selection();
     widget.onChangeEnd?.call(finalPosition);
     if (mounted) setState(() {});
   }

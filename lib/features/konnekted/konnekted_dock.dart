@@ -16,6 +16,7 @@ import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
+import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'konnekted_home.dart';
@@ -598,16 +599,18 @@ class KonnektedMiniPlayer extends ConsumerWidget {
       onPullUpStart: onPullUpStart,
       onPullUpUpdate: onPullUpUpdate,
       onPullUpEnd: onPullUpEnd,
-      onPlayPause: () => _transport(
-        context,
-        () => ref.read(playerProvider.notifier).togglePlayPause(),
-      ),
-      onNext: () =>
-          _transport(context, () => ref.read(playerProvider.notifier).next()),
-      onPrevious: () => _transport(
-        context,
-        () => ref.read(playerProvider.notifier).previous(),
-      ),
+      onPlayPause: () {
+        AppHaptics.doublePulse();
+        _transport(context, () => ref.read(playerProvider.notifier).togglePlayPause());
+      },
+      onNext: () {
+        AppHaptics.triplePulse();
+        _transport(context, () => ref.read(playerProvider.notifier).next());
+      },
+      onPrevious: () {
+        AppHaptics.triplePulse();
+        _transport(context, () => ref.read(playerProvider.notifier).previous());
+      },
       progress: Consumer(
         builder: (context, ref, _) {
           final value = ref.watch(progressProvider);
@@ -892,10 +895,8 @@ class _PullUpState extends State<_PullUp> {
       final direction = velocity.abs() >= 500 ? velocity : _horizontalDelta;
       _horizontalDelta = 0;
       if (direction <= -48) {
-        HapticFeedback.selectionClick();
         widget.onNext();
       } else if (direction >= 48) {
-        HapticFeedback.selectionClick();
         widget.onPrevious();
       }
     },

@@ -38,7 +38,7 @@ void main() {
     _album('Third', [_track('3a', 'Third')]),
   ];
 
-  testWidgets('iTunes side covers hinge inward and point their OUTER edges at the viewer', (
+  testWidgets('iTunes side covers hinge inward and visually bring their OUTER edges forward', (
     tester,
   ) async {
     final five = [
@@ -63,8 +63,22 @@ void main() {
     final right = panel('Fourth');
     expect(left.origin!.dx, closeTo(size, .001), reason: 'left cover hinges on right/inner edge');
     expect(right.origin!.dx, closeTo(0, .001), reason: 'right cover hinges on left/inner edge');
-    expect(left.transform.entry(2, 0), lessThan(0), reason: 'left OUTER edge faces forward');
-    expect(right.transform.entry(2, 0), greaterThan(0), reason: 'right OUTER edge faces forward');
+    // Check the actual perspective divide, not just the rotation sign:
+    // the OUTSIDE edges must be projected larger/nearer than the inside edges.
+    // This catches the exact reversed-fan regression shown on Home.
+    double scaleAtEdge(Transform panel, double edge) {
+      final w = panel.transform.entry(3, 0) * (edge - panel.origin!.dx) +
+          panel.transform.entry(3, 3);
+      return 1 / w;
+    }
+    expect(left.transform.entry(2, 0), greaterThan(0),
+        reason: 'left cover turns towards the centre, not away from it');
+    expect(right.transform.entry(2, 0), lessThan(0),
+        reason: 'right cover turns towards the centre, not away from it');
+    expect(scaleAtEdge(left, 0), greaterThan(scaleAtEdge(left, size)),
+        reason: 'left outside edge must appear closer than the inside edge');
+    expect(scaleAtEdge(right, size), greaterThan(scaleAtEdge(right, 0)),
+        reason: 'right outside edge must appear closer than the inside edge');
     expect(find.byType(ColoredBox), findsWidgets);
   });
 

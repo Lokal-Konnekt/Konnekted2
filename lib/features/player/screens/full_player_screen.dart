@@ -769,8 +769,6 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                             morphEnabled: current,
                             controlsOpacity: canvas ? _canvasChrome.value : 1,
                             bannerBottom: _posterBottom,
-                            // Still covers begin below the status bar.
-                            topInset: canvas ? 0 : 12,
                             child: child!,
                           ),
                         );

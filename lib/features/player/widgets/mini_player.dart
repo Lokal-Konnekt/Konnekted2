@@ -9,6 +9,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
+import 'package:flick/widgets/common/overflow_marquee_title.dart';
 import 'package:flick/widgets/uac2/uac2_player_status.dart';
 
 class MiniPlayer extends ConsumerStatefulWidget {
@@ -221,10 +222,9 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              song.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            OverflowMarqueeTitle(
+                              key: ValueKey('mini-title:${song.id}'),
+                              title: song.title,
                               style: TextStyle(
                                 fontFamily: 'GoogleSansFlex',
                                 fontWeight: FontWeight.w700,

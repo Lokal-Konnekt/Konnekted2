@@ -352,36 +352,41 @@ class DiscordPresenceService extends ChangeNotifier {
     }
   }
 
-  /// Send only recognized public image URLs. Never upload local covers or expose
-  /// desktop LAN addresses, auth parameters, signed URLs or private server paths.
+  /// The Discord Social SDK accepts external HTTPS image URLs, not only the
+  /// handful of Spotify/Deezer/iTunes hosts used by the initial implementation.
+  /// Restrict private/local endpoints, signed URLs and embedded credentials:
+  /// Discord receives an external URL, never a local file or LAN address.
   @visibleForTesting
   static String publicArtwork(String? value) {
-    final uri = Uri.tryParse(value ?? '');
+    final uri = Uri.tryParse((value ?? '').trim());
     if (uri == null ||
         uri.scheme != 'https' ||
         uri.userInfo.isNotEmpty ||
         uri.hasQuery ||
         uri.hasFragment ||
+        uri.path.isEmpty ||
         (uri.hasPort && uri.port != 443) ||
-      // The Social SDK specifies a 300-character maximum image asset value.
-      uri.toString().length > 300) {
+        // ActivityAssets.SetLargeImage is limited to 300 characters.
+        uri.toString().length > 300) {
       return '';
     }
-    const hosts = {
-      'i.scdn.co',
-      'i.ytimg.com',
-      'lh3.googleusercontent.com',
-      'coverartarchive.org',
-      'e-cdns-images.dzcdn.net',
-      'cdn-images.dzcdn.net',
-    };
     final host = uri.host.toLowerCase();
-    // iTunes artwork is served from a family of regional Apple CDNs.
-    // Allowing only is1..is5 silently discarded valid covers from the
-    // US/GB storefront fallback even when Discovery displayed them.
-    final match = RegExp(r'^is[0-9]{1,2}-ssl[.]mzstatic[.]com').firstMatch(host);
-    final appleArtwork = match != null && match.group(0) == host;
-    return hosts.contains(host) || appleArtwork ? uri.toString() : '';
+    // A local image path, localhost, an IP literal or intranet DNS name
+    // must never be forwarded to Discord's external artwork fetcher.
+    if (!host.contains('.') ||
+        host == 'localhost' ||
+        host.endsWith('.localhost') ||
+        host.endsWith('.local') ||
+        host.endsWith('.lan') ||
+        host.endsWith('.internal') ||
+        host.endsWith('.home.arpa') ||
+        host.endsWith('.test') ||
+        host.endsWith('.invalid') ||
+        host.endsWith('.example') ||
+        InternetAddress.tryParse(host) != null) {
+      return '';
+    }
+    return uri.toString();
   }
 
   Future<void> _stop() async {

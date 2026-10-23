@@ -1,4 +1,5 @@
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 
 import 'dart:async';
 import 'dart:typed_data';
@@ -120,7 +121,7 @@ Future<String?> _askName(
 
 void _say(BuildContext context, String message) {
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  LokalToast.show(context, message);
 }
 
 /// Asks for a name and creates a playlist.

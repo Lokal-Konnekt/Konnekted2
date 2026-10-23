@@ -270,17 +270,22 @@ class MorneyeTrack {
   }
 
   static int? _sampleRate(Map track) {
-    final value = _positiveInt(track['sample_rate'] ?? track['sampleRate'] ??
-        track['sampling_rate'] ?? track['samplingRate']);
-    if (value == null) return null;
-    // Provider APIs may describe a sample rate in kHz rather than Hz.
-    final hz = value <= 384 ? value * 1000 : value;
+    final raw = track['sample_rate'] ?? track['sampleRate'] ??
+        track['sampling_rate'] ?? track['samplingRate'] ??
+        track['maximum_sampling_rate'] ?? track['maxSampleRate'];
+    final value = raw is num
+        ? raw.toDouble()
+        : double.tryParse('$raw'.replaceAll(RegExp(r'(?i)\\s*k(?:hz)?'), '').trim());
+    if (value == null || !value.isFinite || value <= 0) return null;
+    // Preserve 44.1 / 88.2 kHz exactly; don't truncate to 44 / 88.
+    final hz = (value <= 384 ? value * 1000 : value).round();
     return hz >= 8000 && hz <= 768000 ? hz : null;
   }
 
   static int? _bitDepth(Map track) {
     final bits = _positiveInt(track['bit_depth'] ?? track['bitDepth'] ??
-        track['bits_per_sample'] ?? track['bitsPerSample']);
+        track['bits_per_sample'] ?? track['bitsPerSample'] ??
+        track['maximum_bit_depth'] ?? track['maxBitDepth']);
     return bits != null && bits <= 64 ? bits : null;
   }
 

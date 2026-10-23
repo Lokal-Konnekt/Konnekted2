@@ -497,6 +497,15 @@ class _LookPage extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(24, 26, 24, 12),
           child: Text(lokalText('ACCENT'), style: LokalTheme.label(t)),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+          child: SwitchListTile(
+            title: Text(lokalText('Unboxed player controls')),
+            subtitle: Text(lokalText('Same playback icons, without button boxes.')),
+            value: appearance.unboxedPlayerControls,
+            onChanged: notifier.setUnboxedPlayerControls,
+          ),
+        ),
         LokalAccentRow(
           selected: appearance.accent,
           onSelect: (accent) {

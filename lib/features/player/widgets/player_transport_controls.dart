@@ -1,12 +1,14 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/l10n/l10n.dart';
 import 'full_player_visuals.dart';
 
 /// The icon morph, button widths and pressed feedback can reverse independently.
 /// Panel resizing reads the same progress as the moving artwork.
-class PlayerTransportControls extends StatefulWidget {
+class PlayerTransportControls extends ConsumerStatefulWidget {
   const PlayerTransportControls({
     super.key,
     required this.playing,
@@ -26,11 +28,11 @@ class PlayerTransportControls extends StatefulWidget {
   final Color accent, onAccent;
   final VoidCallback onPrevious, onNext, onPlayPause;
   @override
-  State<PlayerTransportControls> createState() =>
+  ConsumerState<PlayerTransportControls> createState() =>
       _PlayerTransportControlsState();
 }
 
-class _PlayerTransportControlsState extends State<PlayerTransportControls>
+class _PlayerTransportControlsState extends ConsumerState<PlayerTransportControls>
     with SingleTickerProviderStateMixin {
   late final AnimationController _icon = AnimationController(
     vsync: this,
@@ -59,6 +61,7 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _icon,
     builder: (context, _) {
+      final unboxed = ref.watch(lokalAppearanceProvider.select((a) => a.unboxedPlayerControls));
       final l = widget.lyricsProgress.clamp(0.0, 1.0);
       final height = lerpDouble(
         widget.tallerButtons
@@ -80,13 +83,13 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
             Widget skip(IconData icon, VoidCallback onTap, String label) =>
                 Expanded(
                   child: _TransportButton(
-                    color: FullPlayerVisuals.surface,
+                    color: unboxed ? Colors.transparent : FullPlayerVisuals.surface,
                     radius: radius,
                     onTap: onTap,
                     label: label,
                     child: Icon(
-                      icon,
-                      size: lerpDouble(29, 26, l),
+                      unboxed ? (icon == Icons.skip_previous_rounded ? Icons.skip_previous : Icons.skip_next) : icon,
+                      size: unboxed ? lerpDouble(43, 34, l) : lerpDouble(29, 26, l),
                       color: FullPlayerVisuals.primaryText,
                     ),
                   ),
@@ -103,16 +106,22 @@ class _PlayerTransportControlsState extends State<PlayerTransportControls>
                   width: primary,
                   child: _TransportButton(
                     key: const ValueKey('player-play-button'),
-                    color: widget.accent,
+                    color: unboxed ? Colors.transparent : widget.accent,
                     radius: radius,
                     onTap: widget.onPlayPause,
                     label: widget.playing ? l10n.pause : l10n.play,
-                    child: AnimatedIcon(
-                      icon: AnimatedIcons.play_pause,
-                      progress: _icon,
-                      size: lerpDouble(33, 29, l),
-                      color: widget.onAccent,
-                    ),
+                    child: unboxed
+                        ? Icon(
+                            widget.playing ? Icons.pause : Icons.play_arrow,
+                            size: lerpDouble(62, 44, l),
+                            color: FullPlayerVisuals.primaryText,
+                          )
+                        : AnimatedIcon(
+                            icon: AnimatedIcons.play_pause,
+                            progress: _icon,
+                            size: lerpDouble(33, 29, l),
+                            color: widget.onAccent,
+                          ),
                   ),
                 ),
                 const SizedBox(width: 8),

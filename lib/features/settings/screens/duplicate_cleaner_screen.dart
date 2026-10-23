@@ -1,5 +1,6 @@
 import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -876,7 +877,7 @@ class _BottomActionBar extends ConsumerWidget {
         .removeSelected();
     if (!context.mounted) return;
     if (result != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      LokalToast.fromSnackBar(context, 
         SnackBar(
           backgroundColor: context.lokal.surface2,
           behavior: SnackBarBehavior.floating,
@@ -923,7 +924,7 @@ class _BottomActionBar extends ConsumerWidget {
     if (!confirmed) return;
     await ref.read(duplicateScanProvider.notifier).removeAllDuplicates();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    LokalToast.fromSnackBar(context, 
       SnackBar(
         backgroundColor: context.lokal.surface2,
         behavior: SnackBarBehavior.floating,
@@ -1314,7 +1315,7 @@ class _DuplicateGroupCardState extends ConsumerState<_DuplicateGroupCard> {
                                     .read(duplicateScanProvider.notifier)
                                     .toggleKeep(widget.group.key, song.id);
                                 if (!ok && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  LokalToast.fromSnackBar(context, 
                                     SnackBar(
                                       backgroundColor: context.lokal.surface2,
                                       behavior: SnackBarBehavior.floating,

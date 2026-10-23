@@ -64,7 +64,14 @@ class BitPerfectIndicator extends ConsumerWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (song.atmosAvailable) ...[
+            const LokalAtmosPill(),
+            const SizedBox(width: 5),
+          ],
+          Container(
         padding: EdgeInsets.symmetric(
           horizontal: context.responsive(4.0, 5.0, 6.0),
           vertical: 2,
@@ -107,6 +114,7 @@ class BitPerfectIndicator extends ConsumerWidget {
             ),
           ],
         ),
+        ],
       ),
     );
   }

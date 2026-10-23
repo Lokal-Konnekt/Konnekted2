@@ -12,6 +12,7 @@ import 'package:flick/data/entities/song_entity.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/services/atmos_diagnostics.dart';
 import 'package:flick/services/album_art_import_service.dart';
 import 'package:flick/services/music_folder_service.dart';
 import 'package:flick/services/music_library_path.dart';
@@ -156,6 +157,10 @@ class LibraryDownloader {
 
   /// Copies [prepared] into the library. [artwork] is the cover to give it.
   Future<LibraryDownloadResult> save(Song prepared, {String? artwork}) async {
+    if (prepared.atmosEncoded) AtmosDiagnostics.record('library_save_start', {
+      'codec': 'eac3_joc',
+      'stage': 'copy',
+    });
     final source = prepared.filePath;
     if (source == null || !File(source).existsSync()) {
       throw const DiscoveryException('The downloaded song is gone. Try again.');
@@ -253,6 +258,11 @@ class LibraryDownloader {
         }
       }
       unawaited(LinkDownloadOutbox.enqueue(copy.path));
+      if (prepared.atmosEncoded) AtmosDiagnostics.record('library_save_complete', {
+        'codec': 'eac3_joc',
+        'outcome': 'saved',
+        'reason': target.fallback ? 'fallback_folder' : 'chosen_folder',
+      });
       return LibraryDownloadResult(
         path: copy.path,
         folderName: target.name,

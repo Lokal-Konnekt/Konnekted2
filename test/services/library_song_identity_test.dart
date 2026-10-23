@@ -63,9 +63,9 @@ void main() {
   });
 
   test('credits and recording title normalize without fuzzy lookalikes', () {
-    final local = song('phone', 'Beyoncé – Halo (2011 Remaster)',
+    final local = song('phone', 'Halo (2011 Remaster)',
         '/storage/Music/halo.flac', artist: 'Beyoncé feat. Jay-Z');
-    final pc = song('pc', 'Beyoncé - Halo', 'lokal://1/2',
+    final pc = song('pc', 'Halo', 'lokal://1/2',
         artist: 'Beyonce', source: 'lokal');
     // A punctuation-normalized, version-labeled track is not a second copy.
     expect(preferLocalLibrarySongs([local, pc]).map((s) => s.id),

@@ -17,7 +17,6 @@ class DiscoveryTrack {
     this.inlineStream,
     this.artwork,
     this.atmosAvailable = false,
-    this.tidalUrl,
   });
 
   final String id;
@@ -41,8 +40,6 @@ class DiscoveryTrack {
 
   /// Catalogue flag only. The decoded output might be stereo.
   final bool atmosAvailable;
-  /// Safe official catalogue URL, never an audio stream or cache path.
-  final Uri? tidalUrl;
 
   /// This track with [cover] as its artwork when it has none of its own.
   DiscoveryTrack withArtwork(String? cover) =>
@@ -62,7 +59,6 @@ class DiscoveryTrack {
           inlineStream: inlineStream,
           artwork: cover,
           atmosAvailable: atmosAvailable,
-          tidalUrl: tidalUrl,
         );
 
   String get key => '${source.name}:$addonId:$addonBase:$id';

@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 
 import '../../services/tidal_atmos_metadata.dart';
 import '../../services/atmos_playback_support.dart';
+import '../../services/atmos_diagnostics.dart';
 
 import 'morneye_host.dart';
 import 'morneye_network.dart';
@@ -1636,6 +1637,10 @@ class MorneyePackages {
           lossless ??
           first ??
           'default';
+      if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('addon_download_start', {
+        'source': provider == 'tidal' ? 'tidal' : 'other',
+        'quality': 'DOLBY_ATMOS',
+      });
       final result = await runtime.invoke('download', [
         '${available['track_id'] ?? available['trackId'] ?? id}',
         chosen,
@@ -1643,6 +1648,9 @@ class MorneyePackages {
         {'preparedContext': prepared, 'resolutionTimeoutMs': 60000},
       ], const Duration(hours: 24));
       if (result is! Map || result['success'] != true) {
+        if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('addon_download_failed', {
+          'reason': 'addon_returned_failure',
+        });
         final message = result is Map
             ? (result['error_message'] ?? result['error'])
             : null;
@@ -1653,6 +1661,9 @@ class MorneyePackages {
         '${result['file_path'] ?? result['filePath'] ?? result['path']}',
       );
       if (!File(file).existsSync() || File(file).lengthSync() == 0) {
+        if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('addon_download_failed', {
+          'reason': 'empty_file',
+        });
         throw const MorneyePackageError('Addon produced an empty file');
       }
       final decryption =
@@ -1662,6 +1673,9 @@ class MorneyePackages {
               ? {'strategy': 'ffmpeg.mov_key', 'key': result['decryption_key']}
               : null);
       if (decryption != null) {
+        if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('postprocess_start', {
+          'stage': 'decrypt',
+        });
         if (decryption is! Map ||
             decryption['strategy'] != 'ffmpeg.mov_key' ||
             !RegExp(r'^[a-fA-F0-9]{32}$')
@@ -1709,6 +1723,10 @@ class MorneyePackages {
       // remains unchanged.
       final verifiedAtmos = quality == 'DOLBY_ATMOS' &&
           await AtmosPlaybackSupport.isJocFile(file);
+      if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('joc_validation', {
+        'encoded': verifiedAtmos,
+        'outcome': verifiedAtmos ? 'confirmed' : 'rejected',
+      });
       if (verifiedAtmos) {
         // Media3/ExoPlayer handles JOC using the licensed Android stack.
         // Never feed JOC through Symphonia/Rust or a PCM transcoder.

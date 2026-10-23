@@ -20,6 +20,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
+import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
 
 /// Songs you don't have, under your library's results: desktop's Search
 /// "online" block. One source at a time (YouTube Music or an add-on you
@@ -430,6 +431,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
                           ),
                           onTap: () => _play(source, result),
                           onMore: () => _actions(source, result),
+                          onQueue: () => _enqueue(source, result, next: false),
                         ),
                     ],
                   );
@@ -505,12 +507,14 @@ class _OnlineTile extends StatelessWidget {
     required this.result,
     required this.busy,
     required this.onTap,
+    required this.onQueue,
     required this.onMore,
   });
 
   final OnlineResult result;
   final bool busy;
   final VoidCallback onTap;
+  final Future<void> Function() onQueue;
   final VoidCallback onMore;
 
   @override
@@ -518,74 +522,78 @@ class _OnlineTile extends StatelessWidget {
     final t = context.lokal;
     final track = result.track;
     final duration = track.duration;
-    return InkWell(
-      onTap: busy ? null : onTap,
-      onLongPress: onMore,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            OnlineResultCover(result: result, size: 48),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: t.text,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+    return LokalSwipeToQueue(
+      onQueue: onQueue,
+      enabled: !busy,
+      child: InkWell(
+        onTap: busy ? null : onTap,
+        onLongPress: onMore,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              OnlineResultCover(result: result, size: 48),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: t.text,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                  Text(
-                    [
-                      track.artist,
-                      if (track.album case final album? when album.isNotEmpty)
-                        album,
-                    ].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: t.muted, fontSize: 13),
-                  ),
-                  if (track.atmosAvailable) ...[
-                    const SizedBox(height: 4),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: LokalAtmosPill(),
+                    Text(
+                      [
+                        track.artist,
+                        if (track.album case final album? when album.isNotEmpty)
+                          album,
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: t.muted, fontSize: 13),
                     ),
+                    if (track.atmosAvailable) ...[
+                      const SizedBox(height: 4),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: LokalAtmosPill(),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ),
-            if (busy)
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: t.accent,
-                  ),
                 ),
-              )
-            else if (duration != null)
-              Text(
-                '${duration.inMinutes}:'
-                '${(duration.inSeconds % 60).toString().padLeft(2, '0')}',
-                style: TextStyle(color: t.muted2, fontSize: 12),
               ),
-            IconButton(
-              tooltip: 'More',
-              visualDensity: VisualDensity.compact,
-              onPressed: onMore,
-              icon: Icon(Icons.more_horiz_rounded, color: t.muted, size: 20),
-            ),
-          ],
+              if (busy)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: t.accent,
+                    ),
+                  ),
+                )
+              else if (duration != null)
+                Text(
+                  '${duration.inMinutes}:'
+                  '${(duration.inSeconds % 60).toString().padLeft(2, '0')}',
+                  style: TextStyle(color: t.muted2, fontSize: 12),
+                ),
+              IconButton(
+                tooltip: 'More',
+                visualDensity: VisualDensity.compact,
+                onPressed: onMore,
+                icon: Icon(Icons.more_horiz_rounded, color: t.muted, size: 20),
+              ),
+            ],
+          ),
         ),
       ),
     );

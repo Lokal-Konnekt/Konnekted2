@@ -73,6 +73,26 @@ void main() {
       expect(entries![1]['title'], 'Dawn');
     });
 
+    test('getPlaylistDetails preserves server-owned coverArt and entries', () async {
+      final client = MockClient((request) async => http.Response(jsonEncode({
+        'subsonic-response': {
+          'status': 'ok',
+          'playlist': {
+            'id': 'pl-1',
+            'name': 'Driving',
+            'coverArt': 'pl-cover-7',
+            'entry': [
+              {'id': 's-1', 'title': 'Song'},
+            ],
+          },
+        },
+      }), 200));
+      final service = SubsonicService.create(client: client);
+      final details = await service.getPlaylistDetails(_server(), 'pl-1');
+      expect(details!['coverArt'], 'pl-cover-7');
+      expect((details['entry'] as List), hasLength(1));
+    });
+
     test('createPlaylist sends name only when creating', () async {
       late Uri captured;
       final client = MockClient((request) async {
@@ -172,6 +192,39 @@ void main() {
       expect(captured.path, '/subsonic/rest/deletePlaylist.view');
       expect(captured.queryParameters['id'], 'pl-9');
     });
+  });
+
+  test('Subsonic song mapping preserves metadata when album-list fields are empty', () {
+    final song = SubsonicService.buildSongEntity(_server(), {
+      'id': 'song-42',
+      'title': 'Track',
+      'artist': 'Track Artist',
+      'album': 'Correct Album',
+      'displayAlbumArtist': 'Actual Album Artist',
+      'year': 2026,
+      'genre': 'Soul',
+      'coverArt': 'track-cover',
+    }, albumName: '', albumArtist: '', coverArt: 'album-cover', year: 2021);
+    expect(song.album, 'Correct Album');
+    expect(song.albumArtist, 'Actual Album Artist');
+    expect(song.year, 2026);
+    expect(song.genre, 'Soul');
+    expect(song.albumArtPath, 'subsonic-cover://track-cover');
+  });
+
+  test('structured OpenSubsonic album artists are respected', () {
+    final song = SubsonicService.buildSongEntity(_server(), {
+      'id': 'song-43',
+      'title': 'Track',
+      'artist': 'Guest Vocalist',
+      'album': '',
+      'albumArtists': [{'name': 'Primary Artist'}, {'name': 'Composer'}],
+      'coverArt': '',
+    }, albumName: 'Compilation', albumArtist: 'Various Artists',
+      coverArt: 'album-cover');
+    expect(song.album, 'Compilation');
+    expect(song.albumArtist, 'Primary Artist, Composer');
+    expect(song.albumArtPath, 'subsonic-cover://album-cover');
   });
 
   group('resolvePlaylistSongIds', () {

@@ -351,10 +351,12 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     // lurch when an adjacent cover moves into the farther stacked panels.
     final dx = reduce ? d * size * 1.06
         : side * size * (_innerDistance(ad) + .5 * hinge);
-    // Flutter's positive Y angle brings the LEFT edge forward. Therefore
-    // left covers rotate positive, right covers negative: OUTER edges forward.
+    // With positive perspective (Matrix4 entry 3,2), negative Y rotation
+    // brings the LEFT outer edge towards the viewer; positive rotation brings
+    // the RIGHT outer edge towards the viewer. The previous sign was reversed,
+    // causing side artwork to fan the opposite way from classic iTunes.
     final angle = reduce ? 0.0
-        : -side * (2 * near - near * near) * 70 * math.pi / 180;
+        : side * (2 * near - near * near) * 70 * math.pi / 180;
     final depth = reduce ? 0.0 : -size * _depthDistance(ad);
     // Move the pivot continuously from centre to inner edge during drags.
     final pivot = reduce ? .5 : .5 - side * .5 * hinge;

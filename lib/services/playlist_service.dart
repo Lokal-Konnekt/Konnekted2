@@ -234,16 +234,19 @@ class PlaylistService {
     return true;
   }
 
-  Future<bool> addSongToPlaylist(String playlistId, String songId) async {
+  Future<bool> addSongToPlaylist(String playlistId, String songId, {Song? song}) async {
     await _ensureLoaded();
 
     final index = _playlists.indexWhere((p) => p.id == playlistId);
     if (index == -1) return false;
 
     final playlist = _playlists[index];
-    if (playlist.songIds.contains(songId)) return true;
+    final alreadyAdded = playlist.songIds.contains(songId);
+    if (alreadyAdded && (song == null || playlist.songSnapshots.containsKey(songId))) {
+      return true;
+    }
 
-    if (playlist.isNetworkSource) {
+    if (playlist.isNetworkSource && !alreadyAdded) {
       final remoteId = await _remoteIdForSong(playlist, songId);
       if (remoteId == null) return false;
       final server = await _networkServerFor(playlist);
@@ -261,8 +264,16 @@ class PlaylistService {
     }
 
     final updated = playlist.copyWith(
-      songIds: [...playlist.songIds, songId],
-      songAddedAt: {...playlist.songAddedAt, songId: DateTime.now()},
+      songIds: alreadyAdded ? playlist.songIds : [...playlist.songIds, songId],
+      songAddedAt: alreadyAdded
+          ? playlist.songAddedAt
+          : {...playlist.songAddedAt, songId: DateTime.now()},
+      songSnapshots: song == null
+          ? playlist.songSnapshots
+          : {
+              ...playlist.songSnapshots,
+              songId: PlaylistSongSnapshot.fromSong(song),
+            },
       updatedAt: DateTime.now(),
     );
 
@@ -360,6 +371,7 @@ class PlaylistService {
     final updated = playlist.copyWith(
       songIds: playlist.songIds.where((id) => id != songId).toList(),
       songAddedAt: {...playlist.songAddedAt}..remove(songId),
+      songSnapshots: {...playlist.songSnapshots}..remove(songId),
       updatedAt: DateTime.now(),
     );
 

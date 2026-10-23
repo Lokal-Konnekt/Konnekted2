@@ -1,4 +1,5 @@
 import 'package:flick/models/playlist.dart';
+import 'package:flick/models/song.dart';
 import 'package:flick/services/playlist_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -164,6 +165,85 @@ void main() {
 
       final playlists = await service.getPlaylists();
       expect(playlists.map((p) => p.name), ['C']);
+    });
+  });
+
+  group('playlist-only song metadata', () {
+    const onlineSong = Song(
+      id: 'online:stream-1',
+      title: 'Stream title',
+      artist: 'Stream artist',
+      album: 'Album',
+      duration: Duration(minutes: 3, seconds: 15),
+      fileType: 'ONLINE',
+      sourcePackage: Song.pendingSourcePackage,
+    );
+
+    test('unscanned online track persists and survives service reload', () async {
+      final service = PlaylistService();
+      final playlist = await service.createPlaylist('Streams');
+      expect(playlist, isNotNull);
+      expect(await service.addSongToPlaylist(
+        playlist!.id, onlineSong.id, song: onlineSong,
+      ), isTrue);
+
+      final reopened = await PlaylistService().getPlaylist(playlist.id);
+      expect(reopened!.songIds, [onlineSong.id]);
+      final snapshot = reopened.songSnapshots[onlineSong.id]!;
+      expect(snapshot.toSong(onlineSong.id).title, 'Stream title');
+      expect(snapshot.toSong(onlineSong.id).artist, 'Stream artist');
+      expect(snapshot.toSong(onlineSong.id).isPending, isTrue);
+      expect(snapshot.toSong(onlineSong.id).duration,
+          const Duration(minutes: 3, seconds: 15));
+    });
+
+    test('existing entry can be repaired with newly supplied metadata', () async {
+      final service = PlaylistService();
+      final playlist = await service.createPlaylist('Existing');
+      await service.addSongToPlaylist(playlist!.id, onlineSong.id);
+      expect((await service.getPlaylist(playlist.id))!.songSnapshots, isEmpty);
+      await service.addSongToPlaylist(playlist.id, onlineSong.id,
+          song: onlineSong);
+      final fixed = await PlaylistService().getPlaylist(playlist.id);
+      expect(fixed!.songIds, [onlineSong.id]);
+      expect(fixed.songSnapshots[onlineSong.id]!.title, 'Stream title');
+    });
+
+    test('removing an entry also drops its saved metadata', () async {
+      final service = PlaylistService();
+      final playlist = await service.createPlaylist('Remove');
+      await service.addSongToPlaylist(playlist!.id, onlineSong.id,
+          song: onlineSong);
+      await service.removeSongFromPlaylist(playlist.id, onlineSong.id);
+      final updated = await PlaylistService().getPlaylist(playlist.id);
+      expect(updated!.songIds, isEmpty);
+      expect(updated.songSnapshots, isEmpty);
+    });
+
+    test('temporary signed streaming URL is not persisted', () {
+      const stream = Song(
+        id: 'stream',
+        title: 'Signed',
+        artist: 'Online',
+        duration: Duration(minutes: 2),
+        fileType: 'FLAC',
+        filePath: 'https://cdn.example/song.flac?token=secret',
+      );
+      final stored = PlaylistSongSnapshot.fromSong(stream);
+      expect(stored.filePath, isNull);
+      expect(stored.sourcePackage, Song.pendingSourcePackage);
+      expect(stored.toJson().toString(), isNot(contains('secret')));
+    });
+
+    test('legacy playlists without metadata still deserialize', () {
+      final old = Playlist.fromJson({
+        'id': 'old',
+        'name': 'Legacy',
+        'songIds': ['id-1'],
+        'createdAt': DateTime(2024).toIso8601String(),
+      });
+      expect(old.songIds, ['id-1']);
+      expect(old.songSnapshots, isEmpty);
     });
   });
 

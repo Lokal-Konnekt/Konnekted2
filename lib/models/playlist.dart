@@ -1,3 +1,5 @@
+import 'package:flick/models/song.dart';
+
 class Playlist {
   /// URI scheme used in [sourcePath] for playlists mirrored from a Subsonic
   /// server: `subsonic://<serverId>/<remotePlaylistId>`.
@@ -18,6 +20,11 @@ class Playlist {
   /// Songs without an entry (legacy playlists, imported lists) fall back to
   /// their position in [songIds] when sorting by "Date Added".
   final Map<String, DateTime> songAddedAt;
+
+  /// Metadata for entries added from online search/queues that have not
+  /// entered the scanned song library. Do not persist signed streaming URLs.
+  /// Old playlists without this field continue to load unchanged.
+  final Map<String, PlaylistSongSnapshot> songSnapshots;
 
   /// True when this playlist is a mirror of a server-side (Subsonic) playlist.
   bool get isNetworkSource {
@@ -57,6 +64,7 @@ class Playlist {
     this.sourcePath,
     this.coverArt,
     this.songAddedAt = const {},
+    this.songSnapshots = const {},
   });
 
   Playlist copyWith({
@@ -69,6 +77,7 @@ class Playlist {
     String? coverArt,
     bool clearCoverArt = false,
     Map<String, DateTime>? songAddedAt,
+    Map<String, PlaylistSongSnapshot>? songSnapshots,
   }) {
     return Playlist(
       id: id ?? this.id,
@@ -79,6 +88,7 @@ class Playlist {
       sourcePath: sourcePath ?? this.sourcePath,
       coverArt: clearCoverArt ? null : (coverArt ?? this.coverArt),
       songAddedAt: songAddedAt ?? this.songAddedAt,
+      songSnapshots: songSnapshots ?? this.songSnapshots,
     );
   }
 
@@ -94,6 +104,10 @@ class Playlist {
       'songAddedAt': {
         for (final entry in songAddedAt.entries)
           entry.key: entry.value.toIso8601String(),
+      },
+      'songSnapshots': {
+        for (final entry in songSnapshots.entries)
+          entry.key: entry.value.toJson(),
       },
     };
   }
@@ -114,6 +128,14 @@ class Playlist {
         for (final entry in rawAddedAt.entries)
           entry.key: DateTime.parse(entry.value as String),
       },
+      songSnapshots: {
+        for (final entry
+            in (json['songSnapshots'] as Map<String, dynamic>? ?? {}).entries)
+          if (entry.value is Map)
+            entry.key: PlaylistSongSnapshot.fromJson(
+              Map<String, dynamic>.from(entry.value as Map),
+            ),
+      },
     );
   }
 
@@ -130,4 +152,102 @@ class Playlist {
   String toString() {
     return 'Playlist(id: $id, name: $name, songCount: ${songIds.length})';
   }
+}
+
+
+/// Small, durable playlist-only metadata record. Online titles should not
+/// disappear simply because they were added before being downloaded/scanned.
+/// A live library row always wins over a saved snapshot.
+class PlaylistSongSnapshot {
+  const PlaylistSongSnapshot({
+    required this.title,
+    required this.artist,
+    required this.durationMs,
+    required this.fileType,
+    this.album,
+    this.albumArt,
+    this.filePath,
+    this.sourceType,
+    this.sourcePackage,
+    this.remoteId,
+    this.remoteServerId,
+  });
+
+  final String title;
+  final String artist;
+  final int durationMs;
+  final String fileType;
+  final String? album;
+  final String? albumArt;
+  final String? filePath;
+  final String? sourceType;
+  final String? sourcePackage;
+  final String? remoteId;
+  final int? remoteServerId;
+
+  factory PlaylistSongSnapshot.fromSong(Song song) {
+    final path = song.filePath;
+    final transientStream = path != null &&
+        (path.startsWith('https://') || path.startsWith('http://'));
+    return PlaylistSongSnapshot(
+      title: song.title,
+      artist: song.artist,
+      durationMs: song.duration.inMilliseconds,
+      fileType: song.fileType,
+      album: song.album,
+      albumArt: song.albumArt,
+      // Authenticated/signed audio URLs expire and must not be saved.
+      filePath: transientStream ? null : path,
+      sourceType: song.sourceType,
+      sourcePackage: transientStream && song.sourcePackage == null
+          ? Song.pendingSourcePackage
+          : song.sourcePackage,
+      remoteId: song.remoteId,
+      remoteServerId: song.remoteServerId,
+    );
+  }
+
+  Song toSong(String id) => Song(
+    id: id,
+    title: title,
+    artist: artist,
+    duration: Duration(milliseconds: durationMs),
+    fileType: fileType,
+    album: album,
+    albumArt: albumArt,
+    filePath: filePath,
+    sourceType: sourceType,
+    sourcePackage: sourcePackage,
+    remoteId: remoteId,
+    remoteServerId: remoteServerId,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'artist': artist,
+    'durationMs': durationMs,
+    'fileType': fileType,
+    'album': album,
+    'albumArt': albumArt,
+    'filePath': filePath,
+    'sourceType': sourceType,
+    'sourcePackage': sourcePackage,
+    'remoteId': remoteId,
+    'remoteServerId': remoteServerId,
+  };
+
+  factory PlaylistSongSnapshot.fromJson(Map<String, dynamic> json) =>
+      PlaylistSongSnapshot(
+        title: json['title'] as String? ?? '',
+        artist: json['artist'] as String? ?? '',
+        durationMs: (json['durationMs'] as num?)?.toInt() ?? 0,
+        fileType: json['fileType'] as String? ?? 'ONLINE',
+        album: json['album'] as String?,
+        albumArt: json['albumArt'] as String?,
+        filePath: json['filePath'] as String?,
+        sourceType: json['sourceType'] as String?,
+        sourcePackage: json['sourcePackage'] as String?,
+        remoteId: json['remoteId'] as String?,
+        remoteServerId: (json['remoteServerId'] as num?)?.toInt(),
+      );
 }

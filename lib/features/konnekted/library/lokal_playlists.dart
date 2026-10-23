@@ -77,14 +77,19 @@ class LokalPlaylistArtwork extends ConsumerWidget {
   }
 }
 
-/// A playlist's songs in its own order, from the library.
-List<Song> lokalPlaylistSongs(Playlist playlist, List<Song> library) {
-  final byId = {for (final song in library) song.id: song};
-  return [
-    for (final id in playlist.songIds)
-      if (byId[id] != null) byId[id]!,
-  ];
-}
+/// Preserve stored playlist order. The shared library index aliases hidden
+/// desktop tracks to their preferred phone copies. Online entries added before
+/// a library scan use their saved metadata instead of disappearing.
+Song? lokalPlaylistSong(Playlist playlist, String id, Map<String, Song> libraryById) =>
+    libraryById[id] ?? playlist.songSnapshots[id]?.toSong(id);
+
+List<Song> lokalPlaylistSongs(
+  Playlist playlist,
+  Map<String, Song> libraryById,
+) => playlist.songIds
+    .map((id) => lokalPlaylistSong(playlist, id, libraryById))
+    .whereType<Song>()
+    .toList(growable: false);
 
 Future<String?> _askName(
   BuildContext context, {
@@ -187,7 +192,8 @@ class LokalPlaylistsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.lokal;
     final state = ref.watch(playlistsProvider);
-    final library = ref.watch(konnektedLibraryProvider).value ?? const <Song>[];
+    final libraryIndex = ref.watch(konnektedLibraryIndexProvider).value;
+    final libraryById = libraryIndex?.byId ?? const <String, Song>{};
     final hasServers =
         ref.watch(networkServersProvider).value?.isNotEmpty ?? false;
     final playlists = state.value?.playlists;
@@ -271,7 +277,7 @@ class LokalPlaylistsPage extends ConsumerWidget {
             itemCount: playlists.length,
             itemBuilder: (context, index) {
               final playlist = playlists[index];
-              final songs = lokalPlaylistSongs(playlist, library);
+              final songs = lokalPlaylistSongs(playlist, libraryById);
               return InkWell(
                 onTap: () => pushLokal(
                   context,
@@ -401,7 +407,8 @@ class LokalPlaylistPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.lokal;
     final playlist = ref.watch(playlistProvider(playlistId));
-    final library = ref.watch(konnektedLibraryProvider).value ?? const <Song>[];
+    final libraryIndex = ref.watch(konnektedLibraryIndexProvider).value;
+    final libraryById = libraryIndex?.byId ?? const <String, Song>{};
     if (playlist == null) {
       return LokalLibraryPage(
         title: lokalText('Playlist'),
@@ -415,7 +422,7 @@ class LokalPlaylistPage extends ConsumerWidget {
         ],
       );
     }
-    final songs = lokalPlaylistSongs(playlist, library);
+    final songs = lokalPlaylistSongs(playlist, libraryById);
     final width = MediaQuery.sizeOf(context).width;
     return LokalLibraryPage(
       title: playlist.name,
@@ -513,9 +520,17 @@ class LokalPlaylistPage extends ConsumerWidget {
             searchHint: 'Search in playlist',
             onRemove: playlist.isNetworkSource
                 ? null
-                : (song) => ref
-                      .read(playlistsProvider.notifier)
-                      .removeSongFromPlaylist(playlist.id, song.id),
+                : (song) {
+                    // Aliased desktop entries display their phone copy, but
+                    // removing must target the ID stored in this playlist.
+                    final originalId = playlist.songIds.firstWhere(
+                      (id) => lokalPlaylistSong(playlist, id, libraryById)?.id == song.id,
+                      orElse: () => song.id,
+                    );
+                    unawaited(ref
+                        .read(playlistsProvider.notifier)
+                        .removeSongFromPlaylist(playlist.id, originalId));
+                  },
           ),
       ],
     );
@@ -531,11 +546,9 @@ class _ReorderPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.lokal;
     final playlist = ref.watch(playlistProvider(playlistId));
-    final byId = {
-      for (final song
-          in ref.watch(konnektedLibraryProvider).value ?? const <Song>[])
-        song.id: song,
-    };
+    final byId =
+        ref.watch(konnektedLibraryIndexProvider).value?.byId ??
+        const <String, Song>{};
     final ids = playlist?.songIds ?? const <String>[];
     return Scaffold(
       backgroundColor: t.bg,
@@ -569,7 +582,9 @@ class _ReorderPage extends ConsumerWidget {
                     .read(playlistsProvider.notifier)
                     .reorderSongs(playlistId, from, from < to ? to + 1 : to),
                 itemBuilder: (context, index) {
-                  final song = byId[ids[index]];
+                  final song = playlist == null
+                       ? null
+                       : lokalPlaylistSong(playlist, ids[index], byId);
                   return ListTile(
                     key: ValueKey('${ids[index]}#$index'),
                     leading: song == null

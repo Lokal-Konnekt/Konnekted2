@@ -18,6 +18,7 @@ import 'dart:async';
 import '../../../link/lokal_desktop_link_screen.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -44,11 +45,7 @@ String _bytes(int bytes) {
 }
 
 void _say(BuildContext context, String message) {
-  final messenger = ScaffoldMessenger.maybeOf(context);
-  messenger?.removeCurrentSnackBar();
-  messenger?.showSnackBar(
-    SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-  );
+  if (context.mounted) LokalToast.show(context, message);
 }
 
 Future<bool> _confirm(

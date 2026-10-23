@@ -956,7 +956,16 @@ Future<Song?> findDiscoverySong(
           return await source.play(found.withArtwork(_artworkOf(track)));
         } catch (error) {
           check();
-          // This source found it but couldn't play it: try the next one.
+          // A requested Atmos stream failing because Tidal's own server
+          // timed out/returned 5xx is not a valid reason to silently switch
+          // the user to a different provider's stereo recording.
+          if (found.atmosAvailable &&
+              error is DiscoveryException &&
+              error.message.startsWith('Tidal Atmos server')) {
+            onStatus?.call(error.message);
+            rethrow;
+          }
+          // Other source failures can still try the next playable result.
           failure = error is DiscoveryException
               ? error
               : DiscoveryException(

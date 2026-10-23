@@ -5,6 +5,8 @@ import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/features/konnekted/lokal_mixes.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/lokal/lokal_cover_flow.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,6 +37,36 @@ void main() {
     _album('Second', [_track('2a', 'Second')]),
     _album('Third', [_track('3a', 'Third')]),
   ];
+
+  testWidgets('iTunes side covers hinge inward and point their OUTER edges at the viewer', (
+    tester,
+  ) async {
+    final five = [
+      ...albums,
+      _album('Fourth', [_track('4a', 'Fourth')]),
+      _album('Fifth', [_track('5a', 'Fifth')]),
+    ];
+    await tester.pumpWidget(_app(LokalCoverFlow(
+      albums: five,
+      initialIndex: 2,
+      cover: (_) => const ColoredBox(color: Colors.blueGrey),
+      onPlay: (_, _) {},
+    )));
+    final size = math.min(250.0, tester.getSize(find.byType(LokalCoverFlow)).width * .60);
+    Transform panel(String key) => tester.widget<Transform>(
+      find.descendant(
+        of: find.byKey(ValueKey(key)),
+        matching: find.byType(Transform),
+      ).first,
+    );
+    final left = panel('Second');
+    final right = panel('Fourth');
+    expect(left.origin!.dx, closeTo(size, .001), reason: 'left cover hinges on right/inner edge');
+    expect(right.origin!.dx, closeTo(0, .001), reason: 'right cover hinges on left/inner edge');
+    expect(left.transform.entry(2, 0), lessThan(0), reason: 'left OUTER edge faces forward');
+    expect(right.transform.entry(2, 0), greaterThan(0), reason: 'right OUTER edge faces forward');
+    expect(find.byType(ColoredBox), findsWidgets);
+  });
 
   testWidgets('Home Cover Flow starts centered for odd and even shelves', (
     tester,

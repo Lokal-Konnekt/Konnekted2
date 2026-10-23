@@ -8,6 +8,7 @@ import 'package:flick/core/utils/navigation_helper.dart';
 import 'package:flick/data/repositories/song_repository.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/providers/songs_provider.dart';
 import 'package:flutter/material.dart';
@@ -34,8 +35,7 @@ Future<List<Song>> _library(BuildContext context) async {
 
 void _say(BuildContext context, String message) {
   if (!context.mounted) return;
-  ScaffoldMessenger.maybeOf(context)
-      ?.showSnackBar(SnackBar(content: Text(message)));
+  LokalToast.show(context, message);
 }
 
 /// The album [song] belongs to, as the Library groups it.

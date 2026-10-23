@@ -23,6 +23,11 @@ jobs:
           python3 -B -m unittest discover -s tool -p 'ci_*_test.py' -v
           python3 -B tool/native_test_cargokit_launcher.py
       - uses: ./.github/actions/android-toolchain
+      - name: Generate full-bleed CD launcher assets
+        run: |
+          python3 -m pip install --disable-pip-version-check Pillow
+          python3 tool/gen_lokal_launcher_icons.py
+          python3 -m unittest tool/ci_brand_icons_test.py -v
       - name: Focused suites from docs/BUILD.md, including share and picker
         run: >-
           flutter test --no-pub
@@ -43,6 +48,11 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/android-toolchain
+      - name: Generate full-bleed CD launcher assets
+        run: |
+          python3 -m pip install --disable-pip-version-check Pillow
+          python3 tool/gen_lokal_launcher_icons.py
+          python3 -m unittest tool/ci_brand_icons_test.py -v
       - name: Host native tests (default audio and USB features)
         run: cargo test --locked --lib --manifest-path rust/Cargo.toml
       - name: Compile native engine and both Android flavors without release secrets

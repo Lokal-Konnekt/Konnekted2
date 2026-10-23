@@ -30,8 +30,14 @@ Offset artworkMeshWaveOffset(double phase, double u, double v) {
 /// Each cover is blurred once at low resolution. Animation only deforms a
 /// small image-shader mesh: no per-frame artwork decoding or full-screen blur.
 class ArtworkMeshBlurBackdrop extends ConsumerStatefulWidget {
-  const ArtworkMeshBlurBackdrop({super.key, required this.song});
+  const ArtworkMeshBlurBackdrop({
+    super.key,
+    required this.song,
+    this.preserveArtworkContrast = false,
+  });
   final Song song;
+  /// Preserve cover color separation in the fullscreen reflection.
+  final bool preserveArtworkContrast;
 
   @override
   ConsumerState<ArtworkMeshBlurBackdrop> createState() =>
@@ -81,6 +87,7 @@ class _ArtworkMeshBlurBackdropState
         widget.song.id,
         widget.song.albumArt,
         widget.song.filePath,
+        widget.preserveArtworkContrast,
       ].join('|');
 
   @override
@@ -104,6 +111,7 @@ class _ArtworkMeshBlurBackdropState
       oldWidget.song.id,
       oldWidget.song.albumArt,
       oldWidget.song.filePath,
+      oldWidget.preserveArtworkContrast,
     ].join('|')) {
       _resolve();
     }
@@ -194,8 +202,8 @@ class _ArtworkMeshBlurBackdropState
       canvas.saveLayer(
         rect,
         Paint()..imageFilter = ui.ImageFilter.blur(
-          sigmaX: 24,
-          sigmaY: 24,
+          sigmaX: widget.preserveArtworkContrast ? 12 : 24,
+          sigmaY: widget.preserveArtworkContrast ? 12 : 24,
           tileMode: ui.TileMode.clamp,
         ),
       );

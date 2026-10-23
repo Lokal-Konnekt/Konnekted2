@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove" />
     <queries><package android:name="com.discord" /></queries>
     <application>
-        <!-- Presence only. Keep Lokal's own audio/microphone/Bluetooth permissions. -->
+        <!-- Presence-only bridge: remove SDK-owned foreground mic service; no microphone needed. -->
         <service android:name="com.discord.socialsdk.ForegroundService" tools:node="remove" />
         <activity android:name="com.discord.socialsdk.AuthenticationActivity" tools:node="remove" />
     </application>

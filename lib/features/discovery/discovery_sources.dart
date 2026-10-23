@@ -469,7 +469,20 @@ class DiscoveryAddon {
         final candidate = discoveryText(row[key], maxLength: 8192);
         if (candidate == null) continue;
         try {
-          artwork = requireHttps(candidate).toString();
+          final imageUrl = requireHttps(candidate);
+          // The configured add-on itself may be on a private network, but an
+          // arbitrary search result must not point the image fetch at a
+          // different local/private host.
+          if (imageUrl.origin != base.origin) {
+            final host = imageUrl.host.toLowerCase();
+            if (InternetAddress.tryParse(host) != null ||
+                !host.contains('.') ||
+                host.endsWith('.') ||
+                const [
+                  '.localhost', '.local', '.internal', '.lan', '.home',
+                ].any(host.endsWith)) continue;
+          }
+          artwork = imageUrl.toString();
           break;
         } on DiscoveryException {
           // Artwork is optional; an invalid URL never fails the search.

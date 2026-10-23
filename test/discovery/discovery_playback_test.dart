@@ -378,6 +378,33 @@ void main() {
     },
   );
 
+  test('small stream fits despite protected queue near the cache cap', () async {
+    // Before the fix, every song reserved maxFileBytes (100) although the
+    // streamed fixture occupies only 52 bytes: 120 + 100 exceeded 200.
+    final queued = File(p.join(directory.path, 'queued.flac'));
+    await queued.writeAsBytes(List.filled(120, 0));
+    final client = MockClient((_) async => http.Response.bytes(flacHeader, 200));
+    addTearDown(client.close);
+    final cache = DiscoveryPlaybackCache(
+      http: DiscoveryHttp(client),
+      directory: () async => directory,
+      maxFileBytes: 100,
+      maxCacheBytes: 200,
+      protectedPaths: () => {queued.path},
+      probe: (_) async =>
+          const AudioProbeFormat(sampleRate: 44100, channels: 2),
+    );
+    final song = await cache.prepare(fixtureTrack, fixtureAudio);
+    expect(await queued.exists(), isTrue);
+    expect(await File(song.filePath!).length(), flacHeader.length);
+    final files = await directory.list().where((entry) => entry is File).toList();
+    var total = 0;
+    for (final file in files) {
+      total += await (file as File).length();
+    }
+    expect(total, lessThanOrEqualTo(200));
+  });
+
   test('full protected cache fails before media request', () async {
     final protected = File(p.join(directory.path, 'queued.flac'));
     await protected.writeAsBytes(List.filled(150, 0));

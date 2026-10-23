@@ -28,6 +28,8 @@ void main() {
       'A Very Long Song Title That Needs To Move Horizontally'));
     await tester.pump();
     expect(find.byType(MarqueeWidget), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
   });
 
   testWidgets('short titles do not animate', (tester) async {

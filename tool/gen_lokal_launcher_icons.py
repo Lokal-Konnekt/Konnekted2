@@ -44,8 +44,11 @@ DEFAULT = "lime"
 BACKGROUND = "#0A0A0A"
 DENSITIES = {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}
 SIZE = 512
-# The Android launcher mask crops the outer icon; place the hub and sticker
-# near the center to preserve them on circular/squircle launchers.
+# Calibrated from the outer hub ring in the current 512px source: center
+# approximately (254.5, 246.5). Shift *the complete artwork AND the tint mask*
+# to the canvas center rather than nudging only the visible hub.
+HUB_SHIFT = (2, 10)
+# Android adaptive masks crop the artwork, so retain the existing safe zone.
 SCALE = 0.72
 # Fractions of the source artwork (must match the desktop script).
 STICKER_RECT = (0.703, 0.358, 0.287, 0.270, 0.050)
@@ -59,9 +62,40 @@ def source_bytes() -> bytes:
         raise ValueError("Lokal CD artwork has changed without updating its checksum")
     return data
 
+def recenter_with_reflected_edges(image: Image.Image) -> Image.Image:
+    """Move hub to canvas center without introducing white/transparent seams.
+
+    The reflected 2px left and 10px top bands continue existing pixels at
+    the boundaries; the original graphic is full-bleed. All other branding
+    layers are shifted by the same HUB_SHIFT, avoiding sticker mismatch.
+    """
+    dx, dy = HUB_SHIFT
+    if not (0 <= dx < image.width and 0 <= dy < image.height):
+        raise ValueError("Hub offset must fit in the icon")
+    shifted = Image.new(image.mode, image.size)
+    shifted.paste(image, (dx, dy))
+    if dy:
+        shifted.paste(
+            image.crop((0, 0, image.width, dy)).transpose(Image.Transpose.FLIP_TOP_BOTTOM),
+            (dx, 0),
+        )
+    if dx:
+        shifted.paste(
+            image.crop((0, 0, dx, image.height)).transpose(Image.Transpose.FLIP_LEFT_RIGHT),
+            (0, dy),
+        )
+    if dx and dy:
+        shifted.paste(
+            image.crop((0, 0, dx, dy)).transpose(Image.Transpose.ROTATE_180),
+            (0, 0),
+        )
+    return shifted
+
+
 def build_master() -> tuple[Image.Image, Image.Image]:
     base = Image.open(io.BytesIO(source_bytes())).convert("RGBA")
     base = base.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+    base = recenter_with_reflected_edges(base)
     LOGO.parent.mkdir(parents=True, exist_ok=True)
     base.save(LOGO, optimize=True)
 
@@ -77,6 +111,9 @@ def build_master() -> tuple[Image.Image, Image.Image]:
         coords, radius=round(radius * SIZE * aa), fill=255,
     )
     mask = mask.resize((SIZE, SIZE), Image.Resampling.LANCZOS)
+    aligned_mask = Image.new("L", (SIZE, SIZE), 0)
+    aligned_mask.paste(mask, HUB_SHIFT)
+    mask = aligned_mask
     sticker = Image.new("RGBA", (SIZE, SIZE), "white")
     sticker.putalpha(mask)
     sticker.save(STICKER, optimize=True)

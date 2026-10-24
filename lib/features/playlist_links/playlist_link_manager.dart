@@ -277,7 +277,8 @@ class PlaylistLinkManager {
       cancellation.throwIfCancelled();
       final unresolved = [...record.unmatchedEntries]..removeAt(matchingIndex);
       final revised = record.copyWith(unmatchedEntries: unresolved);
-      final updated = [...records]..[index] = revised;
+      final updated = [...records];
+      updated[index] = revised;
       await metadataStore.save(updated);
       // Explicit downloads are local additions, not removals managed by the
       // link's remote refresh. A subsequent remote omission cannot delete one.

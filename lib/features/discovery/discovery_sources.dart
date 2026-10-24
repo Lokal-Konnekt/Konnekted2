@@ -364,6 +364,34 @@ class ResolvedDiscoveryAudio {
   final Map<String, String> headers;
 }
 
+/// Return only numerical sample rates explicitly supplied by a provider.
+int? providerAudioInteger(Map<String, dynamic> row, List<String> keys,
+    {int min = 1, int max = 768000}) {
+  for (final key in keys) {
+    final raw = row[key];
+    final n = raw is num ? raw.toInt()
+        : raw is String ? int.tryParse(raw.trim()) : null;
+    if (n != null && n >= min && n <= max) return n;
+  }
+  return null;
+}
+
+String? providerAudioCodec(Map<String, dynamic> row) {
+  final value = discoveryText(
+      row['codec'] ?? row['audioCodec'] ?? row['audio_codec']
+          ?? row['format'] ?? row['mimeType'], maxLength: 40);
+  if (value == null) return null;
+  final v = value.toLowerCase();
+  if (v.contains('flac')) return 'FLAC';
+  if (v.contains('alac')) return 'ALAC';
+  if (v.contains('opus')) return 'OPUS';
+  if (v.contains('vorbis')) return 'VORBIS';
+  if (v.contains('mp3') || v.contains('mpeg')) return 'MP3';
+  if (v.contains('aac') || v.contains('mp4a')) return 'AAC';
+  if (v.contains('eac3') || v.contains('ec-3')) return 'E-AC-3';
+  return null;
+}
+
 /// Reference-compatible, deliberately limited progressive-audio addon client.
 /// See README.md for the exact supported protocol and credential boundary.
 class DiscoveryAddon {
@@ -504,6 +532,15 @@ class DiscoveryAddon {
           sourceName: displayName,
           sourceUrl: sourceUrl,
           artwork: artwork,
+          catalogueQuality: discoveryText(row['audioQuality'] ??
+              row['audio_quality'] ?? row['quality'], maxLength: 40),
+          catalogueCodec: providerAudioCodec(row),
+          catalogueBitDepth: providerAudioInteger(
+              row, const ['bitDepth', 'bit_depth', 'bitsPerSample'],
+              min: 8, max: 64),
+          catalogueSampleRate: providerAudioInteger(
+              row, const ['sampleRate', 'sample_rate', 'samplingRate'],
+              min: 8000),
           // Retain security-relevant fields with inline URLs, not just the URL.
           inlineStream: row['streamURL'] == null
               ? null

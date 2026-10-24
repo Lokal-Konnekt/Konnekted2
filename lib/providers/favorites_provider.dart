@@ -61,9 +61,9 @@ class FavoritesNotifier extends AsyncNotifier<FavoritesState> {
   }
 
   /// Toggle favorite status for a song.
-  Future<bool> toggleFavorite(String songId) async {
+  Future<bool> toggleFavorite(String songId, {Song? song}) async {
     final service = ref.read(favoritesServiceProvider);
-    final isFavorite = await service.toggleFavorite(songId);
+    final isFavorite = await service.toggleFavorite(songId, song: song);
 
     // Refresh state
     ref.invalidateSelf();

@@ -323,6 +323,10 @@ void main() {
                   'artist': 'Artist',
                   'duration': 240.5,
                   'sourceURL': 'https://catalog.example/song?id=12',
+                  'audioQuality': 'HI_RES_LOSSLESS',
+                  'codec': 'flac',
+                  'bitDepth': 24,
+                  'sampleRate': 96000,
                 },
               ],
             });
@@ -344,6 +348,10 @@ void main() {
         expect((await addon.health()).name, 'Test addon');
         final tracks = await addon.search('a & b');
         expect(tracks.single.duration, const Duration(milliseconds: 240500));
+        expect(tracks.single.catalogueQuality, 'HI_RES_LOSSLESS');
+        expect(tracks.single.catalogueCodec, 'FLAC');
+        expect(tracks.single.catalogueBitDepth, 24);
+        expect(tracks.single.catalogueSampleRate, 96000);
         expect(
           tracks.single.sourceUrl.toString(),
           'https://catalog.example/song?id=12',
@@ -360,6 +368,17 @@ void main() {
         }
       },
     );
+
+    test('HTTP provider quality fields are optional, invalid claims are ignored', () {
+      expect(providerAudioCodec({'codec': 'audio/flac'}), 'FLAC');
+      expect(providerAudioCodec({'codec': 'not-recognized'}), isNull);
+      expect(providerAudioInteger({'bitDepth': '24'},
+          const ['bitDepth'], min: 8, max: 64), 24);
+      expect(providerAudioInteger({'sampleRate': 96000},
+          const ['sampleRate'], min: 8000), 96000);
+      expect(providerAudioInteger({'sampleRate': '999999999'},
+          const ['sampleRate'], min: 8000), isNull);
+    });
 
     test('inline stream keeps DRM flags and does not bypass policy', () async {
       final client = MockClient(
@@ -409,7 +428,7 @@ void main() {
       );
     });
 
-    test('disallowed caching blocks stream resolution', () async {
+    test('download-prohibited addon permits streaming, not saving', () async {
       final client = MockClient((request) async {
         expect(request.url.path, '/manifest.json');
         return jsonResponse({...manifest, 'allowDownloads': false});
@@ -419,17 +438,19 @@ void main() {
         DiscoveryHttp(client),
         endpoint: 'https://addon.example',
       );
+      final track = DiscoveryTrack(
+        id: '1',
+        title: 't',
+        artist: 'a',
+        source: DiscoverySource.addon,
+        addonBase: addon.base,
+        inlineStream: const {'url': 'https://cdn.example/song.flac'},
+      );
       expect((await addon.health()).cacheAllowed, isFalse);
+      final stream = await addon.resolve(track);
+      expect(stream.url.toString(), 'https://cdn.example/song.flac');
       await expectLater(
-        addon.resolve(
-          DiscoveryTrack(
-            id: '1',
-            title: 't',
-            artist: 'a',
-            source: DiscoverySource.addon,
-            addonBase: addon.base,
-          ),
-        ),
+        addon.resolve(track, forDownload: true),
         throwsA(discoveryFailure),
       );
     });

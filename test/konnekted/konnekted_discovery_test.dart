@@ -147,6 +147,17 @@ class _ReadySpotify extends KonnektedDiscoveryNotifier {
 }
 
 void main() {
+  test('Morneye percentage advances from actual transfer updates despite stale 5% messages', () {
+    final text = MorneyeProgressText('Track', 'Qobuz');
+    expect(text.update(percent: 5, message: 'Loading 5%'),
+        contains('5%'));
+    expect(text.update(percent: 36), contains('36%'));
+    expect(text.update(percent: 5, message: 'Loading 5%'),
+        contains('36%'));
+    expect(text.update(percent: 79), contains('79%'));
+    expect(text.update(percent: 79), isNull);
+  });
+
   setUp(() {
     forgetLastfmSeeds();
     // Discovery remembers the chosen source in preferences.

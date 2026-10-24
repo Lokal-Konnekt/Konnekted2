@@ -101,7 +101,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
 
   static double _depthDistance(double distance) {
     final a = distance.abs();
-    if (a >= 1) return _sideDepth + (a - 1) * .01;
+    if (a >= 1) return _sideDepth;
     return _sideDepth * a * a * (3 - 2 * a);
   }
 

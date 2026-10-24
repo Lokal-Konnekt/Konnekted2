@@ -156,7 +156,8 @@ class _LokalPerformanceAdvisorState
         'getPerformanceSnapshot',
       );
       if (!mounted || !_foreground || snapshot == null) return;
-      samsungRasterMitigations = affectedSamsungModel(
+      LokalPerformanceAdvisor.samsungRasterMitigations =
+          LokalPerformanceAdvisor.affectedSamsungModel(
         snapshot['manufacturer']?.toString() ?? '',
         snapshot['model']?.toString() ?? '',
       );

@@ -96,6 +96,7 @@ class DiscoveryArtworkResolver {
     this.artistPortrait,
     this.searchSongs,
     this.onSourceFailure,
+    this.allowCollaborations = false,
   }) : _now = now ?? DateTime.now;
 
   final DiscoveryHttp _http;
@@ -103,6 +104,9 @@ class DiscoveryArtworkResolver {
   final Future<String?> Function(String name)? artistPortrait;
   /// Optional diagnostics; source domains only, never request URLs or tokens.
   final void Function(String source, String reason)? onSourceFailure;
+  /// Only Discord opts in to official multi-artist credits such as
+  /// "Big Data & Joywave" for a file tagged "Big Data".
+  final bool allowCollaborations;
   final DateTime Function() _now;
 
   static const maxEntries = 1000;
@@ -237,7 +241,15 @@ class DiscoveryArtworkResolver {
         : value is String && titleKey(value) == titleKey(request.title);
     bool matchingArtist(Object? value) =>
         same(value, request.artist) ||
-        value is String && same(mainArtist(value), mainArtist(request.artist));
+        value is String && same(mainArtist(value), mainArtist(request.artist)) ||
+        (!album &&
+            allowCollaborations &&
+            value is String &&
+            artworkArtistsMatch(
+              request.artist,
+              value,
+              allowCollaborations: true,
+            ));
     final deezer = await _rows(
       Uri.https('api.deezer.com', album ? '/search/album' : '/search', {
         'q': album
@@ -310,7 +322,10 @@ class DiscoveryArtworkResolver {
           .split(' ')
           .where((word) => word.length >= 3 && !stopWords.contains(word))
           .toList();
-      if (keywords.length >= 2) {
+      // A one-word title (e.g. "Dangerous") is safe to retry for Discord:
+      // the confidence scorer still requires an exact canonical title and
+      // an accepted primary artist, so random search hits cannot pass.
+      if (keywords.length >= (allowCollaborations ? 1 : 2)) {
         final candidates = <({double score, String title, String url})>[];
         void consider(String title, String artist, String url) {
           final image = allowed(url);
@@ -320,6 +335,7 @@ class DiscoveryArtworkResolver {
             artist: request.artist,
             candidateTitle: title,
             candidateArtist: artist,
+            allowCollaborations: allowCollaborations,
           );
           if (score >= artworkConfidenceThreshold) {
             candidates.add((score: score, title: title, url: image));
@@ -450,12 +466,14 @@ class DiscoveryLocalArtwork {
 DiscoveryArtworkResolver createDiscoveryArtworkResolver(
   DiscoveryHttp web, {
   void Function(String source, String reason)? onSourceFailure,
+  bool allowCollaborations = false,
 }) {
   final youtube = YoutubeMusicCatalog(web, refreshClientContext: true);
   return DiscoveryArtworkResolver(
     web,
     searchSongs: youtube.search,
     onSourceFailure: onSourceFailure,
+    allowCollaborations: allowCollaborations,
     artistPortrait: (name) async {
       final api = AppleMusicMetadataService.instance;
       final artist = await api.resolveArtist(name);

@@ -61,6 +61,96 @@ void main() {
   });
 
 
+  test('mobile Discord resolves Big Data - Dangerous with Joywave credited separately', () async {
+    final terms = <String>[];
+    final client = MockClient((request) async {
+      if (request.url.host != 'itunes.apple.com') {
+        return _json({'data': []});
+      }
+      terms.add(request.url.queryParameters['term'] ?? '');
+      return _json({
+        'results': [
+          {
+            'trackName': 'Dangerous',
+            'artistName': 'David Guetta',
+            'artworkUrl100': 'https://is7-ssl.mzstatic.com/wrong-100x100bb.jpg',
+          },
+          {
+            'trackName': 'Dangerous (Oliver Remix)',
+            'artistName': 'Big Data & Joywave',
+            'artworkUrl100': 'https://is7-ssl.mzstatic.com/remix-100x100bb.jpg',
+          },
+          {
+            'trackName': 'Dangerous',
+            'artistName': 'Big Data & Joywave',
+            'collectionName': '2.0',
+            'trackTimeMillis': 280000,
+            'artworkUrl100': 'https://is7-ssl.mzstatic.com/original-100x100bb.jpg',
+          },
+        ],
+      });
+    });
+    addTearDown(client.close);
+    const request = DiscoveryArtworkRequest(
+      kind: DiscoveryArtworkKind.track,
+      artist: 'Big Data',
+      title: 'Dangerous',
+    );
+    // Strict Discovery matching must not be loosened.
+    expect(await DiscoveryArtworkResolver(DiscoveryHttp(client)).resolve(request), '');
+    // Discord's opt-in path accepts the exact title with a verified lead
+    // artist and returns only the original, not the unrelated/remix hits.
+    final discord = DiscoveryArtworkResolver(
+      DiscoveryHttp(client),
+      allowCollaborations: true,
+    );
+    expect(await discord.resolve(request),
+        'https://is7-ssl.mzstatic.com/original-600x600bb.jpg');
+    expect(terms, contains('Big Data Dangerous'));
+  });
+
+  test('Discord retries a one-word title broadly with the same-artist scorer', () async {
+    final terms = <String>[];
+    final client = MockClient((request) async {
+      if (request.url.host != 'itunes.apple.com') {
+        return _json({'data': []});
+      }
+      final term = request.url.queryParameters['term'] ?? '';
+      terms.add(term);
+      if (term != 'Big Data dangerous') return _json({'results': []});
+      return _json({
+        'results': [
+          {
+            'trackName': 'Dangerous',
+            'artistName': 'Wrong Artist & Joywave',
+            'artworkUrl100': 'https://is7-ssl.mzstatic.com/wrong-100x100bb.jpg',
+          },
+          {
+            'trackName': 'Dangerous (Oliver Remix)',
+            'artistName': 'Big Data & Joywave',
+            'artworkUrl100': 'https://is7-ssl.mzstatic.com/remix-100x100bb.jpg',
+          },
+          {
+            'trackName': 'Dangerous',
+            'artistName': 'Big Data & Joywave',
+            'artworkUrl100': 'https://is7-ssl.mzstatic.com/original-100x100bb.jpg',
+          },
+        ],
+      });
+    });
+    addTearDown(client.close);
+    final discord = DiscoveryArtworkResolver(
+      DiscoveryHttp(client),
+      allowCollaborations: true,
+    );
+    expect(await discord.resolve(const DiscoveryArtworkRequest(
+      kind: DiscoveryArtworkKind.track,
+      artist: 'Big Data',
+      title: 'Dangerous',
+    )), 'https://is7-ssl.mzstatic.com/original-600x600bb.jpg');
+    expect(terms, contains('Big Data dangerous'));
+  });
+
   late List<Uri> requests;
   late Map<String, Object> responses;
   late DateTime now;

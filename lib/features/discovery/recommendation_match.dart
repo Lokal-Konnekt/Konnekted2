@@ -162,6 +162,47 @@ String titleKey(String? title) => recommendationKey(
       .replaceAllMapped(_featSuffix, _stripFeatured),
 );
 
+/// A catalogue sometimes credits a principal artist together with a guest,
+/// e.g. "Big Data & Joywave" for a locally tagged "Big Data" recording.
+/// Only consider the *leading* credited artist, and never split known
+/// comma-containing band names or a single-word band such as "Simon &
+/// Garfunkel" into an unrelated artist.
+String _artworkCollaborationLead(String artist) {
+  final name = mainArtist(artist);
+  if (name.contains(',')) return '';
+  final artists = name.split(
+    RegExp(r'\s+(?:&|and|with|x)\s+', caseSensitive: false),
+  );
+  if (artists.length < 2 || artists.any((value) => value.trim().isEmpty)) {
+    return '';
+  }
+  final first = recommendationKey(artists.first);
+  // A full leading stage name is stronger evidence than a single common
+  // name, which might be part of a band rather than a standalone credit.
+  return first.split(' ').length >= 2 ? first : '';
+}
+
+/// Exact artist credits remain the default. Discord may additionally accept
+/// a separately listed *guest* artist after the exact leading artist.
+bool artworkArtistsMatch(
+  String artist,
+  String candidateArtist, {
+  bool allowCollaborations = false,
+}) {
+  final expected = {
+    recommendationKey(mainArtist(artist)),
+    recommendationKey(leadArtist(artist)),
+  }..remove('');
+  final found = {
+    recommendationKey(mainArtist(candidateArtist)),
+    recommendationKey(leadArtist(candidateArtist)),
+  }..remove('');
+  if (expected.isEmpty || found.isEmpty) return false;
+  if (expected.intersection(found).isNotEmpty) return true;
+  return allowCollaborations &&
+      expected.contains(_artworkCollaborationLead(candidateArtist));
+}
+
 /// Minimum accepted score for a fuzzy *artwork* match. This is never used to
 /// decide which recording to play: a wrong cover should be omitted, not guessed.
 const double artworkConfidenceThreshold = 0.84;
@@ -175,16 +216,13 @@ double artworkMatchConfidence({
   required String artist,
   required String candidateTitle,
   required String candidateArtist,
+  bool allowCollaborations = false,
 }) {
-  final expectedArtists = {
-    recommendationKey(mainArtist(artist)),
-    recommendationKey(leadArtist(artist)),
-  }..remove('');
-  final foundArtists = {
-    recommendationKey(mainArtist(candidateArtist)),
-    recommendationKey(leadArtist(candidateArtist)),
-  }..remove('');
-  if (expectedArtists.isEmpty || foundArtists.intersection(expectedArtists).isEmpty) {
+  if (!artworkArtistsMatch(
+    artist,
+    candidateArtist,
+    allowCollaborations: allowCollaborations,
+  )) {
     return 0;
   }
   final wanted = titleKey(title);

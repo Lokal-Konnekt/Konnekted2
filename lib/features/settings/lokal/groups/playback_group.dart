@@ -2,8 +2,10 @@ import 'package:flick/features/settings/widgets/lyrics_sources_panel.dart';
 import 'package:flick/l10n/l10n.dart';
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
@@ -283,6 +285,18 @@ List<LokalSettingsSection> outputSettings(BuildContext context, WidgetRef ref) {
   final player = ref.watch(playerServiceProvider);
   final locked = player.bitPerfectProcessingLockedNotifier.value;
   return [
+    if (Platform.isIOS)
+      LokalSettingsSection(
+        title: 'Audio output',
+        children: [
+          LokalSettingLink(
+            label: 'AirPlay and headphones',
+            description: 'Choose an output using the iPhone audio controls.',
+            onTap: () => unawaited(const MethodChannel('lokal/ios').invokeMethod<void>('showRoutePicker')),
+          ),
+        ],
+      ),
+    if (!Platform.isIOS)
     LokalSettingsSection(
       title: lokalText('USB DAC'),
       children: [
@@ -295,7 +309,7 @@ List<LokalSettingsSection> outputSettings(BuildContext context, WidgetRef ref) {
         ),
       ],
     ),
-    LokalSettingsSection(
+    if (!Platform.isIOS) LokalSettingsSection(
       title: lokalText('Bluetooth'),
       children: [
         LokalSettingLink(
@@ -310,7 +324,7 @@ List<LokalSettingsSection> outputSettings(BuildContext context, WidgetRef ref) {
     LokalSettingsSection(
       title: lokalText('Volume'),
       children: [
-        LokalSettingRow.toggle(
+        if (!Platform.isIOS) LokalSettingRow.toggle(
           label: lokalText('Extended volume'),
           description: lokalText('Let the volume go past 100 %, up to 200 %.'),
           value: prefs.extendedVolumeEnabled,
@@ -336,7 +350,7 @@ List<LokalSettingsSection> outputSettings(BuildContext context, WidgetRef ref) {
         ),
       ],
     ),
-    LokalSettingsSection(
+    if (!Platform.isIOS) LokalSettingsSection(
       title: lokalText('Background'),
       children: [
         LokalSettingRow.toggle(

@@ -1,0 +1,84 @@
+name: iPhone build and sideload package
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'lib/**'
+      - 'rust/**'
+      - 'rust_builder/**'
+      - 'pubspec.*'
+      - 'integration_test/**'
+      - 'tool/ios_*'
+      - '.github/workflows/ios-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  iphone:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+      IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+      - name: Configure the Apple build
+        run: |
+          xcodebuild -version
+          flutter config --no-enable-swift-package-manager
+          rustup toolchain install 1.98.0 --profile minimal --no-self-update
+          rustup target add --toolchain 1.98.0 aarch64-apple-ios aarch64-apple-ios-sim
+          flutter pub get --enforce-lockfile
+          python3 tool/ios_readiness.py --require-scaffold
+      - name: Check the native build helper before Xcode
+        working-directory: rust_builder/cargokit/build_tool
+        run: |
+          dart pub get --enforce-lockfile
+          dart analyze --no-fatal-warnings lib/src/builder.dart
+      - name: Build the complete app for iOS simulator
+        run: |
+          if ! flutter build ios --simulator --debug --no-pub --verbose > "$RUNNER_TEMP/ios-simulator-build.log" 2>&1; then
+            python3 tool/ios_build_diagnostics.py "$RUNNER_TEMP/ios-simulator-build.log"
+            exit 1
+          fi
+      - name: Build the release iPhone app without signing credentials
+        run: flutter build ios --release --no-codesign --no-pub --build-number '${{ github.run_number }}'
+      - name: Boot an iPhone simulator
+        run: python3 tool/ios_simulator.py
+      - name: Exercise actual startup, FFI and playback
+        run: flutter test integration_test/ios_smoke_test.dart --no-pub -d "$IOS_SIMULATOR_UDID" --timeout 5m
+      - name: Package and inspect unsigned IPA
+        run: python3 tool/ios_package.py build/ios/iphoneos/Runner.app build/ios/ipa/Lokal-unsigned.ipa
+      - name: Preserve dependency locks
+        run: git diff --exit-code -- pubspec.lock rust/Cargo.lock
+      - name: Preserve failed build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: iPhone-build-diagnostics-${{ github.run_number }}
+          path: ${{ runner.temp }}/ios-simulator-build.log
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Lokal-iPhone-unsigned-${{ github.run_number }}
+          path: |
+            build/ios/ipa/*
+            build/ios/iphoneos/*.dSYM
+          if-no-files-found: error
+          retention-days: 14

@@ -27,6 +27,7 @@ import 'package:flick/src/rust/api/logging.dart';
 import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/services/notification_service.dart';
+import 'package:flick/services/ios_library_storage.dart';
 
 Future<void> main() async {
   await runZonedGuarded(_bootstrapApp, (error, stack) {
@@ -77,6 +78,7 @@ Future<void> _bootstrapApp() async {
   unawaited(ProcessExitDiagnosticsService().reportPreviousExits());
 
   await Database.init();
+  await IosLibraryStorage.initialize();
 
   final externalPlaybackHandled = await ExternalPlaybackService().initialize();
   if (!externalPlaybackHandled) {

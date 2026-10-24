@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 BASEDIR=$(dirname "$0")
@@ -10,8 +10,6 @@ BASEDIR=$(cd "$BASEDIR" ; pwd -P)
 NEW_PATH=`echo $PATH | tr ":" "\n" | grep -v "Contents/Developer/" | tr "\n" ":"`
 
 export PATH=${NEW_PATH%?} # remove trailing :
-
-env
 
 # Platform name (macosx, iphoneos, iphonesimulator)
 export CARGOKIT_DARWIN_PLATFORM_NAME=$PLATFORM_NAME

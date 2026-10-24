@@ -5,6 +5,12 @@ This is the implementation ledger for the Flutter fusion. A feature is marked
 "Inherited" means the Flick implementation is present in this repository; it
 does not mean a USB DAC or every Android OEM has been tested here.
 
+The iPhone port is **planned, not delivered**. The [iOS architecture and release
+plan](IOS_PORT.md) audits the ordinary Android feature set and separates optional
+advanced audio work. The native probe workflow is prepared but unrun; there is
+no validated iOS app or IPA. The implementation statuses below do not establish
+iOS support.
+
 ## Konnekted / `flow-feature`
 
 | Area | Status | Evidence / boundary |

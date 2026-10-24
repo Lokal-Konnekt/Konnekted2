@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +11,7 @@ import 'playback_cache_preferences_service.dart';
 import '../data/repositories/folder_repository.dart';
 import '../data/repositories/song_repository.dart';
 import '../data/entities/folder_entity.dart';
+
 import 'package:flick/core/utils/dev_log.dart';
 
 String normalizeFolderIdentifier(String uri) {
@@ -18,9 +20,10 @@ String normalizeFolderIdentifier(String uri) {
     final treeSegments = parsed.pathSegments;
     final treeIndex = treeSegments.indexOf('tree');
     if (treeIndex >= 0 && treeIndex + 1 < treeSegments.length) {
-      final treeId = decodeUriDisplayComponent(
-        treeSegments[treeIndex + 1],
-      ).replaceAll('\\', '/').replaceAll(RegExp(r'/+'), '/').toLowerCase();
+      final treeId = decodeUriDisplayComponent(treeSegments[treeIndex + 1])
+          .replaceAll('\\', '/')
+          .replaceAll(RegExp(r'/+'), '/')
+          .toLowerCase();
       if (treeId == '/' || treeId.endsWith(':')) {
         return treeId;
       }
@@ -117,9 +120,7 @@ class AudioFileInfo {
   factory AudioFileInfo.fromMap(Map<String, dynamic> map) {
     return AudioFileInfo(
       uri: map['uri'] as String,
-      name:
-          map['name'] as String? ??
-          '',
+      name: map['name'] as String? ?? '',
       size: (map['size'] as num?)?.toInt() ?? 0,
       lastModified: (map['lastModified'] as num?)?.toInt() ?? 0,
       mimeType: map['mimeType'] as String?,
@@ -224,13 +225,13 @@ class MusicFolder {
   });
 
   Map<String, dynamic> toJson() => {
-        'uri': uri,
-        'displayName': displayName,
-        'dateAdded': dateAdded.millisecondsSinceEpoch,
-        if (isRemovable != null) 'isRemovable': isRemovable,
-        if (mediaStoreVolume != null) 'mediaStoreVolume': mediaStoreVolume,
-        if (volumeState != null) 'volumeState': volumeState,
-      };
+    'uri': uri,
+    'displayName': displayName,
+    'dateAdded': dateAdded.millisecondsSinceEpoch,
+    if (isRemovable != null) 'isRemovable': isRemovable,
+    if (mediaStoreVolume != null) 'mediaStoreVolume': mediaStoreVolume,
+    if (volumeState != null) 'volumeState': volumeState,
+  };
 
   factory MusicFolder.fromJson(Map<String, dynamic> json) {
     return MusicFolder(
@@ -255,7 +256,9 @@ class FolderAlreadyExistsException implements Exception {
 /// Service for managing music folders and their contents.
 class MusicFolderService {
   static const _channel = MethodChannel('com.mossapps.flick/storage');
-  static const _mediastoreEventChannel = EventChannel('com.mossapps.flick/mediastore_events');
+  static const _mediastoreEventChannel = EventChannel(
+    'com.mossapps.flick/mediastore_events',
+  );
   static const _prefKey = 'music_folders';
 
   final PermissionService _permissionService;
@@ -276,6 +279,9 @@ class MusicFolderService {
     final existingFolders = await getSavedFolders();
     for (final folder in existingFolders) {
       if (folder.uri == uri) {
+        // iOS imports copies into one app-owned library root. Importing more
+        // files into it should rescan that root, preserving library identity.
+        if (Platform.isIOS) return folder;
         throw FolderAlreadyExistsException(
           'This folder has already been added',
         );
@@ -409,11 +415,13 @@ class MusicFolderService {
     bool filterNonMusicFilesAndFolders = true,
   }) async {
     try {
-      final result = await _channel
-          .invokeMethod<List<dynamic>>('listAudioFiles', {
-            'uri': folderUri,
-            'filterNonMusicFilesAndFolders': filterNonMusicFilesAndFolders,
-          });
+      final result = await _channel.invokeMethod<List<dynamic>>(
+        'listAudioFiles',
+        {
+          'uri': folderUri,
+          'filterNonMusicFilesAndFolders': filterNonMusicFilesAndFolders,
+        },
+      );
 
       if (result == null) return [];
 
@@ -431,11 +439,13 @@ class MusicFolderService {
     bool filterNonMusicFilesAndFolders = true,
   }) async {
     try {
-      final result = await _channel
-          .invokeMethod<List<dynamic>>('listPlaylistFiles', {
-            'uri': folderUri,
-            'filterNonMusicFilesAndFolders': filterNonMusicFilesAndFolders,
-          });
+      final result = await _channel.invokeMethod<List<dynamic>>(
+        'listPlaylistFiles',
+        {
+          'uri': folderUri,
+          'filterNonMusicFilesAndFolders': filterNonMusicFilesAndFolders,
+        },
+      );
 
       if (result == null) return [];
 
@@ -650,7 +660,9 @@ class MusicFolderService {
           .map((map) => map.cast<String, dynamic>())
           .toList();
     } on PlatformException catch (e) {
-      throw StorageException('Failed to query MediaStore non-audio: ${e.message}');
+      throw StorageException(
+        'Failed to query MediaStore non-audio: ${e.message}',
+      );
     }
   }
 
@@ -666,7 +678,9 @@ class MusicFolderService {
       if (result == null) return [];
       return result.cast<String>();
     } on PlatformException catch (e) {
-      throw StorageException('Failed to check MediaStore deletions: ${e.message}');
+      throw StorageException(
+        'Failed to check MediaStore deletions: ${e.message}',
+      );
     }
   }
 
@@ -748,9 +762,10 @@ class MusicFolderService {
   }) async {
     try {
       return await _channel.invokeMethod<bool>('deleteDocument', {
-        'folderTreeUri': folderTreeUri,
-        'filePath': filePath,
-      }) ?? false;
+            'folderTreeUri': folderTreeUri,
+            'filePath': filePath,
+          }) ??
+          false;
     } catch (e) {
       devLog('deleteDocument failed: $e');
       return false;
@@ -760,8 +775,9 @@ class MusicFolderService {
   static Future<bool> removeFromMediaStore(String filePath) async {
     try {
       return await _channel.invokeMethod<bool>('removeFromMediaStore', {
-        'filePath': filePath,
-      }) ?? false;
+            'filePath': filePath,
+          }) ??
+          false;
     } catch (e) {
       devLog('removeFromMediaStore failed: $e');
       return false;

@@ -2,11 +2,40 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flick/services/catalogue_quality.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
 import 'package:flick/features/morneye/morneye_packages.dart';
+import 'package:flick/features/morneye/morneye_playback_quality.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
 
 void main() {
+  test('Tidal HIGH/LOW preference survives Atmos catalogue availability', () {
+    const tiers = [
+      {'id': 'DOLBY_ATMOS', 'label': 'Dolby Atmos'},
+      {'id': 'HI_RES_LOSSLESS', 'label': 'HiRes FLAC'},
+      {'id': 'LOSSLESS', 'label': 'Lossless'},
+      {'id': 'HIGH', 'label': 'High'},
+      {'id': 'LOW', 'label': 'Low'},
+    ];
+    expect(explicitMorneyePlaybackTier(atmosRequested: false), isNull);
+    expect(explicitMorneyePlaybackTier(atmosRequested: true), 'DOLBY_ATMOS');
+    for (final quality in ['HIGH', 'LOW', 'LOSSLESS']) {
+      expect(resolveMorneyeRequestQuality(
+        forPlayback: true,
+        requested: explicitMorneyePlaybackTier(atmosRequested: false),
+        configured: quality,
+        options: tiers,
+        provider: 'tidal-web',
+      ), quality);
+    }
+    expect(resolveMorneyeRequestQuality(
+      forPlayback: true,
+      requested: explicitMorneyePlaybackTier(atmosRequested: true),
+      configured: 'LOW',
+      options: tiers,
+      provider: 'tidal-web',
+    ), 'DOLBY_ATMOS');
+  });
+
   test('WEBM/M4A containers are never treated as playback quality codecs', () {
     expect(verifiedAudioCodec('m4a'), isNull);
     expect(verifiedAudioCodec('webm'), isNull);

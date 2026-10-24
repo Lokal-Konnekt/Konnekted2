@@ -131,6 +131,7 @@ class AndroidAudioEngine implements AudioEngine {
     required AndroidPlayerConfigurator configurePlayer,
     required AndroidEngineDisposer disposeEngine,
     AndroidStalledPlayerRetirer? retireStalledPlayer,
+    AndroidPlayerProvider? secondaryPlayerProvider,
     required AndroidTrackSyncBlocker shouldSuppressTrackSync,
     required AndroidTrackIgnorePredicate shouldIgnoreTrack,
     required AndroidFastStartPredicate shouldFastStartCurrentTrackOnly,
@@ -145,6 +146,7 @@ class AndroidAudioEngine implements AudioEngine {
        _configurePlayer = configurePlayer,
        _disposeEngine = disposeEngine,
        _retireStalledPlayer = retireStalledPlayer,
+       _secondaryPlayerProvider = secondaryPlayerProvider,
        _shouldSuppressTrackSync = shouldSuppressTrackSync,
        _shouldIgnoreTrack = shouldIgnoreTrack,
        _shouldFastStartCurrentTrackOnly = shouldFastStartCurrentTrackOnly,
@@ -161,6 +163,7 @@ class AndroidAudioEngine implements AudioEngine {
   final AndroidPlayerConfigurator _configurePlayer;
   final AndroidEngineDisposer _disposeEngine;
   final AndroidStalledPlayerRetirer? _retireStalledPlayer;
+  final AndroidPlayerProvider? _secondaryPlayerProvider;
   final AndroidTrackSyncBlocker _shouldSuppressTrackSync;
   final AndroidTrackIgnorePredicate _shouldIgnoreTrack;
   final AndroidFastStartPredicate _shouldFastStartCurrentTrackOnly;
@@ -218,7 +221,9 @@ class AndroidAudioEngine implements AudioEngine {
   Future<just_audio.AudioPlayer> _ensureSecondary() async {
     final existing = _secondary;
     if (existing != null) return existing;
-    final player = just_audio.AudioPlayer(useProxyForRequestHeaders: false);
+    final player = _secondaryPlayerProvider == null
+        ? just_audio.AudioPlayer(useProxyForRequestHeaders: false)
+        : await _secondaryPlayerProvider!();
     _secondary = player;
     _attachListeners(player);
     await player.setVolume(0);

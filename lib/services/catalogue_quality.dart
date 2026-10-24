@@ -29,6 +29,92 @@ String catalogueQualityLabel(String? value) {
 }
 
 
+
+/// A Full Player badge is a quality *tier*, not a repetition of the
+/// catalogue's bit-depth/sample-rate text. Those precise measurements remain
+/// available in Song Metadata. A catalogue claim is not an audio probe.
+String? catalogueStreamTierLabel({
+  required String? quality,
+  String? codec,
+  int? bitDepth,
+  int? sampleRate,
+}) {
+  final text = quality?.trim() ?? '';
+  switch (text.toUpperCase().replaceAll('-', '_').replaceAll(' ', '_')) {
+    case 'HI_RES_LOSSLESS':
+      return 'HI-RES LOSSLESS';
+    case 'LOSSLESS':
+      return 'LOSSLESS';
+    case 'HIGH':
+      return 'HIGH';
+    case 'LOW':
+      return 'LOW';
+  }
+
+  final advertised = catalogueQualityLabel(quality);
+  final bitText = RegExp(r'(?:^|[^\d])(16|24|32)\s*-?\s*bit', caseSensitive: false)
+      .firstMatch(advertised)?.group(1);
+  final rateText = RegExp(r'(\d{2,3}(?:\.\d+)?)\s*kHz', caseSensitive: false)
+      .firstMatch(advertised)?.group(1);
+  final bits = bitDepth ?? int.tryParse(bitText ?? '');
+  final hz = sampleRate ??
+      (rateText == null ? null : ((double.tryParse(rateText) ?? 0) * 1000).round());
+  if (bits == null && hz == null) return null;
+
+  final format = codec?.trim().toUpperCase() ?? '';
+  const lossless = {'FLAC', 'ALAC', 'WAV', 'WAVE', 'AIFF', 'WAVPACK', 'APE', 'WV'};
+  const lossy = {'AAC', 'MP3', 'OPUS', 'VORBIS', 'OGG'};
+  // A lossy file's decoded PCM width is not lossless source fidelity.
+  if (lossy.contains(format)) return null;
+  if ((bits ?? 0) > 16 || (hz ?? 0) > 48000) {
+    return lossless.contains(format) ? 'HI-RES LOSSLESS' : 'HI-RES';
+  }
+  // Both CD measurements and an actual lossless codec are required to assert
+  // LOSSLESS. Unknown progressive containers must not inherit the tier.
+  if (lossless.contains(format) && bits != null && hz != null) return 'LOSSLESS';
+  return null;
+}
+
+/// Keep Tidal's per-track catalogue metadata visible before playback, even
+/// when a different rendition is requested. Distinguish catalogue availability,
+/// requested settings and an actually verified stream in the visible label.
+({String label, String tooltip}) onlineSearchAudioBadge({
+  String? verifiedQuality,
+  String? requestedQuality,
+  String? catalogueQuality,
+  String? catalogueCodec,
+  int? catalogueBitDepth,
+  int? catalogueSampleRate,
+}) {
+  final verified = verifiedQuality?.trim() ?? '';
+  if (verified.isNotEmpty) {
+    return (
+      label: verified,
+      tooltip: 'Audio details from a resolved stream, not inferred from search metadata.',
+    );
+  }
+  final advertised = catalogueAudioDetails(
+    quality: catalogueQuality,
+    codec: catalogueCodec,
+    bitDepth: catalogueBitDepth,
+    sampleRate: catalogueSampleRate,
+  );
+  final requested = requestedQuality?.trim() ?? '';
+  if (advertised.isNotEmpty) {
+    return (
+      label: requested.isEmpty ? advertised : '$advertised (catalogue)',
+      tooltip: 'Provider-advertised catalogue availability; the configured rendition is verified during playback.',
+    );
+  }
+  return (
+    label: requested,
+    tooltip: requested.isEmpty
+        ? ''
+        : 'Quality requested in add-on settings; the delivered stream is verified during playback.',
+  );
+}
+
+
 // These are advertised source properties, not the actual decoder/output rate.
 // Prefer explicit numerical fields over broad provider labels. Never substitute
 // "24-bit / 96 kHz" merely because the catalogue says HI_RES_LOSSLESS.

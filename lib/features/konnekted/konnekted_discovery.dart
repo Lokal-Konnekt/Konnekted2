@@ -548,6 +548,29 @@ String? morneyeAdvertisedQuality(String? advertised) {
   return quality.isEmpty ? null : quality;
 }
 
+/// Reuse actual audio probe results from a previously prepared song.
+/// A catalogue search can omit Amazon's codec/depth/rate even though the
+/// downloaded file exposes them in Now Playing. Prefer metadata explicitly
+/// reported by the source and never reinterpret the user's quality setting
+/// as a claim about an unplayed song.
+({String? codec, int? bitDepth, int? sampleRate}) morneyeSearchAudioDetails({
+  String? codec,
+  int? bitDepth,
+  int? sampleRate,
+  Song? verifiedPlayback,
+}) {
+  final fileType = verifiedPlayback?.fileType.toUpperCase();
+  const known = {
+    'FLAC', 'ALAC', 'AAC', 'MP3', 'OPUS', 'VORBIS', 'WAV', 'AIFF',
+    'OGG', 'APE', 'WAVPACK', 'WV',
+  };
+  return (
+    codec: codec ?? (known.contains(fileType) ? fileType : null),
+    bitDepth: bitDepth ?? verifiedPlayback?.bitDepth,
+    sampleRate: sampleRate ?? verifiedPlayback?.sampleRate,
+  );
+}
+
 /// Your Morneye add-ons that can play songs right now, as playback sources.
 Future<List<_PlaybackSource>> _morneyeSources(
   MorneyeService service,
@@ -588,27 +611,51 @@ Future<List<_PlaybackSource>> _morneyeSources(
           return verified;
         },
         results: (query) async {
-          return [
-          for (final song in await packages.search(addon.key, query))
-            OnlineResult(
-              DiscoveryTrack(
-                id: song.id,
-                title: song.title,
-                artist: song.artist,
-                album: song.album,
-                duration: song.duration,
-                source: DiscoverySource.morneye,
-                addonId: addon.key,
-                sourceName: addon.displayName,
-                artwork: song.thumbnail,
-                atmosAvailable: song.atmosAvailable,
-                catalogueQuality: morneyeAdvertisedQuality(song.quality),
-                catalogueCodec: song.codec,
-                catalogueBitDepth: song.bitDepth,
-                catalogueSampleRate: song.sampleRate,
-              ),
-            ),
-          ];
+          final found = await packages.search(addon.key, query);
+          // This fingerprint is the same one used for the verified playback
+          // cache. Another account, requested tier or add-on version cannot
+          // borrow a different recording's quality badge.
+          final fingerprint = sha256
+              .convert(utf8.encode(jsonEncode(packages.settings(addon))))
+              .toString();
+          final results = <OnlineResult>[];
+          for (final song in found) {
+            final key = morneyePlaybackCacheKey(
+              addonKey: addon.key,
+              addonDigest: addon.digest,
+              trackId: song.id,
+              settingsFingerprint: fingerprint,
+              requestedTier: song.atmosAvailable ? 'HI_RES_LOSSLESS' : '',
+            );
+            final cached = _morneyeReadyPlayback[key];
+            final verified = cached != null &&
+                cached.filePath != null &&
+                File(cached.filePath!).existsSync()
+                ? cached : null;
+            final details = morneyeSearchAudioDetails(
+              codec: song.codec,
+              bitDepth: song.bitDepth,
+              sampleRate: song.sampleRate,
+              verifiedPlayback: verified,
+            );
+            results.add(OnlineResult(DiscoveryTrack(
+              id: song.id,
+              title: song.title,
+              artist: song.artist,
+              album: song.album,
+              duration: song.duration,
+              source: DiscoverySource.morneye,
+              addonId: addon.key,
+              sourceName: addon.displayName,
+              artwork: song.thumbnail,
+              atmosAvailable: song.atmosAvailable,
+              catalogueQuality: morneyeAdvertisedQuality(song.quality),
+              catalogueCodec: details.codec,
+              catalogueBitDepth: details.bitDepth,
+              catalogueSampleRate: details.sampleRate,
+            )));
+          }
+          return results;
         },
         play: (found) async {
           final progress = MorneyeProgressText(found.title, addon.displayName);

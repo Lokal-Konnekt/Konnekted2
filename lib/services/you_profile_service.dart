@@ -52,7 +52,7 @@ class YouProfileService {
   }) async {
     final normalized = username.trim();
     if (normalized.length > 40 ||
-        RegExp(r'[\\x00-\\x1f\\x7f]').hasMatch(normalized)) {
+        RegExp(r'[\x00-\x1f\x7f]').hasMatch(normalized)) {
       throw const FormatException('Username must be at most 40 characters without control characters.');
     }
     final existing = await load();

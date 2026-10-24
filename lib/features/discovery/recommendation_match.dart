@@ -171,7 +171,7 @@ String _artworkCollaborationLead(String artist) {
   final name = mainArtist(artist);
   if (name.contains(',')) return '';
   final artists = name.split(
-    RegExp(r'\\s+(?:&|and|with|x)\\s+', caseSensitive: false),
+    RegExp(r'\s+(?:&|and|with|x)\s+', caseSensitive: false),
   );
   if (artists.length < 2 || artists.any((value) => value.trim().isEmpty)) {
     return '';

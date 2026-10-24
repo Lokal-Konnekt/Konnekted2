@@ -22,7 +22,7 @@ import java.util.concurrent.Executors
  * GitHub canonicalizes the repository owner from Lokal-Konnekt to lokal-music.
  */
 internal fun isTrustedLokalReleaseApkUrl(url: String): Boolean {
-    val uri = try { URI(url) } catch (_: IllegalArgumentException) { return false }
+    val uri = try { URI(url) } catch (_: java.net.URISyntaxException) { return false }
     if (uri.scheme != "https" ||
         !uri.host.equals("github.com", ignoreCase = true) ||
         uri.rawUserInfo != null ||

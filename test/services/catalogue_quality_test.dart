@@ -375,6 +375,7 @@ void main() {
       requestedQuality: 'HiRes FLAC (requested)',
     );
     expect(firstSearch.label, 'FLAC · 24-bit / 44.1 kHz (catalogue)');
+    expect(firstSearch.requestedLabel, 'HiRes FLAC (requested)');
     expect(firstSearch.tooltip, contains('catalogue'));
 
     final low = onlineSearchAudioBadge(
@@ -386,6 +387,8 @@ void main() {
     );
     expect(low.label, contains('(catalogue)'),
         reason: 'Tidal maximum must never masquerade as selected LOW');
+    expect(low.requestedLabel, 'Low (requested)',
+        reason: 'Changing Tidal quality remains visible in Search');
     final onlyRequest = onlineSearchAudioBadge(
       requestedQuality: 'High (requested)',
     );

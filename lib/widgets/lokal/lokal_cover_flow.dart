@@ -20,8 +20,8 @@ typedef LokalCoverBuilder = Widget Function(AlbumGroup album);
 /// The facing album sits flat and forward; its neighbours hinge around their
 /// inside edge so the outside edge comes towards the viewer, like iTunes.
 /// Covers stack in calibrated perspective behind the facing square. Drag to spin with momentum,
-/// settle on the nearest album with a spring, and feel a tick for every
-/// album that passes. With [onSelect], one tap on any cover brings it forward
+/// settle with monotonic, speed-limited glide motion, and feel a tick
+/// for each album that passes. With [onSelect], one tap on any cover brings it forward
 /// and selects it (Home plays it straight away); long-press the facing cover
 /// to flip it over to its track list. Without [onSelect], a tap brings a side
 /// cover forward and flips the facing one.
@@ -157,7 +157,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     // easeOutCubic's initial derivative is 3. This duration bound limits
     // movement to <= 14 cover positions per second even on a hard fling.
     final ms = (1000 * 3 * distance / _maxGlideSpeed)
-        .clamp(220.0, 1800.0).round();
+        .clamp(220.0, 6000.0).round();
     _position.animateTo(
       target,
       duration: Duration(milliseconds: ms),

@@ -335,4 +335,68 @@ void main() {
         reason: 'Requested quality must not masquerade as decoded audio');
   });
 
+
+  test('Qobuz HTTP full-player badge is a tier rather than a resolution', () {
+    expect(catalogueStreamTierLabel(
+      quality: '24-bit / 44.1 kHz', codec: 'ONLINE',
+    ), 'HI-RES', reason: 'Unknown progressive codec must not assert lossless');
+    expect(catalogueStreamTierLabel(
+      quality: '24bit/44.1kHz', codec: 'FLAC',
+    ), 'HI-RES LOSSLESS');
+    expect(catalogueStreamTierLabel(
+      quality: '16-bit / 44.1 kHz', codec: 'FLAC',
+    ), 'LOSSLESS');
+    expect(catalogueStreamTierLabel(
+      quality: '24bit/96kHz', codec: 'AAC',
+    ), isNull, reason: 'Lossy PCM measurements do not prove hi-res fidelity');
+    expect(catalogueStreamTierLabel(
+      quality: 'FLAC', codec: 'ONLINE',
+    ), isNull, reason: 'A codec name alone cannot imply sample precision');
+    expect(catalogueStreamTierLabel(
+      quality: 'HI_RES_LOSSLESS', codec: 'ONLINE',
+    ), 'HI-RES LOSSLESS', reason: 'Provider advertised its catalogue tier');
+  });
+
+  test('Tidal Morneye Search retains advertised quality before playback', () {
+    final tidal = MorneyeTrack.of({
+      'id': 'tidal-123',
+      'name': 'Example',
+      'artists': ['Artist'],
+      'audio_quality': 'HI_RES_LOSSLESS',
+      'codec': 'FLAC',
+      'bit_depth': 24,
+      'sampling_rate': 44.1,
+    }, 'a-tidal');
+    final firstSearch = onlineSearchAudioBadge(
+      catalogueQuality: tidal.quality,
+      catalogueCodec: tidal.codec,
+      catalogueBitDepth: tidal.bitDepth,
+      catalogueSampleRate: tidal.sampleRate,
+      requestedQuality: 'HiRes FLAC (requested)',
+    );
+    expect(firstSearch.label, 'FLAC · 24-bit / 44.1 kHz (catalogue)');
+    expect(firstSearch.tooltip, contains('catalogue'));
+
+    final low = onlineSearchAudioBadge(
+      catalogueQuality: tidal.quality,
+      catalogueCodec: tidal.codec,
+      catalogueBitDepth: tidal.bitDepth,
+      catalogueSampleRate: tidal.sampleRate,
+      requestedQuality: 'Low (requested)',
+    );
+    expect(low.label, contains('(catalogue)'),
+        reason: 'Tidal maximum must never masquerade as selected LOW');
+    final onlyRequest = onlineSearchAudioBadge(
+      requestedQuality: 'High (requested)',
+    );
+    expect(onlyRequest.label, 'High (requested)',
+        reason: 'Do not fabricate per-track quality if search omits it');
+    final played = onlineSearchAudioBadge(
+      verifiedQuality: 'AAC · 256 kbps',
+      catalogueQuality: tidal.quality,
+      requestedQuality: 'High (requested)',
+    );
+    expect(played.label, 'AAC · 256 kbps');
+  });
+
 }

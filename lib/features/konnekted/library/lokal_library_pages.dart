@@ -62,8 +62,9 @@ Widget? lokalLibraryPage(String name) => switch (name) {
   'favorites' => LokalSongListPage(
     title: lokalText('Liked'),
     source: (ref) => ref.watch(konnektedFavoritesProvider),
-    initialSort: LokalSongSort.original,
-    originalLabel: 'Recently liked',
+    // The Likes page uses the same working sort options as the library.
+    // No misleading "Recently liked" alias for the repository's title order.
+    initialSort: LokalSongSort.recentlyAdded,
     emptyIcon: Icons.favorite_border_rounded,
     emptyTitle: 'No liked songs yet',
     emptyMessage: 'Tap the heart on any song and it shows up here.',

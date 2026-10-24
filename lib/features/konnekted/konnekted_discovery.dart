@@ -25,6 +25,7 @@ import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_store.dart';
 import 'package:flick/features/morneye/morneye_live_playback.dart';
 import 'package:flick/features/morneye/morneye_packages.dart';
+import 'package:flick/features/morneye/morneye_playback_quality.dart';
 import 'package:flick/features/morneye/morneye_runtime.dart';
 import 'package:flick/features/morneye/morneye_service.dart';
 import 'package:flick/features/spotify/spotify_api.dart';
@@ -705,7 +706,8 @@ Future<List<_PlaybackSource>> _morneyeSources(
             throw const DiscoveryException('This track has no advertised Atmos version.');
           }
           final tryAtmos = found.atmosRequested;
-          final requestedTier = tryAtmos ? 'DOLBY_ATMOS' : '';
+          final explicitTier = explicitMorneyePlaybackTier(atmosRequested: tryAtmos);
+          final requestedTier = explicitTier ?? '';
           final cacheKey = morneyePlaybackCacheKey(
             addonKey: addon.key,
             addonDigest: addon.digest,
@@ -803,7 +805,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 'downloadOnly': found.atmosDownload,
               });
               final transfer = fetch(
-                quality: tryAtmos ? 'DOLBY_ATMOS' : null,
+                quality: explicitTier,
               );
               // The host only exposes a live descriptor after a 64 KiB FLAC
               // header check and a known full length. Race that safe first

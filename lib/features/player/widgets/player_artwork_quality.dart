@@ -16,7 +16,7 @@ class PlayerArtworkQuality {
     final host = uri.host.toLowerCase();
     String? upgraded;
 
-    // Spotify album art is the *same image hash* across these sizes.
+    // Spotify album art is the same image hash across these sizes.
     // 640px (b273) is substantially clearer than the 64/160/300px tiles.
     if (host == 'i.scdn.co' && uri.path.startsWith('/image/')) {
       final updated = uri.path.replaceFirst(
@@ -61,24 +61,7 @@ class PlayerArtworkQuality {
         host == 'resources.tidal.com' &&
         uri.path.startsWith('/images/')) {
       final updated = uri.path.replaceFirstMapped(
-        RegExp(r'/(\d{2,4})x(\d{2,4})\.jpg
-      if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
-    }
-
-    // YouTube artwork's max-res rendition is not always uploaded, so the
-    // original remains an explicit fallback.
-    if (upgraded == null &&
-        (host == 'i.ytimg.com' || host == 'img.youtube.com')) {
-      final updated = uri.path.replaceFirst(
-        RegExp(r'/(?:default|mqdefault|hqdefault|sddefault)\.jpg$'),
-        '/maxresdefault.jpg',
-      );
-      if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
-    }
-    return upgraded == null ? [original] : [upgraded, original];
-  }
-}
-),
+        RegExp(r'/(\d{2,4})x(\d{2,4})\.jpg$'),
         (m) => int.parse(m[1]!) < 1280 && int.parse(m[2]!) < 1280
             ? '/1280x1280.jpg'
             : m[0]!,

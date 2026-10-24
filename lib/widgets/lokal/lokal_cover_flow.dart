@@ -277,7 +277,8 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     // A true black gap has no cover polygon. Use DISPLAYED center distances;
     // inverting the nonlinear camera and rounding fractional index space
     // can choose the wrong side of the gap.
-    var best = 0, minimum = double.infinity;
+    var best = 0;
+    var minimum = double.infinity;
     for (var i = 0; i <= _last; i++) {
       final d = i - pos;
       final projected = d.sign * _projectedCenter(d);

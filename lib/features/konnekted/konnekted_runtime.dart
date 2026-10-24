@@ -66,10 +66,19 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void _onPreparationStatus() {
     if (!mounted) return;
     final message = QueuePreResolver.shared.status.value;
-    if (message == null) {
-      _playbackProgress.clear();
-    } else {
+    if (message != null) {
       _playbackProgress.update(message);
+    } else if (_player.isNetworkLoadingNotifier.value) {
+      // The loading state is set at the click/Next event, before source
+      // verification, provider resolution or even engine initialization.
+      final title = _player.onlinePreparationTitleNotifier.value ??
+          _player.currentSongNotifier.value?.title;
+      _playbackProgress.update(
+        title == null || title.isEmpty ? 'Preparing audio…'
+            : 'Preparing $title…',
+      );
+    } else {
+      _playbackProgress.clear();
     }
   }
 
@@ -136,7 +145,11 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _player = ref.read(playerServiceProvider);
     _player.isPlayingNotifier.addListener(_updateIconBusy);
     _player.isNetworkLoadingNotifier.addListener(_updateIconBusy);
+    _player.isNetworkLoadingNotifier.addListener(_onPreparationStatus);
+    _player.currentSongNotifier.addListener(_onPreparationStatus);
+    _player.onlinePreparationTitleNotifier.addListener(_onPreparationStatus);
     _updateIconBusy();
+    _onPreparationStatus();
     _run(
       'Discord presence',
       () => DiscordPresenceService.instance.start(_player),
@@ -338,6 +351,9 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _playbackProgress.dispose();
     _player.isPlayingNotifier.removeListener(_updateIconBusy);
     _player.isNetworkLoadingNotifier.removeListener(_updateIconBusy);
+    _player.isNetworkLoadingNotifier.removeListener(_onPreparationStatus);
+    _player.currentSongNotifier.removeListener(_onPreparationStatus);
+    _player.onlinePreparationTitleNotifier.removeListener(_onPreparationStatus);
     _jobProgress.dispose();
     _jobNotification.dispose();
     _widgetSync.close();

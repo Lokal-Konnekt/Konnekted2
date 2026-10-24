@@ -243,6 +243,7 @@ class MorneyeTrack {
     this.discNumber,
     this.year,
     this.quality,
+    this.codec,
     this.bitDepth,
     this.sampleRate,
     this.atmosAvailable = false,
@@ -261,6 +262,7 @@ class MorneyeTrack {
   final int? discNumber;
   final int? year;
   final String? quality;
+  final String? codec;
   final int? bitDepth;
   final int? sampleRate;
   final bool atmosAvailable;
@@ -289,6 +291,21 @@ class MorneyeTrack {
         track['bits_per_sample'] ?? track['bitsPerSample'] ??
         track['maximum_bit_depth'] ?? track['maxBitDepth']);
     return bits != null && bits <= 64 ? bits : null;
+  }
+
+  static String? _codec(Map track) {
+    final raw = track['codec'] ?? track['audio_codec'] ??
+        track['audioCodec'] ?? track['audio_format'] ??
+        track['audioFormat'] ?? track['format'];
+    final text = raw?.toString().toLowerCase() ?? '';
+    if (text.contains('flac')) return 'FLAC';
+    if (text.contains('alac')) return 'ALAC';
+    if (text.contains('opus')) return 'OPUS';
+    if (text.contains('vorbis')) return 'VORBIS';
+    if (text.contains('eac3') || text.contains('ec-3')) return 'E-AC-3';
+    if (text.contains('aac') || text.contains('mp4a')) return 'AAC';
+    if (text.contains('mp3') || text.contains('mpeg')) return 'MP3';
+    return null;
   }
 
   static MorneyeTrack of(Map track, String provider) {
@@ -331,6 +348,7 @@ class MorneyeTrack {
         '${track['release_date'] ?? ''}'.padRight(4).substring(0, 4).trim(),
       ),
       quality: (track['audio_quality'] ?? track['audioQuality'] ?? track['quality'])?.toString(),
+      codec: _codec(track),
       bitDepth: _bitDepth(track),
       sampleRate: _sampleRate(track),
       atmosAvailable: tidalAtmosAvailable(track),

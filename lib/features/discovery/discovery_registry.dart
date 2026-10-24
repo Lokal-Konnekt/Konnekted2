@@ -25,13 +25,14 @@ class DiscoverySourceRegistry {
   Future<ResolvedDiscoveryAudio> resolve(
     DiscoveryTrack track, {
     Future<void>? cancel,
+    bool forDownload = false,
   }) async {
     if (track.source == DiscoverySource.addon && track.addonId != null) {
       for (final addon in addons) {
         if (addon.configId == track.addonId) {
           // Also checks endpoint identity before any request: editing a source
           // must not send an old row/inline media URL to a newly selected host.
-          return addon.resolve(track, cancel: cancel);
+          return addon.resolve(track, cancel: cancel, forDownload: forDownload);
         }
       }
     }

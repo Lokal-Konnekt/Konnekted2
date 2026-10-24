@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -160,6 +161,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Play Dolby Atmos'), findsNothing);
     expect(find.text('Download Dolby Atmos'), findsNothing);
+  });
+
+  testWidgets('tap shows preparation toast before slow provider verification', (tester) async {
+    final verified = Completer<bool>();
+    final player = _FakePlayer();
+    final source = OnlineSource(
+      id: 'slow-http',
+      name: 'HTTP Music',
+      addon: true,
+      verify: (_) => verified.future,
+      results: (_) async => [
+        const OnlineResult(DiscoveryTrack(
+          id: 'song', title: 'Preparing now', artist: 'Artist',
+          source: DiscoverySource.addon,
+        )),
+      ],
+      play: (_) async => throw StateError('not reached'),
+    );
+    await _pump(tester, sources: [source], player: player);
+    await tester.tap(find.text('Preparing now'));
+    await tester.pump();
+    expect(find.textContaining('Preparing Preparing now'), findsOneWidget);
+    expect(player.played, isEmpty);
+    verified.complete(true);
+    await tester.pumpAndSettle();
+    expect(player.played.single.title, 'Preparing now');
   });
 
   testWidgets('add-ons appear as sources and their results play on tap', (

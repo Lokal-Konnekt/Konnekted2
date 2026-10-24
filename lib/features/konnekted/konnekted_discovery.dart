@@ -9,6 +9,7 @@ import 'package:flick/features/discovery/discovery_artwork.dart'
 import 'package:flick/features/discovery/discovery_http.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/discovery_playback.dart';
+import 'package:flick/features/discovery/discovery_progressive_streams.dart';
 import 'package:flick/features/discovery/discovery_registry.dart';
 import 'package:flick/features/discovery/discovery_settings.dart';
 import 'package:flick/features/discovery/discovery_sources.dart';
@@ -558,6 +559,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 artwork: song.thumbnail,
                 atmosAvailable: song.atmosAvailable,
                 catalogueQuality: song.quality,
+                catalogueCodec: song.codec,
                 catalogueBitDepth: song.bitDepth,
                 catalogueSampleRate: song.sampleRate,
               ),
@@ -771,18 +773,24 @@ class MorneyeProgressText {
 
   /// The line to show now, or null when it says what was said already.
   String? update({double? percent, String? message}) {
-    if (percent != null && percent.isFinite && percent > 0) {
-      _percent = percent.clamp(0, 100).round();
+    if (percent != null && percent.isFinite && percent >= 0) {
+      final measured = percent.clamp(0, 100).round();
+      _percent = _percent == null || measured > _percent! ? measured : _percent;
     }
     final words = message?.trim() ?? '';
     final prefix = 'Getting $title from $source…';
     final percentText = _percent == null ? '' : ' $_percent%';
     final RegExp numbered = RegExp(r'\d+(\.\d+)?\s*%');
+    // An add-on may keep emitting its initial 5% even after host transfer
+    // bytes/segments advance. Prefer the highest measured progress instead
+    // of letting a stale guest message jump the toast backwards.
+    final normalizedWords = _percent == null ? words
+        : words.replaceAllMapped(numbered, (_) => '${_percent!}%');
     final text = words.isEmpty
         ? (_percent == null ? prefix : '$prefix$percentText')
-        : numbered.hasMatch(words)
-        ? '$prefix ${words.replaceAll(RegExp(r'\s+'), ' ')}'
-        : '$prefix ${words.replaceAll(RegExp(r'\s+'), ' ')}$percentText';
+        : numbered.hasMatch(normalizedWords)
+        ? '$prefix ${normalizedWords.replaceAll(RegExp(r'\s+'), ' ')}'
+        : '$prefix ${normalizedWords.replaceAll(RegExp(r'\s+'), ' ')}$percentText';
     if (text == _said) return null;
     _said = text;
     return text;
@@ -809,6 +817,32 @@ DiscoveryPlaybackCache _playbackCache(
 
 /// YouTube Music, then your web add-ons, then your Morneye add-ons:
 /// desktop's order.
+/// HTTP add-ons provide an independently authorized progressive HTTPS URL.
+/// Pass it directly to Android Media3. Unlike download-only Morneye sources,
+/// no full-file staging or format probe is needed before the first audio
+/// frame. Never store signed URLs in a queue or persistence layer.
+Song progressiveAddonSong(DiscoveryTrack track, ResolvedDiscoveryAudio audio) {
+  final handle = DiscoveryProgressiveStreams.instance.register(audio.url);
+  final artwork = track.artwork;
+  final ext = audio.url.pathSegments.isEmpty
+      ? '' : audio.url.pathSegments.last.split('.').last.toLowerCase();
+  final codec = const {'flac', 'mp3', 'm4a', 'aac', 'ogg', 'opus', 'wav', 'webm'}
+      .contains(ext) ? ext.toUpperCase() : 'ONLINE';
+  return Song(
+    id: 'discovery:${track.key.hashCode}:progressive',
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    albumArt: artwork,
+    duration: track.duration ?? Duration.zero,
+    fileType: codec,
+    filePath: handle,
+    sourcePackage: 'konnekted.progressive',
+    remoteId: track.id,
+    isExternal: true,
+  );
+}
+
 Future<List<OnlineSource>> _playbackSources(
   DiscoveryHttp web,
   DiscoverySettings settings,
@@ -816,6 +850,8 @@ Future<List<OnlineSource>> _playbackSources(
   void Function(String status)? onStatus,
   MorneyeService morneye, {
   Future<void>? cancel,
+  bool forDownload = false,
+  bool includeMorneye = true,
 }) async {
   final registry = DiscoverySourceRegistry(web, settings);
   final youtube = YoutubeAudio(web);
@@ -838,13 +874,31 @@ Future<List<OnlineSource>> _playbackSources(
           for (final track in await addon.search(query))
             OnlineResult(track, artwork: track.artwork),
         ],
-        play: (found) async => cache().prepare(
-          found,
-          await registry.resolve(found),
-          cancel: cancel,
-        ),
+        play: (found) async {
+          onStatus?.call('Connecting to ${addon.displayName}…');
+          final audio = await registry.resolve(
+            found, cancel: cancel, forDownload: forDownload,
+          );
+          if (forDownload) {
+            return cache().prepare(
+              found, audio, cancel: cancel,
+              onProgress: (received) {
+                if (audio.length case final total? when total > 0) {
+                  onStatus?.call('Downloading from ${addon.displayName}… '
+                      '${(received * 100 / total).clamp(0, 100).round()}%');
+                } else {
+                  onStatus?.call('Downloading from ${addon.displayName}…');
+                }
+              },
+            );
+          }
+          final song = progressiveAddonSong(found, audio);
+          onStatus?.call('Buffering from ${addon.displayName}…');
+          return song;
+        },
       ),
-    ...await _morneyeSources(morneye, cache, onStatus, cancel: cancel),
+    if (includeMorneye)
+      ...await _morneyeSources(morneye, cache, onStatus, cancel: cancel),
   ], (source) => source.id);
 }
 
@@ -885,6 +939,7 @@ Future<Song> playOnlineTrack(
   DiscoverySettingsStore? store,
   MorneyeService? morneye,
   http.Client? client,
+  bool forDownload = false,
 }) async {
   var settings = const DiscoverySettings();
   try {
@@ -903,6 +958,10 @@ Future<Song> playOnlineTrack(
       onStatus,
       morneye ?? MorneyeService.instance,
       cancel: cancel,
+      forDownload: forDownload,
+      // HTTP and native YouTube playback must not wait for unrelated Morneye
+      // add-on initialization or verification before source resolution.
+      includeMorneye: sourceId.startsWith('a-'),
     );
     final source = sources.where((s) => s.id == sourceId).firstOrNull;
     if (source == null) {

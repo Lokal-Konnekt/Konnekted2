@@ -69,7 +69,7 @@ class _Player implements ja.AudioPlayer {
   @override
   double get speed => 1;
   @override
-  Future<void> setVolume(double volume) async => currentVolume = volume;
+  Future<void> setVolume(double volume) async { currentVolume = volume; }
   @override
   Future<void> setSpeed(double speed) async {}
   @override
@@ -147,6 +147,7 @@ void main() {
     final stalledFade = _Player();
     final nextFade = _Player();
     final fadePlayers = [stalledFade, nextFade];
+    Song? nextSong;
     var fadeCreations = 0;
     final retired = <ja.AudioPlayer>[];
     final first = Song(
@@ -165,6 +166,7 @@ void main() {
       fileType: 'FLAC',
       filePath: '/second.flac',
     );
+    nextSong = second;
     final engine = AndroidAudioEngine(
       playerProvider: () async => primary,
       secondaryPlayerProvider: () async => fadePlayers[fadeCreations++],
@@ -184,7 +186,7 @@ void main() {
         durationSecs: 3,
         curve: AndroidCrossfadeCurve.linear,
       ),
-      onNextSong: () => second,
+      onNextSong: () => nextSong,
     );
     addTearDown(() async {
       stalledFade.hungLoad?.complete();
@@ -218,6 +220,7 @@ void main() {
     // never simultaneously in the secondary slot.
     await engine.load(second);
     expect(primary.loads, 2);
+    nextSong = first;
     primary.positions.add(const Duration(minutes: 2, seconds: 58));
     for (var i = 0; i < 6; i++) {
       await tester.pump();

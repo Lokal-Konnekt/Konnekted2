@@ -61,11 +61,10 @@ jobs:
       - name: Restore compiled Rust dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 (Node 24)
         with:
-          # Cargokit still invokes cargo build --locked for both ARM targets.
+          # Cargokit builds the sole ARM64 Rust target.
           # Cargo fingerprints determine which crates must be rebuilt.
           path: |
             build/rust_lib_flick_player/build/aarch64-linux-android
-            build/rust_lib_flick_player/build/armv7-linux-androideabi
             build/rust_lib_flick_player/build/release
           key: beta-rust-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml', 'rust/cargokit.yaml', 'rust_builder/cargokit/**', '.github/actions/android-toolchain/action.yml', 'tool/ci_android.py', 'android/app/build.gradle.kts') }}-${{ hashFiles('rust/**') }}
           restore-keys: |

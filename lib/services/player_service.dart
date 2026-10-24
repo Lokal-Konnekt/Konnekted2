@@ -152,6 +152,15 @@ enum LoopMode {
   };
 }
 
+/// Ignore stale playback events while an online placeholder or its resolved
+/// version is being installed. In particular an old Media3 stop() event must
+/// never rewind the current song or its carousel position.
+@visibleForTesting
+bool shouldHoldPendingPresentation(String? expectedTrackId, Song? engineTrack) =>
+    expectedTrackId != null &&
+    (engineTrack == null || engineTrack.id != expectedTrackId ||
+        engineTrack.isPending);
+
 @visibleForTesting
 bool shouldReplaceQueuedAudioSource(Song queued, Song selected) =>
     queued.id == selected.id &&
@@ -778,6 +787,11 @@ class PlayerService {
   void _cancelPendingPlayback() {
     _pendingPlaybackGeneration++;
     if (_pendingPlaybackId == null) return;
+    // Cancelling an unresolved selection must also release the old engine
+    // presentation hold. A resolved-track handoff has no pending ID here.
+    if (_pendingPresentationTrackId == _pendingPlaybackId) {
+      _pendingPresentationTrackId = null;
+    }
     _pendingPlaybackId = null;
     cancelPendingSongResolution?.call();
     isNetworkLoadingNotifier.value = false;
@@ -785,6 +799,11 @@ class PlayerService {
 
   /// The placeholder being looked up to play now, if any.
   String? _pendingPlaybackId;
+
+  /// The engine can emit the *previous* track while stopping its audio sink
+  /// or loading the next pending stream. Never let that old state overwrite
+  /// the selected pending song / queue index until the requested source loads.
+  String? _pendingPresentationTrackId;
 
   /// Placeholders skipped in a row because they couldn't be found: stops a
   /// queue of unplayable songs from going round forever.
@@ -835,6 +854,11 @@ class PlayerService {
     _pendingPlaybackId = pending.id;
     onlinePlaybackError.value = null;
     _markOnlinePreparation(pending);
+    _pendingPresentationTrackId = pending.id;
+    isPlayingNotifier.value = false;
+    positionNotifier.value = Duration.zero;
+    bufferedPositionNotifier.value = Duration.zero;
+    durationNotifier.value = pending.duration;
     currentSongNotifier.value = pending;
     _playbackManager.updateTrack(pending);
     try {
@@ -865,6 +889,8 @@ class PlayerService {
         // toast visible while Media3 opens/buffers the resolved source.
         onlinePreparationTitleNotifier.value = resolved.title;
         isNetworkLoadingNotifier.value = true;
+        // Shield the resolved source from the previous decoder's stop event.
+        _pendingPresentationTrackId = resolved.id;
         _pendingFailures = 0;
         replacePendingSong(pending.id, resolved);
         final song = resolved;
@@ -882,6 +908,9 @@ class PlayerService {
       _debugLog('[Playback] ${pending.title} not found; skipping');
       if (++_pendingFailures >= _playlist.length) {
         _pendingFailures = 0;
+        if (_pendingPresentationTrackId == pending.id) {
+          _pendingPresentationTrackId = null;
+        }
         return;
       }
       await _enqueuePlaybackRequest(() async {
@@ -2179,6 +2208,9 @@ class PlayerService {
     try {
       await _resumeInternal();
     } catch (e, stackTrace) {
+      if (_pendingPresentationTrackId == currentSongNotifier.value?.id) {
+        _pendingPresentationTrackId = null;
+      }
       final recovered = await _handleDirectUsbStartupRefusal(
         e,
         song: currentSongNotifier.value,
@@ -3386,6 +3418,18 @@ class PlayerService {
     _playbackDiagnosticsDebounceTimer = null;
     _playbackStateSubscription?.cancel();
     _playbackStateSubscription = _playbackManager.playbackState.listen((state) {
+      final presentedId = _pendingPresentationTrackId;
+      if (shouldHoldPendingPresentation(presentedId, state.currentTrack)) {
+        // A previous song's paused/idle state can arrive asynchronously after
+        // tapping Next. It must not undo the pending track selection or send
+        // the carousel/mini-player backwards while downloading.
+        if (isPlayingNotifier.value) isPlayingNotifier.value = false;
+        return;
+      }
+      if (presentedId != null && state.currentTrack?.id == presentedId &&
+          state.currentTrack?.isPending != true) {
+        _pendingPresentationTrackId = null;
+      }
       final previous = _lastPlaybackState;
       _lastPlaybackState = state;
 
@@ -3816,6 +3860,8 @@ class PlayerService {
   }
 
   void _stopPlayback() async {
+    _cancelPendingPlayback();
+    _pendingPresentationTrackId = null;
     _wasPlayingBeforeAudioInterruption = false;
     _crossfadeUiHandoffFromPath = null;
     await _savePosition();
@@ -5200,6 +5246,7 @@ class PlayerService {
       }
 
       if (song.filePath != null) {
+        _pendingPresentationTrackId = song.id;
         _pendingFailures = 0;
         await _prepareImmediatePlaybackAsset(song);
         // Route changes are already pushed into the session manager via the
@@ -5261,6 +5308,9 @@ class PlayerService {
       );
       if (rustRecovered) {
         return;
+      }
+      if (_pendingPresentationTrackId == song.id) {
+        _pendingPresentationTrackId = null;
       }
       AppLog.instance.add(
         '[Playback] Failed to start ${song.title} on ${currentEngineType.logLabel}: $e',

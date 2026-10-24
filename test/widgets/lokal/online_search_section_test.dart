@@ -55,13 +55,17 @@ class _FakePlayer extends PlayerNotifier {
   final Song? current;
   final queued = <Song>[];
   final played = <Song>[];
+  final playedPlaylists = <List<Song>>[];
 
   @override
   Future<void> play(
     Song song, {
     List<Song>? playlist,
     PlaybackContext? context,
-  }) async => played.add(song);
+  }) async {
+    played.add(song);
+    playedPlaylists.add(List<Song>.of(playlist ?? const []));
+  }
   final movedToNext = <int>[];
 
   @override
@@ -211,6 +215,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(player.played.single.title, 'From Tidal');
     expect(player.played.single.isPending, isTrue);
+  });
+
+  testWidgets('tapping a middle online result enqueues following search results', (tester) async {
+    final player = _FakePlayer();
+    final resolver = QueuePreResolver();
+    await _pump(
+      tester,
+      player: player,
+      pendingSong: (source, track) =>
+          onlinePendingSong(source.id, track, resolver: resolver),
+      sources: [
+        _source('yt', 'YouTube Music',
+            ['Result one', 'Result two', 'Result three', 'Result four']),
+      ],
+    );
+    await tester.tap(find.text('Result two'));
+    await tester.pumpAndSettle();
+    expect(player.played.single.title, 'Result two');
+    final playlist = player.playedPlaylists.single;
+    expect(playlist.map((s) => s.title),
+        ['Result one', 'Result two', 'Result three', 'Result four']);
+    expect(playlist.every((song) => song.isPending), true);
+    expect(playlist[2].title, 'Result three');
   });
 
   testWidgets(

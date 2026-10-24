@@ -249,6 +249,44 @@ void main() {
       expect(lookups.asked, hasLength(4), reason: 'only four ahead');
     });
 
+    testResolver('repeated queue updates do not postpone the two-second stagger', (tester) async {
+      host.playlist = [
+        _owned('now'),
+        for (var i = 1; i <= 5; i++) pending('k$i'),
+      ];
+      resolver.schedule();
+      expect(lookups.asked, ['k1']);
+      await tester.pump(const Duration(seconds: 1));
+      resolver.schedule(); // e.g. Discovery refreshed the upcoming queue.
+      await tester.pump(const Duration(seconds: 1));
+      expect(lookups.asked, ['k1', 'k2']);
+      resolver.schedule();
+      await tester.pump(const Duration(seconds: 2));
+      expect(lookups.asked, ['k1', 'k2', 'k3']);
+      await tester.pump(const Duration(seconds: 2));
+      expect(lookups.asked, ['k1', 'k2', 'k3', 'k4']);
+    });
+
+    testResolver('skipping to a pending song retains other preloading work', (tester) async {
+      host.playlist = [
+        _owned('now'),
+        for (var i = 1; i <= 6; i++) pending('k$i'),
+      ];
+      resolver.schedule();
+      await tester.pump(const Duration(seconds: 2));
+      expect(lookups.asked, ['k1', 'k2']);
+      host.playAt(1);
+      final selected = host.playlist[1];
+      final ready = resolver.resolveNow(selected);
+      expect(lookups.asked.where((key) => key == 'k1'), hasLength(1));
+      expect(lookups.cancelled, isNot(contains('k2')));
+      lookups.answer('k1');
+      expect((await ready)?.id, 'discovery:k1');
+      await tester.pump(const Duration(seconds: 2));
+      expect(lookups.asked, contains('k3'));
+      expect(lookups.cancelled, isNot(contains('k2')));
+    });
+
     testResolver('only placeholders are looked up, owned songs are skipped', (
       tester,
     ) async {
@@ -390,7 +428,7 @@ void main() {
       expect(lookups.asked, ['k9']);
       lookups.answer('k9');
       expect((await ready)?.filePath, '/cache/k9.m4a');
-      expect(statuses, ['Getting k9 from Somewhere…', null]);
+      expect(statuses, ['Preparing k9…', 'Getting k9 from Somewhere…', null]);
       // Asked again soon after: answered from what was found.
       expect((await resolver.resolveNow(song))?.id, 'discovery:k9');
       expect(lookups.asked, ['k9']);

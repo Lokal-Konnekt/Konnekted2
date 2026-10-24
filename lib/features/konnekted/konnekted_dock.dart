@@ -11,6 +11,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
+import 'package:flick/widgets/common/overflow_marquee_title.dart';
 import 'package:flick/providers/player_provider.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flick/widgets/lokal/lokal_toast.dart';
@@ -748,10 +749,14 @@ class KonnektedMiniPlayerContent extends StatelessWidget {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      song.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    // Match the other mini-player layouts:
+                                    // only pan if the title exceeds the space
+                                    // left by artwork and playback controls.
+                                    // A song ID key restarts at the beginning
+                                    // instead of inheriting the old scroll.
+                                    OverflowMarqueeTitle(
+                                      key: ValueKey('dock-mini-title:${song.id}'),
+                                      title: song.title,
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,

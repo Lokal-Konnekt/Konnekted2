@@ -56,7 +56,7 @@ object LokalLibrarySyncNotification {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             val builder = NotificationCompat.Builder(context, channel)
-                .setSmallIcon(R.drawable.ic_lokal_fg_mono)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(call.argument<String>("title") ?: "Library sync")
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))

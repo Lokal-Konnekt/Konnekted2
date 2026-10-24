@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Placeholder shown when no album art is available. Flick logo centered, larger and slightly lower. -->
+<!-- Lokal CD placeholder when no album artwork is available. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
@@ -9,8 +9,7 @@
     </item>
     <item
         android:gravity="center"
-        android:width="48dp"
-        android:height="58dp"
-        android:top="4dp"
-        android:drawable="@drawable/widget_flick_logo" />
+        android:width="54dp"
+        android:height="54dp"
+        android:drawable="@drawable/ic_notification" />
 </layer-list>

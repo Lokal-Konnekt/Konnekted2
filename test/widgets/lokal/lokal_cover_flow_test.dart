@@ -79,7 +79,53 @@ void main() {
         reason: 'left outside edge must appear closer than the inside edge');
     expect(scaleAtEdge(right, size), greaterThan(scaleAtEdge(right, 0)),
         reason: 'right outside edge must appear closer than the inside edge');
+    // iTunes reference: the centered square ends at ±.50 * size. The
+    // neighbors' inner hinges must sit INSIDE that boundary (±.42 * size),
+    // so the center square visually occludes them, not merely touches them.
+    // Read the projected hinge, including perspective's homogeneous divide,
+    // rather than asserting only the unprojected translation constant.
+    double projectedOffset(Transform transform) =>
+        transform.transform.entry(0, 3) / transform.transform.entry(3, 3);
+    final leftInsideEdge = projectedOffset(left) + size / 2;
+    final rightInsideEdge = projectedOffset(right) - size / 2;
+    expect(leftInsideEdge, closeTo(-size * .42, size * .01),
+        reason: 'left inside edge must sit behind the center artwork');
+    expect(rightInsideEdge, closeTo(size * .42, size * .01),
+        reason: 'right inside edge must sit behind the center artwork');
+    expect(leftInsideEdge, greaterThan(-size * .50 + size * .07));
+    expect(rightInsideEdge, lessThan(size * .50 - size * .07));
+    expect(left.transform.entry(2, 3), lessThan(0),
+        reason: 'left neighbor must remain at negative depth');
+    expect(right.transform.entry(2, 3), lessThan(0),
+        reason: 'right neighbor must remain at negative depth');
+    // Flutter paints the farthest covers first, the center cover last.
+    final coverStack = tester.widgetList<Stack>(
+      find.descendant(
+        of: find.byType(LokalCoverFlow),
+        matching: find.byType(Stack),
+      ),
+    ).firstWhere((stack) => stack.children.whereType<Positioned>().length == 5);
+    expect(coverStack.children.last.key, const ValueKey('Third'),
+        reason: 'selected cover must cover both neighbors in paint order');
     expect(find.byType(ColoredBox), findsWidgets);
+  });
+
+  test('tucked-under hinge spacing is C1-continuous at the first neighbor', () {
+    // Regression for the original flush-at-border .52 geometry.
+    const hinge = .42;
+    const shift = .52 - hinge;
+    double inside(double a) => a >= 1
+        ? hinge + (a - 1) * .34
+        : .66 * a - .10 * a * a - .04 * a * a * a
+            - shift * (3 * a * a - 2 * a * a * a);
+    const e = .00001;
+    expect(inside(0), 0);
+    expect(inside(1), closeTo(.42, 1e-9));
+    expect(inside(2) - inside(1), closeTo(.34, 1e-9));
+    expect((inside(1) - inside(1 - e)) / e,
+        closeTo((inside(1 + e) - inside(1)) / e, .001));
+    expect((inside(e) - inside(0)) / e,
+        closeTo((inside(0) - inside(-e)) / e, .001));
   });
 
   testWidgets('Home Cover Flow starts centered for odd and even shelves', (

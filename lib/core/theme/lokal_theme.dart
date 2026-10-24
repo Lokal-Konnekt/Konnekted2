@@ -86,8 +86,9 @@ abstract final class LokalTheme {
         color: t.accent,
         linearTrackColor: t.border,
       ),
-      // Fallback for legacy PopupMenuButton / DropdownButton / MenuAnchor
-      // controls throughout the app. Primary actions use LokalChoiceSheet.
+      // Fallback for remaining PopupMenuButton / DropdownMenu / MenuAnchor
+      // controls throughout the app. Legacy DropdownButton uses canvasColor;
+      // primary selection actions use LokalChoiceSheet.
       popupMenuTheme: PopupMenuThemeData(
         color: t.surface2,
         surfaceTintColor: Colors.transparent,
@@ -98,11 +99,6 @@ abstract final class LokalTheme {
         ),
         elevation: 8,
         position: PopupMenuPosition.under,
-      ),
-      dropdownButtonTheme: DropdownButtonThemeData(
-        style: TextStyle(fontFamily: sans, color: t.text, fontSize: 15),
-        iconEnabledColor: t.accent,
-        borderRadius: BorderRadius.circular(16),
       ),
       dropdownMenuTheme: DropdownMenuThemeData(
         textStyle: TextStyle(fontFamily: sans, color: t.text, fontSize: 15),

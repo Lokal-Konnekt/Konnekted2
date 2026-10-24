@@ -137,37 +137,41 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
     };
     int byTitle(Song a, Song b) =>
         titleKeys[a.id]!.compareTo(titleKeys[b.id]!);
+    final direction = _descending ? -1 : 1;
     switch (_sort) {
       case LokalSongSort.original:
-        break;
+        // This is the one case with no sort key. Reversing the visible list
+        // must never mutate the persisted playlist order.
+        if (_descending) {
+          songs.setAll(0, songs.reversed.toList(growable: false));
+        }
       case LokalSongSort.recentlyAdded:
         songs.sort((a, b) {
           final c = (a.dateAdded ?? _epochDate).compareTo(
             b.dateAdded ?? _epochDate,
           );
-          return c != 0 ? c : byTitle(a, b);
+          return c != 0 ? c * direction : byTitle(a, b);
         });
       case LokalSongSort.title:
-        songs.sort(byTitle);
+        songs.sort((a, b) => byTitle(a, b) * direction);
       case LokalSongSort.artist:
         final artistKeys = <String, String>{
           for (final song in songs) song.id: song.artist.toLowerCase(),
         };
         songs.sort((a, b) {
           final c = artistKeys[a.id]!.compareTo(artistKeys[b.id]!);
-          return c != 0 ? c : byTitle(a, b);
+          return c != 0 ? c * direction : byTitle(a, b);
         });
       case LokalSongSort.mostPlayed:
         songs.sort((a, b) {
           final c = (counts[a.id] ?? 0).compareTo(counts[b.id] ?? 0);
-          return c != 0 ? c : byTitle(a, b);
+          return c != 0 ? c * direction : byTitle(a, b);
         });
       case LokalSongSort.longest:
-        songs.sort((a, b) => a.duration.compareTo(b.duration));
-    }
-    if (_descending) {
-      // Reversal is view-only. Saved playlist order is edited separately.
-      songs.setAll(0, songs.reversed.toList(growable: false));
+        songs.sort((a, b) {
+          final c = a.duration.compareTo(b.duration);
+          return c != 0 ? c * direction : byTitle(a, b);
+        });
     }
     _inputSongs = widget.songs;
     _inputCounts = counts;

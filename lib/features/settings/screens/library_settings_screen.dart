@@ -214,6 +214,9 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     bool deepScan,
     bool scanning,
   ) async {
+    // During a desktop scan all folder actions are unavailable; do not
+    // present an empty sheet with no selectable rows.
+    if (scanning && !_isAndroid) return;
     final selected = await showLokalChoiceSheet<_FolderAction>(
       context: context,
       title: folder.displayName,

@@ -338,9 +338,9 @@ class LokalPlaylistsPage extends ConsumerWidget {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: LokalPlaylistArtwork(
-                  playlist: playlist,
-                  songs: lokalPlaylistCoverSongs(playlist, libraryById),
-                ),
+                            playlist: playlist,
+                            songs: songs,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 14),

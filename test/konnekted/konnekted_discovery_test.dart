@@ -147,6 +147,24 @@ class _ReadySpotify extends KonnektedDiscoveryNotifier {
 }
 
 void main() {
+  test('Morneye playback cache key isolates addon version, settings, tier and song', () {
+    String key({
+      String addon = 'qobuz', String digest = 'v1',
+      String track = 'song-1', String settings = 'account-1',
+      String tier = 'HI_RES_LOSSLESS',
+    }) => morneyePlaybackCacheKey(
+      addonKey: addon, addonDigest: digest, trackId: track,
+      settingsFingerprint: settings, requestedTier: tier,
+    );
+    final original = key();
+    expect(key(), original);
+    expect(key(addon: 'tidal'), isNot(original));
+    expect(key(digest: 'v2'), isNot(original));
+    expect(key(track: 'song-2'), isNot(original));
+    expect(key(settings: 'account-2'), isNot(original));
+    expect(key(tier: 'LOSSLESS'), isNot(original));
+  });
+
   test('Morneye percentage advances from actual transfer updates despite stale 5% messages', () {
     final text = MorneyeProgressText('Track', 'Qobuz');
     expect(text.update(percent: 5, message: 'Loading 5%'),

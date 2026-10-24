@@ -632,6 +632,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
           final progress = MorneyeProgressText(found.title, addon.displayName);
           final qobuz = addon.name.toLowerCase().contains('qobuz');
           double? actualTransferPercent;
+          var segmentedProgress = false;
           var finished = false;
           MorneyeDownload download;
           // Normal Play stays on the provider's configured stereo/lossless
@@ -700,7 +701,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                     if (qobuz && !finished && transfer.total > 0) {
                       actualTransferPercent =
                           (transfer.written * 100 / transfer.total)
-                              .clamp(0.0, 100.0);
+                              .clamp(0.0, 100.0).toDouble();
                       final text = progress.update(
                         percent: actualTransferPercent,
                         message: 'Receiving audio…',
@@ -712,12 +713,14 @@ Future<List<_PlaybackSource>> _morneyeSources(
                     if (finished) return;
                     if (qobuz) {
                       if (message == 'Downloading audio segments…') {
+                        segmentedProgress = true;
                         // Host-observed completed segments, not a guess.
                         final text = progress.update(
                           percent: percent, message: message,
                         );
                         if (text != null) onStatus?.call(text);
-                      } else if (actualTransferPercent == null) {
+                      } else if (actualTransferPercent == null &&
+                                 !segmentedProgress) {
                         // The extension's 5% is merely a resolver stage.
                         final text = progress.update(
                           message: 'Resolving Qobuz stream…',

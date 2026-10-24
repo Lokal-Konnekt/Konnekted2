@@ -85,6 +85,56 @@ abstract final class LokalTheme {
         color: t.accent,
         linearTrackColor: t.border,
       ),
+      // Fallback for legacy PopupMenuButton / DropdownButton / MenuAnchor
+      // controls throughout the app. Primary actions use LokalChoiceSheet.
+      popupMenuTheme: PopupMenuThemeData(
+        color: t.surface2,
+        surfaceTintColor: Colors.transparent,
+        textStyle: TextStyle(fontFamily: sans, color: t.text, fontSize: 15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: t.border),
+        ),
+        elevation: 8,
+        position: PopupMenuPosition.under,
+      ),
+      dropdownButtonTheme: DropdownButtonThemeData(
+        dropdownColor: t.surface2,
+        style: TextStyle(fontFamily: sans, color: t.text, fontSize: 15),
+        iconEnabledColor: t.accent,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        textStyle: TextStyle(fontFamily: sans, color: t.text, fontSize: 15),
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(t.surface2),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          side: WidgetStatePropertyAll(BorderSide(color: t.border)),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+        ),
+      ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(t.surface2),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          foregroundColor: WidgetStatePropertyAll(t.text),
+          side: WidgetStatePropertyAll(BorderSide(color: t.border)),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: t.surface,
+        surfaceTintColor: Colors.transparent,
+        dragHandleColor: t.muted,
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          side: BorderSide(color: t.border),
+        ),
+      ),
       // Keep standard MaterialPageRoute transitions quick, consistent and
       // subtle across the app; screen-specific sheet motions remain in charge
       // of Now Playing, dialogs and gestures.

@@ -283,6 +283,46 @@ class PlaylistService {
     return true;
   }
 
+  /// Persist one validated new order, without N successive reorder writes.
+  /// Only local playlists may be reordered; server mirrors require a remote
+  /// transaction, which this method deliberately does not attempt.
+  Future<bool> setSongOrder(String playlistId, List<String> songIds) async {
+    await _ensureLoaded();
+    final index = _playlists.indexWhere((p) => p.id == playlistId);
+    if (index < 0) return false;
+    final playlist = _playlists[index];
+    if (playlist.isNetworkSource || songIds.length != playlist.songIds.length) {
+      return false;
+    }
+
+    // Verify the multiset, not just the membership: imported playlists can
+    // contain repeated IDs. Never silently lose duplicates or missing entries.
+    final remaining = <String, int>{};
+    for (final id in playlist.songIds) {
+      remaining.update(id, (n) => n + 1, ifAbsent: () => 1);
+    }
+    for (final id in songIds) {
+      final count = remaining[id];
+      if (count == null) return false;
+      if (count == 1) {
+        remaining.remove(id);
+      } else {
+        remaining[id] = count - 1;
+      }
+    }
+    if (remaining.isNotEmpty) return false;
+
+    if (songIds.asMap().entries.every(
+      (entry) => playlist.songIds[entry.key] == entry.value,
+    )) return true;
+    _playlists[index] = playlist.copyWith(
+      songIds: List<String>.of(songIds),
+      updatedAt: DateTime.now(),
+    );
+    await _savePlaylists();
+    return true;
+  }
+
   Future<bool> reorderSongs(
     String playlistId,
     int oldIndex,

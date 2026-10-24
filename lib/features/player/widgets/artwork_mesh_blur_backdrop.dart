@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/models/song.dart';
@@ -78,7 +79,9 @@ class _ArtworkMeshBlurBackdropState
     final elapsed = _drift.lastElapsedDuration;
     if (elapsed == null ||
         artworkMeshNeedsFrame(
-          elapsed, _lastDriftPaint, performanceMode: _performanceMode,
+          elapsed, _lastDriftPaint,
+          performanceMode: _performanceMode &&
+              LokalPerformanceAdvisor.samsungRasterMitigations,
         )) {
       _lastDriftPaint = elapsed;
       _driftPaint.notifyListeners();

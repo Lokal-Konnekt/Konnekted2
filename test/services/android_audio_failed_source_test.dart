@@ -11,6 +11,7 @@ class _Player implements ja.AudioPlayer {
   int loads = 0, seeks = 0;
   bool failLoad = false;
   Completer<void>? hungSeek;
+  Completer<Duration?>? hungLoad;
   @override
   List<ja.IndexedAudioSource> get sequence => sources;
   @override
@@ -50,6 +51,7 @@ class _Player implements ja.AudioPlayer {
   }) async {
     loads++;
     if (failLoad) throw ja.PlayerException(0, 'Source error', 0);
+    if (hungLoad != null) return await hungLoad!.future;
     sources = [ja.AudioSource.uri(Uri.parse('file:///song.flac'))];
     return duration;
   }
@@ -126,4 +128,52 @@ void main() {
     await engine.load(song);
     expect(player.loads, 6);
   });
+  testWidgets('a stalled source is discarded and the next tap uses a fresh player', (
+    tester,
+  ) async {
+    final stale = _Player()..hungLoad = Completer<Duration?>();
+    final healthy = _Player();
+    var active = stale;
+    final retired = <ja.AudioPlayer>[];
+    final song = Song(
+      id: 'recovery',
+      title: 'Recovered',
+      artist: 'Artist',
+      duration: const Duration(minutes: 3),
+      fileType: 'FLAC',
+      filePath: '/song.flac',
+    );
+    final engine = AndroidAudioEngine(
+      playerProvider: () async => active,
+      sourcesBuilder: () async =>
+          ja.AudioSource.uri(Uri.parse('file:///song.flac')),
+      sourceBuilder: (_) async =>
+          ja.AudioSource.uri(Uri.parse('file:///song.flac')),
+      playlistProvider: () => [song],
+      configurePlayer: (_) async {},
+      disposeEngine: () async {},
+      retireStalledPlayer: (player) async {
+        retired.add(player);
+        active = healthy;
+      },
+      shouldSuppressTrackSync: () => false,
+      shouldIgnoreTrack: (_) => false,
+      shouldFastStartCurrentTrackOnly: () => false,
+    );
+    addTearDown(() async {
+      stale.hungLoad?.complete();
+      await engine.dispose();
+      await stale.errors.close();
+      await healthy.errors.close();
+    });
+    final first = expectLater(engine.load(song), throwsA(isA<TimeoutException>()));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 34));
+    await first;
+    expect(retired, [same(stale)]);
+    await engine.load(song);
+    expect(healthy.loads, 1);
+    expect(stale.loads, 1);
+  });
+
 }

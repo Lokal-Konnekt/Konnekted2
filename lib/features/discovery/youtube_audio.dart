@@ -7,6 +7,7 @@ import 'package:http/http.dart' as net;
 import 'discovery_http.dart';
 import 'discovery_models.dart';
 import 'discovery_sources.dart';
+import 'package:flick/services/catalogue_quality.dart';
 import 'youtube_music_account.dart';
 import 'youtube_music_store.dart';
 import 'discovery_playback.dart';
@@ -406,6 +407,9 @@ class YoutubeAudio {
       url,
       length: rawLength is num && rawLength > 0 ? rawLength.toInt() : null,
       headers: headers,
+      codec: verifiedAudioCodec(response['mime']),
+      bitrate: response['bitrate'] is num
+          ? (response['bitrate'] as num).toInt() : null,
     );
   }
 
@@ -522,7 +526,7 @@ class YoutubeAudio {
     }
     final data = response['streamingData'];
     final formats = data is Map ? data['adaptiveFormats'] : null;
-    final usable = <({Uri url, int length, int bitrate})>[];
+    final usable = <({Uri url, int length, int bitrate, String? codec})>[];
     for (final format in formats is List ? formats : const []) {
       if (format is! Map) continue;
       final mime = '${format['mimeType'] ?? ''}';
@@ -541,6 +545,7 @@ class YoutubeAudio {
         url: url,
         length: length,
         bitrate: bitrate is num ? bitrate.toInt() : 0,
+        codec: verifiedAudioCodec(mime),
       ));
     }
     if (usable.isEmpty) {
@@ -553,6 +558,8 @@ class YoutubeAudio {
     return ResolvedDiscoveryAudio(
       best.url,
       length: best.length,
+      bitrate: best.bitrate > 0 ? best.bitrate : null,
+      codec: best.codec,
       headers: {
         'User-Agent': client.userAgent,
         // Web playback URLs are tied to the requesting origin as well as

@@ -28,6 +28,18 @@ class LokalPerformanceAdvisor extends ConsumerStatefulWidget {
   const LokalPerformanceAdvisor({super.key, required this.child});
   final Widget child;
   static int lastGlassPaintMicros = 0;
+  // Only the outer player screens register; internal lyrics/queue widgets
+  // do not affect attribution. These flags are local to the diagnostics.
+  static final List<String> _activePlayerSurfaces = [];
+  static void enterPlayerSurface(String surface) {
+    _activePlayerSurfaces.remove(surface);
+    _activePlayerSurfaces.add(surface);
+  }
+  static void exitPlayerSurface(String surface) {
+    _activePlayerSurfaces.remove(surface);
+  }
+  static String get diagnosticSurface => _activePlayerSurfaces.isEmpty
+      ? 'browse' : _activePlayerSurfaces.last;
   @override
   ConsumerState<LokalPerformanceAdvisor> createState() =>
       _LokalPerformanceAdvisorState();
@@ -123,7 +135,8 @@ class _LokalPerformanceAdvisorState
           'uiMiss=$ui rasterMiss=$raster '
           'suspect=${lokalFrameBottleneck(frames, ui, raster)} '
           'processCpuCores=${cpuCores.toStringAsFixed(2)} '
-          'mode=$mode rssMb=$rssMb',
+          'mode=$mode rssMb=$rssMb '
+          'surface=${LokalPerformanceAdvisor.diagnosticSurface}',
           source: LogSource.platform,
         );
       }

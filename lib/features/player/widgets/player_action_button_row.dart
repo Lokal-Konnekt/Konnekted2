@@ -450,16 +450,13 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
     required double accentBlend,
     required bool hasAlbumTint,
   }) {
-    return FutureBuilder<bool>(
-      future: widget.favoritesService.isFavorite(song.id),
-      builder: (context, snapshot) {
-        final isFavorite = snapshot.data ?? false;
+    return Consumer(
+      builder: (context, ref, _) {
+        final isFavorite = ref.watch(isSongFavoriteProvider(song.id));
         return GestureDetector(
           onTap: () async {
-            final newState = await widget.favoritesService.toggleFavorite(
-              song.id,
-            );
-            setState(() {});
+            final newState = await ref.read(favoritesProvider.notifier)
+                .toggleFavorite(song.id, song: song);
             widget.playerService.refreshNotificationState();
             if (context.mounted) {
               LokalToast.fromSnackBar(context, 

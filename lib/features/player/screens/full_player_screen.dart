@@ -914,6 +914,13 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
             duration: _animate
                 ? const Duration(milliseconds: 420)
                 : Duration.zero,
+            // Keep both tracks anchored to the same origin. AnimatedSwitcher\'s
+            // default ScaleTransition subtly moves title, credits and quality
+            // pill as their intrinsic widths differ between providers.
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
             layoutBuilder: (current, previous) => Stack(
               alignment: Alignment.topLeft,
               children: [...previous, if (current != null) current],

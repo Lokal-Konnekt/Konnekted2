@@ -200,7 +200,10 @@ class DiscoveryPlaybackCache {
 
   /// Moves [source], a file an add-on already downloaded, into the cache
   /// and checks it like a downloaded one.
-  Future<Song> adopt(DiscoveryTrack track, File source, {bool atmosEncoded = false}) async {
+  Future<Song> adopt(DiscoveryTrack track, File source, {
+    bool atmosEncoded = false,
+    Map? sourceInfo,
+  }) async {
     if (_busy) {
       throw const DiscoveryException('Another recording is being prepared.');
     }
@@ -240,7 +243,7 @@ class DiscoveryPlaybackCache {
       }
       final song = atmosEncoded
           ? await _verifiedAtmos(track, ready, hash)
-          : await _verified(track, ready, format, hash);
+          : await _verified(track, ready, format, hash, sourceInfo: sourceInfo);
       ready = null; // Ownership passes to bounded cache / PlayerService.
       return song;
     } finally {
@@ -279,8 +282,9 @@ class DiscoveryPlaybackCache {
     DiscoveryTrack track,
     File ready,
     String format,
-    String hash,
-  ) async {
+    String hash, {
+    Map? sourceInfo,
+  }) async {
     native.AudioProbeFormat metadata;
     try {
       metadata = await _probe(ready.path).timeout(const Duration(seconds: 15));
@@ -299,11 +303,13 @@ class DiscoveryPlaybackCache {
     // The sniffed extension is a *container*. MP4/M4A can hold AAC or
     // ALAC, and WebM can hold Opus or Vorbis. Ask native Symphonia for the
     // codec and measured average bitrate; do not call an M4A file a quality.
-    Map? audio;
-    try {
-      audio = jsonDecode(await morneye.morneyeMediaInfo(path: ready.path)) as Map;
-    } catch (_) {
-      // Some Android-supported containers are outside Symphonia's probe.
+    Map? audio = sourceInfo;
+    if (audio == null) {
+      try {
+        audio = jsonDecode(await morneye.morneyeMediaInfo(path: ready.path)) as Map;
+      } catch (_) {
+        // Some Android-supported containers are outside Symphonia's probe.
+      }
     }
     final codec = verifiedAudioCodec(audio?['codec']);
     final type = codec ?? switch (format.toLowerCase()) {

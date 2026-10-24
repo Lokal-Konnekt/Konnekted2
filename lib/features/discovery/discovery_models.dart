@@ -20,6 +20,7 @@ class DiscoveryTrack {
     this.atmosRequested = false,
     this.atmosDownload = false,
     this.catalogueQuality,
+    this.catalogueCodec,
     this.catalogueBitDepth,
     this.catalogueSampleRate,
   });
@@ -53,6 +54,7 @@ class DiscoveryTrack {
 
   /// Provider-reported quality, not a verified active audio output.
   final String? catalogueQuality;
+  final String? catalogueCodec;
   final int? catalogueBitDepth;
   final int? catalogueSampleRate;
 
@@ -62,7 +64,8 @@ class DiscoveryTrack {
     addonId: addonId, sourceName: sourceName, inlineStream: inlineStream,
     artwork: artwork, atmosAvailable: atmosAvailable, atmosRequested: true,
     atmosDownload: downloadOnly,
-    catalogueQuality: catalogueQuality, catalogueBitDepth: catalogueBitDepth,
+    catalogueQuality: catalogueQuality, catalogueCodec: catalogueCodec,
+    catalogueBitDepth: catalogueBitDepth,
     catalogueSampleRate: catalogueSampleRate,
   );
 
@@ -87,6 +90,7 @@ class DiscoveryTrack {
           atmosRequested: atmosRequested,
           atmosDownload: atmosDownload,
           catalogueQuality: catalogueQuality,
+          catalogueCodec: catalogueCodec,
           catalogueBitDepth: catalogueBitDepth,
           catalogueSampleRate: catalogueSampleRate,
         );

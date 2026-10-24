@@ -540,6 +540,29 @@ void _rememberMorneyePlayback(String key, Song song) {
   }
 }
 
+/// Catalogue results may not publish measured codec/rate (e.g. Amazon).
+/// Where available, expose the selected *requested tier* in Search instead
+/// of a misleading "Quality unknown". Never invent decoded bit depth/rate.
+String? morneyeAdvertisedOrRequestedQuality({
+  required MorneyeAddon addon,
+  required String? advertised,
+  required Map<String, Object?> preferences,
+}) {
+  if (advertised != null && advertised.trim().isNotEmpty) return advertised;
+  final chosen = resolveMorneyeRequestQuality(
+    forPlayback: true, requested: null,
+    configured: preferences['downloadQuality'] as String?,
+    options: addon.qualityOptions, provider: addon.name,
+  );
+  for (final option in addon.qualityOptions) {
+    if (option is Map && option['id'] == chosen) {
+      final label = option['label']?.toString().trim() ?? '';
+      if (label.isNotEmpty) return 'Requested: $label';
+    }
+  }
+  return null;
+}
+
 /// Your Morneye add-ons that can play songs right now, as playback sources.
 Future<List<_PlaybackSource>> _morneyeSources(
   MorneyeService service,
@@ -593,7 +616,11 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 sourceName: addon.displayName,
                 artwork: song.thumbnail,
                 atmosAvailable: song.atmosAvailable,
-                catalogueQuality: song.quality,
+                catalogueQuality: morneyeAdvertisedOrRequestedQuality(
+                  addon: addon,
+                  advertised: song.quality,
+                  preferences: packages.settings(addon),
+                ),
                 catalogueCodec: song.codec,
                 catalogueBitDepth: song.bitDepth,
                 catalogueSampleRate: song.sampleRate,

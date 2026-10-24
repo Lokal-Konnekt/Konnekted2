@@ -40,6 +40,22 @@ class LokalPerformanceAdvisor extends ConsumerStatefulWidget {
   }
   static String get diagnosticSurface => _activePlayerSurfaces.isEmpty
       ? 'browse' : _activePlayerSurfaces.last;
+
+  // The previous performance snapshots mixed idle frames, list flings and
+  // page navigation into a single rasterMiss total. Attribute frame samples
+  // to the last interaction for M05 diagnostics without adding per-frame
+  // platform-channel calls or logging any private content.
+  static int _scrollUntilMicros = 0, _navigationUntilMicros = 0;
+  static void noteScroll() =>
+      _scrollUntilMicros = DateTime.now().microsecondsSinceEpoch + 500000;
+  static void noteNavigation() =>
+      _navigationUntilMicros = DateTime.now().microsecondsSinceEpoch + 1000000;
+  static String get diagnosticActivity {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    if (now < _scrollUntilMicros) return 'scroll';
+    if (now < _navigationUntilMicros) return 'navigation';
+    return 'idle';
+  }
   @override
   ConsumerState<LokalPerformanceAdvisor> createState() =>
       _LokalPerformanceAdvisorState();
@@ -55,6 +71,8 @@ class _LokalPerformanceAdvisorState
   Timer? _diagnosticTimer;
   static const _diagnostics = MethodChannel('com.mossapps.flick/diagnostics');
   int _windowFrames = 0, _windowUiMisses = 0, _windowRasterMisses = 0;
+  int _scrollFrames = 0, _scrollRasterMisses = 0;
+  int _navigationFrames = 0, _navigationRasterMisses = 0;
   int? _previousCpuMs, _previousWallMs;
   @override
   void initState() {
@@ -93,6 +111,14 @@ class _LokalPerformanceAdvisorState
       _windowFrames++;
       if (slowUi) _windowUiMisses++;
       if (slowRaster) _windowRasterMisses++;
+      switch (LokalPerformanceAdvisor.diagnosticActivity) {
+        case 'scroll':
+          _scrollFrames++;
+          if (slowRaster) _scrollRasterMisses++;
+        case 'navigation':
+          _navigationFrames++;
+          if (slowRaster) _navigationRasterMisses++;
+      }
       if (maySuggest) {
         _frames++;
         if (slowUi || slowRaster) _missed++;
@@ -106,6 +132,8 @@ class _LokalPerformanceAdvisorState
       _previousCpuMs = null;
       _previousWallMs = null;
       _windowFrames = _windowUiMisses = _windowRasterMisses = 0;
+      _scrollFrames = _scrollRasterMisses = 0;
+      _navigationFrames = _navigationRasterMisses = 0;
       return;
     }
     try {
@@ -136,13 +164,17 @@ class _LokalPerformanceAdvisorState
           'suspect=${lokalFrameBottleneck(frames, ui, raster)} '
           'processCpuCores=${cpuCores.toStringAsFixed(2)} '
           'mode=$mode rssMb=$rssMb '
-          'surface=${LokalPerformanceAdvisor.diagnosticSurface}',
+          'surface=${LokalPerformanceAdvisor.diagnosticSurface} '
+          'scrollRaster=$_scrollRasterMisses/$_scrollFrames '
+          'navigationRaster=$_navigationRasterMisses/$_navigationFrames',
           source: LogSource.platform,
         );
       }
       _previousCpuMs = cpu;
       _previousWallMs = now;
       _windowFrames = _windowUiMisses = _windowRasterMisses = 0;
+      _scrollFrames = _scrollRasterMisses = 0;
+      _navigationFrames = _navigationRasterMisses = 0;
     } catch (_) {
       // Perf telemetry must never interfere with startup or the audio path.
     }
@@ -203,6 +235,8 @@ class _LokalPerformanceAdvisorState
     if (!_foreground) {
       _previousCpuMs = _previousWallMs = null;
       _windowFrames = _windowUiMisses = _windowRasterMisses = 0;
+      _scrollFrames = _scrollRasterMisses = 0;
+      _navigationFrames = _navigationRasterMisses = 0;
     }
   }
 

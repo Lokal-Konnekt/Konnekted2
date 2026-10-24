@@ -451,7 +451,7 @@ class AndroidAudioEngine implements AudioEngine {
     final nextSignature = playlist
         .map(androidAudioSourceIdentity)
         .toList(growable: false);
-    final canReusePlaylist =
+    var canReusePlaylist =
         !_sourceFailed &&
         _playlistSignature.isNotEmpty &&
         listEquals(_playlistSignature, nextSignature);
@@ -469,6 +469,7 @@ class AndroidAudioEngine implements AudioEngine {
       });
       await player.stop().timeout(const Duration(seconds: 5));
       _playlistSignature = const <String>[];
+      canReusePlaylist = false;
       _loadedSingleTrackOnly = false;
       _sourceFailed = false;
     }

@@ -2,10 +2,27 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as image;
 import 'package:flick/core/utils/dev_log.dart';
+
+/// Decode compressed artwork and downsample in a worker isolate, not on
+/// Flutter's UI/raster threads. ui.Image.toByteData() forces a GPU readback on
+/// some Android Vulkan drivers; repeated calls can stall entire frames.
+/// The caller receives only 32x32 RGBA, never a GPU texture.
+Uint8List? _sampleArtworkRgba(Uint8List encoded) {
+  final decoded = image.decodeImage(encoded);
+  if (decoded == null) return null;
+  final thumbnail = image.copyResize(
+    decoded,
+    width: 32,
+    height: 32,
+    interpolation: image.Interpolation.average,
+  );
+  return thumbnail.convert(format: image.Format.uint8)
+      .getBytes(order: image.ChannelOrder.rgba);
+}
 
 /// Service to extract dominant colors from images for adaptive theming.
 ///
@@ -19,6 +36,42 @@ class ColorExtractionService {
   // Cache extracted colors to avoid recomputation
   final Map<String, Color> _colorCache = {};
   final Map<String, List<Color>> _paletteCache = {};
+  // The shell and expanded player request the same art independently.
+  // Share the sampled bytes, including in-flight work, to avoid double
+  // JPEG/PNG decoding and costly CPU/GPU synchronization per track.
+  final Map<String, Future<ByteData?>> _samples = {};
+
+  Future<ByteData?> _sample(String path) {
+    final existing = _samples[path];
+    if (existing != null) return existing;
+    // Missing or still-being-written artwork can become available later;
+    // keep successful 32x32 samples, not permanent null-cache entries.
+    final task = _readSample(path).then((sample) {
+      if (sample == null) _samples.remove(path);
+      return sample;
+    });
+    _samples[path] = task;
+    while (_samples.length > 128) {
+      _samples.remove(_samples.keys.first);
+    }
+    return task;
+  }
+
+  Future<ByteData?> _readSample(String path) async {
+    try {
+      final file = File(path);
+      if (!await file.exists()) return null;
+      // Avoid a huge full-resolution allocation on 4 GB devices (M05).
+      // Exceptionally large covers fall back to the theme accent.
+      if (await file.length() > 24 * 1024 * 1024) return null;
+      final decoded = await compute(_sampleArtworkRgba, await file.readAsBytes());
+      if (decoded == null || decoded.lengthInBytes != 32 * 32 * 4) return null;
+      return ByteData.sublistView(decoded);
+    } catch (error) {
+      devLog('ColorExtractionService: Palette sample failed: $error');
+      return null;
+    }
+  }
 
   /// Extracts the dominant/average color from an image file.
   ///
@@ -34,34 +87,9 @@ class ColorExtractionService {
     }
 
     try {
-      final file = File(imagePath);
-      if (!await file.exists()) {
-        return null;
-      }
-
-      final Uint8List bytes = await file.readAsBytes();
-      final ui.Codec codec = await ui.instantiateImageCodec(
-        bytes,
-        targetWidth: 32, // Sample at low resolution for speed
-        targetHeight: 32,
-      );
-      final ui.FrameInfo frameInfo = await codec.getNextFrame();
-      codec.dispose();
-      final ui.Image image = frameInfo.image;
-
-      // Get pixel data
-      final ByteData? byteData = await image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
-
-      if (byteData == null) {
-        image.dispose();
-        return null;
-      }
-
-      final color = _calculateAverageColor(byteData, image.width, image.height);
-
-      image.dispose();
+      final byteData = await _sample(imagePath);
+      if (byteData == null) return null;
+      final color = _calculateAverageColor(byteData, 32, 32);
 
       // Cache the result
       if (_colorCache.length >= 128) _colorCache.remove(_colorCache.keys.first);
@@ -88,21 +116,7 @@ class ColorExtractionService {
     if (cached != null) return cached;
 
     try {
-      final file = File(imagePath);
-      if (!await file.exists()) return const [];
-      final bytes = await file.readAsBytes();
-      final codec = await ui.instantiateImageCodec(
-        bytes,
-        targetWidth: 32,
-        targetHeight: 32,
-      );
-      final frame = await codec.getNextFrame();
-      codec.dispose();
-      final image = frame.image;
-      final byteData = await image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
-      image.dispose();
+      final byteData = await _sample(imagePath);
       if (byteData == null) return const [];
 
       final points = <List<double>>[];
@@ -246,11 +260,13 @@ class ColorExtractionService {
   void clearCache() {
     _colorCache.clear();
     _paletteCache.clear();
+    _samples.clear();
   }
 
   /// Removes a specific entry from the cache.
   void invalidateCache(String imagePath) {
     _colorCache.remove(imagePath);
     _paletteCache.removeWhere((key, _) => key.startsWith('$imagePath#'));
+    _samples.remove(imagePath);
   }
 }

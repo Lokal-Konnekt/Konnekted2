@@ -1362,6 +1362,16 @@ class MainActivity: FlutterActivity() {
             when (call.method) {
                 "getProcessExitInfo" -> result.success(getProcessExitInfo())
                 "getBuildFlavor" -> result.success(BuildConfig.FLAVOR)
+                "getPerformanceSnapshot" -> result.success(mapOf(
+                    // Android's process-wide elapsed CPU time includes Flutter
+                    // engine, raster, decoding and plugin/native workers.
+                    // Unlike frame timing, it still grows if the app stalls.
+                    "cpuMs" to android.os.Process.getElapsedCpuTime(),
+                    "manufacturer" to android.os.Build.MANUFACTURER,
+                    "model" to android.os.Build.MODEL,
+                    "sdk" to android.os.Build.VERSION.SDK_INT,
+                    "impellerRequested" to resources.getBoolean(R.bool.enable_impeller)
+                ))
                 else -> result.notImplemented()
             }
         }

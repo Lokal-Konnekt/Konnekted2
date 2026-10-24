@@ -38,6 +38,7 @@ import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
 import 'package:flick/services/playback_source_priority.dart';
+import 'package:flick/services/catalogue_quality.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -728,6 +729,21 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   albumArt: found.artwork,
                   duration: found.duration ?? Duration.zero,
                   fileType: 'FLAC',
+                  resolution: advertisedOnlineAudio(
+                    codec: 'FLAC', quality: found.catalogueQuality,
+                    bitDepth: found.catalogueBitDepth,
+                    sampleRate: found.catalogueSampleRate,
+                  ).resolution,
+                  bitDepth: advertisedOnlineAudio(
+                    codec: 'FLAC', quality: found.catalogueQuality,
+                    bitDepth: found.catalogueBitDepth,
+                    sampleRate: found.catalogueSampleRate,
+                  ).bitDepth,
+                  sampleRate: advertisedOnlineAudio(
+                    codec: 'FLAC', quality: found.catalogueQuality,
+                    bitDepth: found.catalogueBitDepth,
+                    sampleRate: found.catalogueSampleRate,
+                  ).sampleRate,
                   filePath: handle,
                   sourcePackage: 'konnekted.morneye-live',
                   remoteId: found.id,
@@ -944,8 +960,21 @@ Song progressiveAddonSong(DiscoveryTrack track, ResolvedDiscoveryAudio audio) {
   final artwork = track.artwork;
   final ext = audio.url.pathSegments.isEmpty
       ? '' : audio.url.pathSegments.last.split('.').last.toLowerCase();
-  final codec = const {'flac', 'mp3', 'm4a', 'aac', 'ogg', 'opus', 'wav', 'webm'}
-      .contains(ext) ? ext.toUpperCase() : 'ONLINE';
+  final extension = const {
+    'flac': 'FLAC', 'mp3': 'MP3', 'm4a': 'ALAC',
+    'aac': 'AAC', 'ogg': 'OGG', 'opus': 'OPUS',
+    'wav': 'WAV', 'webm': 'OPUS',
+  }[ext];
+  final audioInfo = advertisedOnlineAudio(
+    codec: track.catalogueCodec,
+    quality: track.catalogueQuality,
+    bitDepth: track.catalogueBitDepth,
+    sampleRate: track.catalogueSampleRate,
+    // A filename suffix is only a container hint; M4A and WebM may hold
+    // different codecs, so do not invent ALAC/OPUS from those extensions.
+    fallbackFileType: (ext == 'm4a' || ext == 'webm')
+        ? 'ONLINE' : (extension ?? 'ONLINE'),
+  );
   return Song(
     id: 'discovery:${track.key.hashCode}:progressive',
     title: track.title,
@@ -953,7 +982,10 @@ Song progressiveAddonSong(DiscoveryTrack track, ResolvedDiscoveryAudio audio) {
     album: track.album,
     albumArt: artwork,
     duration: track.duration ?? Duration.zero,
-    fileType: codec,
+    fileType: audioInfo.fileType,
+    resolution: audioInfo.resolution,
+    bitDepth: audioInfo.bitDepth,
+    sampleRate: audioInfo.sampleRate,
     filePath: handle,
     sourcePackage: 'konnekted.progressive',
     remoteId: track.id,

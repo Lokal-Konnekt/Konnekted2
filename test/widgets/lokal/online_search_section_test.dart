@@ -163,6 +163,28 @@ void main() {
     expect(find.text('Download Dolby Atmos'), findsNothing);
   });
 
+  testWidgets('quality badges show provider metadata and an explicit unknown state', (tester) async {
+    final httpAddon = OnlineSource(
+      id: 'w-http-quality', name: 'HTTP Audio', addon: true,
+      results: (_) async => [
+        const OnlineResult(DiscoveryTrack(
+          id: 'lossless', title: 'Reported FLAC', artist: 'Artist',
+          source: DiscoverySource.addon, catalogueCodec: 'FLAC',
+          catalogueBitDepth: 24, catalogueSampleRate: 96000,
+        )),
+        const OnlineResult(DiscoveryTrack(
+          id: 'unknown', title: 'Unspecified codec', artist: 'Artist',
+          source: DiscoverySource.addon,
+        )),
+      ],
+      play: (_) async => throw const DiscoveryException('not needed'),
+    );
+    await _pump(tester, sources: [httpAddon]);
+    expect(find.text('Reported FLAC'), findsOneWidget);
+    expect(find.text('FLAC · 24-bit / 96 kHz'), findsOneWidget);
+    expect(find.text('Quality unknown'), findsOneWidget);
+  });
+
   testWidgets('tap shows preparation toast before slow provider verification', (tester) async {
     final verified = Completer<bool>();
     final player = _FakePlayer();

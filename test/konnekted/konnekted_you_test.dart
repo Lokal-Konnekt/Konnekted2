@@ -9,6 +9,7 @@ import 'package:flick/services/milestone_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _song = Song(
   id: '1',
@@ -209,6 +210,33 @@ void main() {
         section: 'About',
       ),
     ]);
+  });
+
+  testWidgets('profile editor saves and resets the mobile username', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    _tall(tester);
+    await tester.pumpWidget(_app(onNavigate: (_) {}));
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Edit profile'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose photo'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Lokal listener');
+    await tester.tap(find.text('Save profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lokal listener'), findsOneWidget);
+    expect((await SharedPreferences.getInstance())
+        .getString('lokal.you.profile.v1'), contains('Lokal listener'));
+
+    await tester.tap(find.byTooltip('Edit profile'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '');
+    await tester.tap(find.text('Save profile'));
+    await tester.pumpAndSettle();
+    expect(find.text('You'), findsOneWidget);
   });
 
   test('the name is an account username, else "You"', () {

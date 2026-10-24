@@ -1,5 +1,6 @@
 import 'link/link_journal.dart';
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flick/models/song.dart';
@@ -80,36 +81,58 @@ class FavoritesService {
 
   // Cached set of favorite IDs for quick lookup
   Set<String> _favoriteIds = {};
-  bool _isLoaded = false;
+  // The classic player, modern player, notification actions and Riverpod
+  // each own a service instance. Serialize writes across all instances to
+  // avoid lost likes during rapid taps or simultaneous remote sync.
+  static Future<void> _writeTail = Future<void>.value();
+
+  Future<T> _mutate<T>(Future<T> Function() action) {
+    final result = _writeTail.then((_) async {
+      await _ensureLoaded();
+      return action();
+    });
+    _writeTail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return result;
+  }
 
   FavoritesService({SongRepository? songRepository})
     : _songRepository = songRepository ?? SongRepository();
 
-  /// Load favorites from SharedPreferences.
+  /// Reload on reads: other player controls and notification actions may
+  /// have changed SharedPreferences through a different service instance.
   Future<void> _ensureLoaded() async {
-    if (_isLoaded) return;
-
     final prefs = await SharedPreferences.getInstance();
-    final ids = prefs.getStringList(_favoritesKey) ?? [];
-    _favoriteIds = ids.toSet();
-    _isLoaded = true;
+    _favoriteIds = (prefs.getStringList(_favoritesKey) ?? []).toSet();
+  }
+
+  /// The saved IDs (including old online likes without recoverable metadata).
+  Future<Set<String>> getFavoriteIds() async {
+    await _ensureLoaded();
+    return Set<String>.of(_favoriteIds);
   }
 
   /// Get all favorite songs.
   Future<List<Song>> getFavorites() async {
     await _ensureLoaded();
 
-    if (_favoriteIds.isEmpty) return [];
+    final ids = Set<String>.of(_favoriteIds);
+    if (ids.isEmpty) return [];
 
-    // Get all songs and filter by favorite IDs
-    final allSongs = await _songRepository.getAllSongs();
-    final liked = allSongs.where((song) => _favoriteIds.contains(song.id)).toList();
+    // A local-library read failure must not hide independently saved online
+    // favorites (offline devices can still show their metadata).
+    List<Song> allSongs;
+    try {
+      allSongs = await _songRepository.getAllSongs();
+    } catch (_) {
+      allSongs = [];
+    }
+    final liked = allSongs.where((song) => ids.contains(song.id)).toList();
     final inLibrary = liked.map((song) => song.id).toSet();
     final prefs = await SharedPreferences.getInstance();
     try {
       final extras = jsonDecode(prefs.getString(_onlineMetadataKey) ?? '{}');
       if (extras is Map) {
-        for (final id in _favoriteIds) {
+        for (final id in ids) {
           if (inLibrary.contains(id)) continue;
           final song = _restore(extras[id]);
           if (song != null) liked.add(song);
@@ -136,11 +159,11 @@ class FavoritesService {
         await remoteDelegate?.toggleFavorite(songId);
       return;
     }
-    await _ensureLoaded();
-
-    if (song != null) await _rememberOnline(song);
-    _favoriteIds.add(songId);
-    await _saveFavorites();
+    await _mutate(() async {
+      if (song != null) await _rememberOnline(song);
+      _favoriteIds.add(songId);
+      await _saveFavorites();
+    });
   }
 
   /// Remove a song from favorites.
@@ -150,11 +173,11 @@ class FavoritesService {
         await remoteDelegate?.toggleFavorite(songId);
       return;
     }
-    await _ensureLoaded();
-
-    _favoriteIds.remove(songId);
-    await _forgetOnline(songId);
-    await _saveFavorites();
+    await _mutate(() async {
+      _favoriteIds.remove(songId);
+      await _forgetOnline(songId);
+      await _saveFavorites();
+    });
   }
 
   /// Toggle favorite status for a song.
@@ -165,19 +188,18 @@ class FavoritesService {
       if (remote == null) throw StateError('Connect to your desktop first.');
       return remote.toggleFavorite(songId);
     }
-    await _ensureLoaded();
-
-    if (_favoriteIds.contains(songId)) {
-      _favoriteIds.remove(songId);
-      await _forgetOnline(songId);
-      await _saveFavorites();
-      return false;
-    } else {
+    return _mutate(() async {
+      if (_favoriteIds.contains(songId)) {
+        _favoriteIds.remove(songId);
+        await _forgetOnline(songId);
+        await _saveFavorites();
+        return false;
+      }
       if (song != null) await _rememberOnline(song);
       _favoriteIds.add(songId);
       await _saveFavorites();
       return true;
-    }
+    });
   }
 
   /// Get the count of favorite songs.
@@ -198,23 +220,29 @@ class FavoritesService {
       setManyFromLink({songId: liked});
 
   Future<void> setManyFromLink(Map<String, bool> changes) async {
-    await _ensureLoaded();
-    for (final entry in changes.entries) {
-      entry.value
-          ? _favoriteIds.add(entry.key)
-          : _favoriteIds.remove(entry.key);
-    }
-    await _saveFavorites(captureLink: false);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      'lokal.link.favorites_snapshot',
-      _favoriteIds.toList(),
-    );
+    await _mutate(() async {
+      for (final entry in changes.entries) {
+        entry.value
+            ? _favoriteIds.add(entry.key)
+            : _favoriteIds.remove(entry.key);
+        if (!entry.value) await _forgetOnline(entry.key);
+      }
+      await _saveFavorites(captureLink: false);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        'lokal.link.favorites_snapshot',
+        _favoriteIds.toList(),
+      );
+    });
   }
 
   /// Clear all favorites.
   Future<void> clearFavorites() async {
-    _favoriteIds.clear();
-    await _saveFavorites();
+    await _mutate(() async {
+      _favoriteIds.clear();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_onlineMetadataKey);
+      await _saveFavorites();
+    });
   }
 }

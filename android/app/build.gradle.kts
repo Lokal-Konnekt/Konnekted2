@@ -102,6 +102,15 @@ android {
         jniLibs {
             useLegacyPackaging = true
             pickFirsts += listOf("**/libc++_shared.so", "**/libdiscord_partner_sdk.so")
+            // Flutter/AGP can merge plugin JNI libraries from every ABI even
+            // with defaultConfig.ndk.abiFilters and --target-platform arm64.
+            // Filter the actual APK payload before signing; the release
+            // verifier must still enforce arm64-v8a as the only packaged ABI.
+            excludes += listOf(
+                "**/armeabi-v7a/**",
+                "**/x86/**",
+                "**/x86_64/**",
+            )
         }
     }
 

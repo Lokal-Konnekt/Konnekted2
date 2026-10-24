@@ -1588,13 +1588,17 @@ class MorneyePackages {
       final nativeSearchResult = _tracks.containsKey('$key:$id') &&
           (track['id']?.toString().isNotEmpty ?? false) &&
           (track['name']?.toString().isNotEmpty ?? false);
+      final hasCanonicalIdentity =
+          (track['id']?.toString().isNotEmpty ?? false) &&
+          (track['name']?.toString().isNotEmpty ?? false);
       final skipEnrichment =
+          // Respect the extension manifest even if this by-ID track came
+          // from getTrack rather than a remembered Search result.
           (addon.manifest['skipMetadataEnrichment'] == true &&
-              nativeSearchResult) ||
+              hasCanonicalIdentity) ||
           // Tidal's enrichTrack fetches the same remote track record that
           // checkAvailability fetches again to validate the direct Tidal ID.
-          // Skip the first request only for this addon’s own Search result;
-          // cross-provider matches still need their full verification path.
+          // Only skip this extra request for its own remembered Search row.
           (addon.name.toLowerCase().startsWith('tidal') &&
               nativeSearchResult);
       if (!skipEnrichment && runtime.methods.contains('enrichTrack')) {

@@ -1,4 +1,5 @@
 import 'package:flick/features/player/widgets/artwork_mesh_blur_backdrop.dart';
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -45,6 +46,19 @@ void main() {
         reason: 'Full mode retains display-rate animation');
     expect(paint(Duration.zero, const Duration(seconds: 26)), isTrue,
         reason: 'Resuming a restarted ticker must not freeze rendering');
+  });
+
+
+  test('Samsung raster workarounds match reported models only', () {
+    bool affected(String brand, String model) =>
+        LokalPerformanceAdvisor.affectedSamsungModel(brand, model);
+    expect(affected('samsung', 'SM-M066B'), isTrue);
+    expect(affected('SAMSUNG', 'SM-M055F'), isTrue);
+    expect(affected('samsung', 'SM-S938B'), isTrue);
+    expect(affected('samsung', 'SM-S938U1'), isTrue);
+    expect(affected('Xiaomi', '25113PN0EG'), isFalse);
+    expect(affected('samsung', 'SM-S931B'), isFalse);
+    expect(affected('Google', 'SM-S938B'), isFalse);
   });
 
 }

@@ -38,9 +38,7 @@ void main() {
     _album('Third', [_track('3a', 'Third')]),
   ];
 
-  testWidgets('iTunes side covers hinge inward and visually bring their OUTER edges forward', (
-    tester,
-  ) async {
+  testWidgets('iTunes reference triangles match four projected corners on both sides', (tester) async {
     final five = [
       ...albums,
       _album('Fourth', [_track('4a', 'Fourth')]),
@@ -53,6 +51,7 @@ void main() {
       onPlay: (_, _) {},
     )));
     final size = math.min(250.0, tester.getSize(find.byType(LokalCoverFlow)).width * .60);
+
     Transform panel(String key) => tester.widget<Transform>(
       find.descendant(
         of: find.byKey(ValueKey(key)),
@@ -61,71 +60,126 @@ void main() {
     );
     final left = panel('Second');
     final right = panel('Fourth');
-    expect(left.origin!.dx, closeTo(size, .001), reason: 'left cover hinges on right/inner edge');
-    expect(right.origin!.dx, closeTo(0, .001), reason: 'right cover hinges on left/inner edge');
-    // Check the actual perspective divide, not just the rotation sign:
-    // the OUTSIDE edges must be projected larger/nearer than the inside edges.
-    // This catches the exact reversed-fan regression shown on Home.
-    double scaleAtEdge(Transform panel, double edge) {
-      final w = panel.transform.entry(3, 0) * (edge - panel.origin!.dx) +
-          panel.transform.entry(3, 3);
-      return 1 / w;
+    final selected = panel('Third');
+
+    // The first Transform in each Positioned cover applies the real
+    // Matrix4 perspective. Project the actual local cover corners, including
+    // its transform origin and homogeneous perspective division.
+    Offset project(Transform panel, double x, double y) {
+      final origin = panel.origin!;
+      return MatrixUtils.transformPoint(
+        panel.transform,
+        Offset(x - origin.dx, y - origin.dy),
+      ) + origin - Offset(size / 2, size / 2);
     }
-    expect(left.transform.entry(2, 0), greaterThan(0),
-        reason: 'left cover turns towards the centre, not away from it');
-    expect(right.transform.entry(2, 0), lessThan(0),
-        reason: 'right cover turns towards the centre, not away from it');
-    expect(scaleAtEdge(left, 0), greaterThan(scaleAtEdge(left, size)),
-        reason: 'left outside edge must appear closer than the inside edge');
-    expect(scaleAtEdge(right, size), greaterThan(scaleAtEdge(right, 0)),
-        reason: 'right outside edge must appear closer than the inside edge');
-    // iTunes reference: the centered square ends at ±.50 * size. The
-    // neighbors' inner hinges must sit INSIDE that boundary (±.42 * size),
-    // so the center square visually occludes them, not merely touches them.
-    // Read the projected hinge, including perspective's homogeneous divide,
-    // rather than asserting only the unprojected translation constant.
-    double projectedOffset(Transform transform) =>
-        transform.transform.entry(0, 3) / transform.transform.entry(3, 3);
-    final leftInsideEdge = projectedOffset(left) + size / 2;
-    final rightInsideEdge = projectedOffset(right) - size / 2;
-    expect(leftInsideEdge, closeTo(-size * .42, size * .01),
-        reason: 'left inside edge must sit behind the center artwork');
-    expect(rightInsideEdge, closeTo(size * .42, size * .01),
-        reason: 'right inside edge must sit behind the center artwork');
-    expect(leftInsideEdge, greaterThan(-size * .50 + size * .07));
-    expect(rightInsideEdge, lessThan(size * .50 - size * .07));
-    expect(left.transform.entry(2, 3), lessThan(0),
-        reason: 'left neighbor must remain at negative depth');
-    expect(right.transform.entry(2, 3), lessThan(0),
-        reason: 'right neighbor must remain at negative depth');
-    // Flutter paints the farthest covers first, the center cover last.
+    for (final panel in [left, right, selected]) {
+      expect(panel.origin!.dx, closeTo(size / 2, .0001),
+          reason: '3D pivot must be at artwork center');
+      expect(panel.origin!.dy, closeTo(size / 2, .0001));
+    }
+    // Normalized coordinates measured on the iTunes reference. The outer
+    // edges are ~92% of artwork height; the inner edges only ~65% and
+    // drop toward the lower vanishing point. BOTH triangle slopes matter.
+    final loTop = project(left, 0, 0);
+    final loBottom = project(left, 0, size);
+    final liTop = project(left, size, 0);
+    final liBottom = project(left, size, size);
+    final riTop = project(right, 0, 0);
+    final riBottom = project(right, 0, size);
+    final roTop = project(right, size, 0);
+    final roBottom = project(right, size, size);
+    void near(String label, double actual, double normalized) =>
+        expect(actual / size, closeTo(normalized, .007), reason: label);
+
+    near('left outside upper x', loTop.dx, -1.067);
+    near('left outside upper y', loTop.dy, -.447);
+    near('left outside lower y', loBottom.dy, .473);
+    near('left inside upper x', liTop.dx, -.429);
+    near('left inside upper y', liTop.dy, -.269);
+    near('left inside lower y', liBottom.dy, .381);
+    near('right inside upper x', riTop.dx, .429);
+    near('right outside upper x', roTop.dx, 1.067);
+    near('right outside upper y', roTop.dy, -.447);
+    near('right outside lower y', roBottom.dy, .473);
+    near('right inside upper y', riTop.dy, -.269);
+    near('right inside lower y', riBottom.dy, .381);
+
+    expect(liTop.dx, greaterThan(-size * .5),
+        reason: 'center cover masks left inner edge');
+    expect(riTop.dx, lessThan(size * .5),
+        reason: 'center cover masks right inner edge');
+    expect(loTop.dy, lessThan(liTop.dy),
+        reason: 'top triangular gap slopes down to center');
+    expect(loBottom.dy, greaterThan(liBottom.dy),
+        reason: 'lower triangle slopes up to center');
+    expect(roTop.dy, lessThan(riTop.dy));
+    expect(roBottom.dy, greaterThan(riBottom.dy));
+    expect(left.transform.entry(2, 0), lessThan(0),
+        reason: 'left outer edge projects toward the viewer');
+    expect(right.transform.entry(2, 0), greaterThan(0),
+        reason: 'right outer edge projects toward the viewer');
+    expect(left.transform.entry(3, 2), lessThan(0),
+        reason: 'rearward depth must SHRINK the covers');
+    expect(right.transform.entry(3, 2), lessThan(0));
+
     final coverStack = tester.widgetList<Stack>(
-      find.descendant(
-        of: find.byType(LokalCoverFlow),
-        matching: find.byType(Stack),
-      ),
+      find.descendant(of: find.byType(LokalCoverFlow), matching: find.byType(Stack)),
     ).firstWhere((stack) => stack.children.whereType<Positioned>().length == 5);
     expect(coverStack.children.last.key, const ValueKey('Third'),
-        reason: 'selected cover must cover both neighbors in paint order');
-    expect(find.byType(ColoredBox), findsWidgets);
+        reason: 'center album paints above all four adjacent angled covers');
+    expect(find.byType(ShaderMask), findsNothing,
+        reason: 'mobile reflection shader must be completely removed');
+    expect(find.byType(OverflowBox), findsNothing,
+        reason: 'no mirrored second artwork subtree');
   });
 
-  test('tucked-under hinge spacing is C1-continuous at the first neighbor', () {
-    // Regression for the original flush-at-border .52 geometry.
-    const hinge = .42;
-    const shift = .52 - hinge;
-    double inside(double a) => a >= 1
-        ? hinge + (a - 1) * .34
-        : .66 * a - .10 * a * a - .04 * a * a * a
-            - shift * (3 * a * a - 2 * a * a * a);
+  test('production center/depth translation is C1-smooth across near/far covers', () {
+    // Exercise production code; copied formulas could pass after a regression.
+    final pos = LokalCoverFlow.centerDistance;
+    final depth = LokalCoverFlow.depthDistance;
     const e = .00001;
-    expect(inside(0), 0);
-    expect(inside(1), closeTo(.42, 1e-9));
-    expect(inside(2) - inside(1), closeTo(.34, 1e-9));
-    expect((inside(1) - inside(1 - e)) / e,
-        closeTo((inside(1 + e) - inside(1)) / e, .001));
-    expect((inside(e) - inside(0)) / e,
-        closeTo((inside(0) - inside(-e)) / e, .001));
+    expect(pos(0), 0);
+    expect(pos(1), closeTo(.91, 1e-9));
+    expect(pos(2) - pos(1), closeTo(.18, 1e-9));
+    expect((pos(1) - pos(1 - e)) / e, closeTo((pos(1 + e) - pos(1)) / e, .001));
+    expect((pos(e) - pos(0)) / e, closeTo(.90, .001));
+    expect(depth(0), 0);
+    expect(depth(1), closeTo(.60, 1e-9));
+    expect((depth(1) - depth(1 - e)) / e,
+        closeTo((depth(1 + e) - depth(1)) / e, .001));
+  });
+
+  testWidgets('second neighbor receives visible strip taps beyond first neighbor quad', (tester) async {
+    final five = [
+      ...albums,
+      _album('Fourth', [_track('4a', 'Fourth')]),
+      _album('Fifth', [_track('5a', 'Fifth')]),
+    ];
+    final selected = <int>[];
+    await tester.pumpWidget(_app(LokalCoverFlow(
+      albums: five,
+      initialIndex: 2,
+      cover: (_) => const ColoredBox(color: Colors.blueGrey),
+      onPlay: (_, _) {},
+      onSelect: selected.add,
+    )));
+    final flow = find.byType(LokalCoverFlow);
+    final size = math.min(250.0, tester.getSize(flow).width * .60);
+    final stage = find.byWidgetPredicate(
+      (widget) => widget is ColoredBox && widget.color == Colors.black,
+    );
+    expect(stage, findsOneWidget);
+    final topLeft = tester.getTopLeft(stage);
+    final stageWidth = tester.getSize(stage).width;
+
+    // At x=1.13 cover widths, the first neighbor's actual painted edge
+    // ends around x=1.067, but Flutter's affine hit rectangle extends to
+    // x≈1.16. The second neighbor is visibly painted here and must win.
+    await tester.tapAt(topLeft + Offset(stageWidth / 2 + size * 1.13, size * .56));
+    await tester.pump();
+    expect(selected, [4], reason:
+        'tap in visible second-neighbor strip must not be stolen by hidden first-neighbor bounds');
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Home Cover Flow starts centered for odd and even shelves', (

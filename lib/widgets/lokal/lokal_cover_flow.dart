@@ -4,6 +4,7 @@ import 'package:flick/l10n/l10n.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
@@ -19,13 +20,33 @@ typedef LokalCoverBuilder = Widget Function(AlbumGroup album);
 ///
 /// The facing album sits flat and forward; its neighbours hinge around their
 /// inside edge so the outside edge comes towards the viewer, like iTunes.
-/// Covers stack tightly behind each other with a mirrored floor reflection. Drag to spin with momentum,
+/// Covers stack in calibrated perspective behind the facing square. Drag to spin with momentum,
 /// settle on the nearest album with a spring, and feel a tick for every
 /// album that passes. With [onSelect], one tap on any cover brings it forward
 /// and selects it (Home plays it straight away); long-press the facing cover
 /// to flip it over to its track list. Without [onSelect], a tap brings a side
 /// cover forward and flips the facing one.
 class LokalCoverFlow extends StatefulWidget {
+  // Public, production-owned geometry for the desktop/iTunes calibration.
+  // Tests exercise THESE equations, rather than local copies that could drift.
+  static const double _firstCenter = .91;
+  static const double _farStep = .18;
+  static const double _sideDepth = .60;
+
+  @visibleForTesting
+  static double centerDistance(double distance) {
+    final a = distance.abs();
+    if (a >= 1) return _firstCenter + (a - 1) * _farStep;
+    return .90 * a + .75 * a * a - .74 * a * a * a;
+  }
+
+  @visibleForTesting
+  static double depthDistance(double distance) {
+    final a = distance.abs();
+    if (a >= 1) return _sideDepth;
+    return _sideDepth * a * a * (3 - 2 * a);
+  }
+
   const LokalCoverFlow({
     super.key,
     required this.albums,
@@ -82,32 +103,18 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   // Width the finger travels to move one album; set per layout.
   double _albumWidth = 120;
 
-  // Match desktop geometry: each first neighbor's INNER hinge is tucked
-  // behind 8% of the centered artwork, so the facing cover occludes its
-  // inside edge instead of meeting it flush. Preserve the same derivative
-  // at 0 and 1 to avoid a kink while scrubbing through a half-selected cover.
-  static const double _firstHinge = .42;
-  static const double _hingeShift = .52 - _firstHinge;
-  static const double _farStep = .34;
+  // Same reference-calibrated perspective as desktop: the side cover's
+  // outer corners project to x=±1.067, y≈±.46 cover-widths; its inner edge
+  // narrows to x=±.429, y≈±.325 (before vanishing-point adjustment).
+  // Inset-only hinges could not reproduce these diagonal iTunes triangles.
+  static const double _fanAngle = 60;
+  static const double _perspective = 1.92;
+  static const double _vanishY = .16;
 
-  static double _innerDistance(double distance) {
+  static double _projectedCenter(double distance) {
     final a = distance.abs();
-    if (a >= 1) return _firstHinge + (a - 1) * _farStep;
-    return .66 * a - .10 * a * a - .04 * a * a * a
-        - _hingeShift * (3 * a * a - 2 * a * a * a);
-  }
-
-  // Hit testing follows projected artwork centres, not unprojected matrices.
-  static double _hitDistance(double distance) {
-    final a = distance.abs();
-    final t = math.min(1.0, a);
-    return _innerDistance(a) + .17 * (2 * t - t * t);
-  }
-
-  static double _depthDistance(double distance) {
-    final a = distance.abs();
-    if (a >= 1) return .15 + (a - 1) * .055;
-    return .20 * a - .005 * a * a - .045 * a * a * a;
+    return LokalCoverFlow.centerDistance(a) /
+        (1 + LokalCoverFlow.depthDistance(a) / _perspective);
   }
   double _stageWidth = 0;
 
@@ -197,28 +204,91 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     onSelect(index);
   }
 
-  /// The cover nearest [x] across the stage, inverting `_cover`'s layout.
-  int _indexAt(double x, double size) {
+  /// Map the four corners through the SAME camera used by _cover. Flutter's
+  /// RenderTransform strips perspective before hit testing, making its default
+  /// affine hit rectangle wider than the visible projected image. Stage-owned
+  /// taps use this actual painted quad instead.
+  List<Offset> _projectedQuad(int index, double size) {
+    final distance = index - _position.value;
+    final ad = distance.abs();
+    final side = distance.sign;
+    final near = ad.clamp(0.0, 1.0);
+    final reduced = _reduceMotion || _performance;
+    final dx = reduced ? distance * size * 1.06
+        : side * size * LokalCoverFlow.centerDistance(ad);
+    final depth = reduced ? 0.0
+        : -size * LokalCoverFlow.depthDistance(ad);
+    final angle = (reduced ? 0.0
+        : -side * (2 * near - near * near) * _fanAngle * math.pi / 180)
+        + (index == _index ? _flip.value * math.pi : 0.0);
+    final vanish = size * _vanishY;
+    Offset project(double x, double y) {
+      final worldX = dx + math.cos(angle) * x;
+      final worldZ = depth - math.sin(angle) * x;
+      final scale = reduced ? 1.0
+          : 1 / (1 - worldZ / (_perspective * size));
+      return Offset(
+        _stageWidth / 2 + worldX * scale,
+        size * .56 + (reduced ? y : vanish + (y - vanish) * scale),
+      );
+    }
+    final half = size / 2;
+    return [
+      project(-half, -half), project(half, -half),
+      project(half, half), project(-half, half),
+    ];
+  }
+
+  static bool _insideQuad(Offset point, List<Offset> corners) {
+    bool? sign;
+    for (var i = 0; i < corners.length; i++) {
+      final a = corners[i], b = corners[(i + 1) % corners.length];
+      final cross = (b.dx - a.dx) * (point.dy - a.dy) -
+          (b.dy - a.dy) * (point.dx - a.dx);
+      if (cross.abs() < 0.00001) continue;
+      final positive = cross > 0;
+      if (sign != null && sign != positive) return false;
+      sign = positive;
+    }
+    return sign != null;
+  }
+
+  /// The visible cover whose projected polygon contains the stage tap wins.
+  /// Select front-to-back; only use nearest projected center for genuine gaps.
+  int _indexAt(double x, double y, double size) {
     final offset = x - _stageWidth / 2;
-    if (_reduceMotion || _performance)
-      return (_position.value + offset / (size * 1.06)).round().clamp(0, _last);
-    // Invert the actual projected spacing with a monotonic binary search.
-    final normalizedOffset = offset.abs() / size;
-    var lo = 0.0;
-    final firstProjected = _firstHinge + .17;
-    var hi = normalizedOffset > firstProjected
-        ? 1 + (normalizedOffset - firstProjected) / _farStep
-        : 1.0;
-    for (var step = 0; step < 20; step++) {
-      final mid = (lo + hi) / 2;
-      if (_hitDistance(mid) < normalizedOffset) {
-        lo = mid;
-      } else {
-        hi = mid;
+    if (_reduceMotion || _performance) {
+      return (_position.value + offset / (size * 1.06))
+          .round().clamp(0, _last);
+    }
+
+    final pos = _position.value;
+    final radius = _performance ? 2 : 5;
+    final first = math.max(0, pos.floor() - radius);
+    final last = math.min(_last, pos.ceil() + radius);
+    final order = [for (var i = first; i <= last; i++) i]
+      ..sort((a, b) => (a - pos).abs().compareTo((b - pos).abs()));
+    for (final index in order) {
+      if (_insideQuad(Offset(x, y), _projectedQuad(index, size))) {
+        return index;
       }
     }
-    final d = offset.sign * (lo + hi) / 2;
-    return (_position.value + d).round().clamp(0, _last);
+
+    // A true black gap has no cover polygon. Use DISPLAYED center distances;
+    // inverting the nonlinear camera and rounding fractional index space
+    // can choose the wrong side of the gap.
+    var best = 0;
+    var minimum = double.infinity;
+    for (var i = 0; i <= _last; i++) {
+      final d = i - pos;
+      final projected = d.sign * _projectedCenter(d);
+      final distance = (projected * size - offset).abs();
+      if (distance < minimum) {
+        minimum = distance;
+        best = i;
+      }
+    }
+    return best;
   }
 
   void _toggleFlip() {
@@ -271,12 +341,12 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
                 // A tap in a gap between covers picks the nearest one; a tap
                 // on a cover is claimed by that cover first.
                 onTapUp: (details) =>
-                    _select(_indexAt(details.localPosition.dx, size)),
+                    _select(_indexAt(details.localPosition.dx, details.localPosition.dy, size)),
                 child: SizedBox(
-                  height: size * 1.40,
+                  height: size * 1.18,
                   width: constraints.maxWidth,
                   child: ColoredBox(
-                    color: Colors.black, // iTunes' dark stage makes the mirrored floor read correctly.
+                    color: Colors.black, // Keep iTunes' dark cover stage, without reflections.
                     child: AnimatedBuilder(
                       animation: _animation,
                       builder: (context, _) => _stage(size),
@@ -352,66 +422,45 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final ad = d.abs();
     final side = d.sign;
     final near = ad.clamp(0.0, 1.0);
-    final hinge = near * near * (3 - 2 * near);
-    // Position adjacent hinges slightly BEHIND the center cover (0.42
-    // rather than 0.50 widths from its center). The stage paints farthest
-    // first, allowing the facing artwork to hide both inner edges.
-    // The smoothstep inset keeps d = 1 C1-continuous during dragging.
     final dx = reduce ? d * size * 1.06
-        : side * size * (_innerDistance(ad) + .5 * hinge);
-    // With positive perspective (Matrix4 entry 3,2), negative Y rotation
-    // brings the LEFT outer edge towards the viewer; positive rotation brings
-    // the RIGHT outer edge towards the viewer. The previous sign was reversed,
-    // causing side artwork to fan the opposite way from classic iTunes.
+        : side * size * LokalCoverFlow.centerDistance(ad);
+    // Both front and side covers rotate about their own center. The *entire*
+    // translated panel must pass through the same perspective divide; moving
+    // dx outside perspective makes the reference triangles impossible.
     final angle = reduce ? 0.0
-        : side * (2 * near - near * near) * 70 * math.pi / 180;
-    final depth = reduce ? 0.0 : -size * _depthDistance(ad);
-    // Move the pivot continuously from centre to inner edge during drags.
-    final pivot = reduce ? .5 : .5 - side * .5 * hinge;
+        : -side * (2 * near - near * near) * _fanAngle * math.pi / 180;
+    final depth = reduce ? 0.0 : -size * LokalCoverFlow.depthDistance(ad);
     final facing = i == _index;
     final flip = facing ? _flip.value : 0.0;
-
-    // Translate the projected cover, not its camera: putting dx inside the
-    // perspective division stretches distant panels across their neighbors.
-    final matrix = Matrix4.translationValues(dx, 0, 0)
+    final vanish = size * _vanishY;
+    // Flutter's perspective convention uses w=1+p*z. The NEGATIVE entry
+    // ensures rearward depth shrinks (rather than magnifies) the cover.
+    final matrix = Matrix4.translationValues(0, vanish, 0)
       ..multiply(
         Matrix4.identity()
-          ..setEntry(3, 2, .20 / size)
-          ..translateByDouble(0, 0, depth, 1)
+          ..setEntry(3, 2, -1 / (_perspective * size))
+          ..translateByDouble(dx, -vanish, depth, 1)
           ..rotateY(angle + flip * math.pi),
       );
 
     final album = widget.albums[i];
-    // Keep image/reflector subtrees identical during every animation frame.
-    // Reordering keyed covers must never remount or re-resolve their images.
-    final face = _faces.putIfAbsent(album.key, () {
-      final cover = widget.cover(album);
-      return RepaintBoundary(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _Front(cover: cover, size: size, shadow: !_performance),
-            if (!_performance) SizedBox(height: size * .005),
-            if (!_performance)
-              _Reflection(
-                size: size,
-                child: SizedBox.square(dimension: size, child: cover),
-              ),
-          ],
-        ),
-      );
-    });
+    // Cached face contains only the original artwork; no reflection shader,
+    // mirrored image, offscreen render pass or duplicated cover subtree.
+    final face = _faces.putIfAbsent(album.key, () => RepaintBoundary(
+      child: _Front(cover: widget.cover(album), size: size, shadow: !_performance),
+    ));
     final showBack = flip > .5;
     return Positioned(
       key: ValueKey(album.key),
       top: size * .06,
       child: Transform(
-        // Hinge at the inner cover edge (with continuous pivot interpolation).
-        // Y stays at artwork centre, never at artwork-plus-reflection centre.
-        origin: Offset(size * pivot, size / 2),
+        // Center pivot exactly matches the desktop projection.
+        origin: Offset(size / 2, size / 2),
         transform: matrix,
         child: GestureDetector(
-          onTap: () => _select(i),
+          // Tap selection belongs to the outer stage, which tests projected
+          // polygons. Otherwise Flutter's affine hit-testing lets an invisible
+          // first-neighbor edge steal the second neighbor's tap.
           onLongPress: facing && widget.onSelect != null ? _toggleFlip : null,
           child: Opacity(
             opacity: (1 - (ad - 4).clamp(0.0, 1.0)),
@@ -458,42 +507,6 @@ class _Front extends StatelessWidget {
     ),
     clipBehavior: Clip.antiAlias,
     child: ExcludeSemantics(child: cover),
-  );
-}
-
-/// The cover mirrored onto a glossy floor, fading out.
-class _Reflection extends StatelessWidget {
-  const _Reflection({required this.size, required this.child});
-
-  final double size;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: size,
-    height: size * .30,
-    child: ClipRect(
-      child: OverflowBox(
-        alignment: Alignment.topCenter,
-        maxHeight: size,
-        child: ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (rect) => const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0x6AFFFFFF), Color(0x00FFFFFF)],
-            // The shader is sized to the square cover, but only its first
-            // 30% is displayed; fade completely before the clip boundary.
-            stops: [0, .30],
-          ).createShader(rect),
-          child: Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.diagonal3Values(1, -1, 1),
-            child: IgnorePointer(child: child),
-          ),
-        ),
-      ),
-    ),
   );
 }
 

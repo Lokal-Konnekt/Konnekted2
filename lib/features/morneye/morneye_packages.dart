@@ -17,6 +17,7 @@ import 'morneye_runtime.dart';
 import 'morneye_session.dart';
 import 'morneye_storage.dart';
 import 'morneye_ffmpeg.dart';
+import 'morneye_playback_quality.dart';
 
 /// Morneye add-on packages (.sflx), as desktop's
 /// electron/morneye/packages.js: repositories to install from, installed
@@ -1620,23 +1621,17 @@ class MorneyePackages {
         if (provider == 'amazon') 'web_metadata': track,
       };
       final values = settings(addon);
-      String? lossless;
-      for (final q in addon.qualityOptions) {
-        if (q is Map && q['kind'] == 'lossless') {
-          lossless = '${q['id']}';
-          break;
-        }
+      final chosen = chooseMorneyeDownloadQuality(
+        requested: quality,
+        configured: values['downloadQuality'] as String?,
+        options: addon.qualityOptions,
+        provider: provider,
+      );
+      if (quality != 'DOLBY_ATMOS' && isMorneyeAtmosQuality(chosen)) {
+        throw const MorneyePackageError(
+          'Normal playback unexpectedly selected a Dolby Atmos download tier.',
+        );
       }
-      final first =
-          addon.qualityOptions.isNotEmpty && addon.qualityOptions.first is Map
-          ? '${(addon.qualityOptions.first as Map)['id']}'
-          : null;
-      final chosen =
-          quality ??
-          values['downloadQuality'] as String? ??
-          lossless ??
-          first ??
-          'default';
       if (quality == 'DOLBY_ATMOS') AtmosDiagnostics.record('addon_download_start', {
         'source': provider == 'tidal' ? 'tidal' : 'other',
         'quality': 'DOLBY_ATMOS',

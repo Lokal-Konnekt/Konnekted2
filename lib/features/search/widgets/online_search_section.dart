@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/discovery/discovery_artwork.dart';
+import 'package:flick/features/discovery/discovery_http.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
 import 'package:flick/features/search/library_download.dart';

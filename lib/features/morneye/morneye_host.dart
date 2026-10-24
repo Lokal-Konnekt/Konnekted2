@@ -575,6 +575,13 @@ class MorneyeHost {
     Future<void> report() {
       final sum = progress.values.fold<int>(0, (a, b) => a + b);
       final done = completed;
+      // Segmented downloads may have no total byte length. Completed segment
+      // count is still a truthful measurable progress value: report it
+      // separately as segment completion, not a fictitious byte percentage.
+      onProgress?.call(
+        percent: completed * 100.0 / segmentsList.length,
+        message: 'Downloading audio segments…',
+      );
       serial = serial.then(
         (_) => callback(options['onProgress'], [
           sum,

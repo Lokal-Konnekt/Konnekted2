@@ -230,7 +230,7 @@ class SongActionsBottomSheet extends ConsumerWidget {
         onTap: close(() async {
           await container
               .read(favoritesProvider.notifier)
-              .toggleFavorite(song.id);
+              .toggleFavorite(song.id, song: song);
           PlayerService().refreshNotificationState();
         }),
       ),

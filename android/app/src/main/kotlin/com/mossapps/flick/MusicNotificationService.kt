@@ -55,6 +55,7 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
     private lateinit var notificationManager: NotificationManager
     private var methodChannel: MethodChannel? = null
     private var carEngineStarting = false
+    private var carClientConnected = false
     private val pendingCarBrowses = mutableListOf<Pair<String, Result<List<MediaBrowserCompat.MediaItem>>>>()
     private external fun nativeInitRustAndroidContext(context: Context): Boolean
 
@@ -258,6 +259,10 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        if (carClientConnected) {
+            android.util.Log.d("MusicNotification", "Car media browser is connected; keep playback alive")
+            return
+        }
         if (isKeepPlayingOnQuit() && isPlaying) {
             android.util.Log.d("MusicNotification", "Task removed but keep-playing enabled; staying alive")
             return
@@ -295,8 +300,16 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
         if (packages?.contains(clientPackageName) != true) return null
         // A car may connect before MainActivity has ever run. Initialize
         // Flutter without launching a phone Activity or blocking onGetRoot.
+        carClientConnected = true
         Handler(Looper.getMainLooper()).post { ensureCarFlutterEngine() }
         return BrowserRoot(CAR_ROOT_ID, null)
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        if (intent?.action == "android.media.browse.MediaBrowserService") {
+            carClientConnected = false
+        }
+        return super.onUnbind(intent)
     }
 
     override fun onLoadChildren(
@@ -444,7 +457,7 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
                             else dispatchCarBrowse(id, result, channel)
                         }
                         listOf("lokal/songs", "lokal/likes", "lokal/playlists", "lokal/albums")
-                            .forEach(::notifyChildrenChanged)
+                            .forEach { id -> notifyChildrenChanged(id) }
                     }
                     "showNotification", "updateNotification" -> {
                         try {

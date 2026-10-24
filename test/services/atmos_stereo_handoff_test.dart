@@ -94,6 +94,21 @@ void main() {
       ), 'LOSSLESS');
     });
 
+    test('download settings stay intact while playback excludes Atmos', () {
+      expect(resolveMorneyeRequestQuality(
+        forPlayback: false, requested: null, configured: 'DOLBY_ATMOS',
+        options: options, provider: 'tidal',
+      ), 'DOLBY_ATMOS');
+      expect(resolveMorneyeRequestQuality(
+        forPlayback: true, requested: null, configured: 'DOLBY_ATMOS',
+        options: options, provider: 'tidal',
+      ), 'HI_RES_LOSSLESS');
+      expect(resolveMorneyeRequestQuality(
+        forPlayback: true, requested: 'DOLBY_ATMOS',
+        configured: 'LOSSLESS', options: options, provider: 'tidal',
+      ), 'DOLBY_ATMOS');
+    });
+
     test('no implicit Atmos for providers with Atmos-only quality lists', () {
       expect(chooseMorneyeDownloadQuality(
         requested: null, configured: 'DOLBY_ATMOS',

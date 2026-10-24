@@ -301,6 +301,12 @@ class QueuePreResolver {
       asked.add(id);
       void start() {
         if (_running.containsKey(id)) return;
+        // A delayed timer may fire after a foreground resolution started.
+        // Foreground completion schedules the window again, so don't launch
+        // competing provider requests while the selected track prepares.
+        if (_running.values.any((lookup) => lookup.onDemand && !lookup.cancelled)) {
+          return;
+        }
         // Started later: still coming up in the queue as it is now?
         if (!_upcomingPending().any((other) => other.id == id)) return;
         _start(id, onDemand: false);

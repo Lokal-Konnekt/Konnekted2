@@ -634,6 +634,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
         play: (found) async {
           final progress = MorneyeProgressText(found.title, addon.displayName);
           final qobuz = addon.name.toLowerCase().contains('qobuz');
+          final tidal = addon.name.toLowerCase().contains('tidal');
           double? actualTransferPercent;
           var segmentedProgress = false;
           var finished = false;
@@ -699,12 +700,13 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   // Even an explicit Qobuz Save (live == null) needs the
                   // host's measured byte progress. The guest's initial 5%
                   // only means its download ticket is being resolved.
-                  onTransfer: live == null && !qobuz ? null : (transfer) {
+                  onTransfer: live == null && !qobuz && !tidal ? null : (transfer) {
                     live?.observe(transfer);
                     // Qobuz's extension emits 5% during URL/ticket
                     // resolution. Only host-observed bytes are transfer
                     // progress; they must supersede guest progress numbers.
-                    if (qobuz && !finished && transfer.total > 0 &&
+                    if ((qobuz || tidal) && !finished && !segmentedProgress &&
+                        transfer.total > 0 &&
                         transfer.written > 0) {
                       actualTransferPercent =
                           (transfer.written * 100 / transfer.total)
@@ -718,7 +720,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   },
                   onProgress: ({percent, message}) {
                     if (finished) return;
-                    if (qobuz) {
+                    if (qobuz || tidal) {
                       if (message == 'Downloading audio segments…') {
                         segmentedProgress = true;
                         // Host-observed completed segments, not a guess.
@@ -728,9 +730,13 @@ Future<List<_PlaybackSource>> _morneyeSources(
                         if (text != null) onStatus?.call(text);
                       } else if (actualTransferPercent == null &&
                                  !segmentedProgress) {
-                        // The extension's 5% is merely a resolver stage.
+                        // The extension's initial 5% is a resolver stage.
+                        // Once real segments start, ignore guest status/%
+                        // callbacks so there is only one stable toast.
                         final text = progress.update(
-                          message: 'Resolving Qobuz stream…',
+                          message: qobuz
+                              ? 'Resolving Qobuz stream…'
+                              : 'Resolving Tidal stream…',
                         );
                         if (text != null) onStatus?.call(text);
                       }

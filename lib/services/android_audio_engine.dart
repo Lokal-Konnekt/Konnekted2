@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,17 @@ import 'package:flick/models/song.dart';
 import 'package:flick/services/audio_engine.dart';
 import 'package:flick/core/utils/dev_log.dart';
 import 'package:flick/services/atmos_diagnostics.dart';
+
+/// A queue entry's identity includes the actual encoded media source. Two
+/// versions of the same catalogue song can share an ID but not a decoder or
+/// cached URL. Reusing the old playlist here silently plays the wrong track.
+@visibleForTesting
+String androidAudioSourceIdentity(Song song) =>
+    jsonEncode([song.id, song.filePath, song.atmosEncoded, song.fileType]);
+
+@visibleForTesting
+bool shouldResetAndroidAtmosDecoder(Song? previous, Song next) =>
+    previous != null && previous.atmosEncoded != next.atmosEncoded;
 
 typedef AndroidAudioSourcesBuilder = Future<just_audio.AudioSource> Function();
 typedef AndroidAudioSourceBuilder = Future<just_audio.AudioSource> Function(
@@ -352,7 +364,7 @@ class AndroidAudioEngine implements AudioEngine {
     )) {
       _loadedSingleTrackOnly = false;
       _playlistSignature = _playlistProvider()
-          .map((song) => song.id)
+          .map(androidAudioSourceIdentity)
           .toList(growable: false);
     } else if (player.sequence.isEmpty) {
       _playlistSignature = const <String>[];
@@ -437,13 +449,29 @@ class AndroidAudioEngine implements AudioEngine {
     }
 
     final nextSignature = playlist
-        .map((song) => song.id)
+        .map(androidAudioSourceIdentity)
         .toList(growable: false);
     final canReusePlaylist =
         !_sourceFailed &&
         _playlistSignature.isNotEmpty &&
         listEquals(_playlistSignature, nextSignature);
 
+    final priorTrack = _loadedTrack;
+    final outputModeChanged = shouldResetAndroidAtmosDecoder(priorTrack, track);
+    if (outputModeChanged) {
+      // Stop Media3's old codec / audio sink before reloading a different
+      // audio format. A JOC decoder may still own the output when stereo
+      // starts; a seek into the previous playlist cannot release it.
+      AtmosDiagnostics.record('playback_handoff', {
+        'from': priorTrack!.atmosEncoded ? 'atmos' : 'normal',
+        'to': track.atmosEncoded ? 'atmos' : 'normal',
+        'outcome': 'releasing_previous_decoder',
+      });
+      await player.stop().timeout(const Duration(seconds: 5));
+      _playlistSignature = const <String>[];
+      _loadedSingleTrackOnly = false;
+      _sourceFailed = false;
+    }
     _loadedTrack = track;
     _lastAtmosPlaybackState = null;
     if (track.atmosEncoded) {
@@ -657,7 +685,8 @@ class AndroidAudioEngine implements AudioEngine {
         return;
       }
       final next = _onNextSong?.call();
-      if (next == null || next.id == _loadedTrack?.id) {
+      if (next == null || next.atmosEncoded ||
+          next.id == _loadedTrack?.id) {
         // Nothing to crossfade into (end of list / loop-one): let the track
         // end naturally so onTrackEnded handles it.
         _crossfadeArmed = false;

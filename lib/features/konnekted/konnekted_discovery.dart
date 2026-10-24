@@ -564,10 +564,18 @@ String? morneyeAdvertisedQuality(String? advertised) {
     'FLAC', 'ALAC', 'AAC', 'MP3', 'OPUS', 'VORBIS', 'WAV', 'AIFF',
     'OGG', 'APE', 'WAVPACK', 'WV',
   };
+  final cachedCodec = known.contains(fileType) ? fileType : null;
+  final advertisedCodec = codec?.trim().toUpperCase();
+  // Do not combine a previously cached FLAC's 24-bit PCM metadata with a
+  // newly advertised AAC/Opus edition of the same catalogue recording.
+  final sameCodec = advertisedCodec == null ||
+      advertisedCodec.isEmpty ||
+      advertisedCodec == cachedCodec;
   return (
-    codec: codec ?? (known.contains(fileType) ? fileType : null),
-    bitDepth: bitDepth ?? verifiedPlayback?.bitDepth,
-    sampleRate: sampleRate ?? verifiedPlayback?.sampleRate,
+    codec: codec ?? cachedCodec,
+    bitDepth: bitDepth ?? (sameCodec ? verifiedPlayback?.bitDepth : null),
+    sampleRate: sampleRate ??
+        (sameCodec ? verifiedPlayback?.sampleRate : null),
   );
 }
 

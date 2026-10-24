@@ -89,8 +89,8 @@ class ReplayBrand extends StatelessWidget {
     children: [
       ExcludeSemantics(
         child: SvgPicture.asset(
-          'assets/icons/flicklogo_svg.svg',
-          width: 16,
+          'assets/branding/lokal_cd_monochrome.svg',
+          width: 20,
           height: 20,
           colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
         ),

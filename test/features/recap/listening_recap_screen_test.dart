@@ -8,6 +8,7 @@ import 'package:flick/data/repositories/recently_played_repository.dart';
 import 'package:flick/features/recap/screens/listening_recap_screen.dart';
 import 'package:flick/features/recap/screens/replay_studio_screen.dart';
 import 'package:flick/features/recap/widgets/replay_artwork.dart';
+import 'package:flick/features/recap/widgets/replay_card_surface.dart';
 import 'package:flick/features/recap/widgets/replay_card_options.dart';
 import 'package:flick/features/recap/widgets/replay_graphics.dart';
 import 'package:flick/features/recap/widgets/replay_poster.dart';
@@ -23,6 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -263,6 +265,24 @@ Future<void> _snapshot(WidgetTester tester, String name) async {
   });
 }
 
+// The same ReplayBrand is embedded in the live recap and in the exported poster.
+// Guard the exact bundled asset so the legacy Flick SVG cannot return unnoticed.
+void expectLokalRecapBrand() {
+  final icons = find.descendant(
+    of: find.byType(ReplayBrand),
+    matching: find.byType(SvgPicture),
+  );
+  expect(icons, findsWidgets);
+  for (final element in icons.evaluate()) {
+    final loader = (element.widget as SvgPicture).bytesLoader;
+    expect(loader, isA<SvgAssetLoader>());
+    expect(
+      (loader as SvgAssetLoader).assetName,
+      'assets/branding/lokal_cd_monochrome.svg',
+    );
+  }
+}
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -286,13 +306,15 @@ void main() {
     final repository = _Repository(_all());
     addTearDown(repository.changes.close);
     await _pump(tester, repository);
-    expect(find.text('Flick Replay'), findsNWidgets(2));
+    expect(find.text('Lokal Replay'), findsNWidgets(2));
+    expectLokalRecapBrand();
     expect(find.text('128'), findsOneWidget);
     expect(find.text('Your most replayed track'), findsOneWidget);
     await _snapshot(tester, 'replay-overview');
     await tester.tap(find.byTooltip('Save / customize Replay'));
     await tester.pumpAndSettle();
     expect(find.byType(ReplayStudioScreen), findsOneWidget);
+    expectLokalRecapBrand();
     expect(find.byType(BottomSheet), findsNothing);
     expect(
       tester

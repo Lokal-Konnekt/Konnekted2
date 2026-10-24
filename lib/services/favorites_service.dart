@@ -19,7 +19,7 @@ class FavoritesService {
   static const String _onlineMetadataKey = 'favorite_online_song_metadata_v1';
 
   static bool _onlineSong(Song song) => song.isPending ||
-      song.isExternal || (song.sourcePackage?.startsWith('konnekted.') ?? false);
+      song.isExternal || song.isNetworkSource || (song.sourcePackage?.startsWith('konnekted.') ?? false);
 
   static Map<String, Object?> _capture(Song song) => {
     'id': song.id, 'title': song.title, 'artist': song.artist,
@@ -27,7 +27,8 @@ class FavoritesService {
     'durationMs': song.duration.inMilliseconds, 'codec': song.fileType,
     'resolution': song.resolution, 'sampleRate': song.sampleRate,
     'bitDepth': song.bitDepth, 'filePath': song.filePath,
-    'sourcePackage': song.sourcePackage, 'remoteId': song.remoteId,
+    'sourcePackage': song.sourcePackage, 'sourceType': song.sourceType,
+    'remoteId': song.remoteId,
   };
 
   /// Preserve metadata for online songs, which are never inserted into
@@ -72,6 +73,7 @@ class FavoritesService {
       bitDepth: (song['bitDepth'] as num?)?.toInt(),
       filePath: song['filePath'] as String?,
       sourcePackage: song['sourcePackage'] as String?,
+      sourceType: song['sourceType'] as String?,
       remoteId: song['remoteId'] as String?,
       isExternal: true,
     );

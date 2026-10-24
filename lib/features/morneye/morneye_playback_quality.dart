@@ -67,3 +67,10 @@ String resolveMorneyeRequestQuality({
     options: options, provider: provider,
   );
 }
+
+/// Requesting the best catalogue edition because Atmos happens to be
+/// advertised overrides the user's HIGH/LOW setting. Only an explicit Atmos
+/// play command may force a tier. Normal playback passes null so the addon
+/// receives its configured downloadQuality.
+String? explicitMorneyePlaybackTier({required bool atmosRequested}) =>
+    atmosRequested ? 'DOLBY_ATMOS' : null;

@@ -64,6 +64,38 @@ void main() {
     expect(await seek.stream.expand((bytes) => bytes).length, 10000);
   });
 
+  test('live Qobuz/Tidal FLAC reads actual STREAMINFO, not HiRes catalogue max', () async {
+    List<int> header(int depth, int rate) {
+      final h = List<int>.filled(42, 0);
+      h.setRange(0, 4, [0x66, 0x4c, 0x61, 0x43]);
+      h[4] = 0; h[5] = 0; h[6] = 0; h[7] = 34;
+      h[18] = (rate >> 12) & 0xff;
+      h[19] = (rate >> 4) & 0xff;
+      h[20] = ((rate & 0x0f) << 4) | (((depth - 1) >> 4) & 1);
+      h[21] = ((depth - 1) & 0x0f) << 4;
+      return h;
+    }
+    final cd = MorneyeLiveSession.readFlacStreamInfo(header(16, 44100));
+    expect(cd?.bitDepth, 16);
+    expect(cd?.sampleRate, 44100);
+    final hires = MorneyeLiveSession.readFlacStreamInfo(header(24, 96000));
+    expect(hires?.bitDepth, 24);
+    expect(hires?.sampleRate, 96000);
+    expect(MorneyeLiveSession.readFlacStreamInfo([1, 2, 3]), isNull);
+
+    final session = MorneyeLiveSession();
+    final file = File('${directory.path}/cd.flac.part');
+    final bytes = [...header(16, 44100), ...List<int>.filled(65536-42, 0)];
+    await file.writeAsBytes(bytes);
+    session.observe(MorneyeTransfer(
+      part: file.path, file: '${directory.path}/cd.flac',
+      total: 100000, written: bytes.length,
+    ));
+    await session.playable.timeout(const Duration(seconds: 1));
+    expect(session.bitDepth, 16);
+    expect(session.sampleRate, 44100);
+  });
+
   test('non-FLAC header never opens a growing source', () async {
     final session = MorneyeLiveSession();
     final file = File('${directory.path}/audio.flac.part');

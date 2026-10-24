@@ -1000,14 +1000,11 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                       // Keep Qobuz's actual advertised label,
                                       // without the redundant "CATALOGUE:" text.
                                       ? catalogueQualityLabel(song.resolution).toUpperCase()
-                                      : (song.sourcePackage == 'konnekted.discovery' &&
-                                         song.fileType.trim().isNotEmpty &&
-                                         song.fileType.toUpperCase() != 'ONLINE')
-                                          // YouTube's downloaded media was
-                                          // probed; codec/container is known
-                                          // even when bitrate was not.
-                                          ? song.fileType.toUpperCase()
-                                          : 'UNKNOWN',
+                                      // A codec/MP4/WebM container is not a
+                                      // quality tier. Full player uses actual
+                                      // file bitrate + codec (or FLAC bits and
+                                      // rate) whenever native probing succeeds.
+                                      : 'UNKNOWN',
                             },
                             style: const TextStyle(fontFamily: _font,
                               fontSize: 9, fontWeight: FontWeight.w700,

@@ -671,7 +671,9 @@ class _OnlineTile extends StatelessWidget {
                           message: track.source == DiscoverySource.youtubeMusic &&
                                   reportedQuality.isEmpty
                               ? 'YouTube playback negotiates AAC/Opus; the exact codec and bitrate are known only after stream resolution'
-                              : 'Provider-advertised audio details; actual decoded output may differ',
+                              : displayQuality.contains('(selected)')
+                                  ? 'Selected add-on download quality, not a verified per-track codec or bitrate. The full player reports the actual file after decoding/probing.'
+                                  : 'Provider-advertised audio details; actual decoded output may differ',
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 7, vertical: 2),

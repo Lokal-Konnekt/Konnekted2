@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:just_audio/just_audio.dart' as just_audio;
+import 'package:flutter/foundation.dart';
 
 import 'morneye_host.dart';
 
@@ -35,6 +36,24 @@ class MorneyeLiveSession {
   bool get isPlayable => _ready.isCompleted && !_invalid;
   bool get isTransferring => isPlayable && !_transferred;
   int get total => _total;
+  // FLAC STREAMINFO records the actual encoding in the stream header.
+  int? _sampleRate, _bitDepth;
+  int? get sampleRate => _sampleRate;
+  int? get bitDepth => _bitDepth;
+
+  @visibleForTesting
+  static ({int bitDepth, int sampleRate})? readFlacStreamInfo(List<int> bytes) {
+    if (bytes.length < 22 || bytes[0] != 0x66 || bytes[1] != 0x4c ||
+        bytes[2] != 0x61 || bytes[3] != 0x43 ||
+        (bytes[4] & 0x7f) != 0 ||
+        ((bytes[5] << 16) | (bytes[6] << 8) | bytes[7]) != 34) {
+      return null;
+    }
+    final rate = (bytes[18] << 12) | (bytes[19] << 4) | (bytes[20] >> 4);
+    final bits = (((bytes[20] & 1) << 4) | (bytes[21] >> 4)) + 1;
+    if (rate < 8000 || rate > 768000 || bits < 8 || bits > 32) return null;
+    return (bitDepth: bits, sampleRate: rate);
+  }
 
   /// Only progress from the host's actual file writer can authorize a stream.
   void observe(MorneyeTransfer info) {
@@ -68,12 +87,13 @@ class MorneyeLiveSession {
         final source = File(_transferred ? info.file : info.part);
         final handle = source.openSync();
         try {
-          final head = handle.readSync(4);
-          if (head.length == 4 &&
-              head[0] == 0x66 &&
-              head[1] == 0x4c &&
-              head[2] == 0x61 &&
-              head[3] == 0x43) {
+          final head = handle.readSync(42);
+          if (head.length >= 4 &&
+              head[0] == 0x66 && head[1] == 0x4c &&
+              head[2] == 0x61 && head[3] == 0x43) {
+            final audio = readFlacStreamInfo(head);
+            _sampleRate = audio?.sampleRate;
+            _bitDepth = audio?.bitDepth;
             _ready.complete();
           }
         } finally {

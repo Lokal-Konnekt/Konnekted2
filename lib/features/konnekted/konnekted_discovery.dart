@@ -25,6 +25,7 @@ import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_store.dart';
 import 'package:flick/features/morneye/morneye_live_playback.dart';
 import 'package:flick/features/morneye/morneye_packages.dart';
+import 'package:flick/features/morneye/morneye_playback_quality.dart';
 import 'package:flick/features/morneye/morneye_runtime.dart';
 import 'package:flick/features/morneye/morneye_service.dart';
 import 'package:flick/features/spotify/spotify_api.dart';
@@ -621,11 +622,21 @@ Future<List<_PlaybackSource>> _morneyeSources(
         },
         results: (query) async {
           final found = await packages.search(addon.key, query);
+          final settings = packages.settings(addon);
+          // A chosen lower tier must override catalogue MAX-quality claims in
+          // Search, but must be labelled as requested until the audio was
+          // actually probed. Deezer's current add-on has one FLAC-only tier.
+          final configured = settings['downloadQuality'] as String?;
+          final selectedQuality = addon.qualityOptions.length <= 1 ||
+                  configured == 'best'
+              ? null
+              : morneyeSelectedQualityLabel(
+                  configured: configured, options: addon.qualityOptions);
           // This fingerprint is the same one used for the verified playback
           // cache. Another account, requested tier or add-on version cannot
           // borrow a different recording's quality badge.
           final fingerprint = sha256
-              .convert(utf8.encode(jsonEncode(packages.settings(addon))))
+              .convert(utf8.encode(jsonEncode(settings)))
               .toString();
           final results = <OnlineResult>[];
           for (final song in found) {
@@ -634,7 +645,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
               addonDigest: addon.digest,
               trackId: song.id,
               settingsFingerprint: fingerprint,
-              requestedTier: song.atmosAvailable ? 'HI_RES_LOSSLESS' : '',
+              requestedTier: '',
             );
             final cached = _morneyeReadyPlayback[key];
             final verified = cached != null &&
@@ -642,9 +653,15 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 File(cached.filePath!).existsSync()
                 ? cached : null;
             final details = morneyeSearchAudioDetails(
-              codec: song.codec,
-              bitDepth: song.bitDepth,
-              sampleRate: song.sampleRate,
+              // An actually downloaded AAC/Opus rendition supersedes
+              // catalogue FLAC/HiRes metadata for that same song. Never
+              // combine FLAC max properties with a lower selected codec.
+              codec: verified != null || selectedQuality != null
+                  ? null : song.codec,
+              bitDepth: verified != null || selectedQuality != null
+                  ? null : song.bitDepth,
+              sampleRate: verified != null || selectedQuality != null
+                  ? null : song.sampleRate,
               verifiedPlayback: verified,
             );
             results.add(OnlineResult(DiscoveryTrack(
@@ -658,7 +675,9 @@ Future<List<_PlaybackSource>> _morneyeSources(
               sourceName: addon.displayName,
               artwork: song.thumbnail,
               atmosAvailable: song.atmosAvailable,
-              catalogueQuality: morneyeAdvertisedQuality(song.quality),
+              catalogueQuality: verified != null
+                  ? verified.resolution
+                  : selectedQuality ?? morneyeAdvertisedQuality(song.quality),
               catalogueCodec: details.codec,
               catalogueBitDepth: details.bitDepth,
               catalogueSampleRate: details.sampleRate,
@@ -690,9 +709,8 @@ Future<List<_PlaybackSource>> _morneyeSources(
             throw const DiscoveryException('This track has no advertised Atmos version.');
           }
           final tryAtmos = found.atmosRequested;
-          final requestedTier = tryAtmos
-              ? 'DOLBY_ATMOS'
-              : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : '');
+          final explicitTier = explicitMorneyePlaybackTier(atmosRequested: tryAtmos);
+          final requestedTier = explicitTier ?? '';
           final cacheKey = morneyePlaybackCacheKey(
             addonKey: addon.key,
             addonDigest: addon.digest,
@@ -790,9 +808,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 'downloadOnly': found.atmosDownload,
               });
               final transfer = fetch(
-                quality: tryAtmos
-                    ? 'DOLBY_ATMOS'
-                    : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
+                quality: explicitTier,
               );
               // The host only exposes a live descriptor after a 64 KiB FLAC
               // header check and a known full length. Race that safe first
@@ -810,7 +826,9 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 unawaited(
                   transfer.then((completed) async {
                     try {
-                      final cached = await cache().adopt(found, completed.file);
+                      final cached = await cache().adopt(
+                        found, completed.file, sourceInfo: completed.info,
+                      );
                       final path = cached.filePath;
                       if (path == null) {
                         throw StateError('Completed audio has no cache path');
@@ -838,21 +856,11 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   albumArt: found.artwork,
                   duration: found.duration ?? Duration.zero,
                   fileType: 'FLAC',
-                  resolution: advertisedOnlineAudio(
-                    codec: 'FLAC', quality: found.catalogueQuality,
-                    bitDepth: found.catalogueBitDepth,
-                    sampleRate: found.catalogueSampleRate,
-                  ).resolution,
-                  bitDepth: advertisedOnlineAudio(
-                    codec: 'FLAC', quality: found.catalogueQuality,
-                    bitDepth: found.catalogueBitDepth,
-                    sampleRate: found.catalogueSampleRate,
-                  ).bitDepth,
-                  sampleRate: advertisedOnlineAudio(
-                    codec: 'FLAC', quality: found.catalogueQuality,
-                    bitDepth: found.catalogueBitDepth,
-                    sampleRate: found.catalogueSampleRate,
-                  ).sampleRate,
+                  // The stream passed the FLAC magic/header check. Use
+                  // STREAMINFO measurements; the provider's catalogue maximum
+                  // can be 24-bit even when LOW/LOSSLESS was selected.
+                  bitDepth: session.bitDepth,
+                  sampleRate: session.sampleRate,
                   filePath: handle,
                   sourcePackage: 'konnekted.morneye-live',
                   remoteId: found.id,
@@ -945,6 +953,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
               found,
               download.file,
               atmosEncoded: download.atmosEncoded,
+              sourceInfo: download.info,
             );
             if (tryAtmos) AtmosDiagnostics.record('cache_adopt_done', {
               'encoded': adopted.atmosEncoded,

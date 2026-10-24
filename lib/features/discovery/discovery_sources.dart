@@ -447,7 +447,8 @@ class DiscoveryAddon {
       );
     }
     final flag = json['allowDownloads'];
-    // Unknown policy values fail closed: this player needs a temporary file.
+    // An add-on may prohibit saving while allowing direct streaming.
+    // Cache permission is checked only when an explicit download is requested.
     final allowed =
         flag == null ||
         flag == true ||
@@ -560,6 +561,7 @@ class DiscoveryAddon {
   Future<ResolvedDiscoveryAudio> resolve(
     DiscoveryTrack track, {
     Future<void>? cancel,
+    bool forDownload = false,
   }) async {
     if (track.source != DiscoverySource.addon ||
         track.addonId != configId ||
@@ -573,9 +575,9 @@ class DiscoveryAddon {
       );
     }
     final manifest = await health(cancel: cancel);
-    if (!manifest.cacheAllowed) {
+    if (forDownload && !manifest.cacheAllowed) {
       throw const DiscoveryException(
-        'This addon disallows downloads. Temporary caching is required by this player.',
+        'This addon disallows saving or downloading audio.',
       );
     }
     return parseStream(

@@ -172,7 +172,7 @@ void main() {
     expect(catalogueAudioDetails(
       codec: actual.codec, bitDepth: actual.bitDepth,
       sampleRate: actual.sampleRate, quality: opus.resolution,
-    ), 'OPUS · 48 kHz / 192 kbps');
+    ), 'OPUS · 48 kHz · 192 kbps');
     expect(actual.codec, 'OPUS');
     expect(actual.bitDepth, isNull);
   });

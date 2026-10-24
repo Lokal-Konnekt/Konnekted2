@@ -142,11 +142,81 @@ void main() {
     expect(pos(1), closeTo(.91, 1e-9));
     expect(pos(2) - pos(1), closeTo(.18, 1e-9));
     expect((pos(1) - pos(1 - e)) / e, closeTo((pos(1 + e) - pos(1)) / e, .001));
-    expect((pos(e) - pos(0)) / e, closeTo(.90, .001));
+    expect((LokalCoverFlow.projectedCenterDistance(e) -
+            LokalCoverFlow.projectedCenterDistance(0)) / e,
+        closeTo(.70, .001), reason: 'the projected rail starts with controlled horizontal velocity');
     expect(depth(0), 0);
     expect(depth(1), closeTo(.60, 1e-9));
     expect((depth(1) - depth(1 - e)) / e,
         closeTo((depth(1 + e) - depth(1)) / e, .001));
+  });
+
+  test('screen-space centers form a flat horizontal rail with smooth near/far transitions', () {
+    final projected = LokalCoverFlow.projectedCenterDistance;
+    final world = LokalCoverFlow.centerDistance;
+    final depth = LokalCoverFlow.depthDistance;
+    const epsilon = .00001;
+    final first = .91 / (1 + .60 / 1.92);
+    final step = .18 / (1 + .60 / 1.92);
+    expect(projected(0), 0);
+    expect(projected(1), closeTo(first, 1e-9));
+    expect(projected(2) - projected(1), closeTo(step, 1e-9));
+    expect(world(1), closeTo(.91, 1e-9),
+        reason: 'do not disturb the iTunes reference triangles');
+    expect(world(2) - world(1), closeTo(.18, 1e-9));
+    expect(depth(1), closeTo(.60, 1e-9));
+
+    // Perspective cancellation: the apparent X position must equal the
+    // intended horizontal rail, even during the depth/rotation transition.
+    for (final d in [.1, .2, .35, .5, .65, .8, .9, 1, 1.5, 2, 4]) {
+      expect(world(d) / (1 + depth(d) / 1.92),
+          closeTo(projected(d), 1e-9));
+      expect(projected(d), greaterThan(projected(d - .001)),
+          reason: 'a cover never reverses horizontal direction');
+    }
+    final near = (projected(1) - projected(1 - epsilon)) / epsilon;
+    final far = (projected(1 + epsilon) - projected(1)) / epsilon;
+    expect(near, closeTo(far, .001),
+        reason: 'no abrupt speed change when entering the angled side stack');
+    expect(projected(.5), lessThan(.44),
+        reason: 'reduce the old arc-like horizontal lurch near center');
+  });
+
+  testWidgets('fast fling never teleports or reverses a visible side cover', (tester) async {
+    final ten = [
+      ...albums,
+      for (var i = 3; i < 10; i++)
+        _album('Glide $i', [_track('g$i', 'Glide $i')]),
+    ];
+    await tester.pumpWidget(_app(LokalCoverFlow(
+      albums: ten,
+      initialIndex: 2,
+      cover: (_) => const ColoredBox(color: Colors.blueGrey),
+      onPlay: (_, _) {},
+    )));
+    final flow = find.byType(LokalCoverFlow);
+    final size = math.min(250.0, tester.getSize(flow).width * .60);
+    // A hard flick previously passed its unbounded velocity straight into
+    // SpringSimulation, allowing a cover to jump several slots per frame.
+    await tester.fling(flow, Offset(-size * 3, 0), 14000);
+    final target = find.byKey(const ValueKey('Glide 4'));
+    double? previous;
+    for (var frame = 0; frame < 35; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final panel = tester.widget<Transform>(
+        find.descendant(of: target, matching: find.byType(Transform)).first,
+      );
+      final m = panel.transform;
+      final x = m.entry(0, 3) / m.entry(3, 3);
+      if (previous != null) {
+        expect(x, lessThanOrEqualTo(previous! + 1.0),
+            reason: 'a right-side cover must only glide left during a leftward fling');
+        expect((x - previous!).abs(), lessThan(size * .45),
+            reason: 'one rendered frame must not skip a visible cover');
+      }
+      previous = x;
+    }
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('second neighbor receives visible strip taps beyond first neighbor quad', (tester) async {

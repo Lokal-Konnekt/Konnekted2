@@ -269,7 +269,7 @@ class _KonnektedDiscoveryViewState
       }
       if (mounted) _say('Saved ${track.title} to your library');
     } catch (error) {
-      if (mounted) _say('Could not save ${track.title}: ${discoveryError(error)}');
+      if (mounted) _say('Could not save ${track.title}. Check your connection or source and retry.');
     } finally {
       if (mounted) setState(() => _busy = null);
     }

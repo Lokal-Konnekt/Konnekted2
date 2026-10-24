@@ -559,6 +559,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 artwork: song.thumbnail,
                 atmosAvailable: song.atmosAvailable,
                 catalogueQuality: song.quality,
+                catalogueCodec: song.codec,
                 catalogueBitDepth: song.bitDepth,
                 catalogueSampleRate: song.sampleRate,
               ),

@@ -621,11 +621,21 @@ Future<List<_PlaybackSource>> _morneyeSources(
         },
         results: (query) async {
           final found = await packages.search(addon.key, query);
+          final settings = packages.settings(addon);
+          // A chosen lower tier must override catalogue MAX-quality claims in
+          // Search, but must be labelled as requested until the audio was
+          // actually probed. Deezer's current add-on has one FLAC-only tier.
+          final configured = settings['downloadQuality'] as String?;
+          final selectedQuality = addon.qualityOptions.length <= 1 ||
+                  configured == 'best'
+              ? null
+              : morneyeSelectedQualityLabel(
+                  configured: configured, options: addon.qualityOptions);
           // This fingerprint is the same one used for the verified playback
           // cache. Another account, requested tier or add-on version cannot
           // borrow a different recording's quality badge.
           final fingerprint = sha256
-              .convert(utf8.encode(jsonEncode(packages.settings(addon))))
+              .convert(utf8.encode(jsonEncode(settings)))
               .toString();
           final results = <OnlineResult>[];
           for (final song in found) {
@@ -642,9 +652,12 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 File(cached.filePath!).existsSync()
                 ? cached : null;
             final details = morneyeSearchAudioDetails(
-              codec: song.codec,
-              bitDepth: song.bitDepth,
-              sampleRate: song.sampleRate,
+              codec: verified == null && selectedQuality != null
+                  ? null : song.codec,
+              bitDepth: verified == null && selectedQuality != null
+                  ? null : song.bitDepth,
+              sampleRate: verified == null && selectedQuality != null
+                  ? null : song.sampleRate,
               verifiedPlayback: verified,
             );
             results.add(OnlineResult(DiscoveryTrack(
@@ -658,7 +671,9 @@ Future<List<_PlaybackSource>> _morneyeSources(
               sourceName: addon.displayName,
               artwork: song.thumbnail,
               atmosAvailable: song.atmosAvailable,
-              catalogueQuality: morneyeAdvertisedQuality(song.quality),
+              catalogueQuality: verified != null
+                  ? verified.resolution
+                  : selectedQuality ?? morneyeAdvertisedQuality(song.quality),
               catalogueCodec: details.codec,
               catalogueBitDepth: details.bitDepth,
               catalogueSampleRate: details.sampleRate,

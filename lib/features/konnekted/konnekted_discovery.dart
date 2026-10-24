@@ -516,6 +516,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
   void Function(String status)? onStatus, {
   Future<void>? cancel,
   bool forDownload = false,
+  String? selectedSourceId,
 }) async {
   final List<MorneyeAddon> addons;
   final MorneyePackages packages;
@@ -527,6 +528,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
   }
   return [
     for (final addon in addons)
+      if (selectedSourceId == null || selectedSourceId == 'a-${addon.key}')
       OnlineSource(
         id: 'a-${addon.key}',
         name: addon.displayName,
@@ -908,6 +910,7 @@ Future<List<OnlineSource>> _playbackSources(
   Future<void>? cancel,
   bool forDownload = false,
   bool includeMorneye = true,
+  String? selectedSourceId,
 }) async {
   final registry = DiscoverySourceRegistry(web, settings);
   final youtube = YoutubeAudio(web);
@@ -922,6 +925,7 @@ Future<List<OnlineSource>> _playbackSources(
       play: (found) => youtube.prepare(found, cache(), cancel: cancel),
     ),
     for (final addon in registry.addons)
+      if (selectedSourceId == null || selectedSourceId == 'w-${addon.displayName}')
       OnlineSource(
         id: 'w-${addon.displayName}',
         name: addon.displayName,
@@ -955,7 +959,8 @@ Future<List<OnlineSource>> _playbackSources(
       ),
     if (includeMorneye)
       ...await _morneyeSources(morneye, cache, onStatus,
-        cancel: cancel, forDownload: forDownload),
+        cancel: cancel, forDownload: forDownload,
+        selectedSourceId: selectedSourceId),
   ], (source) => source.id);
 }
 
@@ -999,10 +1004,14 @@ Future<Song> playOnlineTrack(
   bool forDownload = false,
 }) async {
   var settings = const DiscoverySettings();
-  try {
-    settings = await (store ?? DiscoverySettingsStore()).load();
-  } catch (_) {
-    // Unreadable add-on settings still leave YouTube Music.
+  // The chosen native YouTube or Morneye source has no dependency on HTTP
+  // addon settings. Avoid storage I/O on the time-critical playback path.
+  if (sourceId.startsWith('w-')) {
+    try {
+      settings = await (store ?? DiscoverySettingsStore()).load();
+    } catch (_) {
+      // Missing/disabled sources are reported by source resolution.
+    }
   }
   final owned = client == null;
   final transport = client ?? http.Client();
@@ -1019,6 +1028,7 @@ Future<Song> playOnlineTrack(
       // HTTP and native YouTube playback must not wait for unrelated Morneye
       // add-on initialization or verification before source resolution.
       includeMorneye: sourceId.startsWith('a-'),
+      selectedSourceId: sourceId,
     );
     final source = sources.where((s) => s.id == sourceId).firstOrNull;
     if (source == null) {

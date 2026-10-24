@@ -88,7 +88,11 @@ android {
         versionName = flutter.versionName
 
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            // Flutter 3.35+ prepopulates all 3 supported ABIs even when the
+            // CLI targets android-arm64. Adding to that set does NOT restrict
+            // the APK: clear Flutter's defaults before adding the sole ABI.
+            abiFilters.clear()
+            abiFilters.add("arm64-v8a")
         }
 
         externalNativeBuild {
@@ -102,6 +106,15 @@ android {
         jniLibs {
             useLegacyPackaging = true
             pickFirsts += listOf("**/libc++_shared.so", "**/libdiscord_partner_sdk.so")
+            // Flutter/AGP can merge plugin JNI libraries from every ABI even
+            // with defaultConfig.ndk.abiFilters and --target-platform arm64.
+            // Filter the actual APK payload before signing; the release
+            // verifier must still enforce arm64-v8a as the only packaged ABI.
+            excludes += listOf(
+                "**/armeabi-v7a/**",
+                "**/x86/**",
+                "**/x86_64/**",
+            )
         }
     }
 

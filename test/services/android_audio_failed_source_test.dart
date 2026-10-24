@@ -8,9 +8,12 @@ import 'package:flick/services/android_audio_engine.dart';
 class _Player implements ja.AudioPlayer {
   final errors = StreamController<ja.PlayerException>.broadcast(sync: true);
   List<ja.IndexedAudioSource> sources = [];
+  final positions = StreamController<Duration>.broadcast(sync: true);
+  double currentVolume = 1.0;
   int loads = 0, seeks = 0;
   bool failLoad = false;
   Completer<void>? hungSeek;
+  Completer<Duration?>? hungLoad;
   @override
   List<ja.IndexedAudioSource> get sequence => sources;
   @override
@@ -30,7 +33,7 @@ class _Player implements ja.AudioPlayer {
   @override
   Stream<ja.PlaybackEvent> get playbackEventStream => const Stream.empty();
   @override
-  Stream<Duration> get positionStream => const Stream.empty();
+  Stream<Duration> get positionStream => positions.stream;
   @override
   Stream<Duration> get bufferedPositionStream => const Stream.empty();
   @override
@@ -50,6 +53,7 @@ class _Player implements ja.AudioPlayer {
   }) async {
     loads++;
     if (failLoad) throw ja.PlayerException(0, 'Source error', 0);
+    if (hungLoad != null) return await hungLoad!.future;
     sources = [ja.AudioSource.uri(Uri.parse('file:///song.flac'))];
     return duration;
   }
@@ -60,6 +64,16 @@ class _Player implements ja.AudioPlayer {
     await hungSeek?.future;
   }
 
+  @override
+  double get volume => currentVolume;
+  @override
+  double get speed => 1;
+  @override
+  Future<void> setVolume(double volume) async { currentVolume = volume; }
+  @override
+  Future<void> setSpeed(double speed) async {}
+  @override
+  Future<void> setLoopMode(ja.LoopMode mode) async {}
   @override
   Future<void> stop() async {}
   @override
@@ -126,4 +140,141 @@ void main() {
     await engine.load(song);
     expect(player.loads, 6);
   });
+  testWidgets('crossfade timeout never aliases the provider and fade players', (
+    tester,
+  ) async {
+    final primary = _Player();
+    final stalledFade = _Player();
+    final nextFade = _Player();
+    final fadePlayers = [stalledFade, nextFade];
+    Song? nextSong;
+    var fadeCreations = 0;
+    final retired = <ja.AudioPlayer>[];
+    final first = Song(
+      id: 'first',
+      title: 'First',
+      artist: 'Artist',
+      duration: const Duration(minutes: 3),
+      fileType: 'FLAC',
+      filePath: '/first.flac',
+    );
+    final second = Song(
+      id: 'second',
+      title: 'Second',
+      artist: 'Artist',
+      duration: const Duration(minutes: 3),
+      fileType: 'FLAC',
+      filePath: '/second.flac',
+    );
+    nextSong = second;
+    final engine = AndroidAudioEngine(
+      playerProvider: () async => primary,
+      secondaryPlayerProvider: () async => fadePlayers[fadeCreations++],
+      sourcesBuilder: () async =>
+          ja.AudioSource.uri(Uri.parse('file:///second.flac')),
+      sourceBuilder: (_) async =>
+          ja.AudioSource.uri(Uri.parse('file:///second.flac')),
+      playlistProvider: () => [first, second],
+      configurePlayer: (_) async {},
+      disposeEngine: () async {},
+      retireStalledPlayer: (player) async => retired.add(player),
+      shouldSuppressTrackSync: () => false,
+      shouldIgnoreTrack: (_) => false,
+      shouldFastStartCurrentTrackOnly: () => false,
+      crossfadeConfigProvider: () => const AndroidCrossfadeConfig(
+        enabled: true,
+        durationSecs: 3,
+        curve: AndroidCrossfadeCurve.linear,
+      ),
+      onNextSong: () => nextSong,
+    );
+    addTearDown(() async {
+      stalledFade.hungLoad?.complete();
+      await engine.dispose();
+      await primary.positions.close();
+      await stalledFade.positions.close();
+      await nextFade.positions.close();
+      await primary.errors.close();
+      await stalledFade.errors.close();
+      await nextFade.errors.close();
+    });
+    await engine.load(first);
+    primary.positions.add(const Duration(minutes: 2, seconds: 58));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
+    expect(fadeCreations, 1);
+    // Crossfade has made the internally created fade player the active
+    // player, while PlayerService still owns the original in _secondary.
+    stalledFade.hungLoad = Completer<Duration?>();
+    final timeout = expectLater(
+      engine.load(second),
+      throwsA(isA<TimeoutException>()),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 34));
+    await timeout;
+    expect(retired, [same(stalledFade)]);
+
+    // The surviving provider player is reused as the sole active player,
+    // never simultaneously in the secondary slot.
+    await engine.load(second);
+    expect(primary.loads, 2);
+    nextSong = first;
+    primary.positions.add(const Duration(minutes: 2, seconds: 58));
+    for (var i = 0; i < 6; i++) {
+      await tester.pump();
+    }
+    expect(fadeCreations, 2);
+    expect(nextFade.loads, 1);
+  });
+
+  testWidgets('a stalled source is discarded and the next tap uses a fresh player', (
+    tester,
+  ) async {
+    final stale = _Player()..hungLoad = Completer<Duration?>();
+    final healthy = _Player();
+    var active = stale;
+    final retired = <ja.AudioPlayer>[];
+    final song = Song(
+      id: 'recovery',
+      title: 'Recovered',
+      artist: 'Artist',
+      duration: const Duration(minutes: 3),
+      fileType: 'FLAC',
+      filePath: '/song.flac',
+    );
+    final engine = AndroidAudioEngine(
+      playerProvider: () async => active,
+      sourcesBuilder: () async =>
+          ja.AudioSource.uri(Uri.parse('file:///song.flac')),
+      sourceBuilder: (_) async =>
+          ja.AudioSource.uri(Uri.parse('file:///song.flac')),
+      playlistProvider: () => [song],
+      configurePlayer: (_) async {},
+      disposeEngine: () async {},
+      retireStalledPlayer: (player) async {
+        retired.add(player);
+        active = healthy;
+      },
+      shouldSuppressTrackSync: () => false,
+      shouldIgnoreTrack: (_) => false,
+      shouldFastStartCurrentTrackOnly: () => false,
+    );
+    addTearDown(() async {
+      stale.hungLoad?.complete();
+      await engine.dispose();
+      await stale.errors.close();
+      await healthy.errors.close();
+    });
+    final first = expectLater(engine.load(song), throwsA(isA<TimeoutException>()));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 34));
+    await first;
+    expect(retired, [same(stale)]);
+    await engine.load(song);
+    expect(healthy.loads, 1);
+    expect(stale.loads, 1);
+  });
+
 }

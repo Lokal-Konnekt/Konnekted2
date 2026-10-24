@@ -2294,6 +2294,7 @@ class PlayerService {
       playlistProvider: () => List<Song>.unmodifiable(_playlist),
       configurePlayer: _configureAndroidPlayer,
       disposeEngine: _disposeAndroidEngine,
+      retireStalledPlayer: _retireStalledAndroidPlayer,
       shouldSuppressTrackSync: () =>
           _suppressSequenceStateUpdates || _isRebuildingPlaylist,
       shouldIgnoreTrack: (track) => track.filePath == null,
@@ -4699,6 +4700,23 @@ class PlayerService {
       preferredSampleRate: fallbackFormat.sampleRate,
     );
     return true;
+  }
+
+  /// A timed-out just_audio prepare leaves an outstanding native codec
+  /// operation. Do not hand the same player back to the next tap: detach it
+  /// immediately, then dispose with a bounded wait so playback remains usable
+  /// even if Media3 itself never completes the old operation.
+  Future<void> _retireStalledAndroidPlayer(just_audio.AudioPlayer player) async {
+    if (identical(_justAudioPlayer, player)) {
+      _justAudioPlayer = null;
+      _audioSourceSequence = null;
+    }
+    _debugLog('[Playback] Resetting Android player after stalled source');
+    try {
+      await player.dispose().timeout(const Duration(seconds: 3));
+    } catch (error) {
+      _debugLog('[Playback] Timed-out Android player cleanup: $error');
+    }
   }
 
   Future<void> _disposeAndroidEngine() async {

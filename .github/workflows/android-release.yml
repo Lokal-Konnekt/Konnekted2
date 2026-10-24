@@ -12,7 +12,7 @@ on:
         type: string
         default: ''
       flavor:
-        description: APK variant (both ARM64 and ARMv7 are included)
+        description: APK variant (Android 8.0+ on 64-bit ARM phones)
         type: choice
         options: [full, play, both]
         default: full
@@ -160,7 +160,7 @@ jobs:
           cat > "$RUNNER_TEMP/mobile-release-notes.md" <<EOF_NOTES
           ![Lokal Mobile release]($BANNER_URL)
 
-          **Lokal Mobile $VERSION** · Android · ARM64 · versionCode $CODE
+          **Lokal Mobile $VERSION** · Android 8.0+ · 64-bit ARM phones · versionCode $CODE
 
           Stable Android release. Review the changes below before publishing.
 

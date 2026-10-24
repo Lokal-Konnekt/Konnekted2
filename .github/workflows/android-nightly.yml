@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       flavor:
-        description: APK variant (ARM64-only)
+        description: APK variant (Android 8.0+ on 64-bit ARM phones)
         type: choice
         options: [full, play, both]
         default: full
@@ -132,7 +132,7 @@ jobs:
           cat > "$RUNNER_TEMP/mobile-release-notes.md" <<EOF_NOTES
           ![Lokal Mobile nightly]($BANNER_URL)
 
-          **Lokal Mobile $VERSION** · Android · ARM64 · versionCode $CODE
+          **Lokal Mobile $VERSION** · Android 8.0+ · 64-bit ARM phones · versionCode $CODE
 
           Opt-in preview from main. This is a nightly prerelease and does not replace the latest stable download.
 

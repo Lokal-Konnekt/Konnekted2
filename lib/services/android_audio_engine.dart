@@ -32,6 +32,9 @@ typedef AndroidPlayerConfigurator = Future<void> Function(
   just_audio.AudioPlayer player,
 );
 typedef AndroidEngineDisposer = Future<void> Function();
+typedef AndroidStalledPlayerRetirer = Future<void> Function(
+  just_audio.AudioPlayer player,
+);
 typedef AndroidTrackSyncBlocker = bool Function();
 typedef AndroidTrackIgnorePredicate = bool Function(Song track);
 typedef AndroidFastStartPredicate = bool Function();
@@ -127,6 +130,8 @@ class AndroidAudioEngine implements AudioEngine {
     required AndroidPlaylistProvider playlistProvider,
     required AndroidPlayerConfigurator configurePlayer,
     required AndroidEngineDisposer disposeEngine,
+    AndroidStalledPlayerRetirer? retireStalledPlayer,
+    AndroidPlayerProvider? secondaryPlayerProvider,
     required AndroidTrackSyncBlocker shouldSuppressTrackSync,
     required AndroidTrackIgnorePredicate shouldIgnoreTrack,
     required AndroidFastStartPredicate shouldFastStartCurrentTrackOnly,
@@ -140,6 +145,8 @@ class AndroidAudioEngine implements AudioEngine {
        _playlistProvider = playlistProvider,
        _configurePlayer = configurePlayer,
        _disposeEngine = disposeEngine,
+       _retireStalledPlayer = retireStalledPlayer,
+       _secondaryPlayerProvider = secondaryPlayerProvider,
        _shouldSuppressTrackSync = shouldSuppressTrackSync,
        _shouldIgnoreTrack = shouldIgnoreTrack,
        _shouldFastStartCurrentTrackOnly = shouldFastStartCurrentTrackOnly,
@@ -155,6 +162,8 @@ class AndroidAudioEngine implements AudioEngine {
   final AndroidPlaylistProvider _playlistProvider;
   final AndroidPlayerConfigurator _configurePlayer;
   final AndroidEngineDisposer _disposeEngine;
+  final AndroidStalledPlayerRetirer? _retireStalledPlayer;
+  final AndroidPlayerProvider? _secondaryPlayerProvider;
   final AndroidTrackSyncBlocker _shouldSuppressTrackSync;
   final AndroidTrackIgnorePredicate _shouldIgnoreTrack;
   final AndroidFastStartPredicate _shouldFastStartCurrentTrackOnly;
@@ -167,6 +176,10 @@ class AndroidAudioEngine implements AudioEngine {
       StreamController<PlaybackState>.broadcast();
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   just_audio.AudioPlayer? _player;
+  // The instance supplied by PlayerService may be parked in _secondary
+  // after crossfade. Unlike internally created fade players, it must remain
+  // available to the service's provider/cache after a timed-out load.
+  just_audio.AudioPlayer? _providerPlayer;
   PlaybackState _state = PlaybackState.empty(AudioEngineType.normalAndroid);
   Song? _loadedTrack;
   String? _lastAtmosPlaybackState;
@@ -200,6 +213,7 @@ class AndroidAudioEngine implements AudioEngine {
     if (existing != null) return existing;
     final player = await _playerProvider();
     _player = player;
+    _providerPlayer = player;
     _attachListeners(player);
     return player;
   }
@@ -207,7 +221,9 @@ class AndroidAudioEngine implements AudioEngine {
   Future<just_audio.AudioPlayer> _ensureSecondary() async {
     final existing = _secondary;
     if (existing != null) return existing;
-    final player = just_audio.AudioPlayer(useProxyForRequestHeaders: false);
+    final player = _secondaryPlayerProvider == null
+        ? just_audio.AudioPlayer(useProxyForRequestHeaders: false)
+        : await _secondaryPlayerProvider!();
     _secondary = player;
     _attachListeners(player);
     await player.setVolume(0);
@@ -389,6 +405,54 @@ class AndroidAudioEngine implements AudioEngine {
     _controller.add(next);
   }
 
+  /// A timed-out Media3/just_audio prepare can leave its platform decoder
+  /// wedged even after stop(). Unregister this player synchronously so the
+  /// next user selection gets a new native instance, not the poisoned one.
+  /// The owner clears its own cached player and disposes this one separately.
+  Future<void> _retireTimedOutPlayer(just_audio.AudioPlayer player) async {
+    if (!identical(_player, player)) return;
+    // If a crossfade swapped the primary with its secondary slot, the
+    // PlayerService-owned instance can still live in _secondary. Clearing
+    // only _player would alias the two slots on the next _ensurePlayer().
+    _crossfadeTimer?.cancel();
+    _crossfadeTimer = null;
+    _crossfadeArmed = false;
+    final survivor = _secondary;
+    _secondary = null;
+    _player = null;
+    _playlistSignature = const <String>[];
+    _loadedSingleTrackOnly = false;
+    _sourceFailed = true;
+    final orphanedFadePlayer =
+        survivor != null && !identical(survivor, _providerPlayer)
+            ? survivor
+            : null;
+    if (identical(player, _providerPlayer)) _providerPlayer = null;
+    for (final subscription in _subscriptions) {
+      await subscription.cancel();
+    }
+    _subscriptions.clear();
+    if (orphanedFadePlayer != null) {
+      try {
+        await orphanedFadePlayer.dispose().timeout(
+          const Duration(seconds: 3),
+        );
+      } catch (error) {
+        devLog('[Playback] Crossfade player cleanup failed: $error');
+      }
+    }
+    // If the survivor belongs to PlayerService, its cached provider returns
+    // it as the *sole* primary on the next attempt. Its listeners are
+    // re-attached by _ensurePlayer(), never as a secondary.
+    try {
+      final retire = _retireStalledPlayer;
+      await (retire == null ? player.dispose() : retire(player))
+          .timeout(const Duration(seconds: 3));
+    } catch (error) {
+      devLog('[Playback] Timed-out Android player retirement failed: $error');
+    }
+  }
+
   Future<void> _loadSource(
     just_audio.AudioPlayer player,
     just_audio.AudioSource source, {
@@ -410,8 +474,9 @@ class AndroidAudioEngine implements AudioEngine {
       _playlistSignature = const [];
       _loadedSingleTrackOnly = false;
       if (error is TimeoutException) {
+        await _retireTimedOutPlayer(player);
         throw TimeoutException(
-          'Audio source did not become ready. Retry or choose another source.',
+          'Audio source did not become ready. The audio engine was reset; retry playback.',
         );
       }
       rethrow;
@@ -822,6 +887,7 @@ class AndroidAudioEngine implements AudioEngine {
     final secondary = _secondary;
     _secondary = null;
     _player = null;
+    _providerPlayer = null;
     _playlistSignature = const <String>[];
     _loadedSingleTrackOnly = false;
     try {

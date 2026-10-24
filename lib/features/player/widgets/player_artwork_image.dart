@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/album_art_service.dart';
 import 'package:flick/widgets/common/flick_artwork_placeholder.dart';
+import 'player_artwork_quality.dart';
 
 /// Holds decoded frames through a cover change. Painting RawImage avoids a
 /// second asynchronous image resolution when a carousel stage changes slots.
@@ -88,7 +89,9 @@ class _PlayerArtworkImageState extends State<PlayerArtworkImage>
     final decodeWidth = LokalPerformanceScope.of(context)
         ? widget.decodeWidth.clamp(64, 768)
         : widget.decodeWidth;
-    final key = '${song.id}|${song.albumArt}|${song.filePath}|${decodeWidth}';
+    // Include the source-quality policy in the retained-frame identity. A
+    // low-resolution poster cached before this upgrade must not be reused.
+    final key = '${song.id}|${song.albumArt}|${song.filePath}|${decodeWidth}|full-res-v1';
     if (_requested == key) return;
     _requested = key;
     final cached = _recentFrames.remove(key);
@@ -106,11 +109,16 @@ class _PlayerArtworkImageState extends State<PlayerArtworkImage>
     final generation = ++_generation;
     _unsubscribe();
     try {
-      ImageProvider? provider;
+      final sources = <ImageProvider>[];
       var path = song.albumArt;
       if (path?.startsWith('http://') == true ||
           path?.startsWith('https://') == true) {
-        provider = NetworkImage(path!);
+        // Canvas can obscure a thumbnail while the video is playing. When it
+        // is disabled, first try that same cover at the provider's original
+        // size, and fall back to the existing URL if the CDN lacks it.
+        for (final url in PlayerArtworkQuality.candidates(path)) {
+          sources.add(NetworkImage(url));
+        }
       } else {
         if (song.filePath?.isNotEmpty == true) {
           path = await AlbumArtService.instance.resolveArtworkPath(
@@ -119,29 +127,47 @@ class _PlayerArtworkImageState extends State<PlayerArtworkImage>
           );
         }
         if (path != null && await File(path).exists()) {
-          provider = FileImage(File(path));
+          sources.add(FileImage(File(path)));
         }
       }
       if (!mounted || generation != _generation) return;
-      if (provider == null) {
+      if (sources.isEmpty) {
         _showFrame(null, key);
         return;
       }
-      provider = ResizeImage.resizeIfNeeded(decodeWidth, null, provider);
-      _stream = provider.resolve(createLocalImageConfiguration(context));
-      _listener = ImageStreamListener(
-        (info, _) {
-          if (!mounted || generation != _generation) {
-            info.dispose();
-            return;
-          }
-          _showFrame(info, key);
-        },
-        onError: (_, _) {
-          if (mounted && generation == _generation) _showFrame(null, key);
-        },
-      );
-      _stream!.addListener(_listener!);
+
+      void resolveCandidate(int index) {
+        if (!mounted || generation != _generation) return;
+        _unsubscribe();
+        final provider = ResizeImage.resizeIfNeeded(
+          decodeWidth,
+          null,
+          sources[index],
+        );
+        final stream = provider.resolve(createLocalImageConfiguration(context));
+        _stream = stream;
+        final listener = ImageStreamListener(
+          (info, _) {
+            if (!mounted || generation != _generation) {
+              info.dispose();
+              return;
+            }
+            _showFrame(info, key);
+          },
+          onError: (_, _) {
+            if (!mounted || generation != _generation) return;
+            if (index + 1 < sources.length) {
+              resolveCandidate(index + 1);
+            } else {
+              _showFrame(null, key);
+            }
+          },
+        );
+        _listener = listener;
+        stream.addListener(listener);
+      }
+
+      resolveCandidate(0);
     } catch (_) {
       if (mounted && generation == _generation) _showFrame(null, key);
     }

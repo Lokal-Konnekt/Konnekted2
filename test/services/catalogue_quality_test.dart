@@ -160,6 +160,23 @@ void main() {
     expect(catalogueAudioDetails(quality: morneyeAdvertisedQuality(null)), isEmpty);
   });
 
+  test('Amazon/Tidal Search uses actual cached Opus/AAC, not FLAC catalogue max', () {
+    const opus = Song(
+      id: 'amazon-opus', title: 'Track', artist: 'Artist',
+      duration: Duration(seconds: 190), fileType: 'OPUS',
+      resolution: '192 kbps', sampleRate: 48000,
+    );
+    final actual = morneyeSearchAudioDetails(
+      verifiedPlayback: opus,
+    );
+    expect(catalogueAudioDetails(
+      codec: actual.codec, bitDepth: actual.bitDepth,
+      sampleRate: actual.sampleRate, quality: opus.resolution,
+    ), 'OPUS · 48 kHz / 192 kbps');
+    expect(actual.codec, 'OPUS');
+    expect(actual.bitDepth, isNull);
+  });
+
   test('Amazon reuses probed Full Player quality for repeat Search results', () {
     const played = Song(
       id: 'amazon-downloaded', title: 'Song', artist: 'Artist',

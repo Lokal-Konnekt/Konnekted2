@@ -63,22 +63,36 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   late final _playbackProgress = LokalStatusSnack(
     () => mounted ? context : null,
   );
+  String? _lastPlaybackProgress;
   void _onPreparationStatus() {
     if (!mounted) return;
     final message = QueuePreResolver.shared.status.value;
-    if (message != null) {
-      _playbackProgress.update(message);
-    } else if (_player.isNetworkLoadingNotifier.value) {
-      // The loading state is set at the click/Next event, before source
-      // verification, provider resolution or even engine initialization.
+    String? status = message;
+    if (status == null && _player.isNetworkLoadingNotifier.value) {
       final title = _player.onlinePreparationTitleNotifier.value ??
           _player.currentSongNotifier.value?.title;
-      _playbackProgress.update(
-        title == null || title.isEmpty ? 'Preparing audio…'
-            : 'Preparing $title…',
-      );
-    } else {
+      final current = _player.currentSongNotifier.value;
+      final bufferedMs = _player.bufferedPositionNotifier.value.inMilliseconds;
+      final durationMs = _player.durationNotifier.value.inMilliseconds;
+      // Progressive HTTP sources do not have a full-download percentage.
+      // Use Media3's actual buffered *playback duration*, clearly labelled,
+      // rather than a misleading static provider '5%' completion estimate.
+      if (current?.sourcePackage == 'konnekted.progressive' &&
+          title == current?.title && bufferedMs > 0 &&
+          durationMs > 0) {
+        final buffered = (bufferedMs * 100 / durationMs).clamp(0, 100).floor();
+        status = 'Buffering $title… $buffered% of track buffered';
+      } else {
+        status = title == null || title.isEmpty
+            ? 'Preparing audio…' : 'Preparing $title…';
+      }
+    }
+    if (status == null) {
+      _lastPlaybackProgress = null;
       _playbackProgress.clear();
+    } else if (status != _lastPlaybackProgress || !_playbackProgress.showing) {
+      _lastPlaybackProgress = status;
+      _playbackProgress.update(status);
     }
   }
 
@@ -148,6 +162,8 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _player.isNetworkLoadingNotifier.addListener(_onPreparationStatus);
     _player.currentSongNotifier.addListener(_onPreparationStatus);
     _player.onlinePreparationTitleNotifier.addListener(_onPreparationStatus);
+    _player.bufferedPositionNotifier.addListener(_onPreparationStatus);
+    _player.durationNotifier.addListener(_onPreparationStatus);
     _updateIconBusy();
     _onPreparationStatus();
     _run(
@@ -354,6 +370,8 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _player.isNetworkLoadingNotifier.removeListener(_onPreparationStatus);
     _player.currentSongNotifier.removeListener(_onPreparationStatus);
     _player.onlinePreparationTitleNotifier.removeListener(_onPreparationStatus);
+    _player.bufferedPositionNotifier.removeListener(_onPreparationStatus);
+    _player.durationNotifier.removeListener(_onPreparationStatus);
     _jobProgress.dispose();
     _jobNotification.dispose();
     _widgetSync.close();

@@ -3,8 +3,73 @@ import 'package:flick/services/catalogue_quality.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
 import 'package:flick/features/morneye/morneye_packages.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
+import 'package:flick/models/song.dart';
+import 'package:flick/widgets/lokal/lokal_quality.dart';
 
 void main() {
+  test('early HTTP and Morneye streams retain only advertised quality', () {
+    final qobuz = advertisedOnlineAudio(
+      codec: 'FLAC', quality: '24bit/96kHz',
+      bitDepth: null, sampleRate: null,
+    );
+    expect(qobuz.fileType, 'FLAC');
+    expect(qobuz.bitDepth, 24);
+    expect(qobuz.sampleRate, 96000);
+    expect(qobuz.resolution, '24bit/96kHz');
+    final playing = Song(
+      id: 'qobuz', title: 'Track', artist: 'Artist',
+      duration: Duration.zero, fileType: qobuz.fileType,
+      resolution: qobuz.resolution, bitDepth: qobuz.bitDepth,
+      sampleRate: qobuz.sampleRate,
+      filePath: 'lokal-progressive://audio/id',
+      sourcePackage: 'konnekted.progressive',
+    );
+    expect(LokalQualityTier.of(playing), LokalQualityTier.hiRes,
+        reason: 'Search catalogue measurements survive the player handoff');
+
+    final cd = advertisedOnlineAudio(
+      codec: 'FLAC', quality: '16bit/44.1kHz',
+      bitDepth: null, sampleRate: null,
+    );
+    expect(cd.sampleRate, 44100);
+    final generic = advertisedOnlineAudio(
+      codec: 'FLAC', quality: 'HI_RES_LOSSLESS',
+      bitDepth: null, sampleRate: null,
+    );
+    expect(generic.bitDepth, isNull);
+    expect(generic.sampleRate, isNull,
+        reason: 'A broad tier cannot prove the actual sample rate');
+    final opus = advertisedOnlineAudio(
+      codec: 'OPUS', quality: '320kbps',
+      bitDepth: null, sampleRate: null,
+    );
+    expect(opus.fileType, 'OPUS');
+    expect(opus.resolution, '320kbps');
+  });
+
+  test('Amazon search labels requested tier without inventing measurement', () {
+    final addon = MorneyeAddon(
+      key: 'amzn', name: 'amazon', digest: 'test', installedAt: 0,
+      methods: const ['searchTracks', 'download'],
+      manifest: {
+        'name': 'amazon',
+        'type': ['download_provider'],
+        'qualityOptions': [
+          {'id': 'best', 'label': 'FLAC Best Available', 'kind': 'lossless'},
+          {'id': 'opus', 'label': 'Opus 320kbps', 'kind': 'lossy'},
+        ],
+      },
+    );
+    expect(morneyeAdvertisedOrRequestedQuality(
+      addon: addon, advertised: null,
+      preferences: const {'downloadQuality': 'best'},
+    ), 'Requested: FLAC Best Available');
+    expect(morneyeAdvertisedOrRequestedQuality(
+      addon: addon, advertised: '24bit/96kHz',
+      preferences: const {'downloadQuality': 'best'},
+    ), '24bit/96kHz');
+  });
+
   test('catalogue quality includes only supplied bit depth and rate', () {
     expect(catalogueQualityLabel('24bit/96kHz'), '24-bit / 96 kHz');
     expect(catalogueQualityLabel('16bit/44.1kHz'), '16-bit / 44.1 kHz');

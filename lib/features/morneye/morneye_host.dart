@@ -408,6 +408,12 @@ class MorneyeHost {
     var validator = '';
     var written = 0;
     var total = 0;
+    // The Dart↔JS guest callback is much more expensive on Android than
+    // desktop's worker IPC. Sending one for every network chunk throttles
+    // Qobuz itself. Keep host-byte updates immediate for live playback, but
+    // limit guest/UI progress notifications to four per second.
+    var lastGuestProgress = DateTime.fromMillisecondsSinceEpoch(0);
+    var lastGuestWritten = -1;
     if (settings['persistentCheckpoint'] == true && resume) {
       try {
         final saved = jsonDecode(await File(checkpoint).readAsString());
@@ -500,9 +506,24 @@ class MorneyeHost {
               written: written,
             ),
           );
-          // Guest progress callbacks may remain at an initial 5% while
-          // the host is actually transferring bytes. Ground the UI in the
-          // bytes received, never a fabricated time-based estimate.
+          // Do not await a JS callback for *every* 8–64 KiB network chunk:
+          // this can turn a playable Qobuz transfer into a long download.
+          // Live readers still get onTransfer immediately for every chunk.
+          final now = DateTime.now();
+          final report = total > 0 && written == total ||
+              now.difference(lastGuestProgress) >=
+                  const Duration(milliseconds: 250);
+          if (report) {
+            lastGuestProgress = now;
+            lastGuestWritten = written;
+            if (!segment && total > 0) {
+              onProgress?.call(percent:
+                  (written * 100.0 / total).clamp(0.0, 100.0));
+            }
+            await progress(written, total);
+          }
+        }
+        if (written != lastGuestWritten) {
           if (!segment && total > 0) {
             onProgress?.call(percent:
                 (written * 100.0 / total).clamp(0.0, 100.0));

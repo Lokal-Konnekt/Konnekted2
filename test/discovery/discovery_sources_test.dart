@@ -360,7 +360,7 @@ void main() {
           (await addon.resolve(tracks.single)).url.toString(),
           'https://cdn.example/file?sig=private',
         );
-        expect(requests, hasLength(4));
+        expect(requests, hasLength(3), reason: 'Stream playback skips the redundant manifest fetch');
         for (final request in requests) {
           expect(request.headers['Authorization'], 'Bearer fixture-token');
           expect(request.url.host, 'addon.example');
@@ -620,14 +620,14 @@ void main() {
       );
     });
 
-    test('cancelling manifest lookup prevents the stream request', () async {
+    test('cancelling a Qobuz stream lookup aborts the one direct stream request', () async {
       final started = Completer<void>();
       final response = Completer<http.Response>();
       final cancel = Completer<void>();
       var requests = 0;
       final client = MockClient((request) async {
         requests++;
-        expect(request.url.path, '/manifest.json');
+        expect(request.url.path, '/stream/1');
         started.complete();
         return response.future;
       });
@@ -650,7 +650,7 @@ void main() {
       await started.future;
       cancel.complete();
       await assertion;
-      response.complete(jsonResponse(manifest));
+      response.complete(jsonResponse({'url': 'https://cdn.example/song.flac'}));
       await Future<void>.delayed(Duration.zero);
       expect(requests, 1);
     });

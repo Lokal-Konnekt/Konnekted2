@@ -281,18 +281,15 @@ class QueuePreResolver {
   List<String> schedule() {
     final host = _host;
     if (host == null) return const [];
-    // A growing FLAC stream is already playing but still needs download
-    // bandwidth to keep its first audio frames gap-free. Defer scheduling
-    // more queued provider downloads until the current file is complete;
-    // the Morneye handoff asks us to refill the window after promotion.
-    if (host is PlayerServiceHost) {
-      final current = host.player.currentSongNotifier.value;
-      if (current?.sourcePackage == 'konnekted.morneye-live' &&
-          MorneyeLiveRegistry.instance.resolve(current?.filePath)
-                  ?.isTransferring == true) {
-        return const [];
-      }
-    }
+    // Never disable the entire next-four preload window while a live FLAC
+    // is downloading: a long Qobuz transfer can otherwise leave the whole
+    // Search queue unresolved. Give the playing stream a brief head start,
+    // then stagger background requests rather than waiting for completion.
+    final current = host is PlayerServiceHost
+        ? host.player.currentSongNotifier.value : null;
+    final liveTransfer = current?.sourcePackage == 'konnekted.morneye-live' &&
+        MorneyeLiveRegistry.instance.resolve(current?.filePath)
+                ?.isTransferring == true;
     // The foreground request gets the add-on runtime and bandwidth first.
     // Queue notifications during its download must not start competing work.
     if (_running.values.any((lookup) => lookup.onDemand && !lookup.cancelled)) {
@@ -312,7 +309,8 @@ class QueuePreResolver {
       if (!keep.contains(id)) _running.remove(id)?.stop();
     }
     final asked = <String>[];
-    var delay = Duration.zero;
+    var delay = liveTransfer
+        ? const Duration(seconds: 3) : Duration.zero;
     for (final song in upcoming) {
       final id = song.id;
       if (_recentSong(id) case final ready?) {

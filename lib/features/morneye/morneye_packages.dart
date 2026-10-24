@@ -1580,7 +1580,16 @@ class MorneyePackages {
         };
       }
       track = Map.of(track);
-      if (runtime.methods.contains('enrichTrack')) {
+      // Some providers (notably Qobuz) explicitly advertise that search
+      // results already carry the canonical metadata. Their enrichment does
+      // another remote lookup before checkAvailability performs verification;
+      // don't serialize two expensive requests before playback can start.
+      // Other providers, including Amazon, still require enrichment.
+      final skipEnrichment =
+          addon.manifest['skipMetadataEnrichment'] == true &&
+          (track['id']?.toString().isNotEmpty ?? false) &&
+          (track['name']?.toString().isNotEmpty ?? false);
+      if (!skipEnrichment && runtime.methods.contains('enrichTrack')) {
         try {
           final enriched = await runtime.invoke('enrichTrack', [
             track,

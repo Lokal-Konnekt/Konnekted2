@@ -574,11 +574,17 @@ class DiscoveryAddon {
         'This result belongs to a different source. Search again.',
       );
     }
-    final manifest = await health(cancel: cancel);
-    if (forDownload && !manifest.cacheAllowed) {
-      throw const DiscoveryException(
-        'This addon disallows saving or downloading audio.',
-      );
+    // Search has already selected a configured, identity-checked add-on.
+    // Fetching its manifest *again* before every streaming playback adds an
+    // unrelated network round-trip to first audio (especially Qobuz HTTP).
+    // Saving still reads the current manifest to enforce allowDownloads.
+    if (forDownload) {
+      final manifest = await health(cancel: cancel);
+      if (!manifest.cacheAllowed) {
+        throw const DiscoveryException(
+          'This addon disallows saving or downloading audio.',
+        );
+      }
     }
     return parseStream(
       track.inlineStream ?? await _get(['stream', track.id], query: settings, cancel: cancel),

@@ -41,6 +41,7 @@ import 'package:flick/core/utils/app_haptics.dart';
 import 'package:flick/widgets/lokal/lokal_player_artwork.dart';
 import 'package:flick/widgets/lokal/lokal_pull_to_dismiss.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
+import 'package:flick/services/catalogue_quality.dart';
 import 'package:flick/widgets/lokal/lokal_queue_reveal.dart';
 import 'package:flick/features/player/widgets/loop_mode_sheet.dart';
 import 'package:flick/features/player/widgets/online_lyrics_search_sheet.dart';
@@ -994,7 +995,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                               LokalQualityTier.lossless => 'LOSSLESS',
                               LokalQualityTier.high => 'HIGH',
                               LokalQualityTier.low => 'LOW',
-                              LokalQualityTier.unknown => 'UNKNOWN',
+                              LokalQualityTier.unknown =>
+                                  (song.resolution?.trim().isNotEmpty == true &&
+                                          (song.sourcePackage == 'konnekted.progressive' ||
+                                           song.sourcePackage == 'konnekted.morneye-live'))
+                                      ? 'CATALOGUE: ${catalogueQualityLabel(song.resolution).toUpperCase()}'
+                                      : 'UNKNOWN',
                             },
                             style: const TextStyle(fontFamily: _font,
                               fontSize: 9, fontWeight: FontWeight.w700,

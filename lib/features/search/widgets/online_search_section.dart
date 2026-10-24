@@ -22,6 +22,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/services/catalogue_quality.dart';
+import 'package:flick/services/queue_pre_resolver.dart';
 import 'package:flick/services/atmos_playback_support.dart';
 import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
 
@@ -249,15 +250,18 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
       atmos: atmos,
       pendingSong: (track) => createPending(source, track),
     );
-    // Preserve the search queue and four-ahead preload while keeping
-    // immediate feedback for the selected song and its source verification.
-    try {
-      await ref.read(playerProvider.notifier).play(
-        playback.selected, playlist: playback.queue,
-      );
-    } finally {
-      _progress.clear();
-    }
+    // Search owns only the pre-verification toast. Once playback starts the
+    // shell's QueuePreResolver owns all ongoing progress; otherwise two
+    // LokalStatusSnack owners continuously replace the global toast.
+    _progress.clear();
+    await ref.read(playerProvider.notifier).play(
+      playback.selected, playlist: playback.queue,
+    );
+    // Play has established the actual queue and current index now. Kick the
+    // production four-ahead resolver explicitly: some Media3 handoffs don't
+    // emit a separate queue mutation once the selected pending item swaps.
+    // The resolver coalesces duplicate requests with existing timers/jobs.
+    if (widget.pendingSong == null) QueuePreResolver.shared.schedule();
   }
 
   /// Play next / Add to queue: a placeholder that's found and downloaded

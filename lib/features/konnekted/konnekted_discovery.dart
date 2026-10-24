@@ -25,6 +25,7 @@ import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_store.dart';
 import 'package:flick/features/morneye/morneye_live_playback.dart';
 import 'package:flick/features/morneye/morneye_packages.dart';
+import 'package:flick/features/morneye/morneye_playback_quality.dart';
 import 'package:flick/features/morneye/morneye_runtime.dart';
 import 'package:flick/features/morneye/morneye_service.dart';
 import 'package:flick/features/spotify/spotify_api.dart';
@@ -38,6 +39,7 @@ import 'package:flick/providers/lastfm_provider.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
 import 'package:flick/services/playback_source_priority.dart';
+import 'package:flick/services/catalogue_quality.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -539,6 +541,29 @@ void _rememberMorneyePlayback(String key, Song song) {
   }
 }
 
+/// Catalogue results may not publish measured codec/rate (e.g. Amazon).
+/// Where available, expose the selected *requested tier* in Search instead
+/// of a misleading "Quality unknown". Never invent decoded bit depth/rate.
+String? morneyeAdvertisedOrRequestedQuality({
+  required MorneyeAddon addon,
+  required String? advertised,
+  required Map<String, Object?> preferences,
+}) {
+  if (advertised != null && advertised.trim().isNotEmpty) return advertised;
+  final chosen = resolveMorneyeRequestQuality(
+    forPlayback: true, requested: null,
+    configured: preferences['downloadQuality'] as String?,
+    options: addon.qualityOptions, provider: addon.name,
+  );
+  for (final option in addon.qualityOptions) {
+    if (option is Map && option['id'] == chosen) {
+      final label = option['label']?.toString().trim() ?? '';
+      if (label.isNotEmpty) return 'Requested: $label';
+    }
+  }
+  return null;
+}
+
 /// Your Morneye add-ons that can play songs right now, as playback sources.
 Future<List<_PlaybackSource>> _morneyeSources(
   MorneyeService service,
@@ -578,7 +603,9 @@ Future<List<_PlaybackSource>> _morneyeSources(
           if (verified) service.changed();
           return verified;
         },
-        results: (query) async => [
+        results: (query) async {
+          final preferences = packages.settings(addon);
+          return [
           for (final song in await packages.search(addon.key, query))
             OnlineResult(
               DiscoveryTrack(
@@ -592,15 +619,23 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 sourceName: addon.displayName,
                 artwork: song.thumbnail,
                 atmosAvailable: song.atmosAvailable,
-                catalogueQuality: song.quality,
+                catalogueQuality: morneyeAdvertisedOrRequestedQuality(
+                  addon: addon,
+                  advertised: song.quality,
+                  preferences: preferences,
+                ),
                 catalogueCodec: song.codec,
                 catalogueBitDepth: song.bitDepth,
                 catalogueSampleRate: song.sampleRate,
               ),
             ),
-        ],
+          ];
+        },
         play: (found) async {
           final progress = MorneyeProgressText(found.title, addon.displayName);
+          final qobuz = addon.name.toLowerCase().contains('qobuz');
+          double? actualTransferPercent;
+          var segmentedProgress = false;
           var finished = false;
           MorneyeDownload download;
           // Normal Play stays on the provider's configured stereo/lossless
@@ -661,17 +696,51 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   found.id,
                   quality: quality,
                   forPlayback: !forDownload && !found.atmosDownload,
-                  onTransfer: live?.observe,
+                  // Even an explicit Qobuz Save (live == null) needs the
+                  // host's measured byte progress. The guest's initial 5%
+                  // only means its download ticket is being resolved.
+                  onTransfer: live == null && !qobuz ? null : (transfer) {
+                    live?.observe(transfer);
+                    // Qobuz's extension emits 5% during URL/ticket
+                    // resolution. Only host-observed bytes are transfer
+                    // progress; they must supersede guest progress numbers.
+                    if (qobuz && !finished && transfer.total > 0 &&
+                        transfer.written > 0) {
+                      actualTransferPercent =
+                          (transfer.written * 100 / transfer.total)
+                              .clamp(0.0, 100.0).toDouble();
+                      final text = progress.update(
+                        percent: actualTransferPercent,
+                        message: forDownload ? 'Downloading audio…' : 'Receiving audio…',
+                      );
+                      if (text != null) onStatus?.call(text);
+                    }
+                  },
                   onProgress: ({percent, message}) {
-                // A runtime winding down after a failure or a cancel says
-                // nothing more: no stale "downloading" after the error.
-                if (finished) return;
-                final text = progress.update(
-                  percent: percent,
-                  message: message,
-                );
-                if (text != null) onStatus?.call(text);
-              },
+                    if (finished) return;
+                    if (qobuz) {
+                      if (message == 'Downloading audio segments…') {
+                        segmentedProgress = true;
+                        // Host-observed completed segments, not a guess.
+                        final text = progress.update(
+                          percent: percent, message: message,
+                        );
+                        if (text != null) onStatus?.call(text);
+                      } else if (actualTransferPercent == null &&
+                                 !segmentedProgress) {
+                        // The extension's 5% is merely a resolver stage.
+                        final text = progress.update(
+                          message: 'Resolving Qobuz stream…',
+                        );
+                        if (text != null) onStatus?.call(text);
+                      }
+                      return;
+                    }
+                    final text = progress.update(
+                      percent: percent, message: message,
+                    );
+                    if (text != null) onStatus?.call(text);
+                  },
               cancel: cancel,
             );
             try {
@@ -728,6 +797,21 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   albumArt: found.artwork,
                   duration: found.duration ?? Duration.zero,
                   fileType: 'FLAC',
+                  resolution: advertisedOnlineAudio(
+                    codec: 'FLAC', quality: found.catalogueQuality,
+                    bitDepth: found.catalogueBitDepth,
+                    sampleRate: found.catalogueSampleRate,
+                  ).resolution,
+                  bitDepth: advertisedOnlineAudio(
+                    codec: 'FLAC', quality: found.catalogueQuality,
+                    bitDepth: found.catalogueBitDepth,
+                    sampleRate: found.catalogueSampleRate,
+                  ).bitDepth,
+                  sampleRate: advertisedOnlineAudio(
+                    codec: 'FLAC', quality: found.catalogueQuality,
+                    bitDepth: found.catalogueBitDepth,
+                    sampleRate: found.catalogueSampleRate,
+                  ).sampleRate,
                   filePath: handle,
                   sourcePackage: 'konnekted.morneye-live',
                   remoteId: found.id,
@@ -944,8 +1028,21 @@ Song progressiveAddonSong(DiscoveryTrack track, ResolvedDiscoveryAudio audio) {
   final artwork = track.artwork;
   final ext = audio.url.pathSegments.isEmpty
       ? '' : audio.url.pathSegments.last.split('.').last.toLowerCase();
-  final codec = const {'flac', 'mp3', 'm4a', 'aac', 'ogg', 'opus', 'wav', 'webm'}
-      .contains(ext) ? ext.toUpperCase() : 'ONLINE';
+  final extension = const {
+    'flac': 'FLAC', 'mp3': 'MP3', 'm4a': 'ALAC',
+    'aac': 'AAC', 'ogg': 'OGG', 'opus': 'OPUS',
+    'wav': 'WAV', 'webm': 'OPUS',
+  }[ext];
+  final audioInfo = advertisedOnlineAudio(
+    codec: track.catalogueCodec,
+    quality: track.catalogueQuality,
+    bitDepth: track.catalogueBitDepth,
+    sampleRate: track.catalogueSampleRate,
+    // A filename suffix is only a container hint; M4A and WebM may hold
+    // different codecs, so do not invent ALAC/OPUS from those extensions.
+    fallbackFileType: (ext == 'm4a' || ext == 'webm')
+        ? 'ONLINE' : (extension ?? 'ONLINE'),
+  );
   return Song(
     id: 'discovery:${track.key.hashCode}:progressive',
     title: track.title,
@@ -953,7 +1050,10 @@ Song progressiveAddonSong(DiscoveryTrack track, ResolvedDiscoveryAudio audio) {
     album: track.album,
     albumArt: artwork,
     duration: track.duration ?? Duration.zero,
-    fileType: codec,
+    fileType: audioInfo.fileType,
+    resolution: audioInfo.resolution,
+    bitDepth: audioInfo.bitDepth,
+    sampleRate: audioInfo.sampleRate,
     filePath: handle,
     sourcePackage: 'konnekted.progressive',
     remoteId: track.id,

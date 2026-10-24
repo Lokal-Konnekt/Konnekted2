@@ -81,3 +81,36 @@ String catalogueAudioDetails({
   }
   return resolved.join(' / ');
 }
+
+
+/// Provider-advertised numbers for the early streaming handoff. Search can
+/// know the catalogue format before native audio probing has started, so keep
+/// its *explicit* measurements when creating the temporary playable Song.
+/// Never infer a rate/depth from a generic HI_RES/LOSSLESS quality tier.
+({String fileType, String? resolution, int? bitDepth, int? sampleRate})
+    advertisedOnlineAudio({
+  required String? codec,
+  required String? quality,
+  required int? bitDepth,
+  required int? sampleRate,
+  String fallbackFileType = 'ONLINE',
+}) {
+  final advertised = quality?.trim();
+  final bits = bitDepth ??
+      int.tryParse(RegExp(r'(?<!\d)(?:16|24|32)\s*-?\s*bits?', caseSensitive: false)
+              .firstMatch(advertised ?? '')?.group(0)
+              ?.replaceAll(RegExp(r'[^0-9]'), '') ?? '');
+  final rawRate = RegExp(r'(?<![\d.])(\d{2,3}(?:\.\d+)?)\s*k(?:hz)?',
+          caseSensitive: false)
+      .firstMatch(advertised ?? '')?.group(1);
+  final hz = sampleRate ??
+      (rawRate == null ? null : ((double.tryParse(rawRate) ?? 0) * 1000).round());
+  final candidate = codec?.trim().toUpperCase() ?? '';
+  const known = {'FLAC', 'ALAC', 'AAC', 'MP3', 'OPUS', 'VORBIS', 'WAV', 'AIFF', 'OGG'};
+  return (
+    fileType: known.contains(candidate) ? candidate : fallbackFileType,
+    resolution: advertised == null || advertised.isEmpty ? null : advertised,
+    bitDepth: bits != null && bits >= 8 && bits <= 64 ? bits : null,
+    sampleRate: hz != null && hz >= 8000 && hz <= 768000 ? hz : null,
+  );
+}

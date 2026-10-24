@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -668,10 +669,10 @@ class _AddonRowState extends State<_AddonRow> {
                   onPressed: _busy
                       ? null
                       : () => _run(() async {
-                          final before = _packages.settings(_addon)['downloadQuality'];
+                          final before = jsonEncode(_packages.settings(_addon));
                           _packages.setSettings(_addon.key, _values);
                           _values = _packages.settings(_addon);
-                          final changed = before != _values['downloadQuality'];
+                          final changed = before != jsonEncode(_values);
                           if (changed) {
                             // Every addon and every tier uses the same fresh
                             // playback-resolution path. Never replay cached

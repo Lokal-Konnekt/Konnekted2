@@ -21,16 +21,22 @@ class LyricsPlaybackPrefetch {
   void warm(Song song) {
     final key = _key(song);
     final local = _local.putIfAbsent(
-      key, () => _service.loadLyricsForSong(song, fetchOnline: false),
+      key, () => _service.loadLyricsForSong(song, fetchOnline: false)
+          .catchError((Object _) => null),
     );
     _enhanced.putIfAbsent(key, () async {
       final own = await local;
       // Local lyrics should already be visible when remote providers run.
-      final prefs = await AppPreferencesService().getPreferences();
-      if (!prefs.lyricsAutoFetch) return own;
+      bool enabled;
+      try {
+        enabled = (await AppPreferencesService().getPreferences()).lyricsAutoFetch;
+      } catch (_) {
+        enabled = false;
+      }
+      if (!enabled) return own;
       final fetched = await _service.loadLyricsForSong(
         song, fetchOnline: true,
-      );
+      ).catchError((Object _) => null);
       return lyricQualityRank(fetched) > lyricQualityRank(own)
           ? fetched : own ?? fetched;
     });

@@ -28,6 +28,21 @@ class LokalPerformanceAdvisor extends ConsumerStatefulWidget {
   const LokalPerformanceAdvisor({super.key, required this.child});
   final Widget child;
   static int lastGlassPaintMicros = 0;
+
+  /// UI-quality tradeoffs are limited to the Samsung models with confirmed
+  /// stutter reports; unrelated devices retain their animation cadence.
+  /// Generic resource savings (e.g. cached geometry) remain universal.
+  static bool samsungRasterMitigations = false;
+
+  @visibleForTesting
+  static bool affectedSamsungModel(String manufacturer, String model) {
+    if (manufacturer.trim().toLowerCase() != 'samsung') return false;
+    final id = model.trim().toUpperCase();
+    return id.startsWith('SM-S938') || // Galaxy S25 Ultra
+        id.startsWith('SM-M055') || // Galaxy M05
+        id.startsWith('SM-M066') || // model seen in supplied M05 logs
+        id == 'GALAXY S25 ULTRA' || id == 'GALAXY M05';
+  }
   // Only the outer player screens register; internal lyrics/queue widgets
   // do not affect attribution. These flags are local to the diagnostics.
   static final List<String> _activePlayerSurfaces = [];
@@ -141,6 +156,10 @@ class _LokalPerformanceAdvisorState
         'getPerformanceSnapshot',
       );
       if (!mounted || !_foreground || snapshot == null) return;
+      samsungRasterMitigations = affectedSamsungModel(
+        snapshot['manufacturer']?.toString() ?? '',
+        snapshot['model']?.toString() ?? '',
+      );
       final cpu = (snapshot['cpuMs'] as num?)?.toInt();
       if (cpu == null) return;
       final now = DateTime.now().millisecondsSinceEpoch;

@@ -10,6 +10,7 @@ import 'package:fading_marquee_widget/fading_marquee_widget.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/lyrics_service.dart';
+import 'package:flick/services/lyrics_playback_prefetch.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/constants/app_constants.dart';
@@ -81,35 +82,59 @@ class _InlineLyricsPanelState extends ConsumerState<InlineLyricsPanel> {
     bool refreshOnline = false,
   }) async {
     if (!mounted) return;
+    final request = ++_lyricsRequest;
     setState(() {
       _isLoading = true;
       if (_loadedSongId != song.id) _lyricsData = null;
       _sublineLyrics = null;
     });
-
-    final request = ++_lyricsRequest;
-    final loaded = await widget.lyricsService.loadLyricsForSong(
-      song,
-      forceRefresh: true,
-      refreshOnline: refreshOnline,
-      source: _selectedLyricsSource,
-      stillCurrent: () => mounted && request == _lyricsRequest,
-      fetchOnline:
-          refreshOnline || ref.read(appPreferencesProvider).lyricsAutoFetch,
-    );
-    final manualSource = await widget.lyricsService.getManualLyricsPathForSong(
-      song,
-    );
-    if (!mounted || request != _lyricsRequest) return;
-    if (widget.song.id != song.id) return;
-
-    setState(() {
-      if (!refreshOnline || loaded != null) _lyricsData = loaded;
-      _loadedSongId = song.id;
-      _hasManualLyricsSelection =
-          manualSource != null && manualSource.isNotEmpty;
-      _isLoading = false;
-    });
+    try {
+      final warm = !refreshOnline && _selectedLyricsSource == 'auto';
+      final local = warm
+          ? await LyricsPlaybackPrefetch.instance.local(song)
+          : await widget.lyricsService.loadLyricsForSong(
+              song, forceRefresh: refreshOnline, fetchOnline: false,
+              source: _selectedLyricsSource,
+            );
+      if (!mounted || request != _lyricsRequest ||
+          widget.song.id != song.id) return;
+      setState(() {
+        _lyricsData = local;
+        _loadedSongId = song.id;
+        _isLoading = local == null;
+      });
+      // This metadata lookup and any online providers happen after the local
+      // lyrics have already been painted. Opening Lyrics never starts its
+      // first remote request; the player prefetches it on track changes.
+      final manual = widget.lyricsService.getManualLyricsPathForSong(song);
+      final best = warm
+          ? await LyricsPlaybackPrefetch.instance.enhanced(song)
+          : await widget.lyricsService.loadLyricsForSong(
+              song, forceRefresh: refreshOnline,
+              refreshOnline: refreshOnline,
+              source: _selectedLyricsSource,
+              stillCurrent: () => mounted && request == _lyricsRequest,
+              fetchOnline: refreshOnline ||
+                  ref.read(appPreferencesProvider).lyricsAutoFetch,
+            );
+      final manualPath = await manual;
+      if (!mounted || request != _lyricsRequest ||
+          widget.song.id != song.id) return;
+      setState(() {
+        if (lyricQualityRank(best) > lyricQualityRank(_lyricsData)) {
+          _lyricsData = best;
+        } else {
+          _lyricsData ??= best;
+        }
+        _hasManualLyricsSelection =
+            manualPath != null && manualPath.isNotEmpty;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (mounted && request == _lyricsRequest) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   String? _lyricsSourceLabel(String? source) {

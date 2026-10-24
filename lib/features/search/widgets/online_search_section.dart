@@ -22,6 +22,7 @@ import 'package:flick/providers/providers.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/services/catalogue_quality.dart';
+import 'package:flick/features/discovery/youtube_audio.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
 import 'package:flick/services/atmos_playback_support.dart';
 import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
@@ -118,6 +119,41 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   final _saving = <String>{};
   int _inactiveAddons = 0;
   int _searchGeneration = 0;
+  final _youtubeQuality = <String, Future<String?>>{};
+  Future<void> _youtubeLookupTail = Future<void>.value();
+
+  /// Search snippets don't contain a selected audio format. Resolve each
+  /// result's actual audio rendition in the background (serially to avoid
+  /// monopolizing InnerTubeX's native playback resolver), not by guessing
+  /// AAC/Opus for every title. Store only the label, never signed media URLs.
+  Future<String?> _resolvedYoutubeQuality(String videoId) =>
+      _youtubeQuality.putIfAbsent(videoId, () {
+        final gate = _youtubeLookupTail.catchError((Object _) {});
+        final lookup = gate.then((_) async {
+          if (!mounted) return null;
+          try {
+            final audio = await YoutubeAudio(DiscoveryHttp(_client))
+                .resolve(videoId).timeout(const Duration(seconds: 55));
+            final codec = audio.codec;
+            final bitrate = audio.bitrate;
+            if (codec == null) return null;
+            return catalogueAudioDetails(
+              codec: codec,
+              sampleRate: audio.sampleRate,
+              quality: measuredLossyBitrate(
+                codec: codec, bitsPerSecond: bitrate,
+              ),
+            );
+          } catch (_) {
+            return null; // Unsupported/expired streams have no proven badge.
+          }
+        });
+        _youtubeLookupTail = lookup.then<void>((_) {});
+        while (_youtubeQuality.length > 64) {
+          _youtubeQuality.remove(_youtubeQuality.keys.first);
+        }
+        return lookup;
+      });
 
   @override
   void initState() {
@@ -506,16 +542,32 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
                   return Column(
                     children: [
                       for (final result in results.take(15))
-                        _OnlineTile(
-                          result: result,
-                          busy: _saving.contains(
-                            '${source.id}:${result.track.id}',
+                        if (source.id == 'yt')
+                          FutureBuilder<String?>(
+                            future: _resolvedYoutubeQuality(result.track.id),
+                            builder: (context, snapshot) => _OnlineTile(
+                              result: result,
+                              verifiedQuality: snapshot.data,
+                              busy: _saving.contains(
+                                '${source.id}:${result.track.id}',
+                              ),
+                              onTap: () => _play(source, result, results: results),
+                              onAtmos: () => _play(source, result, atmos: true, results: results),
+                              onMore: () => _actions(source, result, results),
+                              onQueue: () => _enqueue(source, result, next: false),
+                            ),
+                          )
+                        else
+                          _OnlineTile(
+                            result: result,
+                            busy: _saving.contains(
+                              '${source.id}:${result.track.id}',
+                            ),
+                            onTap: () => _play(source, result, results: results),
+                            onAtmos: () => _play(source, result, atmos: true, results: results),
+                            onMore: () => _actions(source, result, results),
+                            onQueue: () => _enqueue(source, result, next: false),
                           ),
-                          onTap: () => _play(source, result, results: results),
-                          onAtmos: () => _play(source, result, atmos: true, results: results),
-                          onMore: () => _actions(source, result, results),
-                          onQueue: () => _enqueue(source, result, next: false),
-                        ),
                     ],
                   );
                 },
@@ -593,8 +645,10 @@ class _OnlineTile extends StatelessWidget {
     required this.onAtmos,
     required this.onQueue,
     required this.onMore,
+    this.verifiedQuality,
   });
 
+  final String? verifiedQuality;
   final OnlineResult result;
   final bool busy;
   final VoidCallback onTap;
@@ -613,16 +667,11 @@ class _OnlineTile extends StatelessWidget {
       sampleRate: track.catalogueSampleRate,
       codec: track.catalogueCodec,
     );
-    // Search has not resolved a YouTube media URL yet, so its actual codec
-    // and bitrate are unknowable here. Name the supported adaptive formats
-    // rather than reporting "Quality unknown" or inventing 128/256 kbps.
-    // For Amazon and other providers without per-track metadata, omit the
-    // chip; their configured download tier is not the track's quality.
-    final displayQuality = reportedQuality.isNotEmpty
-        ? reportedQuality
-        : track.source == DiscoverySource.youtubeMusic
-            ? 'AAC / Opus · adaptive'
-            : '';
+    // No stream resolution = no verified badge. In particular "AAC/Opus"
+    // is a list of possible codecs, not the selected format for this song.
+    final displayQuality = verifiedQuality?.isNotEmpty == true
+        ? verifiedQuality!
+        : reportedQuality;
     return LokalSwipeToQueue(
       onQueue: onQueue,
       enabled: !busy,
@@ -668,12 +717,9 @@ class _OnlineTile extends StatelessWidget {
                       children: [
                         if (displayQuality.isNotEmpty)
                         Tooltip(
-                          message: track.source == DiscoverySource.youtubeMusic &&
-                                  reportedQuality.isEmpty
-                              ? 'YouTube playback negotiates AAC/Opus; the exact codec and bitrate are known only after stream resolution'
-                              : displayQuality.contains('(selected)')
-                                  ? 'Selected add-on download quality, not a verified per-track codec or bitrate. The full player reports the actual file after decoding/probing.'
-                                  : 'Provider-advertised audio details; actual decoded output may differ',
+                          message: verifiedQuality?.isNotEmpty == true
+                              ? 'Audio codec and bitrate of the resolved stream; not inferred from YouTube search metadata.'
+                              : 'Provider-advertised audio details; actual decoded output may differ',
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 7, vertical: 2),

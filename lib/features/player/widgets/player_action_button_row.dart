@@ -295,12 +295,6 @@ class _PlayerActionButtonRowState extends ConsumerState<PlayerActionButtonRow> {
           lyricsMode: lyricsMode,
         );
       case PlayerActionButton.favorites:
-        if (song.isExternal) {
-          return SizedBox(
-            width: actionIconSize + actionPadding.horizontal,
-            height: actionIconSize + actionPadding.vertical,
-          );
-        }
         return _buildFavoritesButton(
           song: song,
           actionPadding: actionPadding,

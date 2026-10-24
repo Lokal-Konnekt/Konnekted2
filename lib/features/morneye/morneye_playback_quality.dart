@@ -47,3 +47,23 @@ String chooseMorneyeDownloadQuality({
   }
   return candidates.isNotEmpty ? candidates.first : 'default';
 }
+
+/// Saving a file may intentionally use the configured Atmos tier; playback
+/// must not inherit it. Keeping this distinction explicit also prevents
+/// quality leakage to another track from the same add-on.
+String resolveMorneyeRequestQuality({
+  required bool forPlayback,
+  required String? requested,
+  required String? configured,
+  required List<dynamic> options,
+  required String provider,
+}) {
+  if (!forPlayback && requested == null &&
+      configured != null && configured.isNotEmpty) {
+    return configured;
+  }
+  return chooseMorneyeDownloadQuality(
+    requested: requested, configured: configured,
+    options: options, provider: provider,
+  );
+}

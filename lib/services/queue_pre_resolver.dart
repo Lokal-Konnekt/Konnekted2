@@ -281,6 +281,18 @@ class QueuePreResolver {
   List<String> schedule() {
     final host = _host;
     if (host == null) return const [];
+    // A growing FLAC stream is already playing but still needs download
+    // bandwidth to keep its first audio frames gap-free. Defer scheduling
+    // more queued provider downloads until the current file is complete;
+    // the Morneye handoff asks us to refill the window after promotion.
+    if (host is PlayerServiceHost) {
+      final current = host.player.currentSongNotifier.value;
+      if (current?.sourcePackage == 'konnekted.morneye-live' &&
+          MorneyeLiveRegistry.instance.resolve(current?.filePath)
+                  ?.isTransferring == true) {
+        return const [];
+      }
+    }
     // The foreground request gets the add-on runtime and bandwidth first.
     // Queue notifications during its download must not start competing work.
     if (_running.values.any((lookup) => lookup.onDemand && !lookup.cancelled)) {

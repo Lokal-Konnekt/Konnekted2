@@ -32,6 +32,9 @@ typedef AndroidPlayerConfigurator = Future<void> Function(
   just_audio.AudioPlayer player,
 );
 typedef AndroidEngineDisposer = Future<void> Function();
+typedef AndroidStalledPlayerRetirer = Future<void> Function(
+  just_audio.AudioPlayer player,
+);
 typedef AndroidTrackSyncBlocker = bool Function();
 typedef AndroidTrackIgnorePredicate = bool Function(Song track);
 typedef AndroidFastStartPredicate = bool Function();
@@ -127,6 +130,7 @@ class AndroidAudioEngine implements AudioEngine {
     required AndroidPlaylistProvider playlistProvider,
     required AndroidPlayerConfigurator configurePlayer,
     required AndroidEngineDisposer disposeEngine,
+    AndroidStalledPlayerRetirer? retireStalledPlayer,
     required AndroidTrackSyncBlocker shouldSuppressTrackSync,
     required AndroidTrackIgnorePredicate shouldIgnoreTrack,
     required AndroidFastStartPredicate shouldFastStartCurrentTrackOnly,
@@ -140,6 +144,7 @@ class AndroidAudioEngine implements AudioEngine {
        _playlistProvider = playlistProvider,
        _configurePlayer = configurePlayer,
        _disposeEngine = disposeEngine,
+       _retireStalledPlayer = retireStalledPlayer,
        _shouldSuppressTrackSync = shouldSuppressTrackSync,
        _shouldIgnoreTrack = shouldIgnoreTrack,
        _shouldFastStartCurrentTrackOnly = shouldFastStartCurrentTrackOnly,
@@ -155,6 +160,7 @@ class AndroidAudioEngine implements AudioEngine {
   final AndroidPlaylistProvider _playlistProvider;
   final AndroidPlayerConfigurator _configurePlayer;
   final AndroidEngineDisposer _disposeEngine;
+  final AndroidStalledPlayerRetirer? _retireStalledPlayer;
   final AndroidTrackSyncBlocker _shouldSuppressTrackSync;
   final AndroidTrackIgnorePredicate _shouldIgnoreTrack;
   final AndroidFastStartPredicate _shouldFastStartCurrentTrackOnly;
@@ -389,6 +395,30 @@ class AndroidAudioEngine implements AudioEngine {
     _controller.add(next);
   }
 
+  /// A timed-out Media3/just_audio prepare can leave its platform decoder
+  /// wedged even after stop(). Unregister this player synchronously so the
+  /// next user selection gets a new native instance, not the poisoned one.
+  /// The owner clears its own cached player and disposes this one separately.
+  Future<void> _retireTimedOutPlayer(just_audio.AudioPlayer player) async {
+    if (!identical(_player, player)) return;
+    _player = null;
+    _playlistSignature = const <String>[];
+    _loadedSingleTrackOnly = false;
+    _sourceFailed = true;
+    for (final subscription in _subscriptions) {
+      await subscription.cancel();
+    }
+    _subscriptions.clear();
+    if (_secondary != null) _attachListeners(_secondary!);
+    try {
+      final retire = _retireStalledPlayer;
+      await (retire == null ? player.dispose() : retire(player))
+          .timeout(const Duration(seconds: 3));
+    } catch (error) {
+      devLog('[Playback] Timed-out Android player retirement failed: $error');
+    }
+  }
+
   Future<void> _loadSource(
     just_audio.AudioPlayer player,
     just_audio.AudioSource source, {
@@ -410,8 +440,9 @@ class AndroidAudioEngine implements AudioEngine {
       _playlistSignature = const [];
       _loadedSingleTrackOnly = false;
       if (error is TimeoutException) {
+        await _retireTimedOutPlayer(player);
         throw TimeoutException(
-          'Audio source did not become ready. Retry or choose another source.',
+          'Audio source did not become ready. The audio engine was reset; retry playback.',
         );
       }
       rethrow;

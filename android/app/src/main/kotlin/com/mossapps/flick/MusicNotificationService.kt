@@ -29,7 +29,9 @@ import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat as MediaNotificationCompat
 import com.mossapps.flick.widgets.WidgetPrefs
+import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
+import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
 
 class MusicNotificationService : MediaBrowserServiceCompat() {
@@ -52,6 +54,10 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
     private lateinit var mediaSession: MediaSessionCompat
     private lateinit var notificationManager: NotificationManager
     private var methodChannel: MethodChannel? = null
+    private var carEngineStarting = false
+    private val pendingCarBrowses = mutableListOf<Pair<String, Result<List<MediaBrowserCompat.MediaItem>>>>()
+    private external fun nativeInitRustAndroidContext(context: Context): Boolean
+
     private var isForegroundServiceStarted = false
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -287,6 +293,9 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
         // Auto and system media clients may use different package names.
         val packages = packageManager.getPackagesForUid(clientUid)
         if (packages?.contains(clientPackageName) != true) return null
+        // A car may connect before MainActivity has ever run. Initialize
+        // Flutter without launching a phone Activity or blocking onGetRoot.
+        Handler(Looper.getMainLooper()).post { ensureCarFlutterEngine() }
         return BrowserRoot(CAR_ROOT_ID, null)
     }
 
@@ -309,11 +318,26 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
         // Repository/playlist lookups run asynchronously in Flutter. Never
         // block Android Auto's binder or expose raw song paths in media IDs.
         val channel = flutterPlayerChannel()
-        if (channel == null) {
-            result.sendResult(emptyList())
+        result.detach()
+        if (channel == null || carEngineStarting) {
+            // Cache requests until headless Dart has initialized its DB and
+            // installed the incoming player channel handler.
+            val request = Pair(parentId, result)
+            pendingCarBrowses.add(request)
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (pendingCarBrowses.remove(request)) result.sendResult(emptyList())
+            }, 12000L)
+            ensureCarFlutterEngine()
             return
         }
-        result.detach()
+        dispatchCarBrowse(parentId, result, channel)
+    }
+
+    private fun dispatchCarBrowse(
+        parentId: String,
+        result: Result<List<MediaBrowserCompat.MediaItem>>,
+        channel: MethodChannel
+    ) {
         val handler = Handler(Looper.getMainLooper())
         val completed = AtomicBoolean(false)
         val timeout = Runnable {
@@ -373,6 +397,99 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
             MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
         else MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
         return MediaBrowserCompat.MediaItem(description.build(), flag)
+    }
+
+    /** Start the same Dart entrypoint when the car is the first app client. */
+    private fun ensureCarFlutterEngine() {
+        if (FlutterEngineCache.getInstance().get("main_engine") != null) return
+        if (carEngineStarting) return
+        carEngineStarting = true
+        try {
+            System.loadLibrary("rust_lib_flick_player")
+            nativeInitRustAndroidContext(applicationContext)
+
+            val engine = FlutterEngine(applicationContext, null, false)
+            MainActivity.registerPluginsForMainEngine(engine)
+            val messenger = engine.dartExecutor.binaryMessenger
+
+            // Only the subset of native methods required during headless car
+            // playback is registered here. MainActivity replaces these when
+            // the user opens the phone UI.
+            MethodChannel(messenger, PLAYER_CHANNEL).setMethodCallHandler { call, reply ->
+                when (call.method) {
+                    "androidAutoReady" -> {
+                        carEngineStarting = false
+                        reply.success(null)
+                        val waiting = pendingCarBrowses.toList()
+                        pendingCarBrowses.clear()
+                        val channel = flutterPlayerChannel()
+                        waiting.forEach { (id, result) ->
+                            if (channel == null) result.sendResult(emptyList())
+                            else dispatchCarBrowse(id, result, channel)
+                        }
+                        listOf("lokal/songs", "lokal/likes", "lokal/playlists", "lokal/albums")
+                            .forEach(::notifyChildrenChanged)
+                    }
+                    "showNotification", "updateNotification" -> {
+                        try {
+                            startCarNotification(call.arguments as? Map<*, *> ?: emptyMap<Any, Any>())
+                            reply.success(null)
+                        } catch (error: Exception) {
+                            reply.error("CAR_NOTIFICATION", error.message, null)
+                        }
+                    }
+                    "hideNotification" -> {
+                        stopSelf()
+                        reply.success(null)
+                    }
+                    else -> reply.notImplemented()
+                }
+            }
+            // MainActivity normally owns this handoff channel. There is no
+            // pending phone intent to consume in a car-only startup.
+            MethodChannel(messenger, "com.mossapps.flick/integration")
+                .setMethodCallHandler { call, reply ->
+                    if (call.method == "consumePendingExternalPlayback") reply.success(null)
+                    else reply.notImplemented()
+                }
+
+            FlutterEngineCache.getInstance().put("main_engine", engine)
+            methodChannel = MethodChannel(messenger, PLAYER_CHANNEL)
+            engine.dartExecutor.executeDartEntrypoint(
+                DartExecutor.DartEntrypoint.createDefault()
+            )
+        } catch (error: Exception) {
+            android.util.Log.e("MusicNotification", "Android Auto Flutter bootstrap failed", error)
+            carEngineStarting = false
+            val waiting = pendingCarBrowses.toList()
+            pendingCarBrowses.clear()
+            waiting.forEach { (_, result) -> result.sendResult(emptyList()) }
+        }
+    }
+
+    private fun startCarNotification(args: Map<*, *>) {
+        val intent = Intent(this, MusicNotificationService::class.java)
+        val fields = listOf(
+            "title", "artist", "albumArtPath", "outputName", "castDeviceName"
+        )
+        fields.forEach { key ->
+            if (args.containsKey(key)) intent.putExtra(key, args[key] as? String)
+        }
+        listOf("isPlaying", "isShuffle", "isFavorite", "isCasting", "isLive")
+            .forEach { key ->
+                (args[key] as? Boolean)?.let { intent.putExtra(key, it) }
+            }
+        listOf("duration", "position").forEach { key ->
+            (args[key] as? Number)?.let { intent.putExtra(key, it.toLong()) }
+        }
+        listOf("color", "castVolume").forEach { key ->
+            (args[key] as? Number)?.let { intent.putExtra(key, it.toInt()) }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
     }
 
     private fun flutterPlayerChannel(): MethodChannel? {

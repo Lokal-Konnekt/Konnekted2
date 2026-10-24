@@ -74,6 +74,14 @@ String catalogueAudioDetails({
       }
     }
   }
+  // Bitrate is independent of sample rate. Previously a known 48 kHz
+  // decoder rate suppressed a real 192 kbps measurement, leaving misleading
+  // "OPUS · 48 kHz" instead of the actual lossy quality.
+  if (RegExp(r'\d+(?:\.\d+)?\s*kbps', caseSensitive: false)
+          .hasMatch(supplied) &&
+      !resolved.any((part) => part.toLowerCase().contains('kbps'))) {
+    resolved.add(supplied);
+  }
   final format = codec?.trim().toUpperCase() ?? '';
   if (format.isNotEmpty && format.length <= 12 &&
       !resolved.any((part) => part.toUpperCase() == format)) {

@@ -172,7 +172,12 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   }
 
   Future<void> _play(OnlineSource source, OnlineResult result, {bool atmos = false}) async {
-    if (!await _verify(source)) return;
+    // Source verification can take seconds: feedback must precede its await.
+    _progress.update('Preparing ${result.track.title} from ${source.name}…');
+    if (!await _verify(source)) {
+      _progress.clear();
+      return;
+    }
     if (atmos) {
       if (!result.track.atmosAvailable) {
         _say('This track has no advertised Dolby Atmos version.');
@@ -201,7 +206,13 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
             onlinePendingSong(source.id, track))(source, requested);
     // Enter the player immediately. Its pending resolver owns cancellation,
     // so a later tap/skip can never be overtaken by this page's download.
-    await ref.read(playerProvider.notifier).play(pending, playlist: [pending]);
+    try {
+      await ref.read(playerProvider.notifier).play(pending, playlist: [pending]);
+    } finally {
+      // The global player owns the ongoing load once selection is accepted.
+      // Never leave a search-specific loading pill covering another source.
+      _progress.clear();
+    }
   }
 
   /// Play next / Add to queue: a placeholder that's found and downloaded

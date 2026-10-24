@@ -3622,7 +3622,7 @@ class PlayerService {
   Future<void> _toggleFavoriteFromNotification() async {
     final song = currentSongNotifier.value;
     if (_allowsFavoriteActions(song)) {
-      await _favoritesService.toggleFavorite(song!.id);
+      await _favoritesService.toggleFavorite(song!.id, song: song);
       favoriteNotificationToggleNotifier.value++;
       await _updateNotificationState();
     }

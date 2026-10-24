@@ -3898,15 +3898,7 @@ class MainActivity: FlutterActivity() {
     }
 
     private fun ensurePluginsRegistered(engine: FlutterEngine) {
-        synchronized(pluginRegistrationLock) {
-            val engineIdentity = System.identityHashCode(engine)
-            if (registeredMainEngineIdentity == engineIdentity) {
-                return
-            }
-
-            GeneratedPluginRegistrant.registerWith(engine)
-            registeredMainEngineIdentity = engineIdentity
-        }
+        registerPluginsForMainEngine(engine)
     }
 
     // ========== UAC 2.0 USB Host (Android) ==========
@@ -5653,6 +5645,16 @@ class MainActivity: FlutterActivity() {
         private const val ACTION_USB_PERMISSION = "com.mossapps.flick.USB_PERMISSION"
         private val pluginRegistrationLock = Any()
         private var registeredMainEngineIdentity: Int? = null
+        // Both the phone Activity and the headless Android Auto media service
+        // can create the shared FlutterEngine. Register plugins exactly once.
+        internal fun registerPluginsForMainEngine(engine: FlutterEngine) {
+            synchronized(pluginRegistrationLock) {
+                val identity = System.identityHashCode(engine)
+                if (registeredMainEngineIdentity == identity) return
+                GeneratedPluginRegistrant.registerWith(engine)
+                registeredMainEngineIdentity = identity
+            }
+        }
     }
 
     private external fun nativeInitRustAndroidContext(context: Context): Boolean

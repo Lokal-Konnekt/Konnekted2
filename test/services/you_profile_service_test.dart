@@ -32,7 +32,7 @@ void main() {
   test('invalid input is rejected without losing the current profile', () async {
     await service.save(username: 'Owner');
     await expectLater(
-      service.save(username: 'A' * 41), throwsFormatException,
+      service.save(username: List.filled(41, 'A').join()), throwsFormatException,
     );
     await expectLater(
       service.save(username: 'bad\u0000name'), throwsFormatException,

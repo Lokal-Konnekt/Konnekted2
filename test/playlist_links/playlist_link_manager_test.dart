@@ -163,6 +163,59 @@ void main() {
     },
   );
 
+  test('downloaded unmatched entry appears in the linked playlist immediately', () async {
+    final backend = FakeBackend();
+    final store = MemoryPlaylistLinkStore();
+    final library = FakeLibrary([_song('1', 'One', 'A')]);
+    final manager = PlaylistLinkManager(
+      importer: FakeImporter(
+        _snapshot([_entry('One', 'A'), _entry('Missing', 'B')]),
+      ),
+      metadataStore: store,
+      playlists: backend,
+      library: library,
+    );
+    final record = await manager.createFromPreview(await manager.preview(_url));
+    expect(record.unmatchedEntries.single.title, 'Missing');
+    library.songs.add(_song('new-file', 'Missing', 'B'));
+    final id = await manager.attachDownloadedEntry(
+      record.linkId, record.unmatchedEntries.single,
+      savedPath: '/music/new-file.flac',
+    );
+    expect(id, 'new-file');
+    expect((await backend.getPlaylist(record.playlistId))!.songIds,
+        ['1', 'new-file']);
+    expect((await store.load()).single.unmatchedEntries, isEmpty);
+    expect((await store.load()).single.managedSongIds, ['1']);
+
+    // A later remote refresh must not delete an explicitly saved track.
+    final partial = await manager.refreshFromPreview(
+      await manager.preview(_url), removeMissing: true,
+    );
+    expect(partial.playlist.songIds, ['1', 'new-file']);
+  });
+
+  test('linking a downloaded file fails safely when the file was not indexed', () async {
+    final backend = FakeBackend();
+    final store = MemoryPlaylistLinkStore();
+    final manager = PlaylistLinkManager(
+      importer: FakeImporter(_snapshot([_entry('Missing', 'B')])),
+      metadataStore: store,
+      playlists: backend,
+      library: FakeLibrary([]),
+    );
+    final record = await manager.createFromPreview(await manager.preview(_url));
+    await expectLater(
+      manager.attachDownloadedEntry(
+        record.linkId, record.unmatchedEntries.single,
+        savedPath: '/music/not-indexed.flac',
+      ),
+      throwsA(isA<PlaylistLinkOperationException>()),
+    );
+    expect((await backend.getPlaylist(record.playlistId))!.songIds, isEmpty);
+    expect((await store.load()).single.unmatchedEntries, hasLength(1));
+  });
+
   test(
     'partial refresh only appends and keeps previous entries and local additions',
     () async {

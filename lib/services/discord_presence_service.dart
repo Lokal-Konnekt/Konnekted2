@@ -54,8 +54,19 @@ class DiscordPresenceService extends ChangeNotifier {
   final _covers = <String, String>{};
   final _coverJobs = <String>{};
   final _coverFailures = <String, DateTime>{};
+  final _coverFailureCounts = <String, int>{};
   final _coverRetryTimers = <String, Timer>{};
-  static const _artworkRetryDelay = Duration(seconds: 45);
+
+  // After repeated misses/network failures, stop repeatedly searching the
+  // same public APIs while a track is playing. A transient first failure
+  // still gets a fast retry; prolonged outages back off to 15 minutes.
+  @visibleForTesting
+  static Duration coverRetryDelayForFailure(int failures) => switch (failures) {
+    <= 1 => const Duration(seconds: 45),
+    2 => const Duration(minutes: 2),
+    3 => const Duration(minutes: 5),
+    _ => const Duration(minutes: 15),
+  };
   String? _lastPublishedKey;
   String _songKey(Song song) => '${song.id}|${song.title}|${song.artist}';
   static const _preference = 'lokal_discord_presence_enabled';
@@ -145,6 +156,10 @@ class DiscordPresenceService extends ChangeNotifier {
     _enabled = value;
     await (await SharedPreferences.getInstance()).setBool(_preference, value);
     _setStatus(value ? 'Ready when you play music' : 'Off');
+    if (!value) {
+      for (final timer in _coverRetryTimers.values) { timer.cancel(); }
+      _coverRetryTimers.clear();
+    }
     _schedule();
   }
 
@@ -249,7 +264,8 @@ class DiscordPresenceService extends ChangeNotifier {
     final image = publicArtwork(song.albumArt);
     final lastFailure = _coverFailures[key];
     final canRetry = lastFailure == null ||
-        DateTime.now().difference(lastFailure) >= _artworkRetryDelay;
+        DateTime.now().difference(lastFailure) >=
+            coverRetryDelayForFailure(_coverFailureCounts[key] ?? 1);
     if (image.isEmpty && !_covers.containsKey(key) &&
         canRetry && _coverJobs.add(key)) {
       _setArtworkStatus(key, 'Looking up public album artwork…');
@@ -288,7 +304,7 @@ class DiscordPresenceService extends ChangeNotifier {
           artist: song.artist,
         );
         // After a previous miss, bypass only the negative cache entry.
-        // Otherwise the 45-second retry would return the cached empty result
+        // Otherwise the retry would return the cached empty result
         // for five minutes without making a single new lookup.
         if (_coverFailures.containsKey(key)) {
           _artwork.invalidateMiss(trackRequest);
@@ -312,6 +328,7 @@ class DiscordPresenceService extends ChangeNotifier {
         _covers[key] = safe;
         _setArtworkStatus(key, 'Public cover found; sending to Discord…');
         _coverFailures.remove(key);
+        _coverFailureCounts.remove(key);
         _coverRetryTimers.remove(key)?.cancel();
       } else {
         _recordArtworkFailure(key);
@@ -337,8 +354,10 @@ class DiscordPresenceService extends ChangeNotifier {
 
   void _recordArtworkFailure(String key) {
     _coverFailures[key] = DateTime.now();
+    final failures = (_coverFailureCounts[key] ?? 0) + 1;
+    _coverFailureCounts[key] = failures;
     _coverRetryTimers.remove(key)?.cancel();
-    _coverRetryTimers[key] = Timer(_artworkRetryDelay, () {
+    _coverRetryTimers[key] = Timer(coverRetryDelayForFailure(failures), () {
       _coverRetryTimers.remove(key);
       final current = _player?.currentSongNotifier.value;
       if (_enabled && current != null && _songKey(current) == key) {
@@ -348,6 +367,7 @@ class DiscordPresenceService extends ChangeNotifier {
     while (_coverFailures.length > 100) {
       final oldest = _coverFailures.keys.first;
       _coverFailures.remove(oldest);
+      _coverFailureCounts.remove(oldest);
       _coverRetryTimers.remove(oldest)?.cancel();
     }
   }

@@ -230,6 +230,7 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
   static const int maxPages = 10;
   static const int maxEntries = 1000;
   static const int maxResponseBytes = 2 * 1024 * 1024;
+  static const int maxWebHtmlBytes = 6 * 1024 * 1024;
   static const Duration requestTimeout = Duration(seconds: 15);
   static const String clientVersion = '1.20250101.01.00';
 
@@ -355,7 +356,7 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
         'Accept': 'text/html,application/xhtml+xml',
         'User-Agent': 'Mozilla/5.0 (compatible; LokalMobile/1.0)',
       },
-      maxBytes: maxResponseBytes,
+      maxBytes: maxWebHtmlBytes,
       timeout: requestTimeout,
       cancellation: cancellation,
     );
@@ -443,6 +444,7 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
         'Origin': 'https://www.youtube.com',
         'X-YouTube-Client-Name': '1',
         'X-YouTube-Client-Version': context.version,
+        if (context.visitor != null) 'X-Goog-Visitor-Id': context.visitor!,
       },
       body: jsonEncode({
         'context': {

@@ -410,18 +410,14 @@ class LinkSyncCoordinator {
             await SongRepository().getAllSongs(),
           );
         }
-        final songIds = <String>[];
-        final matchedKeys = <String>[];
-        for (final member in state.members) {
+        final projection = await state.resolveMembers((member) async {
           final song = await _match({
             ...member.fields,
             'track_key': member.trackKey,
           });
-          if (song != null) {
-            songIds.add(song.id);
-            matchedKeys.add(member.trackKey);
-          }
-        }
+          return song?.id;
+        });
+        final songIds = projection.songIds;
         final old = await PlaylistService.instance.getPlaylist(localId);
         final sameOrder = old != null &&
             old.songIds.length == songIds.length &&
@@ -459,7 +455,7 @@ class LinkSyncCoordinator {
             // Snapshot is the *local projection*, not all remote entries:
             // unmatched desktop tracks must never look locally removed on
             // the next capture and be deleted remotely.
-            'members': matchedKeys,
+            'members': projection.matchedKeys,
           };
         }
         await prefs.setString(

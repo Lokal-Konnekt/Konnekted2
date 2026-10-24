@@ -366,7 +366,7 @@ class _FlowScreenState extends ConsumerState<FlowScreen> {
                 : () => _run(() async {
                     await ref
                         .read(favoritesProvider.notifier)
-                        .toggleFavorite(song.id);
+                        .toggleFavorite(song.id, song: song);
                   }),
           ),
           IconButton(

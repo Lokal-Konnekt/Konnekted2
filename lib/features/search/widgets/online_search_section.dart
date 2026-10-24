@@ -695,11 +695,14 @@ class _OnlineTile extends StatelessWidget {
       sampleRate: track.catalogueSampleRate,
       codec: track.catalogueCodec,
     );
-    // No stream resolution = no verified badge. In particular "AAC/Opus"
-    // is a list of possible codecs, not the selected format for this song.
+    // An explicit Tidal request remains visible when its catalogue search
+    // omits audio metadata. It is never misrepresented as a verified stream.
+    final requestedQuality = track.requestedQuality?.trim() ?? '';
     final displayQuality = verifiedQuality?.isNotEmpty == true
         ? verifiedQuality!
-        : reportedQuality;
+        : requestedQuality.isNotEmpty
+            ? requestedQuality
+            : reportedQuality;
     return LokalSwipeToQueue(
       onQueue: onQueue,
       enabled: !busy,
@@ -747,7 +750,9 @@ class _OnlineTile extends StatelessWidget {
                         Tooltip(
                           message: verifiedQuality?.isNotEmpty == true
                               ? 'Audio codec and bitrate of the resolved stream; not inferred from YouTube search metadata.'
-                              : 'Provider-advertised audio details; actual decoded output may differ',
+                              : requestedQuality.isNotEmpty
+                                  ? 'Tidal quality requested in add-on settings; the actual stream format is verified during playback.'
+                                  : 'Provider-advertised audio details; actual decoded output may differ',
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 7, vertical: 2),

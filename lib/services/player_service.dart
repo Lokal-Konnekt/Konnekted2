@@ -3235,7 +3235,9 @@ class PlayerService {
   }
 
   bool _allowsFavoriteActions(Song? song) {
-    return song != null && !song.isExternal;
+    // Online recordings are legitimate Liked entries even though we must not
+    // import their temporary streams as local library files.
+    return song != null;
   }
 
   void _clearReplayTracking() {

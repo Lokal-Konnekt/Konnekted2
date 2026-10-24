@@ -939,7 +939,7 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
     final notifier = ref.read(favoritesProvider.notifier);
     for (final song in songs) {
       if (value) {
-        await notifier.addFavorite(song.id);
+        await notifier.addFavorite(song.id, song: song);
       } else {
         await notifier.removeFavorite(song.id);
       }

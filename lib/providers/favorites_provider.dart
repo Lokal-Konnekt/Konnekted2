@@ -51,7 +51,7 @@ class FavoritesNotifier extends AsyncNotifier<FavoritesState> {
     final service = ref.watch(favoritesServiceProvider);
 
     final songs = await service.getFavorites();
-    final ids = songs.map((s) => s.id).toSet();
+    final ids = await service.getFavoriteIds();
 
     return FavoritesState(
       favoriteIds: ids,
@@ -72,9 +72,9 @@ class FavoritesNotifier extends AsyncNotifier<FavoritesState> {
   }
 
   /// Add a song to favorites.
-  Future<void> addFavorite(String songId) async {
+  Future<void> addFavorite(String songId, {Song? song}) async {
     final service = ref.read(favoritesServiceProvider);
-    await service.addFavorite(songId);
+    await service.addFavorite(songId, song: song);
     ref.invalidateSelf();
   }
 

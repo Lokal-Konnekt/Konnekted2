@@ -4,6 +4,10 @@ import '../link/lokal_devices_card.dart';
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:image_picker/image_picker.dart';
+import 'package:flick/services/you_profile_service.dart';
 
 import 'package:flick/providers/lokal_remote_provider.dart';
 
@@ -113,6 +117,16 @@ final youAccountsProvider = Provider.autoDispose<YouAccounts>(
   ),
 );
 
+/// A mobile-only identity override. Desktop and provider account data remain
+/// unchanged; clearing either field falls back to the linked profile.
+final youProfileServiceProvider = Provider<YouProfileService>(
+  (ref) => YouProfileService(),
+);
+
+final localYouProfileProvider = FutureProvider<LocalYouProfile>(
+  (ref) => ref.watch(youProfileServiceProvider).load(),
+);
+
 const _accountsSection = KonnektedDestination.settingsAt(
   LokalSettingsGroup.data,
   section: LokalDataSections.accounts,
@@ -161,11 +175,50 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
   void _openRecap(ListeningRecapPeriod period) =>
       _push(ListeningRecapScreen(initialPeriod: period));
 
+  Future<void> _editProfile() async {
+    try {
+      final existing = await ref.read(localYouProfileProvider.future);
+      if (!mounted) return;
+      final profile = ref.read(linkedDesktopProfileProvider).value;
+      final defaultName = profile?.displayName.trim().isNotEmpty == true
+          ? profile!.displayName
+          : profile?.username.trim().isNotEmpty == true
+              ? profile!.username
+              : ref.read(youAccountsProvider).name;
+      final service = ref.read(youProfileServiceProvider);
+      final saved = await showModalBottomSheet<bool>(
+        context: context,
+        useSafeArea: true,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (context) => _YouProfileEditor(
+          service: service,
+          profile: existing,
+          defaultName: defaultName,
+          linkedAvatarPath: profile?.avatarPath,
+        ),
+      );
+      if (saved == true && mounted) ref.invalidate(localYouProfileProvider);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('Could not open profile editor.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final recaps = ref.watch(youRecapsProvider).value ?? const {};
     final accounts = ref.watch(youAccountsProvider);
     final profile = ref.watch(linkedDesktopProfileProvider).value;
+    final local = ref.watch(localYouProfileProvider).value;
+    final defaultName = profile?.displayName.trim().isNotEmpty == true
+        ? profile!.displayName
+        : profile?.username.trim().isNotEmpty == true
+            ? profile!.username
+            : accounts.name;
+    final name = local?.username ?? defaultName;
     final streak = ref.watch(youStreakProvider).value;
     final milestones =
         ref.watch(youMilestonesProvider).value ?? const <MilestoneRecord>[];
@@ -179,13 +232,10 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
         ),
         children: [
           _YouHeader(
-            name: profile?.displayName.trim().isNotEmpty == true
-                ? profile!.displayName
-                : profile?.username.trim().isNotEmpty == true
-                ? profile!.username
-                : accounts.name,
-            avatarPath: profile?.avatarPath,
-            username: profile?.username,
+            name: name,
+            avatarPath: local?.avatarPath ?? profile?.avatarPath,
+            username: local?.username ?? profile?.username,
+            onEdit: _editProfile,
             weekMinutes: recaps[ListeningRecapPeriod.weekly]
                 ?.totalListeningTime
                 .inMinutes,
@@ -329,6 +379,7 @@ class _YouHeader extends StatelessWidget {
     required this.weekMinutes,
     required this.streak,
     required this.onSettings,
+    required this.onEdit,
     this.avatarPath,
     this.username,
   });
@@ -339,6 +390,7 @@ class _YouHeader extends StatelessWidget {
   final int? weekMinutes;
   final int? streak;
   final VoidCallback onSettings;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -366,8 +418,13 @@ class _YouHeader extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              ExcludeSemantics(
-                child: Container(
+              Semantics(
+                label: 'Edit profile photo',
+                button: true,
+                child: InkWell(
+                  onTap: onEdit,
+                  customBorder: const CircleBorder(),
+                  child: Container(
                   width: 64,
                   height: 64,
                   alignment: Alignment.center,
@@ -401,6 +458,7 @@ class _YouHeader extends StatelessWidget {
                             color: t.bg,
                           ),
                         ),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -433,6 +491,11 @@ class _YouHeader extends StatelessWidget {
                   ),
                 ),
               ),
+              IconButton(
+                tooltip: 'Edit profile',
+                onPressed: onEdit,
+                icon: Icon(Icons.edit_rounded, color: t.muted),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -456,6 +519,212 @@ class _YouHeader extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// A small on-device editor. Photos are copied out of the gallery picker
+/// cache by YouProfileService; leaving the username empty restores the linked
+/// account/desktop name rather than changing a remote account.
+class _YouProfileEditor extends StatefulWidget {
+  const _YouProfileEditor({
+    required this.service,
+    required this.profile,
+    required this.defaultName,
+    required this.linkedAvatarPath,
+  });
+
+  final YouProfileService service;
+  final LocalYouProfile profile;
+  final String defaultName;
+  final String? linkedAvatarPath;
+
+  @override
+  State<_YouProfileEditor> createState() => _YouProfileEditorState();
+}
+
+class _YouProfileEditorState extends State<_YouProfileEditor> {
+  late final TextEditingController _username = TextEditingController(
+    text: widget.profile.username ?? '',
+  );
+  Uint8List? _pickedPhoto;
+  bool _removePhoto = false;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _username.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickPhoto() async {
+    if (_saving) return;
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+      if (bytes.isEmpty || bytes.length > 12 * 1024 * 1024) {
+        setState(() => _error = 'Choose a photo smaller than 12 MB.');
+        return;
+      }
+      setState(() {
+        _pickedPhoto = bytes;
+        _removePhoto = false;
+        _error = null;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not open that photo.');
+      }
+    }
+  }
+
+  void _removePicture() {
+    setState(() {
+      _pickedPhoto = null;
+      _removePhoto = true;
+      _error = null;
+    });
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.service.save(
+        username: _username.text,
+        avatarBytes: _pickedPhoto,
+        removeAvatar: _removePhoto,
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error is FormatException
+              ? error.message
+              : 'Could not save profile. Try again.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.lokal;
+    final initialName = _username.text.trim().isEmpty
+        ? widget.defaultName
+        : _username.text.trim();
+    final initial = initialName.isNotEmpty
+        ? initialName.characters.first.toUpperCase() : 'Y';
+    final path = _removePhoto
+        ? widget.linkedAvatarPath
+        : widget.profile.avatarPath ?? widget.linkedAvatarPath;
+    Widget photo;
+    if (_pickedPhoto != null) {
+      photo = Image.memory(_pickedPhoto!, width: 86, height: 86, fit: BoxFit.cover);
+    } else if (path != null) {
+      photo = Image.file(
+        File(path), width: 86, height: 86, fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => Center(
+          child: Text(initial, style: TextStyle(fontSize: 34, color: t.bg)),
+        ),
+      );
+    } else {
+      photo = Center(
+        child: Text(initial, style: TextStyle(fontSize: 34, color: t.bg)),
+      );
+    }
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Edit profile', style: TextStyle(
+                fontSize: 23, fontWeight: FontWeight.w700, color: t.text,
+              )),
+              const SizedBox(height: 6),
+              Text('This profile belongs to your phone. Linked accounts are not renamed.',
+                style: TextStyle(color: t.muted, fontSize: 13)),
+              const SizedBox(height: 18),
+              Center(
+                child: ClipOval(
+                  child: Container(
+                    color: t.accent, width: 86, height: 86, child: photo,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton.icon(
+                    onPressed: _saving ? null : _pickPhoto,
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Choose photo'),
+                  ),
+                  if (path != null || _pickedPhoto != null)
+                    TextButton(
+                      onPressed: _saving ? null : _removePicture,
+                      child: const Text('Reset photo'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _username,
+                maxLength: 40,
+                textCapitalization: TextCapitalization.none,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _save(),
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  hintText: widget.defaultName,
+                  helperText: 'Leave empty to use your connected account name.',
+                ),
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(_error!, style: TextStyle(color: t.orange)),
+                ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _saving ? null : () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: Text(_saving ? 'Saving…' : 'Save profile'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

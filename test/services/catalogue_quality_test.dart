@@ -298,4 +298,41 @@ void main() {
         'DOLBY_ATMOS API attempt 1: TimeoutException after 0:00:30'),
         contains('timed out'));
   });
+
+  test('Tidal search displays requested quality, not the catalogue maximum', () {
+    const tiers = [
+      {'id': 'HI_RES_LOSSLESS', 'label': 'HiRes FLAC'},
+      {'id': 'LOSSLESS', 'label': 'Lossless'},
+      {'id': 'HIGH', 'label': 'High'},
+      {'id': 'LOW', 'label': 'Low'},
+      {'id': 'DOLBY_ATMOS', 'label': 'Dolby Atmos'},
+    ];
+    expect(tidalRequestedQualityLabel(configured: 'HIGH', options: tiers),
+        'High (requested)');
+    expect(tidalRequestedQualityLabel(configured: 'LOW', options: tiers),
+        'Low (requested)');
+    expect(tidalRequestedQualityLabel(configured: 'LOSSLESS', options: tiers),
+        'Lossless (requested)');
+    expect(tidalRequestedQualityLabel(configured: 'HI_RES_LOSSLESS', options: tiers),
+        'HiRes FLAC (requested)');
+    expect(tidalRequestedQualityLabel(configured: null, options: tiers),
+        'HiRes FLAC (requested)',
+        reason: 'The first advertised tier is the download fallback');
+    expect(tidalRequestedQualityLabel(configured: 'DOLBY_ATMOS', options: tiers),
+        'HiRes FLAC (requested)',
+        reason: 'Normal playback never silently requests an Atmos-only download');
+    expect(tidalRequestedQualityLabel(configured: 'LOW', options: []), isNull);
+    const requested = DiscoveryTrack(
+      id: 'tidal-7', title: 'Track', artist: 'Artist',
+      source: DiscoverySource.morneye,
+      requestedQuality: 'High (requested)',
+      catalogueQuality: null,
+    );
+    expect(requested.withArtwork('https://example.test/art.jpg').requestedQuality,
+        'High (requested)');
+    expect(requested.requestAtmos().requestedQuality, 'High (requested)');
+    expect(catalogueAudioDetails(quality: requested.catalogueQuality), isEmpty,
+        reason: 'Requested quality must not masquerade as decoded audio');
+  });
+
 }

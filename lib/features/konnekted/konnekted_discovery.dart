@@ -634,7 +634,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
               addonDigest: addon.digest,
               trackId: song.id,
               settingsFingerprint: fingerprint,
-              requestedTier: song.atmosAvailable ? 'HI_RES_LOSSLESS' : '',
+              requestedTier: '',
             );
             final cached = _morneyeReadyPlayback[key];
             final verified = cached != null &&
@@ -690,9 +690,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
             throw const DiscoveryException('This track has no advertised Atmos version.');
           }
           final tryAtmos = found.atmosRequested;
-          final requestedTier = tryAtmos
-              ? 'DOLBY_ATMOS'
-              : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : '');
+          final requestedTier = tryAtmos ? 'DOLBY_ATMOS' : '';
           final cacheKey = morneyePlaybackCacheKey(
             addonKey: addon.key,
             addonDigest: addon.digest,
@@ -790,9 +788,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 'downloadOnly': found.atmosDownload,
               });
               final transfer = fetch(
-                quality: tryAtmos
-                    ? 'DOLBY_ATMOS'
-                    : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
+                quality: tryAtmos ? 'DOLBY_ATMOS' : null,
               );
               // The host only exposes a live descriptor after a 64 KiB FLAC
               // header check and a known full length. Race that safe first

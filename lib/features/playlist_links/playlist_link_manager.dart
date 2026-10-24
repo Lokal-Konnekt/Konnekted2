@@ -231,6 +231,72 @@ class PlaylistLinkManager {
     }
   });
 
+  /// Attach a user-requested download without guessing a library match from
+  /// remote metadata. The download has already been saved and indexed, so
+  /// compare its exact on-device path to the new library row.
+  Future<String> attachDownloadedEntry(
+    String linkId,
+    RemotePlaylistEntry entry, {
+    required String savedPath,
+  }) => _run((cancellation) async {
+    cancellation.throwIfCancelled();
+    final records = await metadataStore.load();
+    final index = records.indexWhere((record) => record.linkId == linkId);
+    if (index < 0) {
+      throw const PlaylistLinkOperationException('Linked playlist no longer exists.');
+    }
+    final record = records[index];
+    final matchingIndex = record.unmatchedEntries.indexWhere(
+      (candidate) => _sameRemoteEntry(candidate, entry),
+    );
+    if (matchingIndex < 0) {
+      throw const PlaylistLinkOperationException(
+        'That entry is no longer unmatched. Refresh the linked playlist.',
+      );
+    }
+    final songs = (await library.getSongs())
+        .where((song) => song.filePath == savedPath).toList();
+    if (songs.length != 1) {
+      throw const PlaylistLinkOperationException(
+        'The song was saved but its library entry is not indexed yet. '
+        'Refresh the library, then retry the link.',
+      );
+    }
+    final playlist = await playlists.getPlaylist(record.playlistId);
+    if (playlist == null) {
+      throw const PlaylistLinkOperationException('The local playlist is missing.');
+    }
+    final songId = songs.single.id;
+    final added = !playlist.songIds.contains(songId);
+    if (added && !await playlists.addSong(playlist.id, songId)) {
+      throw const PlaylistLinkOperationException(
+        'The download was saved, but could not be added to the playlist.',
+      );
+    }
+    try {
+      cancellation.throwIfCancelled();
+      final unresolved = [...record.unmatchedEntries]..removeAt(matchingIndex);
+      final revised = record.copyWith(unmatchedEntries: unresolved);
+      final updated = [...records];
+      updated[index] = revised;
+      await metadataStore.save(updated);
+      // Explicit downloads are local additions, not removals managed by the
+      // link's remote refresh. A subsequent remote omission cannot delete one.
+      return songId;
+    } catch (_) {
+      if (added) await playlists.removeSong(playlist.id, songId);
+      rethrow;
+    }
+  });
+
+  static bool _sameRemoteEntry(
+    RemotePlaylistEntry a, RemotePlaylistEntry b,
+  ) => a.remoteId != null && b.remoteId != null
+      ? a.remoteId == b.remoteId &&
+          a.title == b.title && a.artist == b.artist
+      : a.title == b.title && a.artist == b.artist &&
+          a.album == b.album;
+
   Future<void> unlink(String linkId) => _run((_) async {
     final records = await metadataStore.load();
     if (_findRecord(records, linkId) == null) return;

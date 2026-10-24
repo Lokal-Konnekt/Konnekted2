@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flick/providers/playlist_provider.dart';
+import 'package:flick/providers/songs_provider.dart';
 
 import 'playlist_link_manager.dart';
 import 'playlist_link_models.dart';
+import 'playlist_unmatched_downloader.dart';
 
 final linkedPlaylistManagerProvider = Provider.autoDispose<PlaylistLinkManager>(
   (ref) {
@@ -31,6 +36,9 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
   List<PlaylistLinkRecord> _links = const [];
   String? _error;
   bool _loading = false;
+  String? _downloadStatus;
+  String? _downloadNotice;
+  Completer<void>? _downloadCancellation;
 
   PlaylistLinkManager get _manager => ref.read(linkedPlaylistManagerProvider);
 
@@ -42,6 +50,8 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
 
   @override
   void dispose() {
+    final download = _downloadCancellation;
+    if (download != null && !download.isCompleted) download.complete();
     _inputController.dispose();
     _nameController.dispose();
     super.dispose();
@@ -56,7 +66,7 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Paste a public Spotify or YouTube Music playlist URL or Spotify URI.',
+            'Paste a public Spotify, YouTube or YouTube Music playlist URL, or a Spotify URI.',
             style: TextStyle(fontSize: 15),
           ),
           const SizedBox(height: 12),
@@ -79,6 +89,14 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
             ),
             label: Text(_loading ? 'Cancel' : 'Preview'),
           ),
+          if (_downloadStatus != null) ...[
+            const SizedBox(height: 12),
+            Text(_downloadStatus!),
+          ],
+          if (_downloadNotice != null) ...[
+            const SizedBox(height: 8),
+            Text(_downloadNotice!),
+          ],
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -115,40 +133,76 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
   Widget _buildLinkTile(PlaylistLinkRecord record) {
     final status = record.isPartial ? 'Partial sync' : 'Synced';
     return Card(
-      child: ListTile(
-        title: Text(record.remoteTitle),
-        subtitle: Text(
-          '$status · ${record.fetchedEntryCount}/${record.remoteEntryCount} entries · '
-          '${record.unmatchedEntries.length} unmatched',
-        ),
-        isThreeLine: true,
-        onTap: () {
-          _inputController.text = record.canonicalUrl;
-          _previewLink();
-        },
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            switch (value) {
-              case 'refresh':
-                _previewExisting(record);
-                break;
-              case 'source':
-                _openSource(record.canonicalUrl);
-                break;
-              case 'unlink':
-                _unlink(record);
-                break;
-            }
-          },
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: 'refresh', child: Text('Preview refresh')),
-            PopupMenuItem(
-              value: 'source',
-              child: Text('View source externally'),
+      child: Column(
+        children: [
+          ListTile(
+            title: Text(record.remoteTitle),
+            subtitle: Text(
+              '$status · ${record.fetchedEntryCount}/${record.remoteEntryCount} entries · '
+              '${record.unmatchedEntries.length} unmatched',
             ),
-            PopupMenuItem(value: 'unlink', child: Text('Unlink')),
-          ],
-        ),
+            isThreeLine: true,
+            onTap: () => _previewExisting(record),
+            trailing: PopupMenuButton<String>(
+              onSelected: (value) {
+                switch (value) {
+                  case 'refresh':
+                    _previewExisting(record);
+                    break;
+                  case 'source':
+                    _openSource(record.canonicalUrl);
+                    break;
+                  case 'unlink':
+                    _unlink(record);
+                    break;
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'refresh', child: Text('Preview refresh')),
+                PopupMenuItem(
+                  value: 'source',
+                  child: Text('View source externally'),
+                ),
+                PopupMenuItem(value: 'unlink', child: Text('Unlink')),
+              ],
+            ),
+          ),
+          if (record.unmatchedEntries.isNotEmpty)
+            ExpansionTile(
+              title: Text('Unmatched entries (${record.unmatchedEntries.length})'),
+              subtitle: const Text('Download missing tracks to your library'),
+              children: [
+                for (final entry in record.unmatchedEntries.take(50))
+                  ListTile(
+                    dense: true,
+                    title: Text(entry.title, maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    subtitle: Text(entry.artist.isEmpty
+                        ? 'YouTube video' : entry.artist,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: IconButton(
+                      tooltip: 'Download to library and add to playlist',
+                      icon: const Icon(Icons.download_rounded),
+                      onPressed: _loading
+                          ? null
+                          : () => _downloadUnmatched(record, only: entry),
+                    ),
+                  ),
+                if (record.unmatchedEntries.length > 50)
+                  Text('Showing the first 50. Use Download unmatched for all.'),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
+                  child: OutlinedButton.icon(
+                    onPressed: _loading
+                        ? null
+                        : () => _downloadUnmatched(record),
+                    icon: const Icon(Icons.download_rounded),
+                    label: Text('Download unmatched (${record.unmatchedEntries.length})'),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -204,6 +258,7 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
           .createFromPreview(preview, name: _nameController.text)
           .then((_) async {
             if (!mounted) return;
+            ref.invalidate(playlistsProvider);
             setState(() => _preview = null);
             await _loadLinks();
           }),
@@ -218,6 +273,7 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
           .refreshFromPreview(preview, removeMissing: removeMissing)
           .then((_) async {
             if (!mounted) return;
+            ref.invalidate(playlistsProvider);
             setState(() => _preview = null);
             await _loadLinks();
           }),
@@ -281,6 +337,81 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
     }
   }
 
+  Future<void> _downloadUnmatched(
+    PlaylistLinkRecord record, {
+    RemotePlaylistEntry? only,
+  }) async {
+    if (_loading) return;
+    final entries = only == null
+        ? List<RemotePlaylistEntry>.of(record.unmatchedEntries)
+        : [only];
+    if (entries.isEmpty) return;
+    final cancel = Completer<void>();
+    _downloadCancellation = cancel;
+    try {
+      await _run(() async {
+        var saved = 0;
+        var failed = 0;
+        String? lastError;
+        final downloader = PlaylistUnmatchedDownloader();
+        final link = ParsedPlaylistLink(
+          source: record.source,
+          remoteId: record.remoteId,
+          canonicalUrl: record.canonicalUrl,
+        );
+        for (var i = 0; i < entries.length; i++) {
+          if (cancel.isCompleted || !mounted) break;
+          final entry = entries[i];
+          setState(() => _downloadStatus =
+              'Downloading ${i + 1}/${entries.length}: ${entry.title}');
+          try {
+            final result = await downloader.download(
+              link,
+              entry,
+              cancel: cancel.future,
+              cancelled: () => cancel.isCompleted,
+              onStatus: (status) {
+                if (mounted) setState(() => _downloadStatus = status);
+              },
+              verifySource: (source) async {
+                if (!mounted || source.verify == null) return false;
+                return source.verify!(context);
+              },
+            );
+            // Attach only after the existing library downloader indexed the
+            // finished file; otherwise the playlist gets a phantom song ID.
+            await _manager.attachDownloadedEntry(
+              record.linkId,
+              entry,
+              savedPath: result.path,
+            );
+            saved++;
+            if (!mounted) break;
+            ref.invalidate(playlistsProvider);
+            ref.invalidate(songsProvider);
+          } catch (error) {
+            if (cancel.isCompleted) break;
+            failed++;
+            lastError = error.toString();
+          }
+        }
+        if (mounted) {
+          await _loadLinks();
+          if (mounted) setState(() {
+            _downloadStatus = null;
+            _downloadNotice = 'Downloaded $saved of ${entries.length} unmatched '
+                'entries${cancel.isCompleted ? ' (cancelled)' : ''}.'
+                '${failed > 0 ? ' $failed failed. $lastError' : ''}';
+          });
+        }
+      });
+    } finally {
+      if (identical(_downloadCancellation, cancel)) {
+        _downloadCancellation = null;
+      }
+    }
+  }
+
   Future<void> _run(Future<void> Function() operation) async {
     setState(() {
       _loading = true;
@@ -295,7 +426,14 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
     }
   }
 
-  void _cancel() => _manager.cancelCurrent();
+  void _cancel() {
+    final download = _downloadCancellation;
+    if (download != null && !download.isCompleted) {
+      download.complete();
+    } else {
+      _manager.cancelCurrent();
+    }
+  }
 }
 
 class _PreviewCard extends StatelessWidget {

@@ -63,8 +63,21 @@ class PlaylistsNotifier extends AsyncNotifier<PlaylistsState> {
 
     final service = ref.read(playlistServiceProvider);
     final playlist = await service.createPlaylist(name.trim(), serverId: serverId);
-    if (ref.mounted) {
-      ref.invalidateSelf();
+    if (playlist != null && ref.mounted) {
+      // An invalidated autoDispose AsyncNotifier can briefly retain its old
+      // AsyncData while the user stays on the Playlists page. Publish the
+      // created playlist immediately, then reconcile against the service.
+      final current = state.value;
+      if (current != null) {
+        final fresh = await service.getPlaylists();
+        if (!ref.mounted) return playlist;
+        state = AsyncData(current.copyWith(
+          playlists: fresh,
+          isLoading: false,
+        ));
+      } else {
+        ref.invalidateSelf();
+      }
     }
 
     return playlist;

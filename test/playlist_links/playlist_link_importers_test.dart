@@ -201,6 +201,91 @@ void main() {
     },
   );
 
+
+  test('regular YouTube web playlist imports playlistVideoRenderer and continuation', () async {
+    const apiKey = 'AIzaSyFakeValidTestPlaylistKey123';
+    final first = {
+      'header': {'playlistHeaderRenderer': {'title': {'simpleText': 'Regular Mix'}}},
+      'contents': {'playlistVideoListRenderer': {'contents': [
+        {'playlistVideoRenderer': {
+          'videoId': 'abcdefghijk',
+          'title': {'simpleText': 'First'},
+          'shortBylineText': {'simpleText': 'Uploader A'},
+          'lengthText': {'simpleText': '3:22'},
+        }},
+        {'continuationItemRenderer': {'continuationEndpoint': {
+          'continuationCommand': {'token': 'WEB_NEXT'},
+        }}},
+      ]}},
+    };
+    final next = {'onResponseReceivedActions': [
+      {'appendContinuationItemsAction': {'continuationItems': [
+        {'playlistVideoRenderer': {
+          'videoId': 'lmnopqrstuv',
+          'title': {'simpleText': 'Second'},
+          'shortBylineText': {'simpleText': 'Uploader B'},
+        }},
+      ]}},
+    ]};
+    final html = '<script>var ytInitialData = ${jsonEncode(first)};</script>'
+        '<script>ytcfg.set({"INNERTUBE_API_KEY":"$apiKey",'
+        '"INNERTUBE_CLIENT_VERSION":"2.20261020.00.00"});</script>';
+    final webUrl = Uri.https('www.youtube.com', '/playlist', {
+      'list': 'PL_abc-12345', 'hl': 'en',
+    }).toString();
+    final continuationUrl = Uri.https('www.youtube.com', '/youtubei/v1/browse', {
+      'key': apiKey, 'prettyPrint': 'false',
+    }).toString();
+    final transport = FakeTransport({
+      webUrl: [PlaylistLinkHttpResponse(statusCode: 200, body: html)],
+      continuationUrl: [_json(next)],
+    });
+    final result = await YoutubePlaylistImporter(transport).fetch(
+      const ParsedPlaylistLink(
+        source: PlaylistLinkSource.youtube,
+        remoteId: 'PL_abc-12345',
+        canonicalUrl: 'https://www.youtube.com/playlist?list=PL_abc-12345',
+      ),
+    );
+    expect(result.title, 'Regular Mix');
+    expect(result.complete, true);
+    expect(result.entries.map((entry) => entry.title), ['First', 'Second']);
+    expect(result.entries.map((entry) => entry.remoteId), ['abcdefghijk', 'lmnopqrstuv']);
+    expect(result.entries.first.duration, const Duration(minutes: 3, seconds: 22));
+    expect(transport.requests.map((request) => request.host),
+        ['music.youtube.com', 'www.youtube.com', 'www.youtube.com']);
+  });
+
+  test('regular YouTube pagination failures keep a partial listing', () async {
+    final first = {'contents': {'playlistVideoListRenderer': {'contents': [
+      {'playlistVideoRenderer': {
+        'videoId': 'abcdefghijk', 'title': {'simpleText': 'First'},
+      }},
+      {'continuationItemRenderer': {'continuationEndpoint': {
+        'continuationCommand': {'token': 'NEXT'},
+      }}},
+    ]}}};
+    final webUrl = Uri.https('www.youtube.com', '/playlist', {
+      'list': 'PL_abc-12345', 'hl': 'en',
+    }).toString();
+    final transport = FakeTransport({
+      webUrl: [PlaylistLinkHttpResponse(
+        statusCode: 200,
+        body: '<script>var ytInitialData = ${jsonEncode(first)};</script>',
+      )],
+    });
+    final result = await YoutubePlaylistImporter(transport).fetch(
+      const ParsedPlaylistLink(
+        source: PlaylistLinkSource.youtube,
+        remoteId: 'PL_abc-12345',
+        canonicalUrl: 'https://www.youtube.com/playlist?list=PL_abc-12345',
+      ),
+    );
+    expect(result.entries.single.title, 'First');
+    expect(result.complete, false);
+    expect(result.truncationReason, contains('continuation'));
+  });
+
   test('Spotify embed importer is always explicitly partial', () async {
     const id = '0123456789abcdefghijkl';
     final html =

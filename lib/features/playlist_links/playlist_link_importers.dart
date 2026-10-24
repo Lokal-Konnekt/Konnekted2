@@ -230,6 +230,7 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
   static const int maxPages = 10;
   static const int maxEntries = 1000;
   static const int maxResponseBytes = 2 * 1024 * 1024;
+  static const int maxWebHtmlBytes = 6 * 1024 * 1024;
   static const Duration requestTimeout = Duration(seconds: 15);
   static const String clientVersion = '1.20250101.01.00';
 
@@ -242,14 +243,30 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
     ParsedPlaylistLink link, {
     PlaylistLinkCancellationToken? cancellation,
   }) async {
-    var page = await _browse(
-      body: {'browseId': 'VL${link.remoteId}'},
-      cancellation: cancellation,
-    );
-    final first = _parsePage(page);
+    // YouTube Music and regular YouTube expose different playlist rows.
+    // Try the existing Music importer first; fall back to the public web
+    // playlist when the Music shelf is missing/unsupported.
+    _YoutubePage first;
+    _YoutubeWebContext? web;
+    try {
+      final page = await _browse(
+        body: {'browseId': 'VL${link.remoteId}'},
+        cancellation: cancellation,
+      );
+      first = _parsePage(page);
+      if (first.entries.isEmpty) {
+        throw const PlaylistLinkHttpException('Empty YouTube Music shelf.');
+      }
+    } on PlaylistLinkCancelledException {
+      rethrow;
+    } catch (_) {
+      final start = await _webPlaylist(link, cancellation: cancellation);
+      first = start.page;
+      web = start.context;
+    }
     final entries = <RemotePlaylistEntry>[...first.entries];
-    var title = first.title ?? 'Imported YouTube Playlist';
-    var description = first.description;
+    final title = first.title ?? 'Imported YouTube Playlist';
+    final description = first.description;
     var continuation = first.continuation;
     var pageCount = 1;
     String? truncationReason;
@@ -274,11 +291,16 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
         break;
       }
       try {
-        page = await _browse(
-          body: {'continuation': continuation},
-          cancellation: cancellation,
-        );
-        final next = _parsePage(page);
+        final next = web == null
+            ? _parsePage(await _browse(
+                body: {'continuation': continuation},
+                cancellation: cancellation,
+              ))
+            : _parseWebPage(await _browseWeb(
+                context: web,
+                continuation: continuation,
+                cancellation: cancellation,
+              ));
         final remaining = maxEntries - entries.length;
         if (next.entries.length > remaining) {
           entries.addAll(next.entries.take(remaining));
@@ -315,6 +337,184 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
       totalEntries: null,
       complete: truncationReason == null,
       truncationReason: truncationReason,
+    );
+  }
+
+  /// Regular youtube.com playlists use playlistVideoRenderer (not the
+  /// musicResponsiveListItemRenderer used by YouTube Music).
+  Future<_YoutubeWebStart> _webPlaylist(
+    ParsedPlaylistLink link, {
+    PlaylistLinkCancellationToken? cancellation,
+  }) async {
+    final response = await transport.request(
+      'GET',
+      Uri.https('www.youtube.com', '/playlist', {
+        'list': link.remoteId,
+        'hl': 'en',
+      }),
+      headers: const {
+        'Accept': 'text/html,application/xhtml+xml',
+        'User-Agent': 'Mozilla/5.0 (compatible; LokalMobile/1.0)',
+      },
+      maxBytes: maxWebHtmlBytes,
+      timeout: requestTimeout,
+      cancellation: cancellation,
+    );
+    final page = _youtubeInitialData(response.body);
+    final initial = _parseWebPage(page);
+    if (initial.entries.isEmpty) {
+      throw const PlaylistLinkHttpException(
+        'This public YouTube playlist did not expose readable entries.',
+      );
+    }
+    final key = RegExp(r'"INNERTUBE_API_KEY"\s*:\s*"([A-Za-z0-9_-]{20,})"')
+        .firstMatch(response.body)?.group(1);
+    final version = RegExp(r'"INNERTUBE_CLIENT_VERSION"\s*:\s*"([^"]+)"')
+        .firstMatch(response.body)?.group(1);
+    final visitor = RegExp(r'"VISITOR_DATA"\s*:\s*"([^"]+)"')
+        .firstMatch(response.body)?.group(1);
+    return _YoutubeWebStart(
+      page: initial,
+      context: _YoutubeWebContext(
+        apiKey: key,
+        version: version ?? '2.20260101.00.00',
+        visitor: visitor,
+      ),
+    );
+  }
+
+  /// Parse the balanced JSON assignment, not a greedy script regex. The
+  /// response is bounded by the transport's 2 MiB maximum.
+  static Map<String, dynamic> _youtubeInitialData(String html) {
+    final marker = RegExp(
+      r'(?:var\s+)?ytInitialData\s*=\s*|window\\[["\\x27]ytInitialData["\\x27]\\]\s*=\s*',
+    );
+    final match = marker.firstMatch(html);
+    if (match == null) {
+      throw const PlaylistLinkHttpException(
+        'YouTube did not expose public playlist metadata.',
+      );
+    }
+    final start = html.indexOf('{', match.end);
+    if (start < 0) throw const PlaylistLinkHttpException(
+      'YouTube did not expose public playlist metadata.',
+    );
+    var depth = 0;
+    var quoted = false;
+    var escaped = false;
+    for (var i = start; i < html.length; i++) {
+      final code = html.codeUnitAt(i);
+      if (quoted) {
+        if (escaped) {
+          escaped = false;
+        } else if (code == 92) {
+          escaped = true;
+        } else if (code == 34) {
+          quoted = false;
+        }
+        continue;
+      }
+      if (code == 34) { quoted = true; continue; }
+      if (code == 123) depth++;
+      if (code == 125 && --depth == 0) {
+        return decodePlaylistJson(html.substring(start, i + 1));
+      }
+    }
+    throw const PlaylistLinkHttpException(
+      'YouTube returned incomplete playlist metadata.',
+    );
+  }
+
+  Future<Map<String, dynamic>> _browseWeb({
+    required _YoutubeWebContext context,
+    required String continuation,
+    PlaylistLinkCancellationToken? cancellation,
+  }) async {
+    if (context.apiKey == null) throw const PlaylistLinkHttpException(
+      'YouTube did not provide pagination access; only the visible entries were imported.',
+    );
+    final response = await transport.request(
+      'POST',
+      Uri.https('www.youtube.com', '/youtubei/v1/browse', {
+        'key': context.apiKey!,
+        'prettyPrint': 'false',
+      }),
+      headers: {
+        'Accept': 'application/json',
+        'Origin': 'https://www.youtube.com',
+        'X-YouTube-Client-Name': '1',
+        'X-YouTube-Client-Version': context.version,
+        if (context.visitor != null) 'X-Goog-Visitor-Id': context.visitor!,
+      },
+      body: jsonEncode({
+        'context': {
+          'client': {
+            'clientName': 'WEB',
+            'clientVersion': context.version,
+            'hl': 'en',
+            'gl': 'US',
+            if (context.visitor != null) 'visitorData': context.visitor,
+          },
+        },
+        'continuation': continuation,
+      }),
+      maxBytes: maxResponseBytes,
+      timeout: requestTimeout,
+      cancellation: cancellation,
+    );
+    return decodePlaylistJson(response.body);
+  }
+
+  static _YoutubePage _parseWebPage(Map<String, dynamic> root) {
+    final shelf = _findFirstMap(root, const {
+      'playlistVideoListRenderer',
+      'appendContinuationItemsAction',
+      'reloadContinuationItemsCommand',
+    });
+    if (shelf == null) {
+      throw const PlaylistLinkHttpException(
+        'YouTube did not expose a supported public playlist listing.',
+      );
+    }
+    final rows = shelf['contents'] ?? shelf['continuationItems'];
+    final entries = <RemotePlaylistEntry>[];
+    if (rows is List) {
+      for (final row in rows) {
+        if (row is! Map || row['playlistVideoRenderer'] is! Map) continue;
+        final renderer = row['playlistVideoRenderer'] as Map;
+        final id = _string(renderer['videoId']);
+        final title = _text(renderer['title']);
+        if (id == null || !RegExp(r'^[A-Za-z0-9_-]{11}$').hasMatch(id) ||
+            title == null || title.trim().isEmpty) continue;
+        final artist = _text(renderer['shortBylineText']) ??
+            _text(renderer['longBylineText']) ?? '';
+        final duration = _parseClock(_text(renderer['lengthText']) ?? '');
+        entries.add(RemotePlaylistEntry(
+          title: title.trim(),
+          artist: artist.trim(),
+          duration: duration,
+          remoteId: id,
+        ));
+      }
+    }
+    final header = _findFirstMap(root, const {
+      'playlistHeaderRenderer', 'playlistMetadataRenderer',
+      'pageHeaderViewModel',
+    });
+    final title = _text(header?['title']) ??
+        _string(header?['pageTitle']) ??
+        _text(header?['pageTitle']);
+    final continuationItem = _findFirstMap(shelf, const {
+      'continuationItemRenderer', 'nextContinuationData',
+    });
+    final continuation = _findPathString(continuationItem, const [
+      'continuationEndpoint', 'continuationCommand', 'token',
+    ]) ?? _string(continuationItem?['continuation']);
+    return _YoutubePage(
+      entries: entries,
+      continuation: continuation,
+      title: title,
+      description: _text(header?['descriptionText']),
     );
   }
 
@@ -534,6 +734,25 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
   }
 
   static String? _string(Object? value) => value is String ? value : null;
+}
+
+class _YoutubeWebContext {
+  final String? apiKey;
+  final String version;
+  final String? visitor;
+
+  const _YoutubeWebContext({
+    required this.apiKey,
+    required this.version,
+    required this.visitor,
+  });
+}
+
+class _YoutubeWebStart {
+  final _YoutubePage page;
+  final _YoutubeWebContext context;
+
+  const _YoutubeWebStart({required this.page, required this.context});
 }
 
 class _YoutubePage {

@@ -689,20 +689,15 @@ class _OnlineTile extends StatelessWidget {
     final t = context.lokal;
     final track = result.track;
     final duration = track.duration;
-    final reportedQuality = catalogueAudioDetails(
-      quality: track.catalogueQuality,
-      bitDepth: track.catalogueBitDepth,
-      sampleRate: track.catalogueSampleRate,
-      codec: track.catalogueCodec,
+    final badge = onlineSearchAudioBadge(
+      verifiedQuality: verifiedQuality,
+      requestedQuality: track.requestedQuality,
+      catalogueQuality: track.catalogueQuality,
+      catalogueBitDepth: track.catalogueBitDepth,
+      catalogueSampleRate: track.catalogueSampleRate,
+      catalogueCodec: track.catalogueCodec,
     );
-    // An explicit Tidal request remains visible when its catalogue search
-    // omits audio metadata. It is never misrepresented as a verified stream.
-    final requestedQuality = track.requestedQuality?.trim() ?? '';
-    final displayQuality = verifiedQuality?.isNotEmpty == true
-        ? verifiedQuality!
-        : requestedQuality.isNotEmpty
-            ? requestedQuality
-            : reportedQuality;
+    final displayQuality = badge.label;
     return LokalSwipeToQueue(
       onQueue: onQueue,
       enabled: !busy,
@@ -748,11 +743,7 @@ class _OnlineTile extends StatelessWidget {
                       children: [
                         if (displayQuality.isNotEmpty)
                         Tooltip(
-                          message: verifiedQuality?.isNotEmpty == true
-                              ? 'Audio codec and bitrate of the resolved stream; not inferred from YouTube search metadata.'
-                              : requestedQuality.isNotEmpty
-                                  ? 'Tidal quality requested in add-on settings; the actual stream format is verified during playback.'
-                                  : 'Provider-advertised audio details; actual decoded output may differ',
+                          message: badge.tooltip,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 7, vertical: 2),

@@ -198,7 +198,9 @@ class NotificationService {
               owner.onSeek?.call(Duration(milliseconds: value.toInt()));
         }
         // A live stream has no next/previous, seek, shuffle or favorite.
-        return;
+        // This is a value-returning async MethodCallHandler: returning null
+        // acknowledges the handled command without a Dart compile error.
+        return null;
       }
       switch (call.method) {
         case 'togglePlayPause':

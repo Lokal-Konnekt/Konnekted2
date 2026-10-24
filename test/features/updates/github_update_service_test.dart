@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-const root = 'https://github.com/Lokal-Konnekt/lokal-mobile/releases/download';
+const root = 'https://github.com/lokal-music/lokal-mobile/releases/download';
 final hash = List.filled(64, 'a').join();
 Map<String, Object?> release(
   String version, {
@@ -33,6 +33,76 @@ Map<String, Object?> release(
 };
 
 void main() {
+  test('finds the published 2.0.0 update after repository rename', () async {
+    final requested = <Uri>[];
+    final client = MockClient((request) async {
+      requested.add(request.url);
+      if (request.url.host == 'api.github.com') {
+        if (request.url.path !=
+            '/repos/lokal-music/lokal-mobile/releases/latest') {
+          return http.Response('Wrong repository path', 404);
+        }
+        return http.Response(jsonEncode(release('2.0.0')), 200);
+      }
+      if (request.url.toString() == '$root/v2.0.0/full-metadata.json') {
+        return http.Response(
+          jsonEncode({
+            'version': '2.0.0',
+            'versionCode': 215113903,
+            'flavor': 'full',
+            'sha256': hash,
+          }),
+          200,
+        );
+      }
+      return http.Response('Wrong asset URL', 404);
+    });
+    addTearDown(client.close);
+    final available = await GithubUpdateService(client).check(
+      const AppBuildInfo(version: '1.4.3', build: '215113000'),
+      'full',
+    );
+    expect(available?.version, '2.0.0');
+    expect(available?.build, 215113903);
+    expect(
+      available?.apkUrl,
+      '$root/v2.0.0/Lokal-2.0.0-arm64.apk',
+    );
+    expect(
+      requested.map((uri) => uri.toString()),
+      contains('$root/v2.0.0/full-metadata.json'),
+    );
+  });
+
+  test('rejects forged GitHub assets even if names and hashes look valid', () async {
+    final forged = release('2.0.0');
+    final assets = forged['assets']! as List<Map<String, String>>;
+    assets[0]['browser_download_url'] =
+        'https://github.com/lokal-music/lokal-mobile-evil/releases/download/v2.0.0/full-metadata.json';
+    final client = MockClient((request) async {
+      if (request.url.host == 'api.github.com') {
+        return http.Response(jsonEncode(forged), 200);
+      }
+      return http.Response(
+        jsonEncode({
+          'version': '2.0.0',
+          'versionCode': 215113903,
+          'flavor': 'full',
+          'sha256': hash,
+        }),
+        200,
+      );
+    });
+    addTearDown(client.close);
+    expect(
+      await GithubUpdateService(client).check(
+        const AppBuildInfo(version: '1.4.3', build: '1'),
+        'full',
+      ),
+      isNull,
+    );
+  });
+
   test(
     'same marketing version with higher build offers replacement; no downgrade',
     () async {

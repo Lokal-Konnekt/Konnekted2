@@ -37,6 +37,31 @@ void main() {
     expect(lokalPlaylistSong(playlist, 'desktop', index.byId), same(phone));
   });
 
+  test('playlist collage samples at most 64 tracks rather than full queue', () {
+    final ids = List.generate(10000, (i) => 'song-$i');
+    final byId = {
+      for (var i = 0; i < 64; i++)
+        'song-$i': Song(
+          id: 'song-$i',
+          title: 'Track $i',
+          artist: 'Artist',
+          album: 'Album ${i ~/ 8}',
+          duration: const Duration(minutes: 3),
+          fileType: 'FLAC',
+        ),
+    };
+    final playlist = Playlist(
+      id: 'large',
+      name: 'Large',
+      songIds: ids,
+      createdAt: DateTime(2026),
+    );
+    final coverSongs = lokalPlaylistCoverSongs(playlist, byId);
+    expect(coverSongs.map((song) => song.id), ['song-0', 'song-8', 'song-16', 'song-24']);
+    expect(lokalPlaylistSongs(playlist, byId).length, 64);
+    expect(playlist.songIds.length, 10000);
+  });
+
   test('unscanned online entries use saved metadata and preserve order', () {
     const online = Song(
       id: 'pending-track',

@@ -863,7 +863,8 @@ class PlayerService {
       if (resolved != null) {
         // Lookup completion is not playback readiness. Keep the preparation
         // toast visible while Media3 opens/buffers the resolved source.
-        _markOnlinePreparation(resolved);
+        onlinePreparationTitleNotifier.value = resolved.title;
+        isNetworkLoadingNotifier.value = true;
         _pendingFailures = 0;
         replacePendingSong(pending.id, resolved);
         final song = resolved;

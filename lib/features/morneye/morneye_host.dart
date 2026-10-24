@@ -500,6 +500,13 @@ class MorneyeHost {
               written: written,
             ),
           );
+          // Guest progress callbacks may remain at an initial 5% while
+          // the host is actually transferring bytes. Ground the UI in the
+          // bytes received, never a fabricated time-based estimate.
+          if (!segment && total > 0) {
+            onProgress?.call(percent:
+                (written * 100.0 / total).clamp(0.0, 100.0));
+          }
           await progress(written, total);
         }
         if (written == 0 || (total > 0 && written != total)) {

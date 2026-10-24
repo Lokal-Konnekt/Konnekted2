@@ -124,6 +124,24 @@ void main() {
     expect(player.context?.sourceId, 'playlist/1');
   });
 
+  test('album browsing preserves source context', () async {
+    final albums = await catalog.browse(AndroidAutoCatalog.albums);
+    expect(albums.single['title'], 'First Album');
+    final songs = await catalog.browse(albums.single['id'] as String);
+    expect(songs.map((e) => e['title']), ['Autumn', 'Blue Sky']);
+    expect(await catalog.playMediaId(songs.first['id'] as String), isTrue);
+    expect(player.context?.source, PlaybackSource.album);
+    expect(player.context?.sourceId, 'First Album');
+  });
+
+  test('car browser search returns playable results', () async {
+    final results = await catalog.search('artist b');
+    expect(results.single['title'], 'Blue Sky');
+    expect(await catalog.playMediaId(results.single['id'] as String), isTrue);
+    expect(player.selected?.id, _b.id);
+    expect(await catalog.search('no match'), isEmpty);
+  });
+
   test('car voice search queues matching library titles', () async {
     expect(await catalog.playSearch('BLUE'), isTrue);
     expect(player.selected?.id, _b.id);

@@ -875,7 +875,9 @@ Future<List<OnlineSource>> _playbackSources(
         ],
         play: (found) async {
           onStatus?.call('Connecting to ${addon.displayName}…');
-          final audio = await registry.resolve(found, cancel: cancel);
+          final audio = await registry.resolve(
+            found, cancel: cancel, forDownload: forDownload,
+          );
           if (forDownload) {
             return cache().prepare(
               found, audio, cancel: cancel,

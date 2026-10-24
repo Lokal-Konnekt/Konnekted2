@@ -3,6 +3,7 @@ import 'package:flick/features/discovery/lastfm_discovery.dart';
 import 'package:flick/core/theme/lokal_theme.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -11,7 +12,7 @@ void main() {
     var played = 0;
     var actions = 0;
     var queued = 0;
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(
       theme: LokalTheme.build(LokalTokens.resolve(LokalThemeId.dark)),
       home: Scaffold(body: KonnektedDiscoveryRow(
         track: const LokalDiscoveryTrack(
@@ -21,7 +22,7 @@ void main() {
         onMore: () => actions++,
         onQueue: () async { queued++; },
       )),
-    ));
+    )));
     await tester.longPress(find.text('Discovery song'));
     await tester.pumpAndSettle();
     expect(actions, 1);
@@ -34,7 +35,7 @@ void main() {
     var played = 0;
     var actions = 0;
     var queued = 0;
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(
       theme: LokalTheme.build(LokalTokens.resolve(LokalThemeId.dark)),
       home: Scaffold(body: KonnektedDiscoveryRow(
         track: const LokalDiscoveryTrack(
@@ -44,7 +45,7 @@ void main() {
         onMore: () => actions++,
         onQueue: () async { queued++; },
       )),
-    ));
+    )));
     await tester.drag(find.text('Discovery song'), const Offset(120, 0));
     await tester.pumpAndSettle();
     expect(queued, 1);

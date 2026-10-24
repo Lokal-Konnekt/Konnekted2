@@ -249,15 +249,13 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
       atmos: atmos,
       pendingSong: (track) => createPending(source, track),
     );
-    // Preserve the search queue and four-ahead preload while keeping
-    // immediate feedback for the selected song and its source verification.
-    try {
-      await ref.read(playerProvider.notifier).play(
-        playback.selected, playlist: playback.queue,
-      );
-    } finally {
-      _progress.clear();
-    }
+    // Search owns only the pre-verification toast. Once playback starts the
+    // shell's QueuePreResolver owns all ongoing progress; otherwise two
+    // LokalStatusSnack owners continuously replace the global toast.
+    _progress.clear();
+    await ref.read(playerProvider.notifier).play(
+      playback.selected, playlist: playback.queue,
+    );
   }
 
   /// Play next / Add to queue: a placeholder that's found and downloaded

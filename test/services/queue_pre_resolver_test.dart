@@ -428,7 +428,7 @@ void main() {
       expect(lookups.asked, ['k9']);
       lookups.answer('k9');
       expect((await ready)?.filePath, '/cache/k9.m4a');
-      expect(statuses, ['Getting k9 from Somewhere…', null]);
+      expect(statuses, ['Preparing k9…', 'Getting k9 from Somewhere…', null]);
       // Asked again soon after: answered from what was found.
       expect((await resolver.resolveNow(song))?.id, 'discovery:k9');
       expect(lookups.asked, ['k9']);

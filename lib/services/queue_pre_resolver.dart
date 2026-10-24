@@ -291,8 +291,13 @@ class QueuePreResolver {
         host.replacePending(id, ready);
         continue;
       }
-      if (_running.containsKey(id) || _timers.containsKey(id) ||
-          !_registered.containsKey(id)) continue;
+      if (!_registered.containsKey(id)) continue;
+      if (_running.containsKey(id) || _timers.containsKey(id)) {
+        // Respect its existing slot in the two-second stagger instead of
+        // starting a newly revealed fourth track immediately alongside it.
+        delay += stagger;
+        continue;
+      }
       asked.add(id);
       void start() {
         if (_running.containsKey(id)) return;

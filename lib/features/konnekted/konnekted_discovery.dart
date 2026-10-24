@@ -653,11 +653,14 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 File(cached.filePath!).existsSync()
                 ? cached : null;
             final details = morneyeSearchAudioDetails(
-              codec: verified == null && selectedQuality != null
+              // An actually downloaded AAC/Opus rendition supersedes
+              // catalogue FLAC/HiRes metadata for that same song. Never
+              // combine FLAC max properties with a lower selected codec.
+              codec: verified != null || selectedQuality != null
                   ? null : song.codec,
-              bitDepth: verified == null && selectedQuality != null
+              bitDepth: verified != null || selectedQuality != null
                   ? null : song.bitDepth,
-              sampleRate: verified == null && selectedQuality != null
+              sampleRate: verified != null || selectedQuality != null
                   ? null : song.sampleRate,
               verifiedPlayback: verified,
             );

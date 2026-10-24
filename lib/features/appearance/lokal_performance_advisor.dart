@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show ProcessInfo;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -27,6 +28,18 @@ class LokalPerformanceAdvisor extends ConsumerStatefulWidget {
   const LokalPerformanceAdvisor({super.key, required this.child});
   final Widget child;
   static int lastGlassPaintMicros = 0;
+  // Only the outer player screens register; internal lyrics/queue widgets
+  // do not affect attribution. These flags are local to the diagnostics.
+  static final List<String> _activePlayerSurfaces = [];
+  static void enterPlayerSurface(String surface) {
+    _activePlayerSurfaces.remove(surface);
+    _activePlayerSurfaces.add(surface);
+  }
+  static void exitPlayerSurface(String surface) {
+    _activePlayerSurfaces.remove(surface);
+  }
+  static String get diagnosticSurface => _activePlayerSurfaces.isEmpty
+      ? 'browse' : _activePlayerSurfaces.last;
   @override
   ConsumerState<LokalPerformanceAdvisor> createState() =>
       _LokalPerformanceAdvisorState();
@@ -110,13 +123,20 @@ class _LokalPerformanceAdvisorState
         final frames = _windowFrames;
         final ui = _windowUiMisses;
         final raster = _windowRasterMisses;
+        final appearance = ref.read(lokalAppearanceProvider);
+        final mode = appearance.ultraPerformanceMode
+            ? 'ultra'
+            : appearance.performanceMode ? 'performance' : 'normal';
+        final rssMb = ProcessInfo.currentRss ~/ (1024 * 1024);
         AppLog.instance.add(
           '[perf] ${snapshot['manufacturer']} ${snapshot['model']} '
           'sdk=${snapshot['sdk']} impellerRequested=${snapshot['impellerRequested']} '
           'frames=$frames fps=${fps.toStringAsFixed(1)} '
           'uiMiss=$ui rasterMiss=$raster '
           'suspect=${lokalFrameBottleneck(frames, ui, raster)} '
-          'processCpuCores=${cpuCores.toStringAsFixed(2)}',
+          'processCpuCores=${cpuCores.toStringAsFixed(2)} '
+          'mode=$mode rssMb=$rssMb '
+          'surface=${LokalPerformanceAdvisor.diagnosticSurface}',
           source: LogSource.platform,
         );
       }

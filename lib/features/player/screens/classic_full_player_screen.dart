@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/app_colors.dart';
 import 'package:flick/core/theme/app_theme.dart';
@@ -114,6 +115,7 @@ class _ClassicFullPlayerScreenState
   @override
   void initState() {
     super.initState();
+    LokalPerformanceAdvisor.enterPlayerSurface('classic-full-player');
     _immersiveAutoFullViewDelaySeconds = ref
         .read(appPreferencesProvider)
         .immersiveAutoFullViewSeconds;
@@ -153,6 +155,7 @@ class _ClassicFullPlayerScreenState
 
   @override
   void dispose() {
+    LokalPerformanceAdvisor.exitPlayerSurface('classic-full-player');
     _playerService.currentSongNotifier.removeListener(
       _handleCurrentSongChanged,
     );

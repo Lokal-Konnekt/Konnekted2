@@ -25,6 +25,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
 import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -201,6 +202,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
   @override
   void initState() {
     super.initState();
+    LokalPerformanceAdvisor.enterPlayerSurface('modern-full-player');
     _volumeControl = PlayerVolumeControl(_player);
     _volume = _volumeControl.value;
     _player.currentSongNotifier.addListener(_onSongChanged);
@@ -210,6 +212,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   @override
   void dispose() {
+    LokalPerformanceAdvisor.exitPlayerSurface('modern-full-player');
     _volumeControl.dispose();
     _queue.dispose();
     _queueProgress.dispose();

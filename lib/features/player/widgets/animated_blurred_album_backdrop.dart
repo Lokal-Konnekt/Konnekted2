@@ -122,30 +122,35 @@ class _AnimatedBlurredAlbumBackdropState
         fit: StackFit.expand,
         children: [
           ClipRect(
-            child: ImageFiltered(
-              imageFilter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  // Reversing at both edges gives the cover a zero-velocity
-                  // bounce, so neither the position nor the blur cuts when
-                  // the loop repeats. The randomised endpoints make each
-                  // album start from a different corner of its enlarged crop.
-                  final t = Curves.easeInOut.transform(_controller.value);
-                  final x = ui.lerpDouble(_startX, _endX, t)!;
-                  final y = ui.lerpDouble(_startY, _endY, t)!;
-                  final scale = _travelScale + math.sin(t * math.pi) * 0.025;
-                  return Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.translationValues(
-                      x * MediaQuery.sizeOf(context).width,
-                      y * MediaQuery.sizeOf(context).height,
-                      0,
-                    )..scaleByDouble(scale, scale, scale, 1.0),
-                    child: child,
-                  );
-                },
-                child: image,
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                // The album image is already blurred inside its *own*
+                // repaint boundary. Moving/scaling that composited surface
+                // avoids re-filtering a 3x oversized image every frame.
+                // Preserve the original ~30px displayed blur by applying a
+                // ~10px blur before the ~3x transform.
+                final t = Curves.easeInOut.transform(_controller.value);
+                final x = ui.lerpDouble(_startX, _endX, t)!;
+                final y = ui.lerpDouble(_startY, _endY, t)!;
+                final scale = _travelScale + math.sin(t * math.pi) * 0.025;
+                return Transform(
+                  key: const ValueKey('animated-backdrop-motion'),
+                  alignment: Alignment.center,
+                  transform: Matrix4.translationValues(
+                    x * MediaQuery.sizeOf(context).width,
+                    y * MediaQuery.sizeOf(context).height,
+                    0,
+                  )..scaleByDouble(scale, scale, scale, 1.0),
+                  child: child,
+                );
+              },
+              child: RepaintBoundary(
+                key: const ValueKey('cached-backdrop-blur'),
+                child: ImageFiltered(
+                  imageFilter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: image,
+                ),
               ),
             ),
           ),

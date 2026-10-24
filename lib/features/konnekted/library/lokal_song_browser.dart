@@ -179,6 +179,88 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
     return _visibleCache = songs;
   }
 
+  Future<void> _chooseSort(
+    List<LokalSongSort> options,
+    String Function(LokalSongSort) label,
+  ) async {
+    final selected = await showLokalChoiceSheet<LokalSongSort>(
+      context: context,
+      title: 'Sort by',
+      selected: _sort,
+      choices: [
+        for (final sort in options)
+          LokalChoice(
+            value: sort,
+            label: label(sort),
+            icon: switch (sort) {
+              LokalSongSort.original => Icons.format_list_numbered_rounded,
+              LokalSongSort.recentlyAdded => Icons.history_rounded,
+              LokalSongSort.title => Icons.sort_by_alpha_rounded,
+              LokalSongSort.artist => Icons.person_outline_rounded,
+              LokalSongSort.mostPlayed => Icons.bar_chart_rounded,
+              LokalSongSort.longest => Icons.timer_outlined,
+            },
+          ),
+      ],
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _sort = selected;
+      _descending = _defaultDescending(selected);
+    });
+  }
+
+  Future<void> _chooseLocation() async {
+    final selected = await showLokalChoiceSheet<LokalSongLocation>(
+      context: context,
+      title: 'Filter by location',
+      selected: _location,
+      choices: [
+        for (final location in LokalSongLocation.values)
+          LokalChoice(
+            value: location,
+            label: lokalText(location.label),
+            icon: switch (location) {
+              LokalSongLocation.all => Icons.library_music_outlined,
+              LokalSongLocation.phone => Icons.smartphone_rounded,
+              LokalSongLocation.pc => Icons.computer_rounded,
+              LokalSongLocation.other => Icons.cloud_outlined,
+            },
+          ),
+      ],
+    );
+    if (selected != null && mounted) {
+      setState(() => _location = selected);
+    }
+  }
+
+  Future<void> _chooseQuality(List<String> formats) async {
+    final selected = await showLokalChoiceSheet<String>(
+      context: context,
+      title: 'Filter by format and quality',
+      selected: _audioFilter,
+      choices: [
+        const LokalChoice(value: 'all', label: 'All formats and qualities',
+            icon: Icons.tune_rounded),
+        for (final tier in LokalQualityTier.values)
+          LokalChoice(
+            value: 'quality:${tier.name}',
+            label: lokalText(tier.label),
+            icon: Icons.high_quality_rounded,
+          ),
+        for (final format in formats)
+          LokalChoice(
+            value: format,
+            label: libraryAudioFilterLabel(format),
+            icon: Icons.graphic_eq_rounded,
+          ),
+      ],
+    );
+    if (selected != null && mounted) {
+      setState(() => _audioFilter = selected);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.lokal;
@@ -186,6 +268,7 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
         ? ref.watch(lokalPlayCountsProvider).value ?? const <String, int>{}
         : const <String, int>{};
     final songs = _visible(counts);
+    final formats = _formats();
     final sorts = [
       if (widget.originalLabel != null) LokalSongSort.original,
       for (final sort in LokalSongSort.values)
@@ -209,26 +292,23 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
                     child: LokalSearchField(
                       controller: _search,
                       hint: widget.searchHint,
-                      onChanged: (value) => setState(() => _query = value),
+                      onChanged: _onSearchChanged,
                     ),
                   ),
-                  PopupMenuButton<LokalSongSort>(
-                    tooltip: lokalText(
-                      "Sort: {arg0}",
-                      args: {'arg0': label(_sort)},
+                  IconButton(
+                    tooltip: lokalText("Sort: {arg0}", args: {'arg0': label(_sort)}),
+                    icon: Icon(Icons.sort_rounded, color: t.accent),
+                    onPressed: () => unawaited(_chooseSort(sorts, label)),
+                  ),
+                  IconButton(
+                    tooltip: lokalText(_descending ? 'Descending · switch to ascending'
+                                                  : 'Ascending · switch to descending'),
+                    icon: Icon(
+                      _descending ? Icons.arrow_downward_rounded
+                                  : Icons.arrow_upward_rounded,
+                      color: t.accent,
                     ),
-                    icon: Icon(Icons.swap_vert_rounded, color: t.accent),
-                    color: t.surface2,
-                    initialValue: _sort,
-                    onSelected: (sort) => setState(() => _sort = sort),
-                    itemBuilder: (_) => [
-                      for (final sort in sorts)
-                        CheckedPopupMenuItem(
-                          value: sort,
-                          checked: sort == _sort,
-                          child: Text(label(sort)),
-                        ),
-                    ],
+                    onPressed: () => setState(() => _descending = !_descending),
                   ),
                 ],
               ),
@@ -243,71 +323,25 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
               runSpacing: 4,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                PopupMenuButton<LokalSongLocation>(
+                ActionChip(
                   tooltip: lokalText('Filter by location'),
-                  initialValue: _location,
-                  onSelected: (value) => setState(() => _location = value),
-                  itemBuilder: (_) => [
-                    for (final value in LokalSongLocation.values)
-                      CheckedPopupMenuItem(
-                        value: value,
-                        checked: value == _location,
-                        child: Text(lokalText(value.label)),
-                      ),
-                  ],
-                  child: Chip(
-                    avatar: Icon(
-                      Icons.folder_outlined,
-                      size: 18,
-                      color: t.accent,
-                    ),
-                    label: Text(lokalText(_location.label)),
+                  onPressed: () => unawaited(_chooseLocation()),
+                  avatar: Icon(
+                    Icons.folder_outlined,
+                    size: 18,
+                    color: t.accent,
                   ),
+                  label: Text(lokalText(_location.label)),
                 ),
-                PopupMenuButton<String>(
+                ActionChip(
                   tooltip: lokalText('Filter by format and quality'),
-                  initialValue: _audioFilter,
-                  onSelected: (value) => setState(() => _audioFilter = value),
-                  itemBuilder: (_) => [
-                    CheckedPopupMenuItem(
-                      value: 'all',
-                      checked: _audioFilter == 'all',
-                      child: Text(lokalText('All formats and qualities')),
-                    ),
-                    PopupMenuItem(
-                      enabled: false,
-                      child: Text(lokalText('Quality')),
-                    ),
-                    for (final value in LokalQualityTier.values)
-                      CheckedPopupMenuItem(
-                        value: 'quality:${value.name}',
-                        checked: _audioFilter == 'quality:${value.name}',
-                        child: Text(lokalText(value.label)),
-                      ),
-                    if (libraryAudioFormats(widget.songs).isNotEmpty) ...[
-                      const PopupMenuDivider(),
-                      PopupMenuItem(
-                        enabled: false,
-                        child: Text(lokalText('Format')),
-                      ),
-                      for (final value in libraryAudioFormats(widget.songs))
-                        CheckedPopupMenuItem(
-                          value: value,
-                          checked: _audioFilter == value,
-                          child: Text(libraryAudioFilterLabel(value)),
-                        ),
-                    ],
-                  ],
-                  child: Chip(
-                    avatar: Icon(
-                      Icons.equalizer_rounded,
-                      size: 18,
-                      color: t.accent,
-                    ),
-                    label: Text(
-                      lokalText(libraryAudioFilterLabel(_audioFilter)),
-                    ),
+                  onPressed: () => unawaited(_chooseQuality(formats)),
+                  avatar: Icon(
+                    Icons.equalizer_rounded,
+                    size: 18,
+                    color: t.accent,
                   ),
+                  label: Text(lokalText(libraryAudioFilterLabel(_audioFilter))),
                 ),
                 if (_location != LokalSongLocation.all ||
                     _audioFilter != 'all') ...[

@@ -644,6 +644,21 @@ class PlayerService {
   /// stream attach or cache download). UI surfaces a loading indicator so the
   /// user sees that their tap was registered during the network round-trip.
   final ValueNotifier<bool> isNetworkLoadingNotifier = ValueNotifier(false);
+
+  /// Set synchronously when a new online track is selected, before the player
+  /// queue, native engine or provider can block on network setup.
+  final ValueNotifier<String?> onlinePreparationTitleNotifier =
+      ValueNotifier(null);
+
+  void _markOnlinePreparation(Song song) {
+    if (song.isPending || song.isNetworkSource ||
+        song.sourcePackage == 'konnekted.progressive') {
+      onlinePreparationTitleNotifier.value = song.title;
+      isNetworkLoadingNotifier.value = true;
+    } else {
+      onlinePreparationTitleNotifier.value = null;
+    }
+  }
   // ponytail: monotonically increasing token; only the most-recent network
   // play request is allowed to clear the loading flag. Upgrade path: a per-
   // song Set<int> if multiple concurrent network loads ever need tracking.
@@ -819,7 +834,7 @@ class PlayerService {
     final generation = ++_pendingPlaybackGeneration;
     _pendingPlaybackId = pending.id;
     onlinePlaybackError.value = null;
-    isNetworkLoadingNotifier.value = true;
+    _markOnlinePreparation(pending);
     currentSongNotifier.value = pending;
     _playbackManager.updateTrack(pending);
     try {
@@ -845,8 +860,10 @@ class PlayerService {
           _pendingPlaybackId != pending.id)
         return;
       _pendingPlaybackId = null;
-      isNetworkLoadingNotifier.value = false;
       if (resolved != null) {
+        // Lookup completion is not playback readiness. Keep the preparation
+        // toast visible while Media3 opens/buffers the resolved source.
+        _markOnlinePreparation(resolved);
         _pendingFailures = 0;
         replacePendingSong(pending.id, resolved);
         final song = resolved;
@@ -856,6 +873,8 @@ class PlayerService {
         });
         return;
       }
+      isNetworkLoadingNotifier.value = false;
+      onlinePreparationTitleNotifier.value = null;
       onlinePlaybackError.value = failure is DiscoveryException
           ? failure.message
           : 'Couldn’t prepare this song for playback. Try another source or try again.';
@@ -5064,10 +5083,7 @@ class PlayerService {
     // Immediate UI feedback: surface the loading state synchronously so the
     // mini-player shows a spinner before the (possibly queued) playback
     // request even starts running. Cleared by _playInternal's finally.
-    if (song.isNetworkSource ||
-        song.sourcePackage == 'konnekted.progressive') {
-      isNetworkLoadingNotifier.value = true;
-    }
+    _markOnlinePreparation(song);
     return _enqueuePlaybackRequest(() async {
       // A sleeping network source can take time to fail. Only the latest
       // tap should run when it clears, rather than loading every stale tap.
@@ -5108,9 +5124,7 @@ class PlayerService {
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
     final loadingGen = ++_networkLoadingGen;
-    if (song.sourcePackage == 'konnekted.progressive') {
-      isNetworkLoadingNotifier.value = true;
-    }
+    _markOnlinePreparation(song);
     onlinePlaybackError.value = null;
     _cancelPendingPlayback();
     try {
@@ -5268,15 +5282,15 @@ class PlayerService {
       // until the latest tap resolves.
       if (loadingGen == _networkLoadingGen && _pendingPlaybackId == null) {
         isNetworkLoadingNotifier.value = false;
+        onlinePreparationTitleNotifier.value = null;
       }
     }
   }
 
   Future<void> _playSongAtCurrentIndex() async {
     final song = _songAtCurrentIndex();
-    if (song == null) {
-      return;
-    }
+    if (song == null) return;
+    _markOnlinePreparation(song); // Before initAudio / engine handoff.
     await _playInternal(song);
   }
 
@@ -5917,6 +5931,11 @@ class PlayerService {
 
   Future<void> next() {
     _cancelPendingPlayback();
+    // Direct user taps need immediate feedback even if playback requests are
+    // serialized behind an earlier network operation.
+    if (peekNext case final song? when song.isPending) {
+      _markOnlinePreparation(song);
+    }
     _debugLog('[PlayerService] next() called');
     return _enqueuePlaybackRequest(_nextInternal);
   }
@@ -7025,6 +7044,7 @@ class PlayerService {
     durationNotifier.dispose();
     bufferedPositionNotifier.dispose();
     isNetworkLoadingNotifier.dispose();
+    onlinePreparationTitleNotifier.dispose();
     playbackSpeedNotifier.dispose();
     pitchSemitonesNotifier.dispose();
     sleepTimerRemainingNotifier.dispose();

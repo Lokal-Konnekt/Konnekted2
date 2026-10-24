@@ -348,10 +348,18 @@ class QueuePreResolver {
     if (running != null) {
       running.onDemand = true;
       _statusOwner = running;
+      status.value = running.lastStatus ?? 'Preparing ${pending.title}…';
       return _foregroundResult(running);
     }
+    // Show the loading toast immediately on Next—even before the add-on's
+    // first progress callback. It will update in place once it has details.
+    status.value = 'Preparing ${pending.title}…';
     final lookup = _start(id, onDemand: true);
-    return lookup == null ? Future.value(null) : _foregroundResult(lookup);
+    if (lookup == null) {
+      status.value = null;
+      return Future.value(null);
+    }
+    return _foregroundResult(lookup);
   }
 
   Future<Song?> _foregroundResult(_Lookup lookup) async {

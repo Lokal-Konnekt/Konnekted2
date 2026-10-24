@@ -589,6 +589,45 @@ class _ReorderPage extends ConsumerWidget {
 
   final String playlistId;
 
+  Future<void> _sortSavedOrder(
+    BuildContext context,
+    WidgetRef ref,
+    Playlist playlist,
+    Map<String, Song> byId,
+  ) async {
+    final choice = await showLokalChoiceSheet<LokalPlaylistOrder>(
+      context: context,
+      title: 'Sort playlist',
+      choices: const [
+        LokalChoice(value: LokalPlaylistOrder.titleAscending,
+          label: 'Title · A–Z', icon: Icons.sort_by_alpha_rounded),
+        LokalChoice(value: LokalPlaylistOrder.titleDescending,
+          label: 'Title · Z–A', icon: Icons.sort_by_alpha_rounded),
+        LokalChoice(value: LokalPlaylistOrder.artistAscending,
+          label: 'Artist · A–Z', icon: Icons.person_outline_rounded),
+        LokalChoice(value: LokalPlaylistOrder.artistDescending,
+          label: 'Artist · Z–A', icon: Icons.person_outline_rounded),
+        LokalChoice(value: LokalPlaylistOrder.dateAscending,
+          label: 'Date added · Oldest first', icon: Icons.event_rounded),
+        LokalChoice(value: LokalPlaylistOrder.dateDescending,
+          label: 'Date added · Newest first', icon: Icons.event_rounded),
+        LokalChoice(value: LokalPlaylistOrder.reverse,
+          label: 'Reverse current order', icon: Icons.swap_vert_rounded),
+      ],
+    );
+    if (choice == null || !context.mounted) return;
+    final ordered = lokalOrderedPlaylistIds(playlist, byId, choice);
+    final ok = await ref.read(playlistsProvider.notifier)
+        .setSongOrder(playlistId, ordered);
+    if (context.mounted) {
+      _say(
+        context,
+        ok ? lokalText('Playlist order saved')
+           : lokalText('Couldn’t reorder this playlist.'),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.lokal;
@@ -597,6 +636,15 @@ class _ReorderPage extends ConsumerWidget {
         ref.watch(konnektedLibraryIndexProvider).value?.byId ??
         const <String, Song>{};
     final ids = playlist?.songIds ?? const <String>[];
+    // Stable keys keep art and row state attached to tracks while dragging.
+    // A per-id occurrence suffix also supports legacy lists with duplicates.
+    final occurrence = <String, int>{};
+    final rowKeys = [
+      for (final id in ids)
+        ValueKey(
+          '$id#${occurrence.update(id, (n) => n + 1, ifAbsent: () => 0)}',
+        ),
+    ];
     return Scaffold(
       backgroundColor: t.bg,
       body: SafeArea(
@@ -605,6 +653,14 @@ class _ReorderPage extends ConsumerWidget {
           children: [
             LokalPageBar(
               actions: [
+                if (playlist != null && !playlist.isNetworkSource && ids.length > 1)
+                  LokalRoundAction(
+                    icon: Icons.sort_by_alpha_rounded,
+                    label: lokalText('Sort playlist'),
+                    onPressed: () => unawaited(
+                      _sortSavedOrder(context, ref, playlist, byId),
+                    ),
+                  ),
                 TextButton(
                   onPressed: () => Navigator.of(context).maybePop(),
                   child: Text(lokalText('Done')),
@@ -633,7 +689,7 @@ class _ReorderPage extends ConsumerWidget {
                        ? null
                        : lokalPlaylistSong(playlist, ids[index], byId);
                   return ListTile(
-                    key: ValueKey('${ids[index]}#$index'),
+                    key: rowKeys[index],
                     leading: song == null
                         ? Icon(Icons.music_off_rounded, color: t.muted)
                         : KonnektedArtwork(song: song, size: 44, radius: 6),

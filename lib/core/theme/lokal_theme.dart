@@ -48,7 +48,8 @@ abstract final class LokalTheme {
     return base.copyWith(
       brightness: brightness,
       scaffoldBackgroundColor: t.bg,
-      canvasColor: t.bg,
+      // Legacy DropdownButton uses canvasColor for its popup background.
+      canvasColor: t.surface2,
       colorScheme: scheme,
       textTheme: textTheme,
       primaryTextTheme: textTheme,
@@ -99,7 +100,6 @@ abstract final class LokalTheme {
         position: PopupMenuPosition.under,
       ),
       dropdownButtonTheme: DropdownButtonThemeData(
-        dropdownColor: t.surface2,
         style: TextStyle(fontFamily: sans, color: t.text, fontSize: 15),
         iconEnabledColor: t.accent,
         borderRadius: BorderRadius.circular(16),

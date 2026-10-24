@@ -712,6 +712,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                     }
                   }).catchError((Object error, StackTrace stack) {
                     session.fail(error);
+                    QueuePreResolver.shared.schedule();
                   }),
                 );
                 onStatus?.call('Streaming ${found.title} from ${addon.displayName}…');

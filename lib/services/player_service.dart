@@ -152,6 +152,13 @@ enum LoopMode {
 }
 
 @visibleForTesting
+bool shouldReplaceQueuedAudioSource(Song queued, Song selected) =>
+    queued.id == selected.id &&
+    (queued.filePath != selected.filePath ||
+     queued.atmosEncoded != selected.atmosEncoded ||
+     queued.fileType != selected.fileType);
+
+@visibleForTesting
 List<Song> buildShufflePlaybackOrder({
   required List<Song> songs,
   required Song? current,
@@ -5130,6 +5137,17 @@ class PlayerService {
 
       if (_currentIndex == -1) {
         _setCurrentIndex(0);
+      }
+      // The online cache assigns the same logical song ID to its Atmos and
+      // standard releases. The latest selected file is authoritative; leaving
+      // the prior queue entry intact makes Media3 seek/play a stale source
+      // after a same-song version change or a source-provider switch.
+      if (_currentIndex >= 0 && _currentIndex < _playlist.length &&
+          _playlist[_currentIndex].id == song.id &&
+          shouldReplaceQueuedAudioSource(_playlist[_currentIndex], song)) {
+        _debugLog('[Playback] Replacing queued audio version for selected song '
+            '(Atmos=${song.atmosEncoded})');
+        _playlist[_currentIndex] = song;
       }
 
       _armAutoSyncGuard(song);

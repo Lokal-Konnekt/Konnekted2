@@ -595,6 +595,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   addon.key,
                   found.id,
                   quality: quality,
+                  forPlayback: !found.atmosDownload,
                   onProgress: ({percent, message}) {
                 // A runtime winding down after a failure or a cancel says
                 // nothing more: no stale "downloading" after the error.

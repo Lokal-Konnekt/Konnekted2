@@ -133,13 +133,10 @@ void main() {
         reason: 'no mirrored second artwork subtree');
   });
 
-  test('center translation is C1-smooth with exact iTunes side cover calibration', () {
-    double pos(double a) => a >= 1
-        ? .91 + (a - 1) * .18
-        : .90 * a + .75 * a * a - .74 * a * a * a;
-    double depth(double a) => a >= 1
-        ? .60
-        : .60 * a * a * (3 - 2 * a);
+  test('production center/depth translation is C1-smooth across near/far covers', () {
+    // Exercise production code; copied formulas could pass after a regression.
+    final pos = LokalCoverFlow.centerDistance;
+    final depth = LokalCoverFlow.depthDistance;
     const e = .00001;
     expect(pos(0), 0);
     expect(pos(1), closeTo(.91, 1e-9));
@@ -150,6 +147,39 @@ void main() {
     expect(depth(1), closeTo(.60, 1e-9));
     expect((depth(1) - depth(1 - e)) / e,
         closeTo((depth(1 + e) - depth(1)) / e, .001));
+  });
+
+  testWidgets('second neighbor receives visible strip taps beyond first neighbor quad', (tester) async {
+    final five = [
+      ...albums,
+      _album('Fourth', [_track('4a', 'Fourth')]),
+      _album('Fifth', [_track('5a', 'Fifth')]),
+    ];
+    final selected = <int>[];
+    await tester.pumpWidget(_app(LokalCoverFlow(
+      albums: five,
+      initialIndex: 2,
+      cover: (_) => const ColoredBox(color: Colors.blueGrey),
+      onPlay: (_, _) {},
+      onSelect: selected.add,
+    )));
+    final flow = find.byType(LokalCoverFlow);
+    final size = math.min(250.0, tester.getSize(flow).width * .60);
+    final stage = find.byWidgetPredicate(
+      (widget) => widget is ColoredBox && widget.color == Colors.black,
+    );
+    expect(stage, findsOneWidget);
+    final topLeft = tester.getTopLeft(stage);
+    final stageWidth = tester.getSize(stage).width;
+
+    // At x=1.13 cover widths, the first neighbor's actual painted edge
+    // ends around x=1.067, but Flutter's affine hit rectangle extends to
+    // x≈1.16. The second neighbor is visibly painted here and must win.
+    await tester.tapAt(topLeft + Offset(stageWidth / 2 + size * 1.13, size * .56));
+    await tester.pump();
+    expect(selected, [4], reason:
+        'tap in visible second-neighbor strip must not be stolen by hidden first-neighbor bounds');
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Home Cover Flow starts centered for odd and even shelves', (

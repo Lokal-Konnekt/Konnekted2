@@ -1,5 +1,6 @@
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/discovery_progressive_streams.dart';
+import 'package:flick/features/morneye/morneye_live_playback.dart';
 
 import 'link/link_journal.dart';
 
@@ -661,7 +662,8 @@ class PlayerService {
 
   void _markOnlinePreparation(Song song) {
     if (song.isPending || song.isNetworkSource ||
-        song.sourcePackage == 'konnekted.progressive') {
+        song.sourcePackage == 'konnekted.progressive' ||
+        song.sourcePackage == 'konnekted.morneye-live') {
       onlinePreparationTitleNotifier.value = song.title;
       isNetworkLoadingNotifier.value = true;
     } else {
@@ -3909,6 +3911,16 @@ class PlayerService {
       return just_audio.AudioSource.uri(Uri.parse(''));
     }
 
+    final liveMorneye = song.sourcePackage == 'konnekted.morneye-live'
+        ? MorneyeLiveRegistry.instance.resolve(song.filePath)
+        : null;
+    if (song.sourcePackage == 'konnekted.morneye-live' &&
+        liveMorneye == null) {
+      throw StateError('Morneye stream expired. Select the song again.');
+    }
+    if (liveMorneye != null) {
+      return MorneyeLiveAudioSource(liveMorneye);
+    }
     final streamSource = _streamSourceForSong(song);
     if (streamSource != null) {
       // Clipping is folded into the virtual WAV layout; ClippingAudioSource
@@ -3943,7 +3955,8 @@ class PlayerService {
   just_audio.AudioSource? _streamSourceForSong(Song song) {
     if (kIsWeb ||
         song.isNetworkSource ||
-        song.sourcePackage == 'konnekted.progressive' ||
+        (song.sourcePackage == 'konnekted.progressive' ||
+            song.sourcePackage == 'konnekted.morneye-live') ||
         !_shouldConvertToWav(song)) {
       return null;
     }
@@ -4260,7 +4273,8 @@ class PlayerService {
   }
 
   Future<void> _prepareImmediatePlaybackAsset(Song song) async {
-    if (song.sourcePackage == 'konnekted.progressive') return;
+    if (song.sourcePackage == 'konnekted.progressive' ||
+        song.sourcePackage == 'konnekted.morneye-live') return;
     if (!_usingRustBackend && _streamSourceForSong(song) != null) {
       // The just_audio stream source stages/decodes lazily; pre-converting
       // here would write the WAV that source exists to avoid.
@@ -5039,7 +5053,8 @@ class PlayerService {
   ) {
     // Signed HTTP add-on URLs are resolved by Media3 directly, never staged
     // through the Rust local-file decoder, which does not own these handles.
-    if (song.sourcePackage == 'konnekted.progressive') {
+    if (song.sourcePackage == 'konnekted.progressive' ||
+        song.sourcePackage == 'konnekted.morneye-live') {
       return AudioEngineType.normalAndroid;
     }
     final routed = resolveEngineForSong(

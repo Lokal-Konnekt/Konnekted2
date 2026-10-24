@@ -10,6 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import '../../models/song.dart';
 import '../../services/metadata_editor_service.dart';
 import '../../src/rust/api/audio_api.dart' as native;
+import '../../src/rust/api/morneye_api.dart' as morneye;
+import '../../services/catalogue_quality.dart';
 import 'discovery_http.dart';
 import 'discovery_models.dart';
 import 'discovery_sources.dart';
@@ -294,10 +296,35 @@ class DiscoveryPlaybackCache {
         'The downloaded file has no valid audio format.',
       );
     }
-    // A lossy decoder's output sample width is not source bit depth.
-    final bits = format == 'flac' && (metadata.bitsPerSample ?? 0) > 0
+    // The sniffed extension is a *container*. MP4/M4A can hold AAC or
+    // ALAC, and WebM can hold Opus or Vorbis. Ask native Symphonia for the
+    // codec and measured average bitrate; do not call an M4A file a quality.
+    Map? audio;
+    try {
+      audio = jsonDecode(await morneye.morneyeMediaInfo(path: ready.path)) as Map;
+    } catch (_) {
+      // Some Android-supported containers are outside Symphonia's probe.
+    }
+    final codec = verifiedAudioCodec(audio?['codec']);
+    final type = codec ?? switch (format.toLowerCase()) {
+      'flac' => 'FLAC',
+      'mp3' => 'MP3',
+      'aac' => 'AAC',
+      'wav' || 'wave' => 'WAV',
+      'wv' => 'WAVPACK',
+      _ => 'ONLINE', // Never show WEBM/M4A as an audio quality.
+    };
+    const lossless = {'FLAC', 'ALAC', 'WAV', 'WAVPACK'};
+    // A lossy decoder's PCM sample width is NOT the source bit depth.
+    final bits = lossless.contains(type) && (metadata.bitsPerSample ?? 0) > 0
         ? metadata.bitsPerSample
         : null;
+    final resolution = measuredLossyBitrate(
+      codec: type,
+      bitsPerSecond: audio?['bitrate'],
+      fileBytes: await ready.length(),
+      duration: track.duration,
+    );
     final cover = await _cover(track, ready);
     return Song(
       id: 'discovery:$hash',
@@ -306,7 +333,8 @@ class DiscoveryPlaybackCache {
       album: track.album,
       albumArt: cover,
       duration: track.duration ?? Duration.zero,
-      fileType: format.toUpperCase(),
+      fileType: type,
+      resolution: resolution,
       sampleRate: metadata.sampleRate,
       bitDepth: bits,
       filePath: ready.path,

@@ -428,7 +428,7 @@ void main() {
       );
     });
 
-    test('disallowed caching blocks stream resolution', () async {
+    test('download-prohibited addon permits streaming, not saving', () async {
       final client = MockClient((request) async {
         expect(request.url.path, '/manifest.json');
         return jsonResponse({...manifest, 'allowDownloads': false});
@@ -438,17 +438,19 @@ void main() {
         DiscoveryHttp(client),
         endpoint: 'https://addon.example',
       );
+      final track = DiscoveryTrack(
+        id: '1',
+        title: 't',
+        artist: 'a',
+        source: DiscoverySource.addon,
+        addonBase: addon.base,
+        inlineStream: const {'url': 'https://cdn.example/song.flac'},
+      );
       expect((await addon.health()).cacheAllowed, isFalse);
+      final stream = await addon.resolve(track);
+      expect(stream.url.toString(), 'https://cdn.example/song.flac');
       await expectLater(
-        addon.resolve(
-          DiscoveryTrack(
-            id: '1',
-            title: 't',
-            artist: 'a',
-            source: DiscoverySource.addon,
-            addonBase: addon.base,
-          ),
-        ),
+        addon.resolve(track, forDownload: true),
         throwsA(discoveryFailure),
       );
     });

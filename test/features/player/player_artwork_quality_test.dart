@@ -46,6 +46,15 @@ void main() {
       ]);
     });
 
+    test('Tidal artwork is upgraded by size without changing the image UUID', () {
+      const old =
+          'https://resources.tidal.com/images/6f5c52be/c21c/4fb7/9ce6/0c270f6f1a5a/320x320.jpg';
+      expect(PlayerArtworkQuality.candidates(old), [
+        'https://resources.tidal.com/images/6f5c52be/c21c/4fb7/9ce6/0c270f6f1a5a/1280x1280.jpg',
+        old,
+      ]);
+    });
+
     test('YouTube requests a max-resolution poster with safe fallback', () {
       const old = 'https://i.ytimg.com/vi/abc123/hqdefault.jpg';
       expect(PlayerArtworkQuality.candidates(old), [

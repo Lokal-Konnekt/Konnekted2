@@ -52,6 +52,29 @@ class PlayerArtworkQuality {
       if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
     }
 
+    // Tidal serves each album hash in independently sized images.
+    if (upgraded == null && host == 'resources.tidal.com' &&
+        uri.path.startsWith('/images/')) {
+      final updated = uri.path.replaceFirst(
+        RegExp(r'/\\d{2,4}x\\d{2,4}\\.jpg
+    // original remains an explicit fallback.
+    if (upgraded == null &&
+        (host == 'i.ytimg.com' || host == 'img.youtube.com')) {
+      final updated = uri.path.replaceFirst(
+        RegExp(r'/(?:default|mqdefault|hqdefault|sddefault)\.jpg$'),
+        '/maxresdefault.jpg',
+      );
+      if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
+    }
+    return upgraded == null ? [original] : [upgraded, original];
+  }
+}
+),
+        '/1280x1280.jpg',
+      );
+      if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
+    }
+
     // YouTube artwork's max-res rendition is not always uploaded, so the
     // original remains an explicit fallback.
     if (upgraded == null &&

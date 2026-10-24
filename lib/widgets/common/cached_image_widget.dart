@@ -131,28 +131,41 @@ class _CachedImageWidgetState extends State<CachedImageWidget> {
       );
     }
 
+    // Grid and list thumbnails already supply a fixed width. Avoid adding
+    // a LayoutBuilder (and a layout-time callback) to every scrolling tile
+    // when the decode dimensions can be determined during build instead.
+    if (widget.width case final double width when width.isFinite && width > 0) {
+      return _buildSizedImage(context, imagePath, width);
+    }
     return LayoutBuilder(
-      builder: (context, constraints) {
-        final logicalWidth =
-            widget.width ??
-            (constraints.hasBoundedWidth ? constraints.maxWidth : null);
-        final physicalWidth = logicalWidth == null
-            ? null
-            : ((logicalWidth * MediaQuery.devicePixelRatioOf(context) / 64)
-                          .ceil() *
-                      64)
-                  .clamp(64, 2048);
-        final requested = widget.useThumbnail && widget.thumbnailWidth != null
-            ? widget.thumbnailWidth
-            : physicalWidth;
-        final decodeWidth = LokalPerformanceScope.of(context)
-            ? (requested ?? 768).clamp(64, 768)
-            : requested;
-        return imagePath.startsWith('http')
-            ? _buildNetworkImage(imagePath, decodeWidth)
-            : _buildFileImage(imagePath, decodeWidth);
-      },
+      builder: (context, constraints) => _buildSizedImage(
+        context,
+        imagePath,
+        constraints.hasBoundedWidth ? constraints.maxWidth : null,
+      ),
     );
+  }
+
+  Widget _buildSizedImage(
+    BuildContext context,
+    String imagePath,
+    double? logicalWidth,
+  ) {
+    final physicalWidth = logicalWidth == null || !logicalWidth.isFinite
+        ? null
+        : ((logicalWidth * MediaQuery.devicePixelRatioOf(context) / 64)
+                      .ceil() *
+                  64)
+              .clamp(64, 2048);
+    final requested = widget.useThumbnail && widget.thumbnailWidth != null
+        ? widget.thumbnailWidth
+        : physicalWidth;
+    final decodeWidth = LokalPerformanceScope.of(context)
+        ? (requested ?? 768).clamp(64, 768)
+        : requested;
+    return imagePath.startsWith('http')
+        ? _buildNetworkImage(imagePath, decodeWidth)
+        : _buildFileImage(imagePath, decodeWidth);
   }
 
   Future<void> _resolveEmbeddedArtwork() async {

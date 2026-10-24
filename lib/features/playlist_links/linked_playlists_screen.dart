@@ -50,6 +50,8 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
 
   @override
   void dispose() {
+    final download = _downloadCancellation;
+    if (download != null && !download.isCompleted) download.complete();
     _inputController.dispose();
     _nameController.dispose();
     super.dispose();
@@ -64,7 +66,7 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Paste a public Spotify or YouTube Music playlist URL or Spotify URI.',
+            'Paste a public Spotify, YouTube or YouTube Music playlist URL, or a Spotify URI.',
             style: TextStyle(fontSize: 15),
           ),
           const SizedBox(height: 12),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show ProcessInfo;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -110,13 +111,19 @@ class _LokalPerformanceAdvisorState
         final frames = _windowFrames;
         final ui = _windowUiMisses;
         final raster = _windowRasterMisses;
+        final appearance = ref.read(lokalAppearanceProvider);
+        final mode = appearance.ultraPerformanceMode
+            ? 'ultra'
+            : appearance.performanceMode ? 'performance' : 'normal';
+        final rssMb = ProcessInfo.currentRss ~/ (1024 * 1024);
         AppLog.instance.add(
           '[perf] ${snapshot['manufacturer']} ${snapshot['model']} '
           'sdk=${snapshot['sdk']} impellerRequested=${snapshot['impellerRequested']} '
           'frames=$frames fps=${fps.toStringAsFixed(1)} '
           'uiMiss=$ui rasterMiss=$raster '
           'suspect=${lokalFrameBottleneck(frames, ui, raster)} '
-          'processCpuCores=${cpuCores.toStringAsFixed(2)}',
+          'processCpuCores=${cpuCores.toStringAsFixed(2)} '
+          'mode=$mode rssMb=$rssMb',
           source: LogSource.platform,
         );
       }

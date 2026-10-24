@@ -675,9 +675,14 @@ Future<List<_PlaybackSource>> _morneyeSources(
               sourceName: addon.displayName,
               artwork: song.thumbnail,
               atmosAvailable: song.atmosAvailable,
+              // A chosen HIGH, LOSSLESS or Atmos quality is a preference,
+              // not a property of every returned search result. Only the
+              // observed version earns a badge; otherwise leave it blank.
               catalogueQuality: verified != null
                   ? verified.resolution
-                  : selectedQuality ?? morneyeAdvertisedQuality(song.quality),
+                  : selectedQuality == null
+                      ? morneyeAdvertisedQuality(song.quality)
+                      : null,
               catalogueCodec: details.codec,
               catalogueBitDepth: details.bitDepth,
               catalogueSampleRate: details.sampleRate,

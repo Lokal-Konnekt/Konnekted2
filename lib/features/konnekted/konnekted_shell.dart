@@ -155,7 +155,8 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell>
         ? Duration.zero
         : AppConstants.animationNormal;
     final lightweightTransition =
-        ref.read(lokalAppearanceProvider).performanceMode;
+        ref.read(lokalAppearanceProvider).performanceMode &&
+        LokalPerformanceAdvisor.samsungRasterMitigations;
     unawaited(
       navigator.push<void>(
         PageRouteBuilder<void>(

@@ -999,8 +999,17 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                                   (song.resolution?.trim().isNotEmpty == true &&
                                           (song.sourcePackage == 'konnekted.progressive' ||
                                            song.sourcePackage == 'konnekted.morneye-live'))
-                                      ? 'CATALOGUE: ${catalogueQualityLabel(song.resolution).toUpperCase()}'
-                                      : 'UNKNOWN',
+                                      // Keep Qobuz's actual advertised label,
+                                      // without the redundant "CATALOGUE:" text.
+                                      ? catalogueQualityLabel(song.resolution).toUpperCase()
+                                      : (song.sourcePackage == 'konnekted.discovery' &&
+                                         song.fileType.trim().isNotEmpty &&
+                                         song.fileType.toUpperCase() != 'ONLINE')
+                                          // YouTube's downloaded media was
+                                          // probed; codec/container is known
+                                          // even when bitrate was not.
+                                          ? song.fileType.toUpperCase()
+                                          : 'UNKNOWN',
                             },
                             style: const TextStyle(fontFamily: _font,
                               fontSize: 9, fontWeight: FontWeight.w700,

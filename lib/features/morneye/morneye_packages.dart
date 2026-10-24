@@ -1585,10 +1585,22 @@ class MorneyePackages {
       // another remote lookup before checkAvailability performs verification;
       // don't serialize two expensive requests before playback can start.
       // Other providers, including Amazon, still require enrichment.
-      final skipEnrichment =
-          addon.manifest['skipMetadataEnrichment'] == true &&
+      final nativeSearchResult = _tracks.containsKey('$key:$id') &&
           (track['id']?.toString().isNotEmpty ?? false) &&
           (track['name']?.toString().isNotEmpty ?? false);
+      final hasCanonicalIdentity =
+          (track['id']?.toString().isNotEmpty ?? false) &&
+          (track['name']?.toString().isNotEmpty ?? false);
+      final skipEnrichment =
+          // Respect the extension manifest even if this by-ID track came
+          // from getTrack rather than a remembered Search result.
+          (addon.manifest['skipMetadataEnrichment'] == true &&
+              hasCanonicalIdentity) ||
+          // Tidal's enrichTrack fetches the same remote track record that
+          // checkAvailability fetches again to validate the direct Tidal ID.
+          // Only skip this extra request for its own remembered Search row.
+          (addon.name.toLowerCase().startsWith('tidal') &&
+              nativeSearchResult);
       if (!skipEnrichment && runtime.methods.contains('enrichTrack')) {
         try {
           final enriched = await runtime.invoke('enrichTrack', [

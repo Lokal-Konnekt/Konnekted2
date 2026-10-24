@@ -47,27 +47,40 @@ void main() {
     expect(opus.resolution, '320kbps');
   });
 
-  test('Amazon search labels requested tier without inventing measurement', () {
-    final addon = MorneyeAddon(
-      key: 'amzn', name: 'amazon', digest: 'test', installedAt: 0,
-      methods: const ['searchTracks', 'download'],
-      manifest: {
-        'name': 'amazon',
-        'type': ['download_provider'],
-        'qualityOptions': [
-          {'id': 'best', 'label': 'FLAC Best Available', 'kind': 'lossless'},
-          {'id': 'opus', 'label': 'Opus 320kbps', 'kind': 'lossy'},
-        ],
-      },
+  test('Amazon search never labels configured FLAC preference as track quality', () {
+    expect(morneyeAdvertisedQuality(null), isNull);
+    expect(morneyeAdvertisedQuality(''), isNull);
+    expect(morneyeAdvertisedQuality('  '), isNull);
+    expect(morneyeAdvertisedQuality('24bit/96kHz'), '24bit/96kHz');
+    expect(catalogueAudioDetails(quality: morneyeAdvertisedQuality(null)), isEmpty);
+  });
+
+  test('Amazon reuses probed Full Player quality for repeat Search results', () {
+    const played = Song(
+      id: 'amazon-downloaded', title: 'Song', artist: 'Artist',
+      duration: Duration(minutes: 3), fileType: 'FLAC',
+      bitDepth: 24, sampleRate: 96000,
     );
-    expect(morneyeAdvertisedOrRequestedQuality(
-      addon: addon, advertised: null,
-      preferences: const {'downloadQuality': 'best'},
-    ), 'Requested: FLAC Best Available');
-    expect(morneyeAdvertisedOrRequestedQuality(
-      addon: addon, advertised: '24bit/96kHz',
-      preferences: const {'downloadQuality': 'best'},
-    ), '24bit/96kHz');
+    final details = morneyeSearchAudioDetails(verifiedPlayback: played);
+    expect(details.codec, 'FLAC');
+    expect(details.bitDepth, 24);
+    expect(details.sampleRate, 96000);
+    expect(catalogueAudioDetails(
+      codec: details.codec,
+      bitDepth: details.bitDepth,
+      sampleRate: details.sampleRate,
+    ), 'FLAC · 24-bit / 96 kHz');
+
+    final advertised = morneyeSearchAudioDetails(
+      codec: 'AAC', bitDepth: null, sampleRate: 48000,
+      verifiedPlayback: played,
+    );
+    expect(advertised.codec, 'AAC',
+        reason: 'A fresh source observation takes precedence over cache');
+    expect(advertised.sampleRate, 48000);
+    expect(morneyeSearchAudioDetails().codec, isNull,
+        reason: 'An unplayed Amazon track cannot inherit Best FLAC');
+    expect(morneyeSearchAudioDetails().sampleRate, isNull);
   });
 
   test('catalogue quality includes only supplied bit depth and rate', () {

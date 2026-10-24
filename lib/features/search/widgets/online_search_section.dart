@@ -613,6 +613,16 @@ class _OnlineTile extends StatelessWidget {
       sampleRate: track.catalogueSampleRate,
       codec: track.catalogueCodec,
     );
+    // Search has not resolved a YouTube media URL yet, so its actual codec
+    // and bitrate are unknowable here. Name the supported adaptive formats
+    // rather than reporting "Quality unknown" or inventing 128/256 kbps.
+    // For Amazon and other providers without per-track metadata, omit the
+    // chip; their configured download tier is not the track's quality.
+    final displayQuality = reportedQuality.isNotEmpty
+        ? reportedQuality
+        : track.source == DiscoverySource.youtubeMusic
+            ? 'AAC / Opus · adaptive'
+            : '';
     return LokalSwipeToQueue(
       onQueue: onQueue,
       enabled: !busy,
@@ -656,10 +666,12 @@ class _OnlineTile extends StatelessWidget {
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
+                        if (displayQuality.isNotEmpty)
                         Tooltip(
-                          message: reportedQuality.isEmpty
-                              ? 'This source did not advertise a codec, bit depth or sample rate'
-                              : 'Catalogue quality only; the verified output may differ',
+                          message: track.source == DiscoverySource.youtubeMusic &&
+                                  reportedQuality.isEmpty
+                              ? 'YouTube playback negotiates AAC/Opus; the exact codec and bitrate are known only after stream resolution'
+                              : 'Provider-advertised audio details; actual decoded output may differ',
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 7, vertical: 2),
@@ -668,7 +680,7 @@ class _OnlineTile extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              reportedQuality.isEmpty ? 'Quality unknown' : reportedQuality,
+                              displayQuality,
                               style: TextStyle(color: t.muted, fontSize: 10),
                             ),
                           ),

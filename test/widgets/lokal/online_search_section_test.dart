@@ -163,7 +163,7 @@ void main() {
     expect(find.text('Download Dolby Atmos'), findsNothing);
   });
 
-  testWidgets('quality badges show provider metadata and an explicit unknown state', (tester) async {
+  testWidgets('Search shows measured quality without inventing badges for unspecified tracks', (tester) async {
     final httpAddon = OnlineSource(
       id: 'w-http-quality', name: 'HTTP Audio', addon: true,
       results: (_) async => [
@@ -182,7 +182,25 @@ void main() {
     await _pump(tester, sources: [httpAddon]);
     expect(find.text('Reported FLAC'), findsOneWidget);
     expect(find.text('FLAC · 24-bit / 96 kHz'), findsOneWidget);
-    expect(find.text('Quality unknown'), findsOneWidget);
+    expect(find.text('Quality unknown'), findsNothing);
+  });
+
+  testWidgets('YouTube Search names adaptive formats without inventing kbps', (tester) async {
+    final youtube = OnlineSource(
+      id: 'yt', name: 'YouTube Music',
+      results: (_) async => [
+        const OnlineResult(DiscoveryTrack(
+          id: 'yt-song', title: 'YouTube Song', artist: 'Artist',
+          source: DiscoverySource.youtubeMusic,
+        )),
+      ],
+      play: (_) async => throw const DiscoveryException('not needed'),
+    );
+    await _pump(tester, sources: [youtube]);
+    expect(find.text('YouTube Song'), findsOneWidget);
+    expect(find.text('AAC / Opus · adaptive'), findsOneWidget);
+    expect(find.text('Quality unknown'), findsNothing);
+    expect(find.textContaining('kbps'), findsNothing);
   });
 
   testWidgets('tap shows preparation toast before slow provider verification', (tester) async {

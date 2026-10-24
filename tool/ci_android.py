@@ -11,11 +11,8 @@ import sys
 RUST = "1.98.0"
 NDK = "28.2.13676358"
 HOST = "x86_64-unknown-linux-gnu"
-# Cargokit's debug Gradle integration also builds both emulator ABIs.
-TARGETS = (
-    "aarch64-linux-android", "armv7-linux-androideabi",
-    "i686-linux-android", "x86_64-linux-android",
-)
+# Lokal ships ARM64 binaries only, for both release and debug Flutter builds.
+TARGETS = ("aarch64-linux-android",)
 
 
 def export(values):

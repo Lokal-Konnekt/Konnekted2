@@ -63,6 +63,7 @@ import 'package:flick/models/song.dart';
 import 'package:flick/providers/providers.dart';
 import 'package:flick/services/favorites_service.dart';
 import 'package:flick/services/lyrics_service.dart';
+import 'package:flick/services/lyrics_playback_prefetch.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/player_volume_control.dart';
 
@@ -261,33 +262,53 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     final song = _player.currentSongNotifier.value;
     if (song == null) return;
     if (!force && _lyricsForSongId == song.id && _lyrics != null) return;
+    final request = ++_lyricsRequest;
     setState(() {
       _lyricsLoading = true;
       if (_lyricsForSongId != song.id) _lyrics = null;
       _lyricsForSongId = song.id;
     });
-    final request = ++_lyricsRequest;
     _sublineLyrics = null;
-    LyricsData? data;
+    final warm = !force && !refreshOnline && _lyricsSource == 'auto';
     try {
-      data = await _lyricsService.loadLyricsForSong(
-        song,
-        forceRefresh: force,
-        refreshOnline: refreshOnline,
-        source: _lyricsSource,
-        stillCurrent: () => mounted && request == _lyricsRequest,
-        fetchOnline:
-            refreshOnline || ref.read(appPreferencesProvider).lyricsAutoFetch,
-      );
+      // Display local sidecar/embedded lyrics as soon as filesystem lookup
+      // completes; never gate them on LRCLIB / remote lyric providers.
+      final local = warm
+          ? await LyricsPlaybackPrefetch.instance.local(song)
+          : await _lyricsService.loadLyricsForSong(
+              song, forceRefresh: force, fetchOnline: false,
+              source: _lyricsSource,
+            );
+      if (!mounted || request != _lyricsRequest ||
+          _player.currentSongNotifier.value?.id != song.id) return;
+      setState(() {
+        _lyrics = local;
+        _lyricsLoading = local == null;
+      });
+      final best = warm
+          ? await LyricsPlaybackPrefetch.instance.enhanced(song)
+          : await _lyricsService.loadLyricsForSong(
+              song, forceRefresh: force, refreshOnline: refreshOnline,
+              source: _lyricsSource,
+              stillCurrent: () => mounted && request == _lyricsRequest,
+              fetchOnline: refreshOnline ||
+                  ref.read(appPreferencesProvider).lyricsAutoFetch,
+            );
+      if (!mounted || request != _lyricsRequest ||
+          _player.currentSongNotifier.value?.id != song.id) return;
+      setState(() {
+        if (lyricQualityRank(best) > lyricQualityRank(_lyrics)) {
+          _lyrics = best;
+        } else if (_lyrics == null) {
+          _lyrics = best;
+        }
+        _lyricsLoading = false;
+      });
     } catch (_) {
-      data = null;
+      if (mounted && request == _lyricsRequest) {
+        setState(() => _lyricsLoading = false);
+      }
     }
-    if (!mounted || request != _lyricsRequest) return;
-    if (_player.currentSongNotifier.value?.id != song.id) return;
-    setState(() {
-      if (!refreshOnline || data != null) _lyrics = data;
-      _lyricsLoading = false;
-    });
   }
 
   void _moveLyrics(bool open) {

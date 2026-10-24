@@ -167,6 +167,18 @@ class AndroidAutoCatalog {
     return false;
   }
 
+  /// Browse results for Android Auto's built-in search UI.
+  Future<List<Map<String, Object?>>> search(String query) async {
+    final needle = query.trim().toLowerCase();
+    if (needle.isEmpty) return [];
+    final library = await _songs.getAllSongs();
+    final matches = library.where((song) =>
+        song.title.toLowerCase().contains(needle) ||
+        song.artist.toLowerCase().contains(needle)).take(100);
+    return matches.map((song) =>
+        _track(song, '$_bucketPrefix${_initial(song)}')).toList();
+  }
+
   /// Enables voice requests such as "play [song] on Lokal" for library tracks.
   Future<bool> playSearch(String query) async {
     final needle = query.trim().toLowerCase();

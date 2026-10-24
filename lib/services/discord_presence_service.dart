@@ -45,6 +45,9 @@ class DiscordPresenceService extends ChangeNotifier {
   // Embedded local artwork remains private: Discord needs a public image URL.
   late final _artwork = createDiscoveryArtworkResolver(
     DiscoveryHttp(GracefulHttpClient(), timeout: const Duration(seconds: 8)),
+    // Discord artwork may be credited to both the principal and guest artist.
+    // Discovery keeps its original stricter matching by default.
+    allowCollaborations: true,
     onSourceFailure: (host, reason) {
       // These diagnostics can distinguish a source API outage from an
       // unavailable recording without logging URLs or private file paths.

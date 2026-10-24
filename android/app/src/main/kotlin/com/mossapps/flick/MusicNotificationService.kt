@@ -333,10 +333,26 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
         dispatchCarBrowse(parentId, result, channel)
     }
 
+    override fun onSearch(
+        query: String,
+        extras: Bundle?,
+        result: Result<List<MediaBrowserCompat.MediaItem>>
+    ) {
+        val channel = flutterPlayerChannel()
+        if (channel == null || carEngineStarting) {
+            result.sendResult(emptyList())
+            return
+        }
+        result.detach()
+        dispatchCarBrowse(query, result, channel, "androidAutoSearch", "query")
+    }
+
     private fun dispatchCarBrowse(
         parentId: String,
         result: Result<List<MediaBrowserCompat.MediaItem>>,
-        channel: MethodChannel
+        channel: MethodChannel,
+        command: String = "androidAutoBrowse",
+        argumentName: String = "parentId"
     ) {
         val handler = Handler(Looper.getMainLooper())
         val completed = AtomicBoolean(false)
@@ -348,8 +364,8 @@ class MusicNotificationService : MediaBrowserServiceCompat() {
         }
         handler.postDelayed(timeout, 8000L)
         channel.invokeMethod(
-            "androidAutoBrowse",
-            mapOf("parentId" to parentId),
+            command,
+            mapOf(argumentName to parentId),
             object : MethodChannel.Result {
                 override fun success(reply: Any?) {
                     if (!completed.compareAndSet(false, true)) return

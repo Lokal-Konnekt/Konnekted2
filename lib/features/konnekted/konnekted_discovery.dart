@@ -772,18 +772,24 @@ class MorneyeProgressText {
 
   /// The line to show now, or null when it says what was said already.
   String? update({double? percent, String? message}) {
-    if (percent != null && percent.isFinite && percent > 0) {
-      _percent = percent.clamp(0, 100).round();
+    if (percent != null && percent.isFinite && percent >= 0) {
+      final measured = percent.clamp(0, 100).round();
+      _percent = _percent == null || measured > _percent! ? measured : _percent;
     }
     final words = message?.trim() ?? '';
     final prefix = 'Getting $title from $source…';
     final percentText = _percent == null ? '' : ' $_percent%';
     final RegExp numbered = RegExp(r'\d+(\.\d+)?\s*%');
+    // An add-on may keep emitting its initial 5% even after host transfer
+    // bytes/segments advance. Prefer the highest measured progress instead
+    // of letting a stale guest message jump the toast backwards.
+    final normalizedWords = _percent == null ? words
+        : words.replaceAllMapped(numbered, (_) => '${_percent!}%');
     final text = words.isEmpty
         ? (_percent == null ? prefix : '$prefix$percentText')
-        : numbered.hasMatch(words)
-        ? '$prefix ${words.replaceAll(RegExp(r'\s+'), ' ')}'
-        : '$prefix ${words.replaceAll(RegExp(r'\s+'), ' ')}$percentText';
+        : numbered.hasMatch(normalizedWords)
+        ? '$prefix ${normalizedWords.replaceAll(RegExp(r'\s+'), ' ')}'
+        : '$prefix ${normalizedWords.replaceAll(RegExp(r'\s+'), ' ')}$percentText';
     if (text == _said) return null;
     _said = text;
     return text;

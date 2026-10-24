@@ -138,7 +138,7 @@ void main() {
         ? .91 + (a - 1) * .18
         : .90 * a + .75 * a * a - .74 * a * a * a;
     double depth(double a) => a >= 1
-        ? .60 + (a - 1) * .01
+        ? .60
         : .60 * a * a * (3 - 2 * a);
     const e = .00001;
     expect(pos(0), 0);

@@ -130,7 +130,7 @@ void main() {
     expect(daily(day), isNot(daily(day.add(const Duration(days: 1)))));
   });
 
-  test('Made for you: two per mix, six mixes, no song twice', () {
+  test('Made for you: four per mix, six mixes, no song twice', () {
     final shared = _song('shared');
     final mixes = [
       for (var m = 0; m < 8; m++)
@@ -138,12 +138,12 @@ void main() {
           id: 'm$m',
           name: 'Mix $m',
           type: LokalMixType.genre,
-          tracks: [shared, for (var i = 0; i < 4; i++) _song('$m-$i')],
+          tracks: [shared, for (var i = 0; i < 5; i++) _song('$m-$i')],
         ),
     ];
     final picks = pickMadeForYou(mixes, random: Random(1));
-    expect(picks, hasLength(12));
-    expect(picks.map((p) => p.song.id).toSet(), hasLength(12));
+    expect(picks, hasLength(24));
+    expect(picks.map((p) => p.song.id).toSet(), hasLength(24));
     expect(picks.map((p) => p.mix.id).toSet(), {
       for (var m = 0; m < 6; m++) 'm$m',
     });
@@ -163,7 +163,7 @@ void main() {
       tracks: [for (var i = 0; i < 6; i++) _song('$i')],
     );
     final first = lokalMadeForYou([mix]);
-    expect(first, hasLength(2));
+    expect(first, hasLength(4));
     expect(
       lokalMadeForYou([mix, mix]).map((p) => p.song.id),
       first.map((p) => p.song.id),
@@ -179,10 +179,10 @@ void main() {
         ),
     ];
     final filled = lokalMadeForYou(all);
-    expect(filled, hasLength(12));
+    expect(filled, hasLength(24));
     for (final mix in all) {
-      expect(filled.where((p) => p.mix.id == mix.id), hasLength(2));
+      expect(filled.where((p) => p.mix.id == mix.id), hasLength(4));
     }
-    expect(filled.take(2).map((p) => p.song.id), first.map((p) => p.song.id));
+    expect(filled.take(4).map((p) => p.song.id), first.map((p) => p.song.id));
   });
 }

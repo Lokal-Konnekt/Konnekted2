@@ -548,34 +548,20 @@ class _TargetPlayerControlsState extends State<_TargetPlayerControls> {
   }
 
   Widget _favoriteButton(BuildContext context) {
-    final service = widget.favoritesService;
-    if (service == null || widget.currentSong == null) {
-      return _smallButton(
-        context,
-        icon: LucideIcons.heart,
-        active: false,
-        onTap: () {},
-        label: 'Favorite',
-      );
+    final song = widget.currentSong;
+    if (song == null) {
+      return const SizedBox.shrink();
     }
-    return FutureBuilder<bool>(
-      future: service.isFavorite(widget.currentSong!.id),
-      builder: (context, snapshot) {
-        final favorite = snapshot.data ?? false;
+    return Consumer(
+      builder: (context, ref, _) {
+        final favorite = ref.watch(isSongFavoriteProvider(song.id));
         return _smallButton(
           context,
-          icon: favorite ? LucideIcons.heart : LucideIcons.heart,
+          icon: LucideIcons.heart,
           active: favorite,
           onTap: () async {
-            await service.toggleFavorite(widget.currentSong!.id, song: widget.currentSong);
-            // Classic Player uses a direct service for the heart button;
-            // refresh the Riverpod-backed Liked page after the write too.
-            if (mounted) {
-              final container = ProviderScope.containerOf(context, listen: false);
-              container.invalidate(favoritesServiceProvider);
-              container.invalidate(favoritesProvider);
-            }
-            if (mounted) setState(() {});
+            await ref.read(favoritesProvider.notifier)
+                .toggleFavorite(song.id, song: song);
             widget.playerService.refreshNotificationState();
           },
           label: 'Favorite',

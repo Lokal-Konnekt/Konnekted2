@@ -543,6 +543,12 @@ class _OnlineTile extends StatelessWidget {
     final t = context.lokal;
     final track = result.track;
     final duration = track.duration;
+    final reportedQuality = catalogueAudioDetails(
+      quality: track.catalogueQuality,
+      bitDepth: track.catalogueBitDepth,
+      sampleRate: track.catalogueSampleRate,
+      codec: track.catalogueCodec,
+    );
     return LokalSwipeToQueue(
       onQueue: onQueue,
       enabled: !busy,
@@ -580,36 +586,29 @@ class _OnlineTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: t.muted, fontSize: 13),
                     ),
-                    if (track.atmosAvailable ||
-                        catalogueAudioDetails(
-                          quality: track.catalogueQuality,
-                          bitDepth: track.catalogueBitDepth,
-                          sampleRate: track.catalogueSampleRate,
-                        ).isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (catalogueAudioDetails(
-                              quality: track.catalogueQuality,
-                              bitDepth: track.catalogueBitDepth,
-                              sampleRate: track.catalogueSampleRate,
-                            ) case final quality when quality.isNotEmpty)
-                            Tooltip(
-                              message: 'Catalogue quality, not the verified playback output',
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: t.muted.withValues(alpha: .35)),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(quality,
-                                  style: TextStyle(color: t.muted, fontSize: 10)),
-                              ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Tooltip(
+                          message: reportedQuality.isEmpty
+                              ? 'This source did not advertise a codec, bit depth or sample rate'
+                              : 'Catalogue quality only; the verified output may differ',
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: t.muted.withValues(alpha: .35)),
+                              borderRadius: BorderRadius.circular(999),
                             ),
+                            child: Text(
+                              reportedQuality.isEmpty ? 'Quality unknown' : reportedQuality,
+                              style: TextStyle(color: t.muted, fontSize: 10),
+                            ),
+                          ),
+                        ),
                           if (track.atmosAvailable)
                             Tooltip(
                               message: 'Play original Dolby Atmos (requires an Android E-AC-3 JOC decoder or direct output)',

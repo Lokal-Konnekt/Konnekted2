@@ -40,7 +40,7 @@ class OnlineSongSaveRegistry {
     if (existing != null) return existing;
     final task = _save(song, downloader ?? LibraryDownloader());
     _inFlight[song.id] = task;
-    return task.whenComplete(() => _inFlight.remove(song.id));
+    return task.whenComplete(() { _inFlight.remove(song.id); });
   }
 
   Future<LibraryDownloadResult> _save(

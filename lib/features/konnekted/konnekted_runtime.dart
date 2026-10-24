@@ -8,6 +8,7 @@ import 'package:flick/services/lokal_launcher_icon.dart';
 import 'package:flick/features/library_jobs/artist_metadata.dart';
 
 import 'konnekted_data.dart';
+import 'konnekted_discovery.dart';
 
 import 'package:flick/features/library_jobs/library_jobs.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
@@ -136,6 +137,12 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    playbackSourceVerification = (source) async {
+      if (!mounted || _backgrounded || source.verify == null) return false;
+      // The auth sheet is the very same one Search uses, except the queue
+      // remains parked on its pending Mix track until verification finishes.
+      return source.verify!(context);
+    };
     ref.listenManual(lokalAppearanceProvider, (_, next) {
       LocalMetadataRepair.instance.ultraPerformanceMode =
           next.ultraPerformanceMode;
@@ -359,6 +366,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
 
   @override
   void dispose() {
+    playbackSourceVerification = null;
     WidgetsBinding.instance.removeObserver(this);
     SpotifyLikesSyncService.instance.pause();
     _player.playbackDesyncedNotifier.removeListener(_onPlaybackDesync);

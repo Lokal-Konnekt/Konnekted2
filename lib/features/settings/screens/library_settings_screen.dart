@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_choice_sheet.dart';
 import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -208,6 +209,54 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
     if (mounted) setState(() => _folderEntities[folder.uri] = entity);
   }
 
+  Future<void> _showFolderMenu(
+    MusicFolder folder,
+    bool deepScan,
+    bool scanning,
+  ) async {
+    // During a desktop scan all folder actions are unavailable; do not
+    // present an empty sheet with no selectable rows.
+    if (scanning && !_isAndroid) return;
+    final selected = await showLokalChoiceSheet<_FolderAction>(
+      context: context,
+      title: folder.displayName,
+      selected: deepScan ? _FolderAction.deepScan : null,
+      choices: [
+        if (!scanning)
+          const LokalChoice(value: _FolderAction.rescan,
+            label: 'Rescan this folder', icon: Icons.refresh_rounded),
+        if (_isAndroid)
+          const LokalChoice(value: _FolderAction.deepScan,
+            label: 'Deep scan', icon: Icons.search_rounded),
+        if (!scanning)
+          const LokalChoice(value: _FolderAction.remove,
+            label: 'Remove', icon: Icons.delete_outline_rounded,
+            destructive: true),
+      ],
+    );
+    if (selected != null && mounted) {
+      await _onFolderAction(folder, selected, deepScan);
+    }
+  }
+
+  Future<void> _showRescanMenu() async {
+    final selected = await showLokalChoiceSheet<_Rescan>(
+      context: context,
+      title: 'Rescan',
+      choices: [
+        const LokalChoice(value: _Rescan.quick, label: 'Quick',
+          description: 'Only new and changed files', icon: Icons.flash_on_rounded),
+        const LokalChoice(value: _Rescan.full, label: 'Full',
+          description: 'Reread every file', icon: Icons.refresh_rounded),
+        if (_isAndroid)
+          const LokalChoice(value: _Rescan.deep, label: 'Deep',
+            description: 'Full, read straight from storage',
+            icon: Icons.folder_open_rounded),
+      ],
+    );
+    if (selected != null && mounted) await _rescan(selected);
+  }
+
   Future<void> _onFolderAction(
     MusicFolder folder,
     _FolderAction action,
@@ -332,29 +381,12 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
       icon: removable ? Icons.usb_rounded : Icons.folder_rounded,
       label: folder.displayName,
       description: details,
-      trailing: PopupMenuButton<_FolderAction>(
+      trailing: IconButton(
         tooltip: 'Folder options',
-        color: t.surface2,
         icon: Icon(Icons.more_horiz_rounded, color: t.muted),
-        onSelected: (action) => _onFolderAction(folder, action, deepScan),
-        itemBuilder: (context) => [
-          PopupMenuItem(
-            value: _FolderAction.rescan,
-            enabled: !scanning,
-            child: const Text('Rescan this folder'),
-          ),
-          if (_isAndroid)
-            CheckedPopupMenuItem(
-              value: _FolderAction.deepScan,
-              checked: deepScan,
-              child: const Text('Deep scan'),
-            ),
-          PopupMenuItem(
-            value: _FolderAction.remove,
-            enabled: !scanning,
-            child: Text('Remove', style: TextStyle(color: t.red)),
-          ),
-        ],
+        onPressed: () => unawaited(
+          _showFolderMenu(folder, deepScan, scanning),
+        ),
       ),
     );
   }
@@ -373,30 +405,10 @@ class _LibrarySettingsScreenState extends ConsumerState<LibrarySettingsScreen>
                       'also reads folders straight from storage.'
                 : 'Quick rereads changed files, full rereads every file.',
             enabled: !scanning,
-            trailing: PopupMenuButton<_Rescan>(
+            trailing: InkWell(
               key: const ValueKey('folders-rescan'),
-              tooltip: 'Rescan',
-              enabled: !scanning,
-              color: t.surface2,
-              onSelected: _rescan,
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: _Rescan.quick,
-                  child: _MenuChoice('Quick', 'Only new and changed files'),
-                ),
-                const PopupMenuItem(
-                  value: _Rescan.full,
-                  child: _MenuChoice('Full', 'Reread every file'),
-                ),
-                if (_isAndroid)
-                  const PopupMenuItem(
-                    value: _Rescan.deep,
-                    child: _MenuChoice(
-                      'Deep',
-                      'Full, read straight from storage',
-                    ),
-                  ),
-              ],
+              onTap: scanning ? null : () => unawaited(_showRescanMenu()),
+              borderRadius: BorderRadius.circular(99),
               child: const _Capsule('Rescan'),
             ),
           ),
@@ -449,33 +461,6 @@ class _Capsule extends StatelessWidget {
           Icon(Icons.expand_more_rounded, size: 16, color: t.muted),
         ],
       ),
-    );
-  }
-}
-
-class _MenuChoice extends StatelessWidget {
-  const _MenuChoice(this.title, this.subtitle);
-
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.lokal;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontFamily: LokalTheme.sans,
-            fontWeight: FontWeight.w600,
-            color: t.text,
-          ),
-        ),
-        Text(subtitle, style: TextStyle(fontSize: 12, color: t.muted)),
-      ],
     );
   }
 }

@@ -168,6 +168,46 @@ void main() {
     });
   });
 
+  group('bulk local playlist ordering', () {
+    test('saves one reordered list while preserving timestamps and snapshots', () async {
+      final service = PlaylistService();
+      final playlist = await service.createPlaylist('Order');
+      await service.addSongToPlaylist(playlist!.id, 'a');
+      await service.addSongToPlaylist(playlist.id, 'b');
+      await service.addSongToPlaylist(playlist.id, 'c');
+      final before = (await service.getPlaylist(playlist.id))!;
+
+      expect(await service.setSongOrder(playlist.id, ['c', 'a', 'b']), isTrue);
+      final after = (await PlaylistService().getPlaylist(playlist.id))!;
+      expect(after.songIds, ['c', 'a', 'b']);
+      expect(after.songAddedAt, before.songAddedAt);
+    });
+
+    test('rejects omitted, new, or duplicated song IDs without losing tracks', () async {
+      final service = PlaylistService();
+      final playlist = await service.createPlaylist('Order guard');
+      await service.addSongToPlaylist(playlist!.id, 'a');
+      await service.addSongToPlaylist(playlist.id, 'b');
+
+      expect(await service.setSongOrder(playlist.id, ['a']), isFalse);
+      expect(await service.setSongOrder(playlist.id, ['b', 'c']), isFalse);
+      expect(await service.setSongOrder(playlist.id, ['b', 'b']), isFalse);
+      expect((await service.getPlaylist(playlist.id))!.songIds, ['a', 'b']);
+    });
+
+    test('does not mutate synced server playlist mirrors', () async {
+      final service = PlaylistService();
+      final remote = await service.upsertNetworkPlaylist(
+        serverId: 7,
+        remoteId: 'remote',
+        name: 'Remote',
+        songIds: ['a', 'b'],
+      );
+      expect(await service.setSongOrder(remote.id, ['b', 'a']), isFalse);
+      expect((await service.getPlaylist(remote.id))!.songIds, ['a', 'b']);
+    });
+  });
+
   group('playlist-only song metadata', () {
     const onlineSong = Song(
       id: 'online:stream-1',

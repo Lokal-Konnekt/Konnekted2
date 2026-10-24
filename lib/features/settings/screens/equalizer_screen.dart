@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flick/widgets/lokal/lokal_toast.dart';
+import 'package:flick/widgets/lokal/lokal_choice_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path_provider/path_provider.dart';
@@ -3894,38 +3895,43 @@ class _BandTypeDropdown extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
         border: Border.all(color: context.lokal.border),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<ParametricBandType>(
-          value: value,
-          isDense: true,
-          isExpanded: compact,
-          dropdownColor: context.lokal.surface,
-          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-          iconEnabledColor: context.lokal.muted,
-          iconDisabledColor: context.lokal.muted2,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: enabled ? context.lokal.text : context.lokal.muted2,
-            fontFamily: LokalTheme.sans,
-            fontWeight: FontWeight.w600,
-            fontSize: compact ? 10 : null,
-          ),
-          items: [
-            for (final type in ParametricBandType.values)
-              DropdownMenuItem<ParametricBandType>(
-                value: type,
+      child: InkWell(
+        onTap: !enabled ? null : () async {
+          final selected = await showLokalChoiceSheet<ParametricBandType>(
+            context: context,
+            title: 'Filter type',
+            selected: value,
+            choices: [
+              for (final type in ParametricBandType.values)
+                LokalChoice(value: type, label: type.displayName,
+                  icon: Icons.graphic_eq_rounded),
+            ],
+          );
+          if (selected != null && context.mounted) onChanged!(selected);
+        },
+        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Expanded(
                 child: Text(
-                  type.displayName,
+                  value.displayName,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: compact ? 10 : null),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: enabled ? context.lokal.text : context.lokal.muted2,
+                    fontFamily: LokalTheme.sans,
+                    fontWeight: FontWeight.w600,
+                    fontSize: compact ? 10 : null,
+                  ),
                 ),
               ),
-          ],
-          onChanged: onChanged == null
-              ? null
-              : (type) {
-                  if (type == null) return;
-                  onChanged!(type);
-                },
+              Icon(Icons.keyboard_arrow_down_rounded, size: compact ? 14 : 18,
+                color: enabled ? context.lokal.muted : context.lokal.muted2),
+            ],
+          ),
         ),
       ),
     );

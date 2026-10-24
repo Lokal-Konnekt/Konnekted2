@@ -15,7 +15,10 @@ import 'package:flick/providers/playlist_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:flick/widgets/lokal/lokal_choice_sheet.dart';
+
 import 'lokal_library_kit.dart';
+import 'lokal_playlist_order.dart';
 import 'lokal_song_browser.dart';
 
 
@@ -90,6 +93,38 @@ List<Song> lokalPlaylistSongs(
     .map((id) => lokalPlaylistSong(playlist, id, libraryById))
     .whereType<Song>()
     .toList(growable: false);
+
+/// Playlist tiles need at most four covers, not a 10,000-track queue.
+/// Bound each tile's scan so scrolling through huge collections remains cheap.
+List<Song> lokalPlaylistCoverSongs(
+  Playlist playlist,
+  Map<String, Song> libraryById,
+) {
+  final covers = <String>{};
+  final result = <Song>[];
+  for (final id in playlist.songIds.take(64)) {
+    final song = lokalPlaylistSong(playlist, id, libraryById);
+    if (song == null) continue;
+    final key = song.albumArt ??
+        '${song.album ?? song.title}|${song.albumArtist ?? song.artist}';
+    if (!covers.add(key)) continue;
+    result.add(song);
+    if (result.length == 4) break;
+  }
+  return result;
+}
+
+/// Keep the fully resolved playlist stable across rebuilds so searching and
+/// changing menus do not repeat large metadata lookups.
+final lokalResolvedPlaylistSongsProvider =
+    Provider.autoDispose.family<List<Song>, String>((ref, playlistId) {
+  final playlist = ref.watch(playlistProvider(playlistId));
+  if (playlist == null) return const <Song>[];
+  final byId =
+      ref.watch(konnektedLibraryIndexProvider).value?.byId ??
+      const <String, Song>{};
+  return lokalPlaylistSongs(playlist, byId);
+});
 
 Future<String?> _askName(
   BuildContext context, {
@@ -188,6 +223,32 @@ class LokalPlaylistsPage extends ConsumerWidget {
     }
   }
 
+  Future<void> _showPlaylistActions(
+    BuildContext context,
+    WidgetRef ref,
+    bool hasServers,
+  ) async {
+    final selected = await showLokalChoiceSheet<String>(
+      context: context,
+      title: 'Playlists',
+      choices: [
+        LokalChoice(value: 'new', label: lokalText('New playlist'), icon: Icons.add_rounded),
+        LokalChoice(value: 'import', label: lokalText('Import M3U'), icon: Icons.file_upload_outlined),
+        if (hasServers)
+          LokalChoice(value: 'sync', label: lokalText('Sync server playlists'), icon: Icons.sync_rounded),
+      ],
+    );
+    if (!context.mounted) return;
+    switch (selected) {
+      case 'new':
+        await lokalCreatePlaylist(context, ref);
+      case 'import':
+        await lokalImportM3u(context, ref);
+      case 'sync':
+        await _syncServers(context, ref);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.lokal;
@@ -203,28 +264,10 @@ class LokalPlaylistsPage extends ConsumerWidget {
           ? null
           : lokalText("{arg0} playlists", args: {'arg0': playlists.length}),
       actions: [
-        PopupMenuButton<String>(
-          tooltip: lokalText('Add'),
-          color: t.surface2,
-          icon: Icon(Icons.add_rounded, color: t.text),
-          onSelected: (value) => switch (value) {
-            'new' => unawaited(lokalCreatePlaylist(context, ref)),
-            'import' => unawaited(lokalImportM3u(context, ref)),
-            'sync' => unawaited(_syncServers(context, ref)),
-            _ => null,
-          },
-          itemBuilder: (_) => [
-            PopupMenuItem(value: 'new', child: Text(lokalText('New playlist'))),
-            PopupMenuItem(
-              value: 'import',
-              child: Text(lokalText('Import M3U')),
-            ),
-            if (hasServers)
-              PopupMenuItem(
-                value: 'sync',
-                child: Text(lokalText('Sync server playlists')),
-              ),
-          ],
+        LokalRoundAction(
+          icon: Icons.add_rounded,
+          label: lokalText('Add'),
+          onPressed: () => unawaited(_showPlaylistActions(context, ref, hasServers)),
         ),
       ],
       slivers: [
@@ -277,7 +320,7 @@ class LokalPlaylistsPage extends ConsumerWidget {
             itemCount: playlists.length,
             itemBuilder: (context, index) {
               final playlist = playlists[index];
-              final songs = lokalPlaylistSongs(playlist, libraryById);
+              final songs = lokalPlaylistCoverSongs(playlist, libraryById);
               return InkWell(
                 onTap: () => pushLokal(
                   context,
@@ -294,7 +337,10 @@ class LokalPlaylistsPage extends ConsumerWidget {
                         dimension: 64,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: LokalPlaylistArtwork(playlist: playlist, songs: songs),
+                          child: LokalPlaylistArtwork(
+                            playlist: playlist,
+                            songs: songs,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -403,6 +449,41 @@ class LokalPlaylistPage extends ConsumerWidget {
     }
   }
 
+  Future<void> _showActions(
+    BuildContext context,
+    WidgetRef ref,
+    Playlist playlist,
+    List<Song> songs,
+  ) async {
+    final selected = await showLokalChoiceSheet<String>(
+      context: context,
+      title: playlist.name,
+      choices: [
+        LokalChoice(value: 'queue', label: lokalText('Add to queue'), icon: Icons.queue_music_rounded),
+        if (!playlist.isNetworkSource && playlist.songIds.length > 1)
+          LokalChoice(value: 'reorder', label: lokalText('Reorder songs'), icon: Icons.sort_rounded),
+        if (!playlist.isNetworkSource)
+          LokalChoice(value: 'rename', label: lokalText('Rename'), icon: Icons.edit_rounded),
+        LokalChoice(value: 'export', label: lokalText('Export as M3U8'), icon: Icons.file_download_outlined),
+        LokalChoice(value: 'delete', label: lokalText('Delete playlist'),
+          icon: Icons.delete_outline_rounded, destructive: true),
+      ],
+    );
+    if (!context.mounted) return;
+    switch (selected) {
+      case 'queue':
+        await lokalQueueAll(context, ref, songs);
+      case 'reorder':
+        await pushLokal(context, _ReorderPage(playlistId: playlistId));
+      case 'rename':
+        await _rename(context, ref, playlist);
+      case 'export':
+        await _export(context, ref, playlist);
+      case 'delete':
+        await _delete(context, ref, playlist);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.lokal;
@@ -422,46 +503,15 @@ class LokalPlaylistPage extends ConsumerWidget {
         ],
       );
     }
-    final songs = lokalPlaylistSongs(playlist, libraryById);
+    final songs = ref.watch(lokalResolvedPlaylistSongsProvider(playlistId));
     final width = MediaQuery.sizeOf(context).width;
     return LokalLibraryPage(
       title: playlist.name,
       actions: [
-        PopupMenuButton<String>(
-          tooltip: lokalText('More'),
-          color: t.surface2,
-          icon: Icon(Icons.more_horiz_rounded, color: t.text),
-          onSelected: (value) => switch (value) {
-            'queue' => unawaited(lokalQueueAll(context, ref, songs)),
-            'reorder' => unawaited(
-              pushLokal(context, _ReorderPage(playlistId: playlistId)),
-            ),
-            'rename' => unawaited(_rename(context, ref, playlist)),
-            'export' => unawaited(_export(context, ref, playlist)),
-            'delete' => unawaited(_delete(context, ref, playlist)),
-            _ => null,
-          },
-          itemBuilder: (_) => [
-            PopupMenuItem(
-              value: 'queue',
-              child: Text(lokalText('Add to queue')),
-            ),
-            if (!playlist.isNetworkSource && playlist.songIds.length > 1)
-              PopupMenuItem(
-                value: 'reorder',
-                child: Text(lokalText('Reorder songs')),
-              ),
-            if (!playlist.isNetworkSource)
-              PopupMenuItem(value: 'rename', child: Text(lokalText('Rename'))),
-            PopupMenuItem(
-              value: 'export',
-              child: Text(lokalText('Export as M3U8')),
-            ),
-            PopupMenuItem(
-              value: 'delete',
-              child: Text(lokalText('Delete playlist')),
-            ),
-          ],
+        LokalRoundAction(
+          icon: Icons.more_horiz_rounded,
+          label: lokalText('More'),
+          onPressed: () => unawaited(_showActions(context, ref, playlist, songs)),
         ),
       ],
       header: Padding(
@@ -542,6 +592,45 @@ class _ReorderPage extends ConsumerWidget {
 
   final String playlistId;
 
+  Future<void> _sortSavedOrder(
+    BuildContext context,
+    WidgetRef ref,
+    Playlist playlist,
+    Map<String, Song> byId,
+  ) async {
+    final choice = await showLokalChoiceSheet<LokalPlaylistOrder>(
+      context: context,
+      title: 'Sort playlist',
+      choices: const [
+        LokalChoice(value: LokalPlaylistOrder.titleAscending,
+          label: 'Title · A–Z', icon: Icons.sort_by_alpha_rounded),
+        LokalChoice(value: LokalPlaylistOrder.titleDescending,
+          label: 'Title · Z–A', icon: Icons.sort_by_alpha_rounded),
+        LokalChoice(value: LokalPlaylistOrder.artistAscending,
+          label: 'Artist · A–Z', icon: Icons.person_outline_rounded),
+        LokalChoice(value: LokalPlaylistOrder.artistDescending,
+          label: 'Artist · Z–A', icon: Icons.person_outline_rounded),
+        LokalChoice(value: LokalPlaylistOrder.dateAscending,
+          label: 'Date added · Oldest first', icon: Icons.event_rounded),
+        LokalChoice(value: LokalPlaylistOrder.dateDescending,
+          label: 'Date added · Newest first', icon: Icons.event_rounded),
+        LokalChoice(value: LokalPlaylistOrder.reverse,
+          label: 'Reverse current order', icon: Icons.swap_vert_rounded),
+      ],
+    );
+    if (choice == null || !context.mounted) return;
+    final ordered = lokalOrderedPlaylistIds(playlist, byId, choice);
+    final ok = await ref.read(playlistsProvider.notifier)
+        .setSongOrder(playlistId, ordered);
+    if (context.mounted) {
+      _say(
+        context,
+        ok ? lokalText('Playlist order saved')
+           : lokalText('Couldn’t reorder this playlist.'),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = context.lokal;
@@ -550,6 +639,15 @@ class _ReorderPage extends ConsumerWidget {
         ref.watch(konnektedLibraryIndexProvider).value?.byId ??
         const <String, Song>{};
     final ids = playlist?.songIds ?? const <String>[];
+    // Stable keys keep art and row state attached to tracks while dragging.
+    // A per-id occurrence suffix also supports legacy lists with duplicates.
+    final occurrence = <String, int>{};
+    final rowKeys = [
+      for (final id in ids)
+        ValueKey(
+          '$id#${occurrence.update(id, (n) => n + 1, ifAbsent: () => 0)}',
+        ),
+    ];
     return Scaffold(
       backgroundColor: t.bg,
       body: SafeArea(
@@ -558,6 +656,14 @@ class _ReorderPage extends ConsumerWidget {
           children: [
             LokalPageBar(
               actions: [
+                if (playlist != null && !playlist.isNetworkSource && ids.length > 1)
+                  LokalRoundAction(
+                    icon: Icons.sort_by_alpha_rounded,
+                    label: lokalText('Sort playlist'),
+                    onPressed: () => unawaited(
+                      _sortSavedOrder(context, ref, playlist, byId),
+                    ),
+                  ),
                 TextButton(
                   onPressed: () => Navigator.of(context).maybePop(),
                   child: Text(lokalText('Done')),
@@ -586,7 +692,7 @@ class _ReorderPage extends ConsumerWidget {
                        ? null
                        : lokalPlaylistSong(playlist, ids[index], byId);
                   return ListTile(
-                    key: ValueKey('${ids[index]}#$index'),
+                    key: rowKeys[index],
                     leading: song == null
                         ? Icon(Icons.music_off_rounded, color: t.muted)
                         : KonnektedArtwork(song: song, size: 44, radius: 6),

@@ -48,7 +48,8 @@ abstract final class LokalTheme {
     return base.copyWith(
       brightness: brightness,
       scaffoldBackgroundColor: t.bg,
-      canvasColor: t.bg,
+      // Legacy DropdownButton uses canvasColor for its popup background.
+      canvasColor: t.surface2,
       colorScheme: scheme,
       textTheme: textTheme,
       primaryTextTheme: textTheme,
@@ -84,6 +85,51 @@ abstract final class LokalTheme {
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: t.accent,
         linearTrackColor: t.border,
+      ),
+      // Fallback for remaining PopupMenuButton / DropdownMenu / MenuAnchor
+      // controls throughout the app. Legacy DropdownButton uses canvasColor;
+      // primary selection actions use LokalChoiceSheet.
+      popupMenuTheme: PopupMenuThemeData(
+        color: t.surface2,
+        surfaceTintColor: Colors.transparent,
+        textStyle: TextStyle(fontFamily: sans, color: t.text, fontSize: 15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: t.border),
+        ),
+        elevation: 8,
+        position: PopupMenuPosition.under,
+      ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        textStyle: TextStyle(fontFamily: sans, color: t.text, fontSize: 15),
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(t.surface2),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          side: WidgetStatePropertyAll(BorderSide(color: t.border)),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+        ),
+      ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(t.surface2),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+          foregroundColor: WidgetStatePropertyAll(t.text),
+          side: WidgetStatePropertyAll(BorderSide(color: t.border)),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          ),
+        ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: t.surface,
+        surfaceTintColor: Colors.transparent,
+        dragHandleColor: t.muted,
+        shape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          side: BorderSide(color: t.border),
+        ),
       ),
       // Keep standard MaterialPageRoute transitions quick, consistent and
       // subtle across the app; screen-specific sheet motions remain in charge

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flick/core/theme/lokal_tokens.dart';
+import 'package:flick/widgets/lokal/lokal_choice_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/core/theme/app_colors.dart';
@@ -127,23 +129,13 @@ class _Uac2StreamConfigState extends ConsumerState<Uac2StreamConfig> {
             context,
             l10n.sampleRate2,
             LucideIcons.activity,
-            DropdownButton<int>(
-              value: _selectedSampleRate,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              items: sampleRates.map((rate) {
-                return DropdownMenuItem(
-                  value: rate,
-                  child: Text(l10n.khz(rate ~/ 1000)),
-                );
-              }).toList(),
-              onChanged: isStreaming
-                  ? null
-                  : (value) {
-                      if (value != null) {
-                        setState(() => _selectedSampleRate = value);
-                      }
-                    },
+            _choiceControl<int>(
+              title: l10n.sampleRate2,
+              current: _selectedSampleRate,
+              values: sampleRates,
+              label: (rate) => l10n.khz(rate ~/ 1000),
+              enabled: !isStreaming,
+              onChanged: (value) => setState(() => _selectedSampleRate = value),
             ),
           ),
           Divider(height: 1, color: AppColors.glassBorder),
@@ -151,23 +143,13 @@ class _Uac2StreamConfigState extends ConsumerState<Uac2StreamConfig> {
             context,
             l10n.bitDepth2,
             LucideIcons.layers,
-            DropdownButton<int>(
-              value: _selectedBitDepth,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              items: bitDepths.map((depth) {
-                return DropdownMenuItem(
-                  value: depth,
-                  child: Text(l10n.bit(depth)),
-                );
-              }).toList(),
-              onChanged: isStreaming
-                  ? null
-                  : (value) {
-                      if (value != null) {
-                        setState(() => _selectedBitDepth = value);
-                      }
-                    },
+            _choiceControl<int>(
+              title: l10n.bitDepth2,
+              current: _selectedBitDepth,
+              values: bitDepths,
+              label: (depth) => l10n.bit(depth),
+              enabled: !isStreaming,
+              onChanged: (value) => setState(() => _selectedBitDepth = value),
             ),
           ),
           Divider(height: 1, color: AppColors.glassBorder),
@@ -175,25 +157,13 @@ class _Uac2StreamConfigState extends ConsumerState<Uac2StreamConfig> {
             context,
             l10n.channels,
             LucideIcons.radio,
-            DropdownButton<int>(
-              value: _selectedChannels,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              items: channels.map((ch) {
-                return DropdownMenuItem(
-                  value: ch,
-                  child: Text(
-                    ch == 1 ? l10n.mono : ch == 2 ? l10n.stereo : l10n.channels3(ch),
-                  ),
-                );
-              }).toList(),
-              onChanged: isStreaming
-                  ? null
-                  : (value) {
-                      if (value != null) {
-                        setState(() => _selectedChannels = value);
-                      }
-                    },
+            _choiceControl<int>(
+              title: l10n.channels,
+              current: _selectedChannels,
+              values: channels,
+              label: (ch) => ch == 1 ? l10n.mono : ch == 2 ? l10n.stereo : l10n.channels3(ch),
+              enabled: !isStreaming,
+              onChanged: (value) => setState(() => _selectedChannels = value),
             ),
           ),
           const SizedBox(height: AppConstants.spacingMd),
@@ -218,6 +188,56 @@ class _Uac2StreamConfigState extends ConsumerState<Uac2StreamConfig> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _choiceControl<T>({
+    required String title,
+    required T current,
+    required List<T> values,
+    required String Function(T) label,
+    required bool enabled,
+    required ValueChanged<T> onChanged,
+  }) {
+    final t = context.lokal;
+    return InkWell(
+      onTap: !enabled ? null : () async {
+        final selected = await showLokalChoiceSheet<T>(
+          context: context,
+          title: title,
+          selected: current,
+          choices: [
+            for (final value in values)
+              LokalChoice(value: value, label: label(value),
+                icon: Icons.graphic_eq_rounded),
+          ],
+        );
+        if (selected != null && mounted) onChanged(selected);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: t.surface2,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: t.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label(current),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: enabled ? t.text : t.muted,
+                  fontSize: 14),
+              ),
+            ),
+            Icon(Icons.keyboard_arrow_down_rounded,
+              color: enabled ? t.accent : t.muted2),
+          ],
+        ),
       ),
     );
   }

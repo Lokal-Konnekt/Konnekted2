@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/lokal/lokal_choice_sheet.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/models/song.dart';
@@ -9,6 +12,8 @@ import 'lokal_library_kit.dart';
 import 'lokal_song_filter.dart';
 
 import 'package:flick/widgets/lokal/lokal_quality.dart';
+
+final DateTime _epochDate = DateTime.fromMillisecondsSinceEpoch(0);
 
 /// Desktop's Simple view sorts.
 enum LokalSongSort {
@@ -56,7 +61,26 @@ class LokalSongBrowser extends ConsumerStatefulWidget {
 class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
   final _search = TextEditingController();
   late LokalSongSort _sort = widget.initialSort;
+  late bool _descending = _defaultDescending(widget.initialSort);
+  Timer? _queryTimer;
   String _query = '';
+
+  static bool _defaultDescending(LokalSongSort sort) =>
+      sort == LokalSongSort.recentlyAdded ||
+      sort == LokalSongSort.mostPlayed ||
+      sort == LokalSongSort.longest;
+
+  void _onSearchChanged(String value) {
+    _queryTimer?.cancel();
+    if (value.isEmpty) {
+      setState(() => _query = '');
+      return;
+    }
+    // Typing should stay responsive with tens of thousands of entries.
+    _queryTimer = Timer(const Duration(milliseconds: 180), () {
+      if (mounted) setState(() => _query = value);
+    });
+  }
   LokalSongLocation _location = LokalSongLocation.all;
   String _audioFilter = 'all';
   LokalSongLocation? _inputLocation;
@@ -66,9 +90,21 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
   Map<String, int>? _inputCounts;
   String? _inputQuery;
   LokalSongSort? _inputSort;
+  bool? _inputDescending;
+  List<Song>? _formatInput;
+  List<String> _cachedFormats = const [];
+
+  List<String> _formats() {
+    if (!identical(_formatInput, widget.songs)) {
+      _formatInput = widget.songs;
+      _cachedFormats = libraryAudioFormats(widget.songs);
+    }
+    return _cachedFormats;
+  }
 
   @override
   void dispose() {
+    _queryTimer?.cancel();
     _search.dispose();
     super.dispose();
   }
@@ -79,6 +115,7 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
         identical(_inputCounts, counts) &&
         _inputQuery == query &&
         _inputSort == _sort &&
+        _inputDescending == _descending &&
         _inputLocation == _location &&
         _inputAudioFilter == _audioFilter &&
         _visibleCache != null) {
@@ -93,40 +130,139 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
                     .contains(query)))
           song,
     ];
+    // Lowercasing inside the sort comparator repeatedly allocates strings.
+    // Precompute the sort keys once per filter/sort change.
+    final titleKeys = <String, String>{
+      for (final song in songs) song.id: song.title.toLowerCase(),
+    };
     int byTitle(Song a, Song b) =>
-        a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        titleKeys[a.id]!.compareTo(titleKeys[b.id]!);
+    final direction = _descending ? -1 : 1;
     switch (_sort) {
       case LokalSongSort.original:
-        break;
+        // This is the one case with no sort key. Reversing the visible list
+        // must never mutate the persisted playlist order.
+        if (_descending) {
+          songs.setAll(0, songs.reversed.toList(growable: false));
+        }
       case LokalSongSort.recentlyAdded:
         songs.sort((a, b) {
-          final c = (b.dateAdded ?? DateTime(1970)).compareTo(
-            a.dateAdded ?? DateTime(1970),
+          final c = (a.dateAdded ?? _epochDate).compareTo(
+            b.dateAdded ?? _epochDate,
           );
-          return c != 0 ? c : byTitle(a, b);
+          return c != 0 ? c * direction : byTitle(a, b);
         });
       case LokalSongSort.title:
-        songs.sort(byTitle);
+        songs.sort((a, b) => byTitle(a, b) * direction);
       case LokalSongSort.artist:
+        final artistKeys = <String, String>{
+          for (final song in songs) song.id: song.artist.toLowerCase(),
+        };
         songs.sort((a, b) {
-          final c = a.artist.toLowerCase().compareTo(b.artist.toLowerCase());
-          return c != 0 ? c : byTitle(a, b);
+          final c = artistKeys[a.id]!.compareTo(artistKeys[b.id]!);
+          return c != 0 ? c * direction : byTitle(a, b);
         });
       case LokalSongSort.mostPlayed:
         songs.sort((a, b) {
-          final c = (counts[b.id] ?? 0).compareTo(counts[a.id] ?? 0);
-          return c != 0 ? c : byTitle(a, b);
+          final c = (counts[a.id] ?? 0).compareTo(counts[b.id] ?? 0);
+          return c != 0 ? c * direction : byTitle(a, b);
         });
       case LokalSongSort.longest:
-        songs.sort((a, b) => b.duration.compareTo(a.duration));
+        songs.sort((a, b) {
+          final c = a.duration.compareTo(b.duration);
+          return c != 0 ? c * direction : byTitle(a, b);
+        });
     }
     _inputSongs = widget.songs;
     _inputCounts = counts;
     _inputQuery = query;
     _inputSort = _sort;
+    _inputDescending = _descending;
     _inputLocation = _location;
     _inputAudioFilter = _audioFilter;
     return _visibleCache = songs;
+  }
+
+  Future<void> _chooseSort(
+    List<LokalSongSort> options,
+    String Function(LokalSongSort) label,
+  ) async {
+    final selected = await showLokalChoiceSheet<LokalSongSort>(
+      context: context,
+      title: 'Sort by',
+      selected: _sort,
+      choices: [
+        for (final sort in options)
+          LokalChoice(
+            value: sort,
+            label: label(sort),
+            icon: switch (sort) {
+              LokalSongSort.original => Icons.format_list_numbered_rounded,
+              LokalSongSort.recentlyAdded => Icons.history_rounded,
+              LokalSongSort.title => Icons.sort_by_alpha_rounded,
+              LokalSongSort.artist => Icons.person_outline_rounded,
+              LokalSongSort.mostPlayed => Icons.bar_chart_rounded,
+              LokalSongSort.longest => Icons.timer_outlined,
+            },
+          ),
+      ],
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _sort = selected;
+      _descending = _defaultDescending(selected);
+    });
+  }
+
+  Future<void> _chooseLocation() async {
+    final selected = await showLokalChoiceSheet<LokalSongLocation>(
+      context: context,
+      title: 'Filter by location',
+      selected: _location,
+      choices: [
+        for (final location in LokalSongLocation.values)
+          LokalChoice(
+            value: location,
+            label: lokalText(location.label),
+            icon: switch (location) {
+              LokalSongLocation.all => Icons.library_music_outlined,
+              LokalSongLocation.phone => Icons.smartphone_rounded,
+              LokalSongLocation.pc => Icons.computer_rounded,
+              LokalSongLocation.other => Icons.cloud_outlined,
+            },
+          ),
+      ],
+    );
+    if (selected != null && mounted) {
+      setState(() => _location = selected);
+    }
+  }
+
+  Future<void> _chooseQuality(List<String> formats) async {
+    final selected = await showLokalChoiceSheet<String>(
+      context: context,
+      title: 'Filter by format and quality',
+      selected: _audioFilter,
+      choices: [
+        const LokalChoice(value: 'all', label: 'All formats and qualities',
+            icon: Icons.tune_rounded),
+        for (final tier in LokalQualityTier.values)
+          LokalChoice(
+            value: 'quality:${tier.name}',
+            label: lokalText(tier.label),
+            icon: Icons.high_quality_rounded,
+          ),
+        for (final format in formats)
+          LokalChoice(
+            value: format,
+            label: libraryAudioFilterLabel(format),
+            icon: Icons.graphic_eq_rounded,
+          ),
+      ],
+    );
+    if (selected != null && mounted) {
+      setState(() => _audioFilter = selected);
+    }
   }
 
   @override
@@ -136,6 +272,7 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
         ? ref.watch(lokalPlayCountsProvider).value ?? const <String, int>{}
         : const <String, int>{};
     final songs = _visible(counts);
+    final formats = _formats();
     final sorts = [
       if (widget.originalLabel != null) LokalSongSort.original,
       for (final sort in LokalSongSort.values)
@@ -159,26 +296,23 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
                     child: LokalSearchField(
                       controller: _search,
                       hint: widget.searchHint,
-                      onChanged: (value) => setState(() => _query = value),
+                      onChanged: _onSearchChanged,
                     ),
                   ),
-                  PopupMenuButton<LokalSongSort>(
-                    tooltip: lokalText(
-                      "Sort: {arg0}",
-                      args: {'arg0': label(_sort)},
+                  IconButton(
+                    tooltip: lokalText("Sort: {arg0}", args: {'arg0': label(_sort)}),
+                    icon: Icon(Icons.sort_rounded, color: t.accent),
+                    onPressed: () => unawaited(_chooseSort(sorts, label)),
+                  ),
+                  IconButton(
+                    tooltip: lokalText(_descending ? 'Descending · switch to ascending'
+                                                  : 'Ascending · switch to descending'),
+                    icon: Icon(
+                      _descending ? Icons.arrow_downward_rounded
+                                  : Icons.arrow_upward_rounded,
+                      color: t.accent,
                     ),
-                    icon: Icon(Icons.swap_vert_rounded, color: t.accent),
-                    color: t.surface2,
-                    initialValue: _sort,
-                    onSelected: (sort) => setState(() => _sort = sort),
-                    itemBuilder: (_) => [
-                      for (final sort in sorts)
-                        CheckedPopupMenuItem(
-                          value: sort,
-                          checked: sort == _sort,
-                          child: Text(label(sort)),
-                        ),
-                    ],
+                    onPressed: () => setState(() => _descending = !_descending),
                   ),
                 ],
               ),
@@ -193,71 +327,25 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
               runSpacing: 4,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                PopupMenuButton<LokalSongLocation>(
+                ActionChip(
                   tooltip: lokalText('Filter by location'),
-                  initialValue: _location,
-                  onSelected: (value) => setState(() => _location = value),
-                  itemBuilder: (_) => [
-                    for (final value in LokalSongLocation.values)
-                      CheckedPopupMenuItem(
-                        value: value,
-                        checked: value == _location,
-                        child: Text(lokalText(value.label)),
-                      ),
-                  ],
-                  child: Chip(
-                    avatar: Icon(
-                      Icons.folder_outlined,
-                      size: 18,
-                      color: t.accent,
-                    ),
-                    label: Text(lokalText(_location.label)),
+                  onPressed: () => unawaited(_chooseLocation()),
+                  avatar: Icon(
+                    Icons.folder_outlined,
+                    size: 18,
+                    color: t.accent,
                   ),
+                  label: Text(lokalText(_location.label)),
                 ),
-                PopupMenuButton<String>(
+                ActionChip(
                   tooltip: lokalText('Filter by format and quality'),
-                  initialValue: _audioFilter,
-                  onSelected: (value) => setState(() => _audioFilter = value),
-                  itemBuilder: (_) => [
-                    CheckedPopupMenuItem(
-                      value: 'all',
-                      checked: _audioFilter == 'all',
-                      child: Text(lokalText('All formats and qualities')),
-                    ),
-                    PopupMenuItem(
-                      enabled: false,
-                      child: Text(lokalText('Quality')),
-                    ),
-                    for (final value in LokalQualityTier.values)
-                      CheckedPopupMenuItem(
-                        value: 'quality:${value.name}',
-                        checked: _audioFilter == 'quality:${value.name}',
-                        child: Text(lokalText(value.label)),
-                      ),
-                    if (libraryAudioFormats(widget.songs).isNotEmpty) ...[
-                      const PopupMenuDivider(),
-                      PopupMenuItem(
-                        enabled: false,
-                        child: Text(lokalText('Format')),
-                      ),
-                      for (final value in libraryAudioFormats(widget.songs))
-                        CheckedPopupMenuItem(
-                          value: value,
-                          checked: _audioFilter == value,
-                          child: Text(libraryAudioFilterLabel(value)),
-                        ),
-                    ],
-                  ],
-                  child: Chip(
-                    avatar: Icon(
-                      Icons.equalizer_rounded,
-                      size: 18,
-                      color: t.accent,
-                    ),
-                    label: Text(
-                      lokalText(libraryAudioFilterLabel(_audioFilter)),
-                    ),
+                  onPressed: () => unawaited(_chooseQuality(formats)),
+                  avatar: Icon(
+                    Icons.equalizer_rounded,
+                    size: 18,
+                    color: t.accent,
                   ),
+                  label: Text(lokalText(libraryAudioFilterLabel(_audioFilter))),
                 ),
                 if (_location != LokalSongLocation.all ||
                     _audioFilter != 'all') ...[

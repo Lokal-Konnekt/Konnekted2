@@ -160,7 +160,7 @@ jobs:
           cat > "$RUNNER_TEMP/mobile-release-notes.md" <<EOF_NOTES
           ![Lokal Mobile release]($BANNER_URL)
 
-          **Lokal Mobile $VERSION** · Android · ARM64 + ARMv7 · versionCode $CODE
+          **Lokal Mobile $VERSION** · Android · ARM64 · versionCode $CODE
 
           Stable Android release. Review the changes below before publishing.
 

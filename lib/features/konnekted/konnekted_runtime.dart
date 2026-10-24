@@ -68,12 +68,15 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     final message = QueuePreResolver.shared.status.value;
     if (message != null) {
       _playbackProgress.update(message);
-    } else if (_player.isNetworkLoadingNotifier.value &&
-        _player.currentSongNotifier.value?.sourcePackage ==
-            'konnekted.progressive') {
-      // HTTP URLs load directly in Media3. The pending resolver returns as
-      // soon as the URL is ready; keep the loading toast until audio starts.
-      _playbackProgress.update('Buffering HTTP audio…');
+    } else if (_player.isNetworkLoadingNotifier.value) {
+      // The loading state is set at the click/Next event, before source
+      // verification, provider resolution or even engine initialization.
+      final title = _player.onlinePreparationTitleNotifier.value ??
+          _player.currentSongNotifier.value?.title;
+      _playbackProgress.update(
+        title == null || title.isEmpty ? 'Preparing audio…'
+            : 'Preparing $title…',
+      );
     } else {
       _playbackProgress.clear();
     }
@@ -144,7 +147,9 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _player.isNetworkLoadingNotifier.addListener(_updateIconBusy);
     _player.isNetworkLoadingNotifier.addListener(_onPreparationStatus);
     _player.currentSongNotifier.addListener(_onPreparationStatus);
+    _player.onlinePreparationTitleNotifier.addListener(_onPreparationStatus);
     _updateIconBusy();
+    _onPreparationStatus();
     _run(
       'Discord presence',
       () => DiscordPresenceService.instance.start(_player),
@@ -348,6 +353,7 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _player.isNetworkLoadingNotifier.removeListener(_updateIconBusy);
     _player.isNetworkLoadingNotifier.removeListener(_onPreparationStatus);
     _player.currentSongNotifier.removeListener(_onPreparationStatus);
+    _player.onlinePreparationTitleNotifier.removeListener(_onPreparationStatus);
     _jobProgress.dispose();
     _jobNotification.dispose();
     _widgetSync.close();

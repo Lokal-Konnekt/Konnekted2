@@ -4,6 +4,7 @@ import 'package:flick/l10n/l10n.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
@@ -26,6 +27,26 @@ typedef LokalCoverBuilder = Widget Function(AlbumGroup album);
 /// to flip it over to its track list. Without [onSelect], a tap brings a side
 /// cover forward and flips the facing one.
 class LokalCoverFlow extends StatefulWidget {
+  // Public, production-owned geometry for the desktop/iTunes calibration.
+  // Tests exercise THESE equations, rather than local copies that could drift.
+  static const double _firstCenter = .91;
+  static const double _farStep = .18;
+  static const double _sideDepth = .60;
+
+  @visibleForTesting
+  static double centerDistance(double distance) {
+    final a = distance.abs();
+    if (a >= 1) return _firstCenter + (a - 1) * _farStep;
+    return .90 * a + .75 * a * a - .74 * a * a * a;
+  }
+
+  @visibleForTesting
+  static double depthDistance(double distance) {
+    final a = distance.abs();
+    if (a >= 1) return _sideDepth;
+    return _sideDepth * a * a * (3 - 2 * a);
+  }
+
   const LokalCoverFlow({
     super.key,
     required this.albums,
@@ -86,28 +107,14 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   // outer corners project to x=±1.067, y≈±.46 cover-widths; its inner edge
   // narrows to x=±.429, y≈±.325 (before vanishing-point adjustment).
   // Inset-only hinges could not reproduce these diagonal iTunes triangles.
-  static const double _firstCenter = .91;
-  static const double _farStep = .18;
-  static const double _sideDepth = .60;
   static const double _fanAngle = 60;
   static const double _perspective = 1.92;
   static const double _vanishY = .16;
 
-  static double _centerDistance(double distance) {
-    final a = distance.abs();
-    if (a >= 1) return _firstCenter + (a - 1) * _farStep;
-    return .90 * a + .75 * a * a - .74 * a * a * a;
-  }
-
-  static double _depthDistance(double distance) {
-    final a = distance.abs();
-    if (a >= 1) return _sideDepth;
-    return _sideDepth * a * a * (3 - 2 * a);
-  }
-
   static double _projectedCenter(double distance) {
     final a = distance.abs();
-    return _centerDistance(a) / (1 + _depthDistance(a) / _perspective);
+    return LokalCoverFlow.centerDistance(a) /
+        (1 + LokalCoverFlow.depthDistance(a) / _perspective);
   }
   double _stageWidth = 0;
 
@@ -350,13 +357,13 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final side = d.sign;
     final near = ad.clamp(0.0, 1.0);
     final dx = reduce ? d * size * 1.06
-        : side * size * _centerDistance(ad);
+        : side * size * LokalCoverFlow.centerDistance(ad);
     // Both front and side covers rotate about their own center. The *entire*
     // translated panel must pass through the same perspective divide; moving
     // dx outside perspective makes the reference triangles impossible.
     final angle = reduce ? 0.0
         : -side * (2 * near - near * near) * _fanAngle * math.pi / 180;
-    final depth = reduce ? 0.0 : -size * _depthDistance(ad);
+    final depth = reduce ? 0.0 : -size * LokalCoverFlow.depthDistance(ad);
     final facing = i == _index;
     final flip = facing ? _flip.value : 0.0;
     final vanish = size * _vanishY;

@@ -47,27 +47,12 @@ void main() {
     expect(opus.resolution, '320kbps');
   });
 
-  test('Amazon search labels requested tier without inventing measurement', () {
-    final addon = MorneyeAddon(
-      key: 'amzn', name: 'amazon', digest: 'test', installedAt: 0,
-      methods: const ['searchTracks', 'download'],
-      manifest: {
-        'name': 'amazon',
-        'type': ['download_provider'],
-        'qualityOptions': [
-          {'id': 'best', 'label': 'FLAC Best Available', 'kind': 'lossless'},
-          {'id': 'opus', 'label': 'Opus 320kbps', 'kind': 'lossy'},
-        ],
-      },
-    );
-    expect(morneyeAdvertisedOrRequestedQuality(
-      addon: addon, advertised: null,
-      preferences: const {'downloadQuality': 'best'},
-    ), 'Requested: FLAC Best Available');
-    expect(morneyeAdvertisedOrRequestedQuality(
-      addon: addon, advertised: '24bit/96kHz',
-      preferences: const {'downloadQuality': 'best'},
-    ), '24bit/96kHz');
+  test('Amazon search never labels configured FLAC preference as track quality', () {
+    expect(morneyeAdvertisedQuality(null), isNull);
+    expect(morneyeAdvertisedQuality(''), isNull);
+    expect(morneyeAdvertisedQuality('  '), isNull);
+    expect(morneyeAdvertisedQuality('24bit/96kHz'), '24bit/96kHz');
+    expect(catalogueAudioDetails(quality: morneyeAdvertisedQuality(null)), isEmpty);
   });
 
   test('catalogue quality includes only supplied bit depth and rate', () {

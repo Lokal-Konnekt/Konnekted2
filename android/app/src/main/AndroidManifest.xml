@@ -45,6 +45,10 @@
         android:roundIcon="@mipmap/ic_lokal_lime"
         android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="true">
+        <!-- Android Auto discovers the existing music MediaBrowserService. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
             android:value="com.mossapps.flick.CastOptionsProvider" />
@@ -242,8 +246,12 @@
         <!-- Media Notification Service for background playback -->
         <service
             android:name=".MusicNotificationService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
 
         <!-- Publishes DLNA renderers as MediaRouter routes for system UI -->
         <service

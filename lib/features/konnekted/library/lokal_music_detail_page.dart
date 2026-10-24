@@ -30,6 +30,7 @@ import 'package:flick/providers/songs_provider.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/widgets/common/cached_image_widget.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
+import 'package:flick/widgets/lokal/lokal_choice_sheet.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 import 'package:flick/features/link/lokal_ghost_availability.dart';
 
@@ -543,45 +544,12 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
                               _share,
                             ),
                             const SizedBox(width: 10),
-                            PopupMenuButton<String>(
+                            IconButton(
                               tooltip: lokalText('More'),
-                              color: t.surface,
-                              icon: const Icon(
-                                Icons.more_horiz_rounded,
-                                color: Colors.white,
+                              icon: Icon(Icons.more_horiz_rounded, color: t.text),
+                              onPressed: () => unawaited(
+                                _showMenu(rows, local, allLiked),
                               ),
-                              onSelected: (value) =>
-                                  _menu(value, rows, local, allLiked),
-                              itemBuilder: (_) => [
-                                if (local.isNotEmpty)
-                                  PopupMenuItem(
-                                    value: 'playlist',
-                                    child: Text(lokalText('Add to a playlist')),
-                                  ),
-                                if (local.isNotEmpty)
-                                  PopupMenuItem(
-                                    value: 'like',
-                                    child: Text(
-                                      allLiked
-                                          ? lokalText('Unlike all')
-                                          : lokalText('Like all'),
-                                    ),
-                                  ),
-                                if (rows.isNotEmpty)
-                                  PopupMenuItem(
-                                    value: 'queue',
-                                    child: Text(lokalText('Add to queue')),
-                                  ),
-                                if (!widget.isArtist && local.isNotEmpty)
-                                  PopupMenuItem(
-                                    value: 'identify',
-                                    child: Text(lokalText('Identify album')),
-                                  ),
-                                PopupMenuItem(
-                                  value: 'radio',
-                                  child: Text(lokalText('Start artist radio')),
-                                ),
-                              ],
                             ),
                           ],
                         ),
@@ -944,6 +912,35 @@ class _LokalMusicDetailPageState extends ConsumerState<LokalMusicDetailPage> {
         await notifier.removeFavorite(song.id);
       }
     }
+  }
+
+  Future<void> _showMenu(
+    List<_Entry> rows,
+    List<Song> local,
+    bool allLiked,
+  ) async {
+    final value = await showLokalChoiceSheet<String>(
+      context: context,
+      title: widget.title,
+      choices: [
+        if (local.isNotEmpty)
+          LokalChoice(value: 'playlist',
+            label: lokalText('Add to a playlist'), icon: Icons.playlist_add_rounded),
+        if (local.isNotEmpty)
+          LokalChoice(value: 'like',
+            label: allLiked ? lokalText('Unlike all') : lokalText('Like all'),
+            icon: allLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded),
+        if (rows.isNotEmpty)
+          LokalChoice(value: 'queue', label: lokalText('Add to queue'),
+            icon: Icons.queue_music_rounded),
+        if (!widget.isArtist && local.isNotEmpty)
+          LokalChoice(value: 'identify', label: lokalText('Identify album'),
+            icon: Icons.album_rounded),
+        LokalChoice(value: 'radio', label: lokalText('Start artist radio'),
+          icon: Icons.radio_rounded),
+      ],
+    );
+    if (value != null && mounted) await _menu(value, rows, local, allLiked);
   }
 
   Future<void> _menu(

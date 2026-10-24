@@ -167,7 +167,7 @@ final konnektedMixesProvider = FutureProvider<List<LokalMix>>((ref) async {
   return mixes;
 });
 
-/// Made for you: two songs from each of the first six mixes, picked once
+/// Made for you: four songs from each of the first six mixes, picked once
 /// per run (desktop's rule).
 final konnektedMadeForYouProvider =
     Provider<AsyncValue<List<LokalMadeForYouPick>>>(

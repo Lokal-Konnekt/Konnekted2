@@ -337,7 +337,10 @@ class LokalPlaylistsPage extends ConsumerWidget {
                         dimension: 64,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: LokalPlaylistArtwork(playlist: playlist, songs: songs),
+                          child: LokalPlaylistArtwork(
+                  playlist: playlist,
+                  songs: lokalPlaylistCoverSongs(playlist, libraryById),
+                ),
                         ),
                       ),
                       const SizedBox(width: 14),

@@ -677,16 +677,11 @@ Future<List<_PlaybackSource>> _morneyeSources(
               ? tidalRequestedQualityLabel(
                   configured: configured, options: addon.qualityOptions)
               : null;
-          final selectedQuality = addon.qualityOptions.length <= 1 ||
-                  configured == 'best'
-              ? null
-              : morneyeSelectedQualityLabel(
-                  configured: configured, options: addon.qualityOptions);
-          // Tidal search metadata commonly omits the file tier. Display the
-          // actual requested tier independently; never borrow catalogue-max
-          // codec, sample rate or bit depth for a lower-quality selection.
-          final tierOverridesCatalogue = requestedQuality != null ||
-              selectedQuality != null;
+          // A configured tier is not proof of the rendered stream's quality.
+          // Retain Tidal's *per-track catalogue availability* regardless of
+          // the selected quality; Search labels it as catalogue data, not
+          // verified playback. Suppressing these fields broke first-search
+          // Tidal tags until a song had been played.
           // This fingerprint is the same one used for the verified playback
           // cache. Another account, requested tier or add-on version cannot
           // borrow a different recording's quality badge.
@@ -708,15 +703,12 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 File(cached.filePath!).existsSync()
                 ? cached : null;
             final details = morneyeSearchAudioDetails(
-              // An actually downloaded AAC/Opus rendition supersedes
-              // catalogue FLAC/HiRes metadata for that same song. Never
-              // combine FLAC max properties with a lower selected codec.
-              codec: verified != null || tierOverridesCatalogue
-                  ? null : song.codec,
-              bitDepth: verified != null || tierOverridesCatalogue
-                  ? null : song.bitDepth,
-              sampleRate: verified != null || tierOverridesCatalogue
-                  ? null : song.sampleRate,
+              // Previously probed audio takes precedence over catalogue
+              // maximums. Otherwise preserve provider-advertised measurements
+              // even when the requested rendition may be lower.
+              codec: verified != null ? null : song.codec,
+              bitDepth: verified != null ? null : song.bitDepth,
+              sampleRate: verified != null ? null : song.sampleRate,
               verifiedPlayback: verified,
             );
             results.add(OnlineResult(DiscoveryTrack(
@@ -730,14 +722,13 @@ Future<List<_PlaybackSource>> _morneyeSources(
               sourceName: addon.displayName,
               artwork: song.thumbnail,
               atmosAvailable: song.atmosAvailable,
-              // A chosen HIGH, LOSSLESS or Atmos quality is a preference,
-              // not a property of every returned search result. Only the
-              // observed version earns a badge; otherwise leave it blank.
+              // Tidal's search metadata describes catalogue availability,
+              // while requestedQuality describes the user's download option.
+              // Both must survive to the badge formatter so it can distinguish
+              // them without pretending to have probed the audio file.
               catalogueQuality: verified != null
                   ? verified.resolution
-                  : tierOverridesCatalogue
-                      ? null
-                      : morneyeAdvertisedQuality(song.quality),
+                  : morneyeAdvertisedQuality(song.quality),
               requestedQuality: verified == null ? requestedQuality : null,
               catalogueCodec: details.codec,
               catalogueBitDepth: details.bitDepth,

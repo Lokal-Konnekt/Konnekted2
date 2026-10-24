@@ -3,12 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flick/features/morneye/morneye_auth_sheet.dart';
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:flick/features/discovery/discovery_artwork.dart'
     show discoveryImageUrl;
 import 'package:flick/features/discovery/discovery_http.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/discovery_playback.dart';
+import 'package:flick/features/discovery/discovery_progressive_streams.dart';
 import 'package:flick/features/discovery/discovery_registry.dart';
 import 'package:flick/features/discovery/discovery_settings.dart';
 import 'package:flick/features/discovery/discovery_sources.dart';
@@ -18,6 +23,7 @@ import 'package:flick/features/discovery/spotify_discovery.dart';
 import 'package:flick/features/discovery/youtube_audio.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_store.dart';
+import 'package:flick/features/morneye/morneye_live_playback.dart';
 import 'package:flick/features/morneye/morneye_packages.dart';
 import 'package:flick/features/morneye/morneye_runtime.dart';
 import 'package:flick/features/morneye/morneye_service.dart';
@@ -507,12 +513,40 @@ class OnlineSource {
 
 typedef _PlaybackSource = OnlineSource;
 
+// Desktop has a reusable audio-cache for already downloaded Morneye tracks.
+// Keep a small in-session index of verified, existing cache files so Replay,
+// repeat, and revisiting the same Search result do not repeat provider
+// verification and a full transfer. Never key only by track ID: changing
+// addon binary, requested tier, or account/settings must not reuse old audio.
+final _morneyeReadyPlayback = <String, Song>{};
+const _maxMorneyeReadyPlayback = 32;
+
+String morneyePlaybackCacheKey({
+  required String addonKey,
+  required String addonDigest,
+  required String trackId,
+  required String settingsFingerprint,
+  required String requestedTier,
+}) => sha256.convert(utf8.encode(jsonEncode([
+  addonKey, addonDigest, trackId, settingsFingerprint, requestedTier,
+]))).toString();
+
+void _rememberMorneyePlayback(String key, Song song) {
+  _morneyeReadyPlayback.remove(key);
+  _morneyeReadyPlayback[key] = song;
+  while (_morneyeReadyPlayback.length > _maxMorneyeReadyPlayback) {
+    _morneyeReadyPlayback.remove(_morneyeReadyPlayback.keys.first);
+  }
+}
+
 /// Your Morneye add-ons that can play songs right now, as playback sources.
 Future<List<_PlaybackSource>> _morneyeSources(
   MorneyeService service,
   DiscoveryPlaybackCache Function() cache,
   void Function(String status)? onStatus, {
   Future<void>? cancel,
+  bool forDownload = false,
+  String? selectedSourceId,
 }) async {
   final List<MorneyeAddon> addons;
   final MorneyePackages packages;
@@ -524,6 +558,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
   }
   return [
     for (final addon in addons)
+      if (selectedSourceId == null || selectedSourceId == 'a-${addon.key}')
       OnlineSource(
         id: 'a-${addon.key}',
         name: addon.displayName,
@@ -558,6 +593,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 artwork: song.thumbnail,
                 atmosAvailable: song.atmosAvailable,
                 catalogueQuality: song.quality,
+                catalogueCodec: song.codec,
                 catalogueBitDepth: song.bitDepth,
                 catalogueSampleRate: song.sampleRate,
               ),
@@ -583,6 +619,31 @@ Future<List<_PlaybackSource>> _morneyeSources(
             throw const DiscoveryException('This track has no advertised Atmos version.');
           }
           final tryAtmos = found.atmosRequested;
+          final requestedTier = tryAtmos
+              ? 'DOLBY_ATMOS'
+              : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : '');
+          final cacheKey = morneyePlaybackCacheKey(
+            addonKey: addon.key,
+            addonDigest: addon.digest,
+            trackId: found.id,
+            settingsFingerprint:
+                sha256.convert(utf8.encode(jsonEncode(packages.settings(addon)))).toString(),
+            requestedTier: requestedTier,
+          );
+          if (!forDownload && !found.atmosDownload) {
+            final cached = _morneyeReadyPlayback[cacheKey];
+            if (cached?.filePath case final path?
+                when File(path).existsSync() && File(path).lengthSync() > 0) {
+              return cached;
+            }
+            _morneyeReadyPlayback.remove(cacheKey);
+          }
+          // Mirrors desktop: only plain, unprocessed FLAC with a known
+          // byte length can be played while its download grows. Atmos,
+          // explicit Save and post-processed formats remain full-file jobs.
+          final live = !forDownload && !tryAtmos && !found.atmosDownload
+              ? MorneyeLiveSession()
+              : null;
           if (tryAtmos && !found.atmosDownload && !await AtmosPlaybackSupport.available) {
             AtmosDiagnostics.record('request_rejected', {'reason': 'decoder_unavailable'});
             throw const DiscoveryException(
@@ -595,7 +656,8 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   addon.key,
                   found.id,
                   quality: quality,
-                  forPlayback: !found.atmosDownload,
+                  forPlayback: !forDownload && !found.atmosDownload,
+                  onTransfer: live?.observe,
                   onProgress: ({percent, message}) {
                 // A runtime winding down after a failure or a cancel says
                 // nothing more: no stale "downloading" after the error.
@@ -613,11 +675,62 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 'quality': 'DOLBY_ATMOS',
                 'downloadOnly': found.atmosDownload,
               });
-              download = await fetch(
+              final transfer = fetch(
                 quality: tryAtmos
                     ? 'DOLBY_ATMOS'
                     : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
               );
+              // The host only exposes a live descriptor after a 64 KiB FLAC
+              // header check and a known full length. Race that safe first
+              // buffer against ordinary completion; never delay short tracks.
+              final canStream = live != null && await Future.any<bool>([
+                live.playable.then((_) => true),
+                transfer.then((_) => false),
+              ]);
+              if (canStream) {
+                final session = live!;
+                final handle = MorneyeLiveRegistry.instance.register(session);
+                // Retain the transfer after Now Playing starts. Adoption,
+                // validation and staging cleanup stay asynchronous, while
+                // late failures propagate to the ranged audio reader.
+                unawaited(
+                  transfer.then((completed) async {
+                    try {
+                      final cached = await cache().adopt(found, completed.file);
+                      final path = cached.filePath;
+                      if (path == null) {
+                        throw StateError('Completed audio has no cache path');
+                      }
+                      session.promote(path);
+                      _rememberMorneyePlayback(cacheKey, cached);
+                      QueuePreResolver.shared.schedule();
+                    } catch (error) {
+                      session.fail(error);
+                      QueuePreResolver.shared.schedule();
+                    } finally {
+                      await completed.cleanup();
+                    }
+                  }).catchError((Object error, StackTrace stack) {
+                    session.fail(error);
+                    QueuePreResolver.shared.schedule();
+                  }),
+                );
+                onStatus?.call('Streaming ${found.title} from ${addon.displayName}…');
+                return Song(
+                  id: 'discovery:${found.key.hashCode}:morneye-live',
+                  title: found.title,
+                  artist: found.artist,
+                  album: found.album,
+                  albumArt: found.artwork,
+                  duration: found.duration ?? Duration.zero,
+                  fileType: 'FLAC',
+                  filePath: handle,
+                  sourcePackage: 'konnekted.morneye-live',
+                  remoteId: found.id,
+                  isExternal: true,
+                );
+              }
+              download = await transfer;
               if (tryAtmos) {
                 AtmosDiagnostics.record('download_complete', {
                   'quality': 'DOLBY_ATMOS',
@@ -708,6 +821,9 @@ Future<List<_PlaybackSource>> _morneyeSources(
               'encoded': adopted.atmosEncoded,
               'outcome': 'ready',
             });
+            if (!forDownload && !found.atmosDownload) {
+              _rememberMorneyePlayback(cacheKey, adopted);
+            }
             return adopted;
           } catch (error) {
             if (tryAtmos) AtmosDiagnostics.record('cache_adopt_error', {
@@ -771,18 +887,24 @@ class MorneyeProgressText {
 
   /// The line to show now, or null when it says what was said already.
   String? update({double? percent, String? message}) {
-    if (percent != null && percent.isFinite && percent > 0) {
-      _percent = percent.clamp(0, 100).round();
+    if (percent != null && percent.isFinite && percent >= 0) {
+      final measured = percent.clamp(0, 100).round();
+      _percent = _percent == null || measured > _percent! ? measured : _percent;
     }
     final words = message?.trim() ?? '';
     final prefix = 'Getting $title from $source…';
     final percentText = _percent == null ? '' : ' $_percent%';
     final RegExp numbered = RegExp(r'\d+(\.\d+)?\s*%');
+    // An add-on may keep emitting its initial 5% even after host transfer
+    // bytes/segments advance. Prefer the highest measured progress instead
+    // of letting a stale guest message jump the toast backwards.
+    final normalizedWords = _percent == null ? words
+        : words.replaceAllMapped(numbered, (_) => '${_percent!}%');
     final text = words.isEmpty
         ? (_percent == null ? prefix : '$prefix$percentText')
-        : numbered.hasMatch(words)
-        ? '$prefix ${words.replaceAll(RegExp(r'\s+'), ' ')}'
-        : '$prefix ${words.replaceAll(RegExp(r'\s+'), ' ')}$percentText';
+        : numbered.hasMatch(normalizedWords)
+        ? '$prefix ${normalizedWords.replaceAll(RegExp(r'\s+'), ' ')}'
+        : '$prefix ${normalizedWords.replaceAll(RegExp(r'\s+'), ' ')}$percentText';
     if (text == _said) return null;
     _said = text;
     return text;
@@ -809,6 +931,32 @@ DiscoveryPlaybackCache _playbackCache(
 
 /// YouTube Music, then your web add-ons, then your Morneye add-ons:
 /// desktop's order.
+/// HTTP add-ons provide an independently authorized progressive HTTPS URL.
+/// Pass it directly to Android Media3. Unlike download-only Morneye sources,
+/// no full-file staging or format probe is needed before the first audio
+/// frame. Never store signed URLs in a queue or persistence layer.
+Song progressiveAddonSong(DiscoveryTrack track, ResolvedDiscoveryAudio audio) {
+  final handle = DiscoveryProgressiveStreams.instance.register(audio.url);
+  final artwork = track.artwork;
+  final ext = audio.url.pathSegments.isEmpty
+      ? '' : audio.url.pathSegments.last.split('.').last.toLowerCase();
+  final codec = const {'flac', 'mp3', 'm4a', 'aac', 'ogg', 'opus', 'wav', 'webm'}
+      .contains(ext) ? ext.toUpperCase() : 'ONLINE';
+  return Song(
+    id: 'discovery:${track.key.hashCode}:progressive',
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    albumArt: artwork,
+    duration: track.duration ?? Duration.zero,
+    fileType: codec,
+    filePath: handle,
+    sourcePackage: 'konnekted.progressive',
+    remoteId: track.id,
+    isExternal: true,
+  );
+}
+
 Future<List<OnlineSource>> _playbackSources(
   DiscoveryHttp web,
   DiscoverySettings settings,
@@ -816,6 +964,9 @@ Future<List<OnlineSource>> _playbackSources(
   void Function(String status)? onStatus,
   MorneyeService morneye, {
   Future<void>? cancel,
+  bool forDownload = false,
+  bool includeMorneye = true,
+  String? selectedSourceId,
 }) async {
   final registry = DiscoverySourceRegistry(web, settings);
   final youtube = YoutubeAudio(web);
@@ -830,6 +981,7 @@ Future<List<OnlineSource>> _playbackSources(
       play: (found) => youtube.prepare(found, cache(), cancel: cancel),
     ),
     for (final addon in registry.addons)
+      if (selectedSourceId == null || selectedSourceId == 'w-${addon.displayName}')
       OnlineSource(
         id: 'w-${addon.displayName}',
         name: addon.displayName,
@@ -838,13 +990,33 @@ Future<List<OnlineSource>> _playbackSources(
           for (final track in await addon.search(query))
             OnlineResult(track, artwork: track.artwork),
         ],
-        play: (found) async => cache().prepare(
-          found,
-          await registry.resolve(found),
-          cancel: cancel,
-        ),
+        play: (found) async {
+          onStatus?.call('Connecting to ${addon.displayName}…');
+          final audio = await registry.resolve(
+            found, cancel: cancel, forDownload: forDownload,
+          );
+          if (forDownload) {
+            return cache().prepare(
+              found, audio, cancel: cancel,
+              onProgress: (received) {
+                if (audio.length case final total? when total > 0) {
+                  onStatus?.call('Downloading from ${addon.displayName}… '
+                      '${(received * 100 / total).clamp(0, 100).round()}%');
+                } else {
+                  onStatus?.call('Downloading from ${addon.displayName}…');
+                }
+              },
+            );
+          }
+          final song = progressiveAddonSong(found, audio);
+          onStatus?.call('Buffering from ${addon.displayName}…');
+          return song;
+        },
       ),
-    ...await _morneyeSources(morneye, cache, onStatus, cancel: cancel),
+    if (includeMorneye)
+      ...await _morneyeSources(morneye, cache, onStatus,
+        cancel: cancel, forDownload: forDownload,
+        selectedSourceId: selectedSourceId),
   ], (source) => source.id);
 }
 
@@ -885,12 +1057,17 @@ Future<Song> playOnlineTrack(
   DiscoverySettingsStore? store,
   MorneyeService? morneye,
   http.Client? client,
+  bool forDownload = false,
 }) async {
   var settings = const DiscoverySettings();
-  try {
-    settings = await (store ?? DiscoverySettingsStore()).load();
-  } catch (_) {
-    // Unreadable add-on settings still leave YouTube Music.
+  // The chosen native YouTube or Morneye source has no dependency on HTTP
+  // addon settings. Avoid storage I/O on the time-critical playback path.
+  if (sourceId.startsWith('w-')) {
+    try {
+      settings = await (store ?? DiscoverySettingsStore()).load();
+    } catch (_) {
+      // Missing/disabled sources are reported by source resolution.
+    }
   }
   final owned = client == null;
   final transport = client ?? http.Client();
@@ -903,6 +1080,11 @@ Future<Song> playOnlineTrack(
       onStatus,
       morneye ?? MorneyeService.instance,
       cancel: cancel,
+      forDownload: forDownload,
+      // HTTP and native YouTube playback must not wait for unrelated Morneye
+      // add-on initialization or verification before source resolution.
+      includeMorneye: sourceId.startsWith('a-'),
+      selectedSourceId: sourceId,
     );
     final source = sources.where((s) => s.id == sourceId).firstOrNull;
     if (source == null) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -160,6 +161,54 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Play Dolby Atmos'), findsNothing);
     expect(find.text('Download Dolby Atmos'), findsNothing);
+  });
+
+  testWidgets('quality badges show provider metadata and an explicit unknown state', (tester) async {
+    final httpAddon = OnlineSource(
+      id: 'w-http-quality', name: 'HTTP Audio', addon: true,
+      results: (_) async => [
+        const OnlineResult(DiscoveryTrack(
+          id: 'lossless', title: 'Reported FLAC', artist: 'Artist',
+          source: DiscoverySource.addon, catalogueCodec: 'FLAC',
+          catalogueBitDepth: 24, catalogueSampleRate: 96000,
+        )),
+        const OnlineResult(DiscoveryTrack(
+          id: 'unknown', title: 'Unspecified codec', artist: 'Artist',
+          source: DiscoverySource.addon,
+        )),
+      ],
+      play: (_) async => throw const DiscoveryException('not needed'),
+    );
+    await _pump(tester, sources: [httpAddon]);
+    expect(find.text('Reported FLAC'), findsOneWidget);
+    expect(find.text('FLAC · 24-bit / 96 kHz'), findsOneWidget);
+    expect(find.text('Quality unknown'), findsOneWidget);
+  });
+
+  testWidgets('tap shows preparation toast before slow provider verification', (tester) async {
+    final verified = Completer<bool>();
+    final player = _FakePlayer();
+    final source = OnlineSource(
+      id: 'slow-http',
+      name: 'HTTP Music',
+      addon: true,
+      verify: (_) => verified.future,
+      results: (_) async => [
+        const OnlineResult(DiscoveryTrack(
+          id: 'song', title: 'Preparing now', artist: 'Artist',
+          source: DiscoverySource.addon,
+        )),
+      ],
+      play: (_) async => throw StateError('not reached'),
+    );
+    await _pump(tester, sources: [source], player: player);
+    await tester.tap(find.text('Preparing now'));
+    await tester.pump();
+    expect(find.textContaining('Preparing Preparing now'), findsOneWidget);
+    expect(player.played, isEmpty);
+    verified.complete(true);
+    await tester.pumpAndSettle();
+    expect(player.played.single.title, 'Preparing now');
   });
 
   testWidgets('add-ons appear as sources and their results play on tap', (

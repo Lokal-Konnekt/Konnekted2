@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flick/models/song.dart';
+import 'package:flick/features/discovery/discovery_progressive_streams.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
 import 'package:flutter/foundation.dart';
@@ -83,6 +84,21 @@ class _Lookups {
 }
 
 void main() {
+  test('pre-resolved HTTP streams are reusable without a local cache file', () {
+    final registry = DiscoveryProgressiveStreams.instance;
+    registry.clear();
+    addTearDown(registry.clear);
+    final handle = registry.register(Uri.parse('https://cdn.example.com/audio.flac'));
+    final song = Song(
+      id: 'remote', title: 'Song', artist: 'Artist',
+      duration: Duration.zero, fileType: 'FLAC', filePath: handle,
+      sourcePackage: 'konnekted.progressive',
+    );
+    expect(QueuePreResolver.isPlayableResolvedSource(song), isTrue);
+    registry.clear();
+    expect(QueuePreResolver.isPlayableResolvedSource(song), isFalse);
+  });
+
   testWidgets('a stalled lookup cancels and ignores its late answer', (
     tester,
   ) async {

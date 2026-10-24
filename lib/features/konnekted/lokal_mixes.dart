@@ -223,11 +223,11 @@ List<LokalMix> lokalMixes({
   return mixes;
 }
 
-/// Made for you's size: two songs from each of the first six mixes.
-const lokalMadeForYouPerMix = 2;
+/// Made for you / Home Cover Flow: four songs per mix, first six mixes (desktop parity).
+const lokalMadeForYouPerMix = 4;
 const lokalMadeForYouMixes = 6;
 
-/// Two songs from each of the first six [mixes], no song twice (a mix whose
+/// Four songs from each of the first six [mixes], no song twice (a mix whose
 /// songs are already picked gives others), in mix order.
 List<LokalMadeForYouPick> pickMadeForYou(
   List<LokalMix> mixes, {
@@ -256,7 +256,7 @@ List<LokalMadeForYouPick>? _picked;
 void refreshLokalMadeForYou() => _picked = null;
 
 /// Keep this run's valid picks, filling newly available mixes as the library
-/// loads. A partial initial snapshot must not freeze Cover Flow at two songs.
+/// loads. A partial initial snapshot must not freeze Cover Flow at four songs.
 List<LokalMadeForYouPick> lokalMadeForYou(
   List<LokalMix> mixes, {
   Random? random,

@@ -213,7 +213,12 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     bool atmos = false,
     List<OnlineResult>? results,
   }) async {
-    if (!await _verify(source)) return;
+    // Source verification can take seconds: feedback must precede its await.
+    _progress.update('Preparing ${result.track.title} from ${source.name}…');
+    if (!await _verify(source)) {
+      _progress.clear();
+      return;
+    }
     if (atmos) {
       if (!result.track.atmosAvailable) {
         _say('This track has no advertised Dolby Atmos version.');
@@ -244,11 +249,15 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
       atmos: atmos,
       pendingSong: (track) => createPending(source, track),
     );
-    // Use the source's actual result order. Pending successors will be
-    // resolved four tracks ahead; a skip must not lose the selected row.
-    await ref.read(playerProvider.notifier).play(
-      playback.selected, playlist: playback.queue,
-    );
+    // Preserve the search queue and four-ahead preload while keeping
+    // immediate feedback for the selected song and its source verification.
+    try {
+      await ref.read(playerProvider.notifier).play(
+        playback.selected, playlist: playback.queue,
+      );
+    } finally {
+      _progress.clear();
+    }
   }
 
   /// Play next / Add to queue: a placeholder that's found and downloaded
@@ -314,7 +323,8 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
       final prepare =
           widget.prepare ??
           (source, track, onStatus) =>
-              playOnlineTrack(source.id, track, onStatus: onStatus);
+              playOnlineTrack(source.id, track, onStatus: onStatus,
+                forDownload: true);
       final song = await prepare(source, track, (message) {
         if (mounted && _saving.contains(key)) _progress.update(message);
       });
@@ -593,6 +603,12 @@ class _OnlineTile extends StatelessWidget {
     final t = context.lokal;
     final track = result.track;
     final duration = track.duration;
+    final reportedQuality = catalogueAudioDetails(
+      quality: track.catalogueQuality,
+      bitDepth: track.catalogueBitDepth,
+      sampleRate: track.catalogueSampleRate,
+      codec: track.catalogueCodec,
+    );
     return LokalSwipeToQueue(
       onQueue: onQueue,
       enabled: !busy,
@@ -630,36 +646,29 @@ class _OnlineTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: t.muted, fontSize: 13),
                     ),
-                    if (track.atmosAvailable ||
-                        catalogueAudioDetails(
-                          quality: track.catalogueQuality,
-                          bitDepth: track.catalogueBitDepth,
-                          sampleRate: track.catalogueSampleRate,
-                        ).isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (catalogueAudioDetails(
-                              quality: track.catalogueQuality,
-                              bitDepth: track.catalogueBitDepth,
-                              sampleRate: track.catalogueSampleRate,
-                            ) case final quality when quality.isNotEmpty)
-                            Tooltip(
-                              message: 'Catalogue quality, not the verified playback output',
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: t.muted.withValues(alpha: .35)),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: Text(quality,
-                                  style: TextStyle(color: t.muted, fontSize: 10)),
-                              ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Tooltip(
+                          message: reportedQuality.isEmpty
+                              ? 'This source did not advertise a codec, bit depth or sample rate'
+                              : 'Catalogue quality only; the verified output may differ',
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: t.muted.withValues(alpha: .35)),
+                              borderRadius: BorderRadius.circular(999),
                             ),
+                            child: Text(
+                              reportedQuality.isEmpty ? 'Quality unknown' : reportedQuality,
+                              style: TextStyle(color: t.muted, fontSize: 10),
+                            ),
+                          ),
+                        ),
                           if (track.atmosAvailable)
                             Tooltip(
                               message: 'Play original Dolby Atmos (requires an Android E-AC-3 JOC decoder or direct output)',
@@ -669,9 +678,8 @@ class _OnlineTile extends StatelessWidget {
                                 child: const LokalAtmosPill(),
                               ),
                             ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ],
                 ),
               ),

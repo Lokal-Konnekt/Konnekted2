@@ -1,4 +1,6 @@
 import 'package:flick/features/discovery/discovery_models.dart';
+import 'package:flick/features/discovery/discovery_progressive_streams.dart';
+import 'package:flick/features/morneye/morneye_live_playback.dart';
 
 import 'link/link_journal.dart';
 
@@ -652,6 +654,22 @@ class PlayerService {
   /// stream attach or cache download). UI surfaces a loading indicator so the
   /// user sees that their tap was registered during the network round-trip.
   final ValueNotifier<bool> isNetworkLoadingNotifier = ValueNotifier(false);
+
+  /// Set synchronously when a new online track is selected, before the player
+  /// queue, native engine or provider can block on network setup.
+  final ValueNotifier<String?> onlinePreparationTitleNotifier =
+      ValueNotifier(null);
+
+  void _markOnlinePreparation(Song song) {
+    if (song.isPending || song.isNetworkSource ||
+        song.sourcePackage == 'konnekted.progressive' ||
+        song.sourcePackage == 'konnekted.morneye-live') {
+      onlinePreparationTitleNotifier.value = song.title;
+      isNetworkLoadingNotifier.value = true;
+    } else {
+      onlinePreparationTitleNotifier.value = null;
+    }
+  }
   // ponytail: monotonically increasing token; only the most-recent network
   // play request is allowed to clear the loading flag. Upgrade path: a per-
   // song Set<int> if multiple concurrent network loads ever need tracking.
@@ -837,7 +855,7 @@ class PlayerService {
     final generation = ++_pendingPlaybackGeneration;
     _pendingPlaybackId = pending.id;
     onlinePlaybackError.value = null;
-    isNetworkLoadingNotifier.value = true;
+    _markOnlinePreparation(pending);
     _pendingPresentationTrackId = pending.id;
     isPlayingNotifier.value = false;
     positionNotifier.value = Duration.zero;
@@ -868,10 +886,12 @@ class PlayerService {
           _pendingPlaybackId != pending.id)
         return;
       _pendingPlaybackId = null;
-      isNetworkLoadingNotifier.value = false;
       if (resolved != null) {
-        // Continue shielding the next-track UI until the newly resolved
-        // source—not the old decoder's stop event—actually enters the engine.
+        // Lookup completion is not playback readiness. Keep the preparation
+        // toast visible while Media3 opens/buffers the resolved source.
+        onlinePreparationTitleNotifier.value = resolved.title;
+        isNetworkLoadingNotifier.value = true;
+        // Shield the resolved source from the previous decoder's stop event.
         _pendingPresentationTrackId = resolved.id;
         _pendingFailures = 0;
         replacePendingSong(pending.id, resolved);
@@ -882,6 +902,8 @@ class PlayerService {
         });
         return;
       }
+      isNetworkLoadingNotifier.value = false;
+      onlinePreparationTitleNotifier.value = null;
       onlinePlaybackError.value = failure is DiscoveryException
           ? failure.message
           : 'Couldn’t prepare this song for playback. Try another source or try again.';
@@ -3889,6 +3911,16 @@ class PlayerService {
       return just_audio.AudioSource.uri(Uri.parse(''));
     }
 
+    final liveMorneye = song.sourcePackage == 'konnekted.morneye-live'
+        ? MorneyeLiveRegistry.instance.resolve(song.filePath)
+        : null;
+    if (song.sourcePackage == 'konnekted.morneye-live' &&
+        liveMorneye == null) {
+      throw StateError('Morneye stream expired. Select the song again.');
+    }
+    if (liveMorneye != null) {
+      return MorneyeLiveAudioSource(liveMorneye);
+    }
     final streamSource = _streamSourceForSong(song);
     if (streamSource != null) {
       // Clipping is folded into the virtual WAV layout; ClippingAudioSource
@@ -3921,7 +3953,11 @@ class PlayerService {
   /// previously forced an eager `wav_cache` conversion are streamed, so
   /// external handoffs and unsupported content URIs are untouched.
   just_audio.AudioSource? _streamSourceForSong(Song song) {
-    if (kIsWeb || song.isNetworkSource || !_shouldConvertToWav(song)) {
+    if (kIsWeb ||
+        song.isNetworkSource ||
+        (song.sourcePackage == 'konnekted.progressive' ||
+            song.sourcePackage == 'konnekted.morneye-live') ||
+        !_shouldConvertToWav(song)) {
       return null;
     }
     final filePath = song.filePath;
@@ -3963,6 +3999,13 @@ class PlayerService {
     // resolve failure. Matches the Rust backend's existing strategy.
     // Headers must travel with the URL: WebDAV returns Basic auth and
     // ExoPlayer fetches the stream itself.
+    if (song.sourcePackage == 'konnekted.progressive') {
+      final uri = DiscoveryProgressiveStreams.instance.resolve(song.filePath);
+      if (uri == null) {
+        throw StateError('HTTP add-on stream expired. Select the song again.');
+      }
+      return (uri: uri, headers: const <String, String>{});
+    }
     if (song.isNetworkSource) {
       try {
         final http = await RemoteSourceService.instance.resolveHttpPlayback(
@@ -4230,6 +4273,8 @@ class PlayerService {
   }
 
   Future<void> _prepareImmediatePlaybackAsset(Song song) async {
+    if (song.sourcePackage == 'konnekted.progressive' ||
+        song.sourcePackage == 'konnekted.morneye-live') return;
     if (!_usingRustBackend && _streamSourceForSong(song) != null) {
       // The just_audio stream source stages/decodes lazily; pre-converting
       // here would write the WAV that source exists to avoid.
@@ -5006,6 +5051,12 @@ class PlayerService {
     AudioEngineType desiredEngine,
     Song song,
   ) {
+    // Signed HTTP add-on URLs are resolved by Media3 directly, never staged
+    // through the Rust local-file decoder, which does not own these handles.
+    if (song.sourcePackage == 'konnekted.progressive' ||
+        song.sourcePackage == 'konnekted.morneye-live') {
+      return AudioEngineType.normalAndroid;
+    }
     final routed = resolveEngineForSong(
       preferred: desiredEngine,
       requiresRustDecoder: song.requiresRustDecoder,
@@ -5097,7 +5148,7 @@ class PlayerService {
     // Immediate UI feedback: surface the loading state synchronously so the
     // mini-player shows a spinner before the (possibly queued) playback
     // request even starts running. Cleared by _playInternal's finally.
-    if (song.isNetworkSource) isNetworkLoadingNotifier.value = true;
+    _markOnlinePreparation(song);
     return _enqueuePlaybackRequest(() async {
       // A sleeping network source can take time to fail. Only the latest
       // tap should run when it clears, rather than loading every stale tap.
@@ -5138,6 +5189,7 @@ class PlayerService {
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
     final loadingGen = ++_networkLoadingGen;
+    _markOnlinePreparation(song);
     onlinePlaybackError.value = null;
     _cancelPendingPlayback();
     try {
@@ -5299,15 +5351,15 @@ class PlayerService {
       // until the latest tap resolves.
       if (loadingGen == _networkLoadingGen && _pendingPlaybackId == null) {
         isNetworkLoadingNotifier.value = false;
+        onlinePreparationTitleNotifier.value = null;
       }
     }
   }
 
   Future<void> _playSongAtCurrentIndex() async {
     final song = _songAtCurrentIndex();
-    if (song == null) {
-      return;
-    }
+    if (song == null) return;
+    _markOnlinePreparation(song); // Before initAudio / engine handoff.
     await _playInternal(song);
   }
 
@@ -5948,6 +6000,11 @@ class PlayerService {
 
   Future<void> next() {
     _cancelPendingPlayback();
+    // Direct user taps need immediate feedback even if playback requests are
+    // serialized behind an earlier network operation.
+    if (peekNext case final song? when song.isPending) {
+      _markOnlinePreparation(song);
+    }
     _debugLog('[PlayerService] next() called');
     return _enqueuePlaybackRequest(_nextInternal);
   }
@@ -7056,6 +7113,7 @@ class PlayerService {
     durationNotifier.dispose();
     bufferedPositionNotifier.dispose();
     isNetworkLoadingNotifier.dispose();
+    onlinePreparationTitleNotifier.dispose();
     playbackSpeedNotifier.dispose();
     pitchSemitonesNotifier.dispose();
     sleepTimerRemainingNotifier.dispose();

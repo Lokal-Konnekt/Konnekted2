@@ -637,7 +637,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 transfer.then((_) => false),
               ]);
               if (canStream) {
-                final session = live;
+                final session = live!;
                 final handle = MorneyeLiveRegistry.instance.register(session);
                 // Retain the transfer after Now Playing starts. Adoption,
                 // validation and staging cleanup stay asynchronous, while

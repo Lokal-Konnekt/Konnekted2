@@ -131,40 +131,76 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
   Widget _buildLinkTile(PlaylistLinkRecord record) {
     final status = record.isPartial ? 'Partial sync' : 'Synced';
     return Card(
-      child: ListTile(
-        title: Text(record.remoteTitle),
-        subtitle: Text(
-          '$status · ${record.fetchedEntryCount}/${record.remoteEntryCount} entries · '
-          '${record.unmatchedEntries.length} unmatched',
-        ),
-        isThreeLine: true,
-        onTap: () {
-          _inputController.text = record.canonicalUrl;
-          _previewLink();
-        },
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            switch (value) {
-              case 'refresh':
-                _previewExisting(record);
-                break;
-              case 'source':
-                _openSource(record.canonicalUrl);
-                break;
-              case 'unlink':
-                _unlink(record);
-                break;
-            }
-          },
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: 'refresh', child: Text('Preview refresh')),
-            PopupMenuItem(
-              value: 'source',
-              child: Text('View source externally'),
+      child: Column(
+        children: [
+          ListTile(
+            title: Text(record.remoteTitle),
+            subtitle: Text(
+              '$status · ${record.fetchedEntryCount}/${record.remoteEntryCount} entries · '
+              '${record.unmatchedEntries.length} unmatched',
             ),
-            PopupMenuItem(value: 'unlink', child: Text('Unlink')),
-          ],
-        ),
+            isThreeLine: true,
+            onTap: () => _previewExisting(record),
+            trailing: PopupMenuButton<String>(
+              onSelected: (value) {
+                switch (value) {
+                  case 'refresh':
+                    _previewExisting(record);
+                    break;
+                  case 'source':
+                    _openSource(record.canonicalUrl);
+                    break;
+                  case 'unlink':
+                    _unlink(record);
+                    break;
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'refresh', child: Text('Preview refresh')),
+                PopupMenuItem(
+                  value: 'source',
+                  child: Text('View source externally'),
+                ),
+                PopupMenuItem(value: 'unlink', child: Text('Unlink')),
+              ],
+            ),
+          ),
+          if (record.unmatchedEntries.isNotEmpty)
+            ExpansionTile(
+              title: Text('Unmatched entries (${record.unmatchedEntries.length})'),
+              subtitle: const Text('Download missing tracks to your library'),
+              children: [
+                for (final entry in record.unmatchedEntries.take(50))
+                  ListTile(
+                    dense: true,
+                    title: Text(entry.title, maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    subtitle: Text(entry.artist.isEmpty
+                        ? 'YouTube video' : entry.artist,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: IconButton(
+                      tooltip: 'Download to library and add to playlist',
+                      icon: const Icon(Icons.download_rounded),
+                      onPressed: _loading
+                          ? null
+                          : () => _downloadUnmatched(record, only: entry),
+                    ),
+                  ),
+                if (record.unmatchedEntries.length > 50)
+                  Text('Showing the first 50. Use Download unmatched for all.'),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 14),
+                  child: OutlinedButton.icon(
+                    onPressed: _loading
+                        ? null
+                        : () => _downloadUnmatched(record),
+                    icon: const Icon(Icons.download_rounded),
+                    label: Text('Download unmatched (${record.unmatchedEntries.length})'),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }

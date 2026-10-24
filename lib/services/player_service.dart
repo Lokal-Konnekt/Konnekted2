@@ -3941,7 +3941,10 @@ class PlayerService {
   /// previously forced an eager `wav_cache` conversion are streamed, so
   /// external handoffs and unsupported content URIs are untouched.
   just_audio.AudioSource? _streamSourceForSong(Song song) {
-    if (kIsWeb || song.isNetworkSource || !_shouldConvertToWav(song)) {
+    if (kIsWeb ||
+        song.isNetworkSource ||
+        song.sourcePackage == 'konnekted.progressive' ||
+        !_shouldConvertToWav(song)) {
       return null;
     }
     final filePath = song.filePath;

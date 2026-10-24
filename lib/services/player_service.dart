@@ -1,4 +1,5 @@
 import 'package:flick/features/discovery/discovery_models.dart';
+import 'package:flick/features/discovery/discovery_progressive_streams.dart';
 
 import 'link/link_journal.dart';
 
@@ -3916,6 +3917,13 @@ class PlayerService {
     // resolve failure. Matches the Rust backend's existing strategy.
     // Headers must travel with the URL: WebDAV returns Basic auth and
     // ExoPlayer fetches the stream itself.
+    if (song.sourcePackage == 'konnekted.progressive') {
+      final uri = DiscoveryProgressiveStreams.instance.resolve(song.filePath);
+      if (uri == null) {
+        throw StateError('HTTP add-on stream expired. Select the song again.');
+      }
+      return (uri: uri, headers: const <String, String>{});
+    }
     if (song.isNetworkSource) {
       try {
         final http = await RemoteSourceService.instance.resolveHttpPlayback(
@@ -4183,6 +4191,7 @@ class PlayerService {
   }
 
   Future<void> _prepareImmediatePlaybackAsset(Song song) async {
+    if (song.sourcePackage == 'konnekted.progressive') return;
     if (!_usingRustBackend && _streamSourceForSong(song) != null) {
       // The just_audio stream source stages/decodes lazily; pre-converting
       // here would write the WAV that source exists to avoid.
@@ -4959,6 +4968,11 @@ class PlayerService {
     AudioEngineType desiredEngine,
     Song song,
   ) {
+    // Signed HTTP add-on URLs are resolved by Media3 directly, never staged
+    // through the Rust local-file decoder, which does not own these handles.
+    if (song.sourcePackage == 'konnekted.progressive') {
+      return AudioEngineType.normalAndroid;
+    }
     final routed = resolveEngineForSong(
       preferred: desiredEngine,
       requiresRustDecoder: song.requiresRustDecoder,

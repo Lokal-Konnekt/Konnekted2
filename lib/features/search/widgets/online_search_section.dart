@@ -267,7 +267,8 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
       final prepare =
           widget.prepare ??
           (source, track, onStatus) =>
-              playOnlineTrack(source.id, track, onStatus: onStatus);
+              playOnlineTrack(source.id, track, onStatus: onStatus,
+                forDownload: true);
       final song = await prepare(source, track, (message) {
         if (mounted && _saving.contains(key)) _progress.update(message);
       });

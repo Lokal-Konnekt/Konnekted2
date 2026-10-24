@@ -74,3 +74,32 @@ String resolveMorneyeRequestQuality({
 /// receives its configured downloadQuality.
 String? explicitMorneyePlaybackTier({required bool atmosRequested}) =>
     atmosRequested ? 'DOLBY_ATMOS' : null;
+
+
+/// The quality tier sent to a Tidal add-on for normal stereo playback.
+/// Unlike the catalogue maximum, this is a request, not proof of the bytes
+/// delivered. Search can show it even when individual tracks omit quality.
+String? tidalRequestedQualityLabel({
+  required String? configured,
+  required List<dynamic> options,
+}) {
+  if (options.isEmpty) return null;
+  final chosen = chooseMorneyeDownloadQuality(
+    requested: null,
+    configured: configured,
+    options: options,
+    provider: 'tidal',
+  );
+  for (final option in options) {
+    if (option is! Map ||
+        option['id']?.toString().toLowerCase() != chosen.toLowerCase()) {
+      continue;
+    }
+    final label = option['label']?.toString().trim() ?? '';
+    final name = option['name']?.toString().trim() ?? '';
+    final title = label.isNotEmpty ? label : (name.isNotEmpty ? name : chosen);
+    return '$title (requested)';
+  }
+  // Never invent a label for a tier missing from the installed manifest.
+  return null;
+}

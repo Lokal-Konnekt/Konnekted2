@@ -15,6 +15,7 @@ import '../../models/playlist.dart';
 import '../favorites_service.dart';
 import '../playlist_service.dart';
 import 'link_journal.dart';
+import 'link_playlist_order.dart';
 import 'link_profile_service.dart';
 import 'lokal_desktop_source.dart';
 import 'lokal_link_service.dart';
@@ -285,6 +286,10 @@ class LinkSyncCoordinator {
         if (reply.body['hasMore'] != true) break;
       }
     }
+    // A sync cursor only pulls *new* operations. Old installations already
+    // consumed their desktop playlist positions, so repair their persisted
+    // order from the durable journal even when this sync pulls zero rows.
+    await _repairPreviouslySyncedPlaylistOrder();
     _requireReady();
     _report(LinkSyncPhase.finalizing);
     if (!_background) {
@@ -292,6 +297,48 @@ class LinkSyncCoordinator {
       onProfileChanged?.call();
     }
     if (changed || !_background) MilestoneService.changes.add(null);
+  }
+
+  /// One-time, non-destructive repair for users whose playlists were already
+  /// imported before numeric ordering was reliably materialized. Replaying the
+  /// local journal requires no desktop re-export or deleting/recreating lists.
+  /// Only playlists actually created by this paired desktop are eligible.
+  Future<void> _repairPreviouslySyncedPlaylistOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final flag = '$_prefix.playlist_order_repaired_v1';
+    if (prefs.getBool(flag) == true) return;
+    final desktopId = credentials.desktopId;
+    if (desktopId == null || desktopId.isEmpty) return;
+
+    final operations = await Database.instance.libraryOpEntitys
+        .filter()
+        .entityEqualTo('playlist')
+        .findAll();
+    final remoteIds = <String>{};
+    for (final operation in operations) {
+      if (operation.op == 'playlist.create' &&
+          operation.deviceId == desktopId) {
+        remoteIds.add(operation.entityId);
+      }
+    }
+    var repaired = false;
+    for (final id in remoteIds) {
+      _requireReady();
+      // Guard against inventing playlists or replaying an unrelated user's
+      // journal; only repair entries already mapped by an earlier sync.
+      final localId = prefs.getString('lokal.link.playlist_local.$id');
+      if (localId == null ||
+          await PlaylistService.instance.getPlaylist(localId) == null) continue;
+      await _materialize({
+        'entity': 'playlist',
+        'entity_id': id,
+        'op': 'playlist.create',
+        'fields': <String, dynamic>{},
+      });
+      repaired = true;
+    }
+    await prefs.setBool(flag, true);
+    if (repaired) onChanged?.call();
   }
 
   Future<void> _materializeLibraryPage(List<Map<String, dynamic>> items) async {
@@ -339,72 +386,54 @@ class LinkSyncCoordinator {
             .filter()
             .entityIdEqualTo(id)
             .findAll();
-        all.sort(
-          (a, b) => '${a.hlc}:${a.deviceId}:${a.opId}'.compareTo(
-            '${b.hlc}:${b.deviceId}:${b.opId}',
-          ),
-        );
-        String? name;
-        var deleted = false;
-        final members = <String, Map<String, dynamic>>{};
-        for (final op in all) {
-          final f = Map<String, dynamic>.from(jsonDecode(op.fieldsJson) as Map);
-          if (op.op == 'playlist.create') {
-            name = f['name']?.toString() ?? 'Playlist';
-            deleted = false;
-          }
-          if (op.op == 'playlist.rename') name = f['name']?.toString() ?? name;
-          if (op.op == 'playlist.delete') deleted = true;
-          if ([
-                'playlist.add',
-                'playlist.move',
-                'playlist.remove',
-              ].contains(op.op) &&
-              f['track_key'] is String)
-            members[f['track_key'] as String] = {
-              ...f,
-              'removed': op.op == 'playlist.remove',
-            };
-        }
+        final state = LinkPlaylistOrder.replay([
+          for (final op in all) journal.wireOp(op),
+        ]);
+        final name = state.name;
         if (name == null) return;
-        final positions =
-            members.entries.where((e) => e.value['removed'] != true).toList()
-              ..sort((a, b) {
-                final n = (a.value['position'] as num? ?? 0).compareTo(
-                  b.value['position'] as num? ?? 0,
-                );
-                return n == 0 ? a.key.compareTo(b.key) : n;
-              });
         final songIds = <String>[];
-        for (final entry in positions) {
-          final song = await _match({...entry.value, 'track_key': entry.key});
+        for (final member in state.members) {
+          final song = await _match({
+            ...member.fields,
+            'track_key': member.trackKey,
+          });
           if (song != null) songIds.add(song.id);
         }
         final old = await PlaylistService.instance.getPlaylist(localId);
-        final playlist =
-            old?.copyWith(
-              name: name,
-              songIds: songIds,
-              updatedAt: DateTime.now(),
-            ) ??
-            Playlist(
-              id: localId,
-              name: name,
-              songIds: songIds,
-              createdAt: DateTime.now(),
+        final sameOrder = old != null &&
+            old.songIds.length == songIds.length &&
+            List.generate(songIds.length, (i) => i).every(
+              (i) => old.songIds[i] == songIds[i],
             );
-        await PlaylistService.instance.putFromLink(playlist, deleted: deleted);
+        if (state.deleted || old == null || old.name != name || !sameOrder) {
+          final playlist =
+              old?.copyWith(
+                name: name,
+                songIds: songIds,
+                updatedAt: DateTime.now(),
+              ) ??
+              Playlist(
+                id: localId,
+                name: name,
+                songIds: songIds,
+                createdAt: DateTime.now(),
+              );
+          await PlaylistService.instance.putFromLink(
+            playlist,
+            deleted: state.deleted,
+          );
+        }
         // Store the merged baseline so a later local edit only journals its delta.
         final snapshot = Map<String, dynamic>.from(
           jsonDecode(prefs.getString('lokal.link.playlists_snapshot') ?? '{}')
               as Map,
         );
-        if (deleted) {
+        if (state.deleted) {
           snapshot.remove(id);
         } else {
           snapshot[id] = {
             'name': name,
-            'members': positions.map((e) => e.key).toList(),
+            'members': state.members.map((e) => e.trackKey).toList(),
           };
         }
         await prefs.setString(

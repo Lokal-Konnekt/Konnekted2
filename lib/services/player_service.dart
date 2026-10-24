@@ -5064,7 +5064,10 @@ class PlayerService {
     // Immediate UI feedback: surface the loading state synchronously so the
     // mini-player shows a spinner before the (possibly queued) playback
     // request even starts running. Cleared by _playInternal's finally.
-    if (song.isNetworkSource) isNetworkLoadingNotifier.value = true;
+    if (song.isNetworkSource ||
+        song.sourcePackage == 'konnekted.progressive') {
+      isNetworkLoadingNotifier.value = true;
+    }
     return _enqueuePlaybackRequest(() async {
       // A sleeping network source can take time to fail. Only the latest
       // tap should run when it clears, rather than loading every stale tap.
@@ -5105,6 +5108,9 @@ class PlayerService {
   Future<void> _playInternal(Song song, {List<Song>? playlist}) async {
     await initAudio();
     final loadingGen = ++_networkLoadingGen;
+    if (song.sourcePackage == 'konnekted.progressive') {
+      isNetworkLoadingNotifier.value = true;
+    }
     onlinePlaybackError.value = null;
     _cancelPendingPlayback();
     try {

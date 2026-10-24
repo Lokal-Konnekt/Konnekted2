@@ -14,8 +14,33 @@ import androidx.core.content.FileProvider
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.net.URI
 import java.security.MessageDigest
 import java.util.concurrent.Executors
+
+/** Validate the real GitHub release path, never an arbitrary URL prefix.
+ * GitHub canonicalizes the repository owner from Lokal-Konnekt to lokal-music.
+ */
+internal fun isTrustedLokalReleaseApkUrl(url: String): Boolean {
+    val uri = try { URI(url) } catch (_: IllegalArgumentException) { return false }
+    if (uri.scheme != "https" ||
+        !uri.host.equals("github.com", ignoreCase = true) ||
+        uri.rawUserInfo != null ||
+        uri.port != -1 ||
+        uri.rawQuery != null ||
+        uri.rawFragment != null
+    ) return false
+    val parts = (uri.rawPath ?: return false).removePrefix("/").split("/")
+    return parts.size == 6 &&
+        parts[0] in setOf("lokal-music", "Lokal-Konnekt") &&
+        parts[1] == "lokal-mobile" &&
+        parts[2] == "releases" &&
+        parts[3] == "download" &&
+        parts[4].isNotBlank() &&
+        parts[5].startsWith("Lokal-") &&
+        parts[5].endsWith(".apk") &&
+        !parts[5].contains("%")
+}
 
 /** Downloads survive leaving the app; Android always confirms installation. */
 object LokalAppUpdater {
@@ -37,7 +62,7 @@ object LokalAppUpdater {
                         val url = call.argument<String>("url").orEmpty()
                         val hash = call.argument<String>("sha256").orEmpty()
                         val code = call.argument<Number>("build")?.toLong() ?: 0L
-                        require(url.startsWith("https://github.com/Lokal-Konnekt/lokal-mobile/releases/download/") && url.endsWith(".apk"))
+                        require(isTrustedLokalReleaseApkUrl(url)) { "Invalid Lokal release download URL" }
                         require(hash.matches(Regex("[a-fA-F0-9]{64}")) && code > BuildConfig.VERSION_CODE)
                         val old = prefs.getLong("id", -1)
                         if (old != -1L) manager.remove(old)

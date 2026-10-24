@@ -366,11 +366,11 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
         'This public YouTube playlist did not expose readable entries.',
       );
     }
-    final key = RegExp(r'"INNERTUBE_API_KEY"\\s*:\\s*"([A-Za-z0-9_-]{20,})"')
+    final key = RegExp(r'"INNERTUBE_API_KEY"\s*:\s*"([A-Za-z0-9_-]{20,})"')
         .firstMatch(response.body)?.group(1);
-    final version = RegExp(r'"INNERTUBE_CLIENT_VERSION"\\s*:\\s*"([^"]+)"')
+    final version = RegExp(r'"INNERTUBE_CLIENT_VERSION"\s*:\s*"([^"]+)"')
         .firstMatch(response.body)?.group(1);
-    final visitor = RegExp(r'"VISITOR_DATA"\\s*:\\s*"([^"]+)"')
+    final visitor = RegExp(r'"VISITOR_DATA"\s*:\s*"([^"]+)"')
         .firstMatch(response.body)?.group(1);
     return _YoutubeWebStart(
       page: initial,
@@ -386,7 +386,7 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
   /// response is bounded by the transport's 2 MiB maximum.
   static Map<String, dynamic> _youtubeInitialData(String html) {
     final marker = RegExp(
-      r'(?:var\\s+)?ytInitialData\\s*=\\s*|window\\[["\\x27]ytInitialData["\\x27]\\]\\s*=\\s*',
+      r'(?:var\s+)?ytInitialData\s*=\s*|window\\[["\\x27]ytInitialData["\\x27]\\]\s*=\s*',
     );
     final match = marker.firstMatch(html);
     if (match == null) {

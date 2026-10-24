@@ -851,6 +851,7 @@ Future<List<OnlineSource>> _playbackSources(
   MorneyeService morneye, {
   Future<void>? cancel,
   bool forDownload = false,
+  bool includeMorneye = true,
 }) async {
   final registry = DiscoverySourceRegistry(web, settings);
   final youtube = YoutubeAudio(web);
@@ -896,7 +897,8 @@ Future<List<OnlineSource>> _playbackSources(
           return song;
         },
       ),
-    ...await _morneyeSources(morneye, cache, onStatus, cancel: cancel),
+    if (includeMorneye)
+      ...await _morneyeSources(morneye, cache, onStatus, cancel: cancel),
   ], (source) => source.id);
 }
 
@@ -957,6 +959,9 @@ Future<Song> playOnlineTrack(
       morneye ?? MorneyeService.instance,
       cancel: cancel,
       forDownload: forDownload,
+      // HTTP and native YouTube playback must not wait for unrelated Morneye
+      // add-on initialization or verification before source resolution.
+      includeMorneye: sourceId.startsWith('a-'),
     );
     final source = sources.where((s) => s.id == sourceId).firstOrNull;
     if (source == null) {

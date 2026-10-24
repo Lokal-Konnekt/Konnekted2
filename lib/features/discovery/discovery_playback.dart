@@ -322,8 +322,13 @@ class DiscoveryPlaybackCache {
     };
     const lossless = {'FLAC', 'ALAC', 'WAV', 'WAVPACK'};
     // A lossy decoder's PCM sample width is NOT the source bit depth.
-    final bits = lossless.contains(type) && (metadata.bitsPerSample ?? 0) > 0
-        ? metadata.bitsPerSample
+    final nativeBits = (audio?['bit_depth'] as num?)?.toInt();
+    final bits = lossless.contains(type)
+        ? (metadata.bitsPerSample != null && metadata.bitsPerSample! > 0
+            ? metadata.bitsPerSample
+            : nativeBits != null && nativeBits > 0 && nativeBits <= 64
+                ? nativeBits
+                : null)
         : null;
     final resolution = measuredLossyBitrate(
       codec: type,

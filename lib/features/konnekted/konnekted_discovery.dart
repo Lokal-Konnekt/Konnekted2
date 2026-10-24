@@ -703,8 +703,10 @@ Future<List<_PlaybackSource>> _morneyeSources(
                       }
                       session.promote(path);
                       _rememberMorneyePlayback(cacheKey, cached);
+                      QueuePreResolver.shared.schedule();
                     } catch (error) {
                       session.fail(error);
+                      QueuePreResolver.shared.schedule();
                     } finally {
                       await completed.cleanup();
                     }

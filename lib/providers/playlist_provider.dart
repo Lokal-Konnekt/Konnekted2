@@ -69,8 +69,10 @@ class PlaylistsNotifier extends AsyncNotifier<PlaylistsState> {
       // created playlist immediately, then reconcile against the service.
       final current = state.value;
       if (current != null) {
+        final fresh = await service.getPlaylists();
+        if (!ref.mounted) return playlist;
         state = AsyncData(current.copyWith(
-          playlists: await service.getPlaylists(),
+          playlists: fresh,
           isLoading: false,
         ));
       } else {

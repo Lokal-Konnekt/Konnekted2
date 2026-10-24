@@ -55,6 +55,34 @@ void main() {
     expect(catalogueAudioDetails(quality: morneyeAdvertisedQuality(null)), isEmpty);
   });
 
+  test('Amazon reuses probed Full Player quality for repeat Search results', () {
+    const played = Song(
+      id: 'amazon-downloaded', title: 'Song', artist: 'Artist',
+      duration: Duration(minutes: 3), fileType: 'FLAC',
+      bitDepth: 24, sampleRate: 96000,
+    );
+    final details = morneyeSearchAudioDetails(verifiedPlayback: played);
+    expect(details.codec, 'FLAC');
+    expect(details.bitDepth, 24);
+    expect(details.sampleRate, 96000);
+    expect(catalogueAudioDetails(
+      codec: details.codec,
+      bitDepth: details.bitDepth,
+      sampleRate: details.sampleRate,
+    ), 'FLAC · 24-bit / 96 kHz');
+
+    final advertised = morneyeSearchAudioDetails(
+      codec: 'AAC', bitDepth: null, sampleRate: 48000,
+      verifiedPlayback: played,
+    );
+    expect(advertised.codec, 'AAC',
+        reason: 'A fresh source observation takes precedence over cache');
+    expect(advertised.sampleRate, 48000);
+    expect(morneyeSearchAudioDetails().codec, isNull,
+        reason: 'An unplayed Amazon track cannot inherit Best FLAC');
+    expect(morneyeSearchAudioDetails().sampleRate, isNull);
+  });
+
   test('catalogue quality includes only supplied bit depth and rate', () {
     expect(catalogueQualityLabel('24bit/96kHz'), '24-bit / 96 kHz');
     expect(catalogueQualityLabel('16bit/44.1kHz'), '16-bit / 44.1 kHz');

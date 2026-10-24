@@ -324,7 +324,7 @@ List<LokalSettingsSection> outputSettings(BuildContext context, WidgetRef ref) {
     LokalSettingsSection(
       title: lokalText('Volume'),
       children: [
-        LokalSettingRow.toggle(
+        if (!Platform.isIOS) LokalSettingRow.toggle(
           label: lokalText('Extended volume'),
           description: lokalText('Let the volume go past 100 %, up to 200 %.'),
           value: prefs.extendedVolumeEnabled,
@@ -350,7 +350,7 @@ List<LokalSettingsSection> outputSettings(BuildContext context, WidgetRef ref) {
         ),
       ],
     ),
-    LokalSettingsSection(
+    if (!Platform.isIOS) LokalSettingsSection(
       title: lokalText('Background'),
       children: [
         LokalSettingRow.toggle(

@@ -122,19 +122,35 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   int _searchGeneration = 0;
   final _youtubeQuality = <String, Future<String?>>{};
   Future<void> _youtubeLookupTail = Future<void>.value();
+  Completer<void> _youtubeQualityCancelled = Completer<void>();
+  bool _youtubeQualityPaused = false;
+
+  void _prioritizePlayback() {
+    // The Android resolver serializes native format extraction. Cancel
+    // background badge work before playing/queueing so a 15-result Search
+    // cannot hold up the tapped recording.
+    _youtubeQualityPaused = true;
+    if (!_youtubeQualityCancelled.isCompleted) {
+      _youtubeQualityCancelled.complete();
+    }
+    _youtubeQuality.clear();
+  }
 
   /// Search snippets don't contain a selected audio format. Resolve each
   /// result's actual audio rendition in the background (serially to avoid
   /// monopolizing InnerTubeX's native playback resolver), not by guessing
   /// AAC/Opus for every title. Store only the label, never signed media URLs.
-  Future<String?> _resolvedYoutubeQuality(String videoId) =>
-      _youtubeQuality.putIfAbsent(videoId, () {
+  Future<String?> _resolvedYoutubeQuality(String videoId) {
+    if (_youtubeQualityPaused) return Future<String?>.value(null);
+    return _youtubeQuality.putIfAbsent(videoId, () {
         final gate = _youtubeLookupTail.catchError((Object _) {});
+        final cancelled = _youtubeQualityCancelled;
         final lookup = gate.then((_) async {
-          if (!mounted) return null;
+          if (!mounted || cancelled.isCompleted) return null;
           try {
             final audio = await YoutubeAudio(DiscoveryHttp(_client))
-                .resolve(videoId).timeout(const Duration(seconds: 55));
+                .resolve(videoId, cancel: cancelled.future)
+                .timeout(const Duration(seconds: 55));
             final codec = audio.codec;
             final bitrate = audio.bitrate;
             if (codec == null) return null;
@@ -155,6 +171,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
         }
         return lookup;
       });
+  }
 
   @override
   void initState() {
@@ -166,6 +183,9 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
   @override
   void dispose() {
     MorneyeService.instance.removeListener(_load);
+    if (!_youtubeQualityCancelled.isCompleted) {
+      _youtubeQualityCancelled.complete();
+    }
     _progress.dispose();
     _client.close();
     super.dispose();
@@ -185,6 +205,11 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     setState(() {
       _sources = sources;
       _searched = null; // Search again: the add-ons may have changed.
+      _youtubeQualityPaused = false;
+      if (_youtubeQualityCancelled.isCompleted) {
+        _youtubeQualityCancelled = Completer<void>();
+        _youtubeLookupTail = Future<void>.value();
+      }
     });
     if (widget.sources != null) return; // Tests give their own sources.
     try {
@@ -251,6 +276,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     bool atmos = false,
     List<OnlineResult>? results,
   }) async {
+    if (source.id == 'yt') _prioritizePlayback();
     // Source verification can take seconds: feedback must precede its await.
     _progress.update('Preparing ${result.track.title} from ${source.name}…');
     if (!await _verify(source)) {
@@ -308,6 +334,7 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     OnlineResult result, {
     required bool next,
   }) async {
+    if (source.id == 'yt') _prioritizePlayback();
     if (!await _verify(source)) return;
     final track = result.track;
     if (ref.read(playerProvider).currentSong == null) {

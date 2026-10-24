@@ -271,6 +271,7 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
           .refreshFromPreview(preview, removeMissing: removeMissing)
           .then((_) async {
             if (!mounted) return;
+            ref.invalidate(playlistsProvider);
             setState(() => _preview = null);
             await _loadLinks();
           }),
@@ -334,6 +335,81 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
     }
   }
 
+  Future<void> _downloadUnmatched(
+    PlaylistLinkRecord record, {
+    RemotePlaylistEntry? only,
+  }) async {
+    if (_loading) return;
+    final entries = only == null
+        ? List<RemotePlaylistEntry>.of(record.unmatchedEntries)
+        : [only];
+    if (entries.isEmpty) return;
+    final cancel = Completer<void>();
+    _downloadCancellation = cancel;
+    try {
+      await _run(() async {
+        var saved = 0;
+        var failed = 0;
+        String? lastError;
+        final downloader = PlaylistUnmatchedDownloader();
+        final link = ParsedPlaylistLink(
+          source: record.source,
+          remoteId: record.remoteId,
+          canonicalUrl: record.canonicalUrl,
+        );
+        for (var i = 0; i < entries.length; i++) {
+          if (cancel.isCompleted || !mounted) break;
+          final entry = entries[i];
+          setState(() => _downloadStatus =
+              'Downloading ${i + 1}/${entries.length}: ${entry.title}');
+          try {
+            final result = await downloader.download(
+              link,
+              entry,
+              cancel: cancel.future,
+              cancelled: () => cancel.isCompleted,
+              onStatus: (status) {
+                if (mounted) setState(() => _downloadStatus = status);
+              },
+              verifySource: (source) async {
+                if (!mounted || source.verify == null) return false;
+                return source.verify!(context);
+              },
+            );
+            // Attach only after the existing library downloader indexed the
+            // finished file; otherwise the playlist gets a phantom song ID.
+            await _manager.attachDownloadedEntry(
+              record.linkId,
+              entry,
+              savedPath: result.path,
+            );
+            saved++;
+            if (!mounted) break;
+            ref.invalidate(playlistsProvider);
+            ref.invalidate(songsProvider);
+          } catch (error) {
+            if (cancel.isCompleted) break;
+            failed++;
+            lastError = error.toString();
+          }
+        }
+        if (mounted) {
+          await _loadLinks();
+          if (mounted) setState(() {
+            _downloadStatus = null;
+            _downloadNotice = 'Downloaded $saved of ${entries.length} unmatched '
+                'entries${cancel.isCompleted ? ' (cancelled)' : ''}.'
+                '${failed > 0 ? ' $failed failed. $lastError' : ''}';
+          });
+        }
+      });
+    } finally {
+      if (identical(_downloadCancellation, cancel)) {
+        _downloadCancellation = null;
+      }
+    }
+  }
+
   Future<void> _run(Future<void> Function() operation) async {
     setState(() {
       _loading = true;
@@ -348,7 +424,14 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
     }
   }
 
-  void _cancel() => _manager.cancelCurrent();
+  void _cancel() {
+    final download = _downloadCancellation;
+    if (download != null && !download.isCompleted) {
+      download.complete();
+    } else {
+      _manager.cancelCurrent();
+    }
+  }
 }
 
 class _PreviewCard extends StatelessWidget {

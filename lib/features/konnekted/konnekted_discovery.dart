@@ -603,7 +603,9 @@ Future<List<_PlaybackSource>> _morneyeSources(
           if (verified) service.changed();
           return verified;
         },
-        results: (query) async => [
+        results: (query) async {
+          final preferences = packages.settings(addon);
+          return [
           for (final song in await packages.search(addon.key, query))
             OnlineResult(
               DiscoveryTrack(
@@ -620,14 +622,15 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 catalogueQuality: morneyeAdvertisedOrRequestedQuality(
                   addon: addon,
                   advertised: song.quality,
-                  preferences: packages.settings(addon),
+                  preferences: preferences,
                 ),
                 catalogueCodec: song.codec,
                 catalogueBitDepth: song.bitDepth,
                 catalogueSampleRate: song.sampleRate,
               ),
             ),
-        ],
+          ];
+        },
         play: (found) async {
           final progress = MorneyeProgressText(found.title, addon.displayName);
           final qobuz = addon.name.toLowerCase().contains('qobuz');

@@ -593,14 +593,22 @@ class MorneyeHost {
     final progress = <int, int>{};
     var completed = 0;
     var serial = Future<void>.value();
+    var lastReportedCompleted = -1;
     Future<void> report() {
-      final sum = progress.values.fold<int>(0, (a, b) => a + b);
       final done = completed;
-      // Segmented downloads may have no total byte length. Completed segment
-      // count is still a truthful measurable progress value: report it
-      // separately as segment completion, not a fictitious byte percentage.
+      // A Tidal segment invokes this for every streamed chunk. Previously
+      // each chunk awaited another JS bridge callback AND emitted the same
+      // "Downloading audio segments" notice even though completed progress
+      // had not changed. That serialized media transfers behind the runtime
+      // and made the global loading toast appear to flicker.
+      //
+      // Report only new completed segments. Per-chunk byte accounting stays
+      // local; completion is the only honest denominator for this protocol.
+      if (done == lastReportedCompleted) return Future<void>.value();
+      lastReportedCompleted = done;
+      final sum = progress.values.fold<int>(0, (a, b) => a + b);
       onProgress?.call(
-        percent: completed * 100.0 / segmentsList.length,
+        percent: done * 100.0 / segmentsList.length,
         message: 'Downloading audio segments…',
       );
       serial = serial.then(

@@ -87,6 +87,41 @@ void main() {
     expect(state.members.map((e) => e.trackKey), ['fresh']);
   });
 
+  test('unmatched desktop members never enter the local capture snapshot', () async {
+    // Only A and B are available on the phone; unmatched X remains on the
+    // desktop and must not later be interpreted as a user-requested removal.
+    final state = LinkPlaylistOrder.replay([
+      op('playlist.create', '', 1, name: 'Desktop'),
+      op('playlist.add', 'missing-x', 2, position: 0),
+      op('playlist.add', 'remote-a', 3, position: 1),
+      op('playlist.add', 'remote-b', 4, position: 2),
+    ]);
+    final projection = await state.resolveMembers((member) async {
+      return switch (member.trackKey) {
+        'remote-a' => 'phone-a',
+        'remote-b' => 'phone-b',
+        _ => null,
+      };
+    });
+    expect(projection.songIds, ['phone-a', 'phone-b']);
+    expect(projection.matchedKeys, ['remote-a', 'remote-b']);
+    expect(projection.matchedKeys, isNot(contains('missing-x')));
+  });
+
+  test('empty playlists never attempt song matching', () async {
+    final state = LinkPlaylistOrder.replay([
+      op('playlist.create', '', 1, name: 'Empty'),
+    ]);
+    var matchCalls = 0;
+    final projection = await state.resolveMembers((member) async {
+      matchCalls++;
+      return 'unexpected';
+    });
+    expect(matchCalls, 0);
+    expect(projection.songIds, isEmpty);
+    expect(projection.matchedKeys, isEmpty);
+  });
+
   test('negative and fractional positions preserve genuine manual order', () {
     final state = LinkPlaylistOrder.replay([
       op('playlist.add', 'middle', 1, position: 1.5),

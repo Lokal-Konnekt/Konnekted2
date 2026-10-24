@@ -469,9 +469,11 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
       'appendContinuationItemsAction',
       'reloadContinuationItemsCommand',
     });
-    if (shelf == null) throw const PlaylistLinkHttpException(
-      'YouTube did not expose a supported public playlist listing.',
-    );
+    if (shelf == null) {
+      throw const PlaylistLinkHttpException(
+        'YouTube did not expose a supported public playlist listing.',
+      );
+    }
     final rows = shelf['contents'] ?? shelf['continuationItems'];
     final entries = <RemotePlaylistEntry>[];
     if (rows is List) {
@@ -480,7 +482,42 @@ class YoutubePlaylistImporter implements PlaylistLinkImporter {
         final renderer = row['playlistVideoRenderer'] as Map;
         final id = _string(renderer['videoId']);
         final title = _text(renderer['title']);
-        if (id == null || !RegExp(r'^[A-Za-z0-9_-]{11}
+        if (id == null || !RegExp(r'^[A-Za-z0-9_-]{11}$').hasMatch(id) ||
+            title == null || title.trim().isEmpty) continue;
+        final artist = _text(renderer['shortBylineText']) ??
+            _text(renderer['longBylineText']) ?? '';
+        final duration = _parseClock(_text(renderer['lengthText']) ?? '');
+        entries.add(RemotePlaylistEntry(
+          title: title.trim(),
+          artist: artist.trim(),
+          duration: duration,
+          remoteId: id,
+        ));
+      }
+    }
+    final header = _findFirstMap(root, const {
+      'playlistHeaderRenderer', 'playlistMetadataRenderer',
+      'pageHeaderViewModel',
+    });
+    final title = _text(header?['title']) ??
+        _string(header?['pageTitle']) ??
+        _text(header?['pageTitle']);
+    final continuationItem = _findFirstMap(shelf, const {
+      'continuationItemRenderer', 'nextContinuationData',
+    });
+    final continuation = _findPathString(continuationItem, const [
+      'continuationEndpoint', 'continuationCommand', 'token',
+    ]) ?? _string(continuationItem?['continuation']);
+    return _YoutubePage(
+      entries: entries,
+      continuation: continuation,
+      title: title,
+      description: _text(header?['descriptionText']),
+    );
+  }
+
+  Future<Map<String, dynamic>> _browse({
+    required Map<String, String> body,
     PlaylistLinkCancellationToken? cancellation,
   }) async {
     final requestBody = <String, dynamic>{

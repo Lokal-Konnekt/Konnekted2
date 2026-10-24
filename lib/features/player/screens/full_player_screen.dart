@@ -250,7 +250,7 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
     AppHaptics.selection();
     // Update the shared favorites provider: the Liked library folder watches
     // this provider, while a direct FavoritesService call left it stale.
-    final nowFav = await ref.read(favoritesProvider.notifier).toggleFavorite(song.id);
+    final nowFav = await ref.read(favoritesProvider.notifier).toggleFavorite(song.id, song: song);
     if (!mounted) return;
     setState(() {
       _isFav = nowFav;

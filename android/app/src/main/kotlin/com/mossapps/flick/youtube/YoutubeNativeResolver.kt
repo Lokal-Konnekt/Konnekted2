@@ -78,6 +78,7 @@ internal object YoutubeNativeResolver {
                 "url" to stream.url,
                 "length" to length,
                 "mime" to stream.mimeType,
+                "bitrate" to stream.kbps.takeIf { it > 0 }?.times(1000),
                 "headers" to stream.headers,
             )
         }

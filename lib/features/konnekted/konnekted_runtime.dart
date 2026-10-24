@@ -66,10 +66,16 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
   void _onPreparationStatus() {
     if (!mounted) return;
     final message = QueuePreResolver.shared.status.value;
-    if (message == null) {
-      _playbackProgress.clear();
-    } else {
+    if (message != null) {
       _playbackProgress.update(message);
+    } else if (_player.isNetworkLoadingNotifier.value &&
+        _player.currentSongNotifier.value?.sourcePackage ==
+            'konnekted.progressive') {
+      // HTTP URLs load directly in Media3. The pending resolver returns as
+      // soon as the URL is ready; keep the loading toast until audio starts.
+      _playbackProgress.update('Buffering HTTP audio…');
+    } else {
+      _playbackProgress.clear();
     }
   }
 
@@ -136,6 +142,8 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _player = ref.read(playerServiceProvider);
     _player.isPlayingNotifier.addListener(_updateIconBusy);
     _player.isNetworkLoadingNotifier.addListener(_updateIconBusy);
+    _player.isNetworkLoadingNotifier.addListener(_onPreparationStatus);
+    _player.currentSongNotifier.addListener(_onPreparationStatus);
     _updateIconBusy();
     _run(
       'Discord presence',
@@ -338,6 +346,8 @@ class _KonnektedRuntimeState extends ConsumerState<KonnektedRuntime>
     _playbackProgress.dispose();
     _player.isPlayingNotifier.removeListener(_updateIconBusy);
     _player.isNetworkLoadingNotifier.removeListener(_updateIconBusy);
+    _player.isNetworkLoadingNotifier.removeListener(_onPreparationStatus);
+    _player.currentSongNotifier.removeListener(_onPreparationStatus);
     _jobProgress.dispose();
     _jobNotification.dispose();
     _widgetSync.close();

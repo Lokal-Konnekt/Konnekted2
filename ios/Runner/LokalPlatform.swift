@@ -1,4 +1,5 @@
 import AVFoundation
+import AVKit
 import Flutter
 import MediaPlayer
 import Photos
@@ -13,11 +14,13 @@ final class LokalPlatform: NSObject, UIDocumentPickerDelegate {
   private var commandTargets: [(MPRemoteCommand, Any)] = []
   private var pickerResult: FlutterResult?
   private var nowPlaying: [String: Any] = [:]
+  private var spotify: LokalSpotifySession?
   private let fileQueue = DispatchQueue(label: "app.lokal.mobile.import", qos: .userInitiated)
 
   init(messenger: FlutterBinaryMessenger) {
     player = FlutterMethodChannel(name: "com.mossapps.flick/player", binaryMessenger: messenger)
     super.init()
+    spotify = LokalSpotifySession(messenger: messenger, presenter: { [weak self] in self?.presenter })
     player.setMethodCallHandler { [weak self] call, result in
       guard let self = self else { return }
       switch call.method {
@@ -66,6 +69,23 @@ final class LokalPlatform: NSObject, UIDocumentPickerDelegate {
           "channels": session.outputNumberOfChannels,
           "outputs": session.currentRoute.outputs.map { ["name": $0.portName, "type": $0.portType.rawValue] },
         ])
+      case "showRoutePicker":
+        guard let controller = self?.presenter else { result(false); return }
+        let sheet = UIViewController()
+        sheet.view.backgroundColor = .systemBackground
+        sheet.title = "Audio output"
+        let picker = AVRoutePickerView()
+        picker.translatesAutoresizingMaskIntoConstraints = false
+        sheet.view.addSubview(picker)
+        NSLayoutConstraint.activate([
+          picker.centerXAnchor.constraint(equalTo: sheet.view.centerXAnchor),
+          picker.centerYAnchor.constraint(equalTo: sheet.view.centerYAnchor),
+          picker.widthAnchor.constraint(equalToConstant: 64),
+          picker.heightAnchor.constraint(equalToConstant: 64),
+        ])
+        sheet.sheetPresentationController?.detents = [.medium()]
+        controller.present(sheet, animated: true)
+        result(true)
       default: result(FlutterMethodNotImplemented)
       }
     }

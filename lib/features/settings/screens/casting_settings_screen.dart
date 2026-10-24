@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -97,8 +100,14 @@ class _CastingSettingsScreenState extends ConsumerState<CastingSettingsScreen> {
           ),
         LokalSettingsSection(
           title: l10n.outputDevice,
-          heading: '${l10n.outputDevice} · ${l10n.android}',
-          children: [_OutputSection()],
+          heading: '${l10n.outputDevice} · ${Platform.isIOS ? 'iPhone' : l10n.android}',
+          children: [
+            if (Platform.isIOS)
+              LokalSettingRow(label: 'AirPlay and headphones', onTap: () async {
+                await const MethodChannel('lokal/ios').invokeMethod<bool>('showRoutePicker');
+              })
+            else _OutputSection(),
+          ],
         ),
         LokalSettingsSection(title: l10n.about, children: [_AboutBody()]),
       ],

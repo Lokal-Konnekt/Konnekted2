@@ -49,7 +49,7 @@ jobs:
       - name: Build the complete app for iOS simulator
         run: |
           if ! flutter build ios --simulator --debug --no-pub --verbose > "$RUNNER_TEMP/ios-simulator-build.log" 2>&1; then
-            tail -n 250 "$RUNNER_TEMP/ios-simulator-build.log"
+            python3 tool/ios_build_diagnostics.py "$RUNNER_TEMP/ios-simulator-build.log"
             exit 1
           fi
       - name: Build the release iPhone app without signing credentials
@@ -62,6 +62,13 @@ jobs:
         run: python3 tool/ios_package.py build/ios/iphoneos/Runner.app build/ios/ipa/Lokal-unsigned.ipa
       - name: Preserve dependency locks
         run: git diff --exit-code -- pubspec.lock rust/Cargo.lock
+      - name: Preserve failed build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: iPhone-build-diagnostics-${{ github.run_number }}
+          path: ${{ runner.temp }}/ios-simulator-build.log
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: Lokal-iPhone-unsigned-${{ github.run_number }}

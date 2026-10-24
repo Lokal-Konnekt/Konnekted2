@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flick/providers/app_build_info_provider.dart';
 
 const lokalUpdateReleasesUrl =
-    'https://github.com/Lokal-Konnekt/lokal-mobile/releases';
+    'https://github.com/lokal-music/lokal-mobile/releases';
 
 class LokalUpdateRelease {
   const LokalUpdateRelease({
@@ -23,12 +23,42 @@ class LokalUpdateRelease {
 class GithubUpdateService {
   GithubUpdateService(this.client);
   final http.Client client;
-  static const _repo = 'Lokal-Konnekt/lokal-mobile';
+  static const _repo = 'lokal-music/lokal-mobile';
   static const _headers = {
     'Accept': 'application/vnd.github+json',
     'User-Agent': 'Lokal-Mobile',
     'X-GitHub-Api-Version': '2022-11-28',
   };
+
+  /// Accept only exact GitHub release assets from the current repository or
+  /// its former owner. Renaming a repository must not silently hide updates.
+  static bool _trustedReleaseAssetUrl(
+    String url, {
+    required String tag,
+    required String filename,
+  }) {
+    final uri = Uri.tryParse(url);
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host != 'github.com' ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasPort ||
+        uri.hasQuery ||
+        uri.hasFragment) {
+      return false;
+    }
+    final parts = uri.pathSegments;
+    if (parts.length != 6 ||
+        !{'lokal-music', 'Lokal-Konnekt'}.contains(parts[0]) ||
+        parts[1] != 'lokal-mobile' ||
+        parts[2] != 'releases' ||
+        parts[3] != 'download' ||
+        parts[4] != tag ||
+        parts[5] != filename) {
+      return false;
+    }
+    return true;
+  }
 
   Future<dynamic> _json(String url) async {
     final response = await client
@@ -80,8 +110,17 @@ class GithubUpdateService {
         for (final a in assets) {
           if (a['name'] == name && a['browser_download_url'] is String) {
             final url = a['browser_download_url'] as String;
-            if (url.startsWith('https://github.com/$_repo/releases/download/'))
+            // GitHub's release API returns the canonical repository owner in
+            // browser_download_url, even if an older repo URL redirected the
+            // metadata request. Validate structured URLs, not the former
+            // Lokal-Konnekt path or an unsafe string prefix.
+            if (_trustedReleaseAssetUrl(
+              url,
+              tag: '${release['tag_name']}',
+              filename: name,
+            )) {
               return url;
+            }
           }
         }
         return null;

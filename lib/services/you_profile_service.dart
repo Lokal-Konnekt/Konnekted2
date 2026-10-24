@@ -68,11 +68,13 @@ class YouProfileService {
           original.width > 8192 || original.height > 8192) {
         throw const FormatException('This photo format could not be opened.');
       }
-      final side = original.width < original.height
-          ? original.width : original.height;
+      // Respect EXIF rotation from camera photos before cropping.
+      final oriented = img.bakeOrientation(original);
+      final side = oriented.width < oriented.height
+          ? oriented.width : oriented.height;
       final square = img.copyCrop(
-        original, x: (original.width - side) ~/ 2,
-        y: (original.height - side) ~/ 2, width: side, height: side,
+        oriented, x: (oriented.width - side) ~/ 2,
+        y: (oriented.height - side) ~/ 2, width: side, height: side,
       );
       final sized = img.copyResize(square, width: 320, height: 320);
       final bytes = img.encodeJpg(sized, quality: 85);

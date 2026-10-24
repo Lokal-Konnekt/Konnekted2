@@ -696,18 +696,22 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   found.id,
                   quality: quality,
                   forPlayback: !forDownload && !found.atmosDownload,
-                  onTransfer: live == null ? null : (transfer) {
-                    live.observe(transfer);
+                  // Even an explicit Qobuz Save (live == null) needs the
+                  // host's measured byte progress. The guest's initial 5%
+                  // only means its download ticket is being resolved.
+                  onTransfer: live == null && !qobuz ? null : (transfer) {
+                    live?.observe(transfer);
                     // Qobuz's extension emits 5% during URL/ticket
                     // resolution. Only host-observed bytes are transfer
                     // progress; they must supersede guest progress numbers.
-                    if (qobuz && !finished && transfer.total > 0) {
+                    if (qobuz && !finished && transfer.total > 0 &&
+                        transfer.written > 0) {
                       actualTransferPercent =
                           (transfer.written * 100 / transfer.total)
                               .clamp(0.0, 100.0).toDouble();
                       final text = progress.update(
                         percent: actualTransferPercent,
-                        message: 'Receiving audio…',
+                        message: forDownload ? 'Downloading audio…' : 'Receiving audio…',
                       );
                       if (text != null) onStatus?.call(text);
                     }

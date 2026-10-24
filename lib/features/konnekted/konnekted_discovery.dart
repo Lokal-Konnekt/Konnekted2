@@ -632,9 +632,13 @@ Future<List<_PlaybackSource>> _morneyeSources(
           );
           if (!forDownload && !found.atmosDownload) {
             final cached = _morneyeReadyPlayback[cacheKey];
-            if (cached?.filePath case final path?
-                when File(path).existsSync() && File(path).lengthSync() > 0) {
-              return cached;
+            if (cached != null) {
+              final path = cached.filePath;
+              if (path != null &&
+                  File(path).existsSync() &&
+                  File(path).lengthSync() > 0) {
+                return cached;
+              }
             }
             _morneyeReadyPlayback.remove(cacheKey);
           }

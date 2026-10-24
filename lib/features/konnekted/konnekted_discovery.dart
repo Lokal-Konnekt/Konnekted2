@@ -25,7 +25,6 @@ import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_store.dart';
 import 'package:flick/features/morneye/morneye_live_playback.dart';
 import 'package:flick/features/morneye/morneye_packages.dart';
-import 'package:flick/features/morneye/morneye_playback_quality.dart';
 import 'package:flick/features/morneye/morneye_runtime.dart';
 import 'package:flick/features/morneye/morneye_service.dart';
 import 'package:flick/features/spotify/spotify_api.dart';
@@ -541,27 +540,12 @@ void _rememberMorneyePlayback(String key, Song song) {
   }
 }
 
-/// Catalogue results may not publish measured codec/rate (e.g. Amazon).
-/// Where available, expose the selected *requested tier* in Search instead
-/// of a misleading "Quality unknown". Never invent decoded bit depth/rate.
-String? morneyeAdvertisedOrRequestedQuality({
-  required MorneyeAddon addon,
-  required String? advertised,
-  required Map<String, Object?> preferences,
-}) {
-  if (advertised != null && advertised.trim().isNotEmpty) return advertised;
-  final chosen = resolveMorneyeRequestQuality(
-    forPlayback: true, requested: null,
-    configured: preferences['downloadQuality'] as String?,
-    options: addon.qualityOptions, provider: addon.name,
-  );
-  for (final option in addon.qualityOptions) {
-    if (option is Map && option['id'] == chosen) {
-      final label = option['label']?.toString().trim() ?? '';
-      if (label.isNotEmpty) return 'Requested: $label';
-    }
-  }
-  return null;
+/// A configured download preference is *not* per-track audio quality.
+/// Amazon's "FLAC Best Available" option must not become a Search badge on
+/// every song. Only provider-advertised per-track metadata is shown.
+String? morneyeAdvertisedQuality(String? advertised) {
+  final quality = advertised?.trim() ?? '';
+  return quality.isEmpty ? null : quality;
 }
 
 /// Your Morneye add-ons that can play songs right now, as playback sources.
@@ -604,7 +588,6 @@ Future<List<_PlaybackSource>> _morneyeSources(
           return verified;
         },
         results: (query) async {
-          final preferences = packages.settings(addon);
           return [
           for (final song in await packages.search(addon.key, query))
             OnlineResult(
@@ -619,11 +602,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 sourceName: addon.displayName,
                 artwork: song.thumbnail,
                 atmosAvailable: song.atmosAvailable,
-                catalogueQuality: morneyeAdvertisedOrRequestedQuality(
-                  addon: addon,
-                  advertised: song.quality,
-                  preferences: preferences,
-                ),
+                catalogueQuality: morneyeAdvertisedQuality(song.quality),
                 catalogueCodec: song.codec,
                 catalogueBitDepth: song.bitDepth,
                 catalogueSampleRate: song.sampleRate,

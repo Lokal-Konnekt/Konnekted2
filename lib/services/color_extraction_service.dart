@@ -20,7 +20,8 @@ Uint8List? _sampleArtworkRgba(Uint8List encoded) {
     height: 32,
     interpolation: image.Interpolation.average,
   );
-  return thumbnail.getBytes(order: image.ChannelOrder.rgba);
+  return thumbnail.convert(format: image.Format.uint8)
+      .getBytes(order: image.ChannelOrder.rgba);
 }
 
 /// Service to extract dominant colors from images for adaptive theming.

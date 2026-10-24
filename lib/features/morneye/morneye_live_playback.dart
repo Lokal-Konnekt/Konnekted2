@@ -33,6 +33,7 @@ class MorneyeLiveSession {
 
   Future<void> get playable => _ready.future;
   bool get isPlayable => _ready.isCompleted && !_invalid;
+  bool get isTransferring => isPlayable && !_transferred;
   int get total => _total;
 
   /// Only progress from the host's actual file writer can authorize a stream.

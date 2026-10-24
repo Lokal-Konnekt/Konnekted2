@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flick/services/android_auto_catalog.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/core/utils/dev_log.dart';
@@ -144,6 +146,32 @@ class NotificationService {
     Function(double)? onSetCastVolume,
   }) {
     _channel.setMethodCallHandler((call) async {
+      // Car clients browse the same database and playlists as the phone UI.
+      // Handle catalog requests even when radio temporarily owns the session.
+      if (call.method == 'androidAutoBrowse') {
+        final args = call.arguments;
+        final parentId = args is Map ? args['parentId'] as String? : null;
+        return AndroidAutoCatalog().browse(parentId ?? AndroidAutoCatalog.root);
+      }
+      if (call.method == 'androidAutoSearch') {
+        final args = call.arguments;
+        final query = args is Map ? args['query'] as String? : null;
+        return AndroidAutoCatalog().search(query ?? '');
+      }
+      if (call.method == 'androidAutoPlayMediaId') {
+        final args = call.arguments;
+        final mediaId = args is Map ? args['mediaId'] as String? : null;
+        if (mediaId == null) return false;
+        if (_owner != null) stopCurrentOwner();
+        return AndroidAutoCatalog().playMediaId(mediaId);
+      }
+      if (call.method == 'androidAutoPlaySearch') {
+        final args = call.arguments;
+        final query = args is Map ? args['query'] as String? : null;
+        if (query == null || query.trim().isEmpty) return false;
+        if (_owner != null) stopCurrentOwner();
+        return AndroidAutoCatalog().playSearch(query);
+      }
       final owner = _owner;
       if (owner != null) {
         switch (call.method) {
@@ -212,6 +240,15 @@ class NotificationService {
           break;
       }
     });
+
+    // A cold Android Auto connection may have started Flutter headlessly.
+    // Release its pending browse requests only after the Dart catalog and
+    // playback command handler are ready to receive calls.
+    unawaited(
+      _channel.invokeMethod<void>('androidAutoReady').onError(
+        (Object _, StackTrace __) {},
+      ),
+    );
   }
 
   /// Show or update the notification with song information.

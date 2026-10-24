@@ -147,6 +147,18 @@ pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeInitRustAndroi
     true
 }
 
+// The car browser can start Lokal without creating MainActivity. Give it the
+// same Android Context setup as regular phone startup for the Rust/Oboe path.
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "system" fn Java_com_mossapps_flick_MusicNotificationService_nativeInitRustAndroidContext<'local>(
+    env: JNIEnv<'local>,
+    service: JObject<'_>,
+    context: JObject<'local>,
+) -> jboolean {
+    Java_com_mossapps_flick_MainActivity_nativeInitRustAndroidContext(env, service, context)
+}
+
 #[cfg(all(target_os = "android", feature = "uac2"))]
 #[no_mangle]
 pub extern "system" fn Java_com_mossapps_flick_MainActivity_nativeRegisterRustDirectUsbDevice(

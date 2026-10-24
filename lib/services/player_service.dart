@@ -771,6 +771,11 @@ class PlayerService {
   void _cancelPendingPlayback() {
     _pendingPlaybackGeneration++;
     if (_pendingPlaybackId == null) return;
+    // Cancelling an unresolved selection must also release the old engine
+    // presentation hold. A resolved-track handoff has no pending ID here.
+    if (_pendingPresentationTrackId == _pendingPlaybackId) {
+      _pendingPresentationTrackId = null;
+    }
     _pendingPlaybackId = null;
     cancelPendingSongResolution?.call();
     isNetworkLoadingNotifier.value = false;
@@ -883,6 +888,9 @@ class PlayerService {
       _debugLog('[Playback] ${pending.title} not found; skipping');
       if (++_pendingFailures >= _playlist.length) {
         _pendingFailures = 0;
+        if (_pendingPresentationTrackId == pending.id) {
+          _pendingPresentationTrackId = null;
+        }
         return;
       }
       await _enqueuePlaybackRequest(() async {
@@ -2180,7 +2188,7 @@ class PlayerService {
     try {
       await _resumeInternal();
     } catch (e, stackTrace) {
-      if (_pendingPresentationTrackId == song.id) {
+      if (_pendingPresentationTrackId == currentSongNotifier.value?.id) {
         _pendingPresentationTrackId = null;
       }
       final recovered = await _handleDirectUsbStartupRefusal(
@@ -3832,6 +3840,8 @@ class PlayerService {
   }
 
   void _stopPlayback() async {
+    _cancelPendingPlayback();
+    _pendingPresentationTrackId = null;
     _wasPlayingBeforeAudioInterruption = false;
     _crossfadeUiHandoffFromPath = null;
     await _savePosition();
@@ -5264,6 +5274,9 @@ class PlayerService {
       );
       if (rustRecovered) {
         return;
+      }
+      if (_pendingPresentationTrackId == song.id) {
+        _pendingPresentationTrackId = null;
       }
       AppLog.instance.add(
         '[Playback] Failed to start ${song.title} on ${currentEngineType.logLabel}: $e',

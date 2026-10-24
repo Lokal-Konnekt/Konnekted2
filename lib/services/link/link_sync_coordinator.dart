@@ -402,13 +402,25 @@ class LinkSyncCoordinator {
         ]);
         final name = state.name;
         if (name == null) return;
+        // Retroactive replay can contain hundreds of members even when the
+        // pull cursor returned no new rows. Share one library snapshot across
+        // those matches; empty playlists should not read the library at all.
+        if (state.members.isNotEmpty) {
+          _matchCandidates ??= List<Song>.of(
+            await SongRepository().getAllSongs(),
+          );
+        }
         final songIds = <String>[];
+        final matchedKeys = <String>[];
         for (final member in state.members) {
           final song = await _match({
             ...member.fields,
             'track_key': member.trackKey,
           });
-          if (song != null) songIds.add(song.id);
+          if (song != null) {
+            songIds.add(song.id);
+            matchedKeys.add(member.trackKey);
+          }
         }
         final old = await PlaylistService.instance.getPlaylist(localId);
         final sameOrder = old != null &&
@@ -444,7 +456,10 @@ class LinkSyncCoordinator {
         } else {
           snapshot[id] = {
             'name': name,
-            'members': state.members.map((e) => e.trackKey).toList(),
+            // Snapshot is the *local projection*, not all remote entries:
+            // unmatched desktop tracks must never look locally removed on
+            // the next capture and be deleted remotely.
+            'members': matchedKeys,
           };
         }
         await prefs.setString(

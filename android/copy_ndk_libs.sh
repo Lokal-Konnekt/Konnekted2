@@ -62,12 +62,9 @@ PREBUILT_DIRS=(
 # Map ABIs to NDK architecture names
 declare -A ABI_MAP
 ABI_MAP["arm64-v8a"]="aarch64-linux-android"
-ABI_MAP["armeabi-v7a"]="arm-linux-androideabi"
-ABI_MAP["x86_64"]="x86_64-linux-android"
-ABI_MAP["x86"]="i686-linux-android"
 
 # Create directories for each ABI
-for ABI in arm64-v8a armeabi-v7a x86_64 x86; do
+for ABI in arm64-v8a; do
     mkdir -p "$JNI_LIBS_DIR/$ABI"
     
     ARCH="${ABI_MAP[$ABI]}"

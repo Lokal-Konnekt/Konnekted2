@@ -122,17 +122,23 @@ def package_apk(apk, destination, flavor, version, code, env, certificate):
         bad_entry = archive.testzip()
         if bad_entry is not None:
             raise ValueError(f"APK has a corrupt ZIP entry: {bad_entry}")
-        for abi in ("arm64-v8a", "armeabi-v7a"):
-            for library in ("librust_lib_flick_player.so", "libflutter.so", "libapp.so",
-                            "libmornye_discord.so", "libdiscord_partner_sdk.so"):
-                if f"lib/{abi}/{library}" not in archive.namelist():
-                    raise ValueError(f"APK is missing {abi}/{library}")
+        # Fail closed: ship all required native libraries for ARM64, and no
+        # second ABI that would inflate the download or confuse installers.
+        native_entries = [entry for entry in archive.namelist()
+                          if entry.startswith("lib/") and entry.endswith(".so")]
+        packaged_abis = {entry.split("/")[1] for entry in native_entries}
+        if packaged_abis != {"arm64-v8a"}:
+            raise ValueError(f"APK must contain only arm64-v8a native libraries: {sorted(packaged_abis)}")
+        for library in ("librust_lib_flick_player.so", "libflutter.so", "libapp.so",
+                        "libmornye_discord.so", "libdiscord_partner_sdk.so"):
+            if f"lib/arm64-v8a/{library}" not in archive.namelist():
+                raise ValueError(f"APK is missing arm64-v8a/{library}")
         for notice in ("Discord-License-Notices.txt", "Mornye-Discord-Bridge-License.txt"):
             if f"assets/{notice}" not in archive.namelist():
                 raise ValueError(f"APK is missing {notice}")
     destination.mkdir(exist_ok=True)
     variant = "-Play" if flavor == "play" else ""
-    name = f"Lokal-{version}{variant}-universal.apk"
+    name = f"Lokal-{version}{variant}-arm64.apk"
     output = destination / name
     shutil.copyfile(apk, output)
     with output.open("rb") as stream:
@@ -140,7 +146,7 @@ def package_apk(apk, destination, flavor, version, code, env, certificate):
     (destination / f"SHA256SUMS-{flavor}.txt").write_text(f"{digest}  {name}\n")
     (destination / f"{flavor}-metadata.json").write_text(json.dumps({
         "version": version, "versionCode": code, "flavor": flavor,
-        "abis": ["arm64-v8a", "armeabi-v7a"], "sha256": digest,
+        "abis": ["arm64-v8a"], "sha256": digest,
         "signingCertificateSha256": certificate,
         "commit": env.get("GITHUB_SHA"), "run_id": env.get("GITHUB_RUN_ID"),
         "run_attempt": env.get("GITHUB_RUN_ATTEMPT"),
@@ -170,7 +176,7 @@ def build():
         # from both the Java registrant and the release Gradle dependencies.
         subprocess.run([
             "flutter", "build", "apk", "--release", "--flavor", flavor,
-            "--target-platform", "android-arm64,android-arm",
+            "--target-platform", "android-arm64",
             "--build-name", version, "--build-number", str(code),
         ], env=child_env, check=True)
     # Secrets are no longer needed by verification or packaging.

@@ -113,7 +113,7 @@ Remaining gaps include unported product features and real-device validation:
 
 ### Discord Rich Presence
 
-Android integration adapted from Mornye’s official Social SDK bridge is prepared, opt-in under Data → Accounts. Lokal application ID is configured; the verified SDK is encrypted in the repository and staged by signed build workflows using an Actions secret. SDK-enabled native bridge compiles/links for both ARM ABIs. APK/device behavior is not yet validated. See [setup and limitations](DISCORD_PRESENCE.md).
+Android integration adapted from Mornye’s official Social SDK bridge is prepared, opt-in under Data → Accounts. Lokal application ID is configured; the verified SDK is encrypted in the repository and staged by signed build workflows using an Actions secret. SDK-enabled native bridge is packaged for arm64-v8a only. APK/device behavior is not yet validated. See [setup and limitations](DISCORD_PRESENCE.md).
 
 ## Mobile library and player follow-up (2026-10-21)
 

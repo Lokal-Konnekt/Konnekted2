@@ -99,9 +99,11 @@ class GithubUpdateService {
           version == null ||
           !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(hash))
         continue;
-      final apk = asset(
-        'Lokal-$version${flavor == 'play' ? '-Play' : ''}-universal.apk',
-      );
+      final prefix = 'Lokal-$version${flavor == 'play' ? '-Play' : ''}';
+      // New releases contain ARM64 only. Keep finding older universal
+      // releases so an installed signed beta can still update in place.
+      final apk = asset('$prefix-arm64.apk') ??
+          asset('$prefix-universal.apk');
       if (apk == null) continue;
       if (newest == null || code > newest.build) {
         newest = LokalUpdateRelease(

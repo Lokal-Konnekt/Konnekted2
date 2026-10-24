@@ -353,8 +353,16 @@ class ResolvedDiscoveryAudio {
     this.url, {
     this.length,
     this.headers = const {},
+    this.codec,
+    this.bitrate,
+    this.sampleRate,
   });
   final Uri url;
+  /// Resolved stream metadata, never inferred from a catalogue maximum.
+  final String? codec;
+  /// Bits per second for the exact selected rendition, when the resolver knows it.
+  final int? bitrate;
+  final int? sampleRate;
 
   /// The file's size when it must be fetched in parts (YouTube serves big
   /// single requests slowly): each part asks for a `range` of it.

@@ -16,7 +16,7 @@ does not mean a USB DAC or every Android OEM has been tested here.
 | Local songs, albums, artists, folders | Inherited | Flick screens, Isar repository and scanner |
 | Favorites and recent history | Inherited / shell integrated | Real providers feed Listen and Library |
 | Local playlist creation, editing, M3U import/export | Inherited | `PlaylistService` and playlist screens |
-| Playlist links and refresh | Delivered | Spotify public embed and YouTube Music browse; preview, partial safety, matching, refresh, unlink |
+| Playlist links and refresh | Delivered | Spotify public embed, YouTube/YouTube Music browse, built-in paginated Deezer metadata, and enabled Tidal/Apple Music/Qobuz link-handler add-ons; preview, partial safety, matching, refresh, unlink. New providers covered by fixtures; device/live-provider validation pending. |
 | Spotify OAuth and library | Delivered | PKCE, secure tokens, paginated Web API, playlist import, bounded retry |
 | Spotify Liked Songs → local likes | Delivered | Explicit one-way sync, strict title/artist/duration matching, readback verification |
 | YouTube Music catalog search | Delivered | Explicit guest catalog search; opens canonical source page |

@@ -62,9 +62,9 @@ same permanent key. Existing signing secrets remain:
 | `LOKAL_DISCORD_SDK_PASSPHRASE` | Unlock the pinned SDK bundle already used by releases |
 
 Never replace the key to fix a build. Signing files are ephemeral and removed
-on success/failure. APK signature, package, version, both ARM ABIs, required
+on success/failure. APK signature, package, version, ARM64 ABI, required
 native libraries and notices are verified before upload. Each APK contains
-**arm64-v8a and armeabi-v7a**, with a checksum and non-secret certificate metadata.
+**arm64-v8a only**, with a checksum and non-secret certificate metadata.
 
 Independent stable/nightly run counters must not be Android version codes.
 Both flows now share a UTC clock: `seconds since 2020-01-01 + 100000`, at least

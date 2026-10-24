@@ -114,3 +114,64 @@ String catalogueAudioDetails({
     sampleRate: hz != null && hz >= 8000 && hz <= 768000 ? hz : null,
   );
 }
+
+
+/// Only a *codec*, not its containing file format, can classify audio.
+/// M4A/MP4 and WebM are containers which may contain multiple lossy codecs;
+/// displaying them as quality badges was incorrect.
+String? verifiedAudioCodec(Object? value) {
+  final raw = value?.toString().toLowerCase().trim() ?? '';
+  if (raw.isEmpty || raw == 'null' || raw == 'unknown') return null;
+  if (raw.contains('flac')) return 'FLAC';
+  if (raw.contains('alac')) return 'ALAC';
+  if (raw.contains('opus')) return 'OPUS';
+  if (raw.contains('vorbis')) return 'VORBIS';
+  if (raw.contains('aac') || raw.contains('mp4a')) return 'AAC';
+  if (raw.contains('mp3') || raw.contains('mpeg_layer3')) return 'MP3';
+  if (raw.startsWith('pcm_')) return 'WAV';
+  if (raw.contains('wavpack')) return 'WAVPACK';
+  return null;
+}
+
+/// Approximate *measured file average* bitrate, not the selected download
+/// option or a generic 320 kbps provider promise. A usable native probe may
+/// supply bits/second directly; otherwise full file bytes / known duration
+/// gives an honest rounded average. Never invent a quality tier from a
+/// file extension, decoder sample width or hi-res catalogue maximum.
+String? measuredLossyBitrate({
+  required String? codec,
+  Object? bitsPerSecond,
+  int? fileBytes,
+  Duration? duration,
+}) {
+  if (!{'AAC', 'MP3', 'OPUS', 'VORBIS'}.contains(codec)) return null;
+  final bps = bitsPerSecond is num
+      ? bitsPerSecond.toDouble()
+      : double.tryParse(bitsPerSecond?.toString() ?? '');
+  final seconds = duration?.inMilliseconds == null
+      ? 0.0 : duration!.inMilliseconds / 1000.0;
+  final observed = bps != null && bps >= 16000 && bps <= 1500000
+      ? bps
+      : (fileBytes != null && fileBytes > 0 && seconds >= 5)
+          ? fileBytes * 8 / seconds : null;
+  if (observed == null || !observed.isFinite) return null;
+  return '${(observed / 1000).round()} kbps';
+}
+
+/// A requested Morneye setting is a helpful Search hint, not the actual
+/// file's quality. In particular Qobuz/Tidal catalogue maximums cannot be
+/// shown as the quality of a user-selected lower rendition.
+String? morneyeSelectedQualityLabel({
+  required String? configured,
+  required List<dynamic> options,
+}) {
+  final selection = configured?.trim() ?? '';
+  if (selection.isEmpty) return null;
+  for (final option in options) {
+    if (option is! Map || option['id']?.toString() != selection) continue;
+    final label = option['label']?.toString().trim() ?? '';
+    if (label.isEmpty) return null;
+    return '$label (selected)';
+  }
+  return null;
+}

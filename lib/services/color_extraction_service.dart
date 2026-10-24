@@ -43,7 +43,12 @@ class ColorExtractionService {
   Future<ByteData?> _sample(String path) {
     final existing = _samples[path];
     if (existing != null) return existing;
-    final task = _readSample(path);
+    // Missing or still-being-written artwork can become available later;
+    // keep successful 32x32 samples, not permanent null-cache entries.
+    final task = _readSample(path).then((sample) {
+      if (sample == null) _samples.remove(path);
+      return sample;
+    });
     _samples[path] = task;
     while (_samples.length > 128) {
       _samples.remove(_samples.keys.first);
@@ -55,6 +60,9 @@ class ColorExtractionService {
     try {
       final file = File(path);
       if (!await file.exists()) return null;
+      // Avoid a huge full-resolution allocation on 4 GB devices (M05).
+      // Exceptionally large covers fall back to the theme accent.
+      if (await file.length() > 24 * 1024 * 1024) return null;
       final decoded = await compute(_sampleArtworkRgba, await file.readAsBytes());
       if (decoded == null || decoded.lengthInBytes != 32 * 32 * 4) return null;
       return ByteData.sublistView(decoded);

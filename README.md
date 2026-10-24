@@ -3,7 +3,7 @@
 <p align="center">
   <a href="https://github.com/Lokal-Konnekt/lokal-mobile/releases"><img alt="Version 1.0.0" src="https://img.shields.io/badge/next_stable-1.0.0-65e2ce?style=flat-square&labelColor=0b1318"></a>
   <img alt="Android 8.0 and later" src="https://img.shields.io/badge/Android-8.0%2B-65e2ce?style=flat-square&labelColor=0b1318">
-  <img alt="ARM64 only" src="https://img.shields.io/badge/ABI-ARM64_only-65e2ce?style=flat-square&labelColor=0b1318">
+  <img alt="64-bit ARM phones" src="https://img.shields.io/badge/Phones-64--bit_ARM-65e2ce?style=flat-square&labelColor=0b1318">
   <a href="LICENSE"><img alt="GPL-3.0 license" src="https://img.shields.io/badge/license-GPL--3.0-65e2ce?style=flat-square&labelColor=0b1318"></a>
 </p>
 
@@ -86,10 +86,10 @@ Optional integrations include Last.fm and ListenBrainz scrobbling, network music
 ## Install and update
 
 1. Open [Releases](https://github.com/Lokal-Konnekt/lokal-mobile/releases) and choose stable or nightly.
-2. Download **`Lokal-<version>-arm64.apk`** (the full build). The optional Play variant adds `-Play` to its name. Each APK contains **arm64-v8a only** to reduce download size. ARMv7/32-bit-only phones are no longer supported; existing ARM64 installations can update in place with the same signing key.
+2. Download **`Lokal-<version>-arm64.apk`** (the full build). The optional Play variant adds `-Play` to its name. Each APK is built for **64-bit ARM phones** to reduce download size. 32-bit-only phones and x86 Android emulators are not supported; existing compatible installations can update in place with the same signing key.
 3. Allow your browser/file manager to install the APK, then choose your music folders from Library settings.
 
-Android **8.0 / API 26** or newer is required. The `play` flavor is an alternative distribution variant; most people sideloading from GitHub should use `full`.
+**Requires Android 8.0 or newer and a 64-bit ARM device.** Android 14 is **not** required. The `play` flavor is an alternative distribution variant; most people sideloading from GitHub should use `full`.
 
 Stable and nightly APKs use the same package and permanent signing key, so they can update in place when the new APK has a higher versionCode. They share app data and cannot be installed side by side. Returning from a newer nightly may require waiting for a newer stable build. Very old debug-signed betas need a one-time migration; [read the update notes before uninstalling](docs/RELEASING.md#beta-updates).
 

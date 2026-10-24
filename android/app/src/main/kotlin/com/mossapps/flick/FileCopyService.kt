@@ -69,7 +69,7 @@ class FileCopyService : Service() {
         }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val message = intent.getStringExtra("message").orEmpty()
         return NotificationCompat.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_lokal_fg_mono)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(intent.getStringExtra("title") ?: "Copying music")
             .setContentText(message).setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setSubText(intent.getStringExtra("device")).setContentIntent(open)

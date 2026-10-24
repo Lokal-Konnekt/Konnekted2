@@ -49,6 +49,41 @@ class BrandIconsTest(unittest.TestCase):
         self.assertNotEqual(lime.getpixel((335, 215)), blue.getpixel((335, 215)))
         self.assertEqual(lime.getpixel((216, 216)), blue.getpixel((216, 216)))
 
+    def test_lokal_monochrome_notification_and_widget_icons(self):
+        # Status icons must be alpha-only small drawables, not inset adaptive
+        # launcher foregrounds or the original dotted Flick mark.
+        import xml.etree.ElementTree as ET
+
+        res = Path("android/app/src/main/res")
+        drawable = res / "drawable"
+        icon_path = drawable / "ic_notification.xml"
+        self.assertTrue(icon_path.is_file())
+        self.assertFalse((drawable / "ic_notification.png").exists())
+        root = ET.parse(icon_path).getroot()
+        android = "{http://schemas.android.com/apk/res/android}"
+        self.assertEqual(root.tag, "vector")
+        self.assertEqual(root.get(android + "viewportWidth"), "24")
+        paths = root.findall("path")
+        self.assertGreaterEqual(len(paths), 4)
+        self.assertTrue(all(path.get(android + "fillColor") in ("#FFFFFFFF", "#00000000") for path in paths))
+
+        for source in (
+            "MusicNotificationService.kt",
+            "FileCopyService.kt",
+            "LokalLibrarySyncNotification.kt",
+        ):
+            content = (Path("android/app/src/main/kotlin/com/mossapps/flick") / source).read_text()
+            self.assertIn(".setSmallIcon(R.drawable.ic_notification)", content)
+            self.assertNotIn(".setSmallIcon(R.drawable.ic_lokal_fg_mono)", content)
+
+        placeholder = (drawable / "widget_default_art.xml").read_text()
+        self.assertIn("@drawable/ic_notification", placeholder)
+        self.assertNotIn("@drawable/widget_flick_logo", placeholder)
+        # Retain resource aliases for any older consumers, but their graphics
+        # must no longer contain the original Flick-dot symbol.
+        for legacy in ("widget_flick_logo.xml", "widget_ic_flick_logo.xml"):
+            self.assertEqual((drawable / legacy).read_text(), icon_path.read_text())
+
     def test_legacy_corners_and_themed_monochrome(self):
         root = Path("android/app/src/main/res")
         square = Image.open(root / "mipmap-xxxhdpi/launcher_icon.png").convert("RGBA")

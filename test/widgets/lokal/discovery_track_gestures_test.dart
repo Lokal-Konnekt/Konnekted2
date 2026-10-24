@@ -19,7 +19,7 @@ void main() {
         ),
         onTap: () => played++,
         onMore: () => actions++,
-        onQueue: () async => queued++,
+        onQueue: () async { queued++; },
       )),
     ));
     await tester.longPress(find.text('Discovery song'));
@@ -42,7 +42,7 @@ void main() {
         ),
         onTap: () => played++,
         onMore: () => actions++,
-        onQueue: () async => queued++,
+        onQueue: () async { queued++; },
       )),
     ));
     await tester.drag(find.text('Discovery song'), const Offset(120, 0));

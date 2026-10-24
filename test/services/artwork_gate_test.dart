@@ -54,4 +54,42 @@ void main() {
     expect(artworkExtractionPaused, isFalse,
         reason: 'dispose mid-scroll must release the held pause');
   });
+
+  testWidgets('deferred artwork stays paused after fling and drains once per frame',
+      (tester) async {
+    await tester.pumpWidget(const SizedBox());
+    final context = tester.element(find.byType(SizedBox));
+    final harness = _GateHarness();
+    final results = <int>[];
+
+    harness.onScrollNotification(ScrollUpdateNotification(
+      metrics: _metrics(40),
+      context: context,
+    ));
+    for (var i = 0; i < 5; i++) {
+      final index = i;
+      enqueueArtworkResolver(() => results.add(index));
+    }
+    harness.onScrollNotification(ScrollEndNotification(
+      metrics: _metrics(50),
+      context: context,
+    ));
+    expect(artworkExtractionPaused, isTrue,
+        reason: 'ScrollEnd is still within the expensive transition window');
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(results, isEmpty);
+    expect(artworkExtractionPaused, isTrue);
+
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(artworkExtractionPaused, isFalse);
+    expect(results.length, lessThanOrEqualTo(1),
+        reason: 'do not launch a burst of artwork work in one raster frame');
+
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(results, [0, 1, 2, 3, 4]);
+    harness.disposeArtworkGate();
+  });
+
 }

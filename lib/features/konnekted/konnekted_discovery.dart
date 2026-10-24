@@ -671,11 +671,22 @@ Future<List<_PlaybackSource>> _morneyeSources(
           // Search, but must be labelled as requested until the audio was
           // actually probed. Deezer's current add-on has one FLAC-only tier.
           final configured = settings['downloadQuality'] as String?;
+          final tidal = addon.name.toLowerCase().contains('tidal') ||
+              addon.key.toLowerCase().contains('tidal');
+          final requestedQuality = tidal
+              ? tidalRequestedQualityLabel(
+                  configured: configured, options: addon.qualityOptions)
+              : null;
           final selectedQuality = addon.qualityOptions.length <= 1 ||
                   configured == 'best'
               ? null
               : morneyeSelectedQualityLabel(
                   configured: configured, options: addon.qualityOptions);
+          // Tidal search metadata commonly omits the file tier. Display the
+          // actual requested tier independently; never borrow catalogue-max
+          // codec, sample rate or bit depth for a lower-quality selection.
+          final tierOverridesCatalogue = requestedQuality != null ||
+              selectedQuality != null;
           // This fingerprint is the same one used for the verified playback
           // cache. Another account, requested tier or add-on version cannot
           // borrow a different recording's quality badge.
@@ -700,11 +711,11 @@ Future<List<_PlaybackSource>> _morneyeSources(
               // An actually downloaded AAC/Opus rendition supersedes
               // catalogue FLAC/HiRes metadata for that same song. Never
               // combine FLAC max properties with a lower selected codec.
-              codec: verified != null || selectedQuality != null
+              codec: verified != null || tierOverridesCatalogue
                   ? null : song.codec,
-              bitDepth: verified != null || selectedQuality != null
+              bitDepth: verified != null || tierOverridesCatalogue
                   ? null : song.bitDepth,
-              sampleRate: verified != null || selectedQuality != null
+              sampleRate: verified != null || tierOverridesCatalogue
                   ? null : song.sampleRate,
               verifiedPlayback: verified,
             );
@@ -724,9 +735,10 @@ Future<List<_PlaybackSource>> _morneyeSources(
               // observed version earns a badge; otherwise leave it blank.
               catalogueQuality: verified != null
                   ? verified.resolution
-                  : selectedQuality == null
-                      ? morneyeAdvertisedQuality(song.quality)
-                      : null,
+                  : tierOverridesCatalogue
+                      ? null
+                      : morneyeAdvertisedQuality(song.quality),
+              requestedQuality: verified == null ? requestedQuality : null,
               catalogueCodec: details.codec,
               catalogueBitDepth: details.bitDepth,
               catalogueSampleRate: details.sampleRate,

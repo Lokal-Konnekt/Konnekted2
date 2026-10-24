@@ -3,6 +3,8 @@ import 'package:flick/services/catalogue_quality.dart';
 import 'package:flick/features/konnekted/konnekted_discovery.dart';
 import 'package:flick/features/morneye/morneye_packages.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
+import 'package:flick/models/song.dart';
+import 'package:flick/widgets/lokal/lokal_quality.dart';
 
 void main() {
   test('early HTTP and Morneye streams retain only advertised quality', () {
@@ -14,6 +16,16 @@ void main() {
     expect(qobuz.bitDepth, 24);
     expect(qobuz.sampleRate, 96000);
     expect(qobuz.resolution, '24bit/96kHz');
+    final playing = Song(
+      id: 'qobuz', title: 'Track', artist: 'Artist',
+      duration: Duration.zero, fileType: qobuz.fileType,
+      resolution: qobuz.resolution, bitDepth: qobuz.bitDepth,
+      sampleRate: qobuz.sampleRate,
+      filePath: 'lokal-progressive://audio/id',
+      sourcePackage: 'konnekted.progressive',
+    );
+    expect(LokalQualityTier.of(playing), LokalQualityTier.hiRes,
+        reason: 'Search catalogue measurements survive the player handoff');
 
     final cd = advertisedOnlineAudio(
       codec: 'FLAC', quality: '16bit/44.1kHz',

@@ -28,6 +28,7 @@ void main() {
       written: ready.length,
     ));
     await session.playable.timeout(const Duration(seconds: 1));
+    expect(session.isTransferring, isTrue);
     final response = await session.request(0, 100000);
     expect(response.sourceLength, 100000);
     expect(response.contentLength, 100000);
@@ -55,6 +56,12 @@ void main() {
     expect(collected.length, 100000);
     expect(collected.take(4), [0x66, 0x4c, 0x61, 0x43]);
     expect(collected.last, 2);
+    final finalFile = File('${directory.path}/cached.flac');
+    await file.rename(finalFile.path);
+    session.promote(finalFile.path);
+    expect(session.isTransferring, isFalse);
+    final seek = await session.request(90000, 100000);
+    expect(await seek.stream.expand((bytes) => bytes).length, 10000);
   });
 
   test('non-FLAC header never opens a growing source', () async {

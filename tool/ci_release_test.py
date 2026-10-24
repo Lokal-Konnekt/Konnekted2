@@ -142,7 +142,7 @@ class PackagingTests(unittest.TestCase):
         self.outputs = [f"Signer #1 certificate SHA-256 digest: {self.signer}\n",
                         "package: name='com.lokalkonnekt.konnekted2' versionCode='23' versionName='0.1.0-alpha.1'"]
 
-    def write_apk(self, abis=("arm64-v8a", "armeabi-v7a")):
+    def write_apk(self, abis=("arm64-v8a",)):
         with zipfile.ZipFile(self.apk, "w") as archive:
             for abi in abis:
                 for library in ("librust_lib_flick_player.so", "libflutter.so", "libapp.so",
@@ -160,11 +160,14 @@ class PackagingTests(unittest.TestCase):
             self.package()
             for call in tool.call_args_list:
                 self.assertNotIn("ANDROID_KEYSTORE_PASSWORD", call.kwargs["env"])
-        output = self.dest / "Lokal-0.1.0-alpha.1-universal.apk"
+        output = self.dest / "Lokal-0.1.0-alpha.1-arm64.apk"
         self.assertEqual(output.read_bytes(), self.apk.read_bytes())
         self.assertEqual((self.dest / "SHA256SUMS-full.txt").read_text(),
                          f"{hashlib.sha256(output.read_bytes()).hexdigest()}  {output.name}\n")
         self.assertEqual(len(list(self.dest.iterdir())), 3)
+        import json
+        metadata = json.loads((self.dest / "full-metadata.json").read_text())
+        self.assertEqual(metadata["abis"], ["arm64-v8a"])
 
     def test_unsigned_apk_cannot_be_uploaded(self):
         self.write_apk()
@@ -187,10 +190,24 @@ class PackagingTests(unittest.TestCase):
                 self.package()
         self.assertFalse(self.dest.exists())
 
-    def test_missing_native_abi_is_rejected(self):
-        self.write_apk(abis=("arm64-v8a",))
+    def test_missing_arm64_native_library_is_rejected(self):
+        self.write_apk(abis=())
         with patch.object(release.subprocess, "check_output", side_effect=self.outputs):
-            with self.assertRaisesRegex(ValueError, "armeabi-v7a"):
+            with self.assertRaisesRegex(ValueError, "arm64-v8a"):
+                self.package()
+        self.assertFalse(self.dest.exists())
+
+    def test_legacy_32_bit_payload_is_rejected(self):
+        self.write_apk(abis=("arm64-v8a", "armeabi-v7a"))
+        with patch.object(release.subprocess, "check_output", side_effect=self.outputs):
+            with self.assertRaisesRegex(ValueError, "only arm64-v8a"):
+                self.package()
+        self.assertFalse(self.dest.exists())
+
+    def test_extra_x86_payload_is_rejected(self):
+        self.write_apk(abis=("arm64-v8a", "x86_64"))
+        with patch.object(release.subprocess, "check_output", side_effect=self.outputs):
+            with self.assertRaisesRegex(ValueError, "only arm64-v8a"):
                 self.package()
         self.assertFalse(self.dest.exists())
 

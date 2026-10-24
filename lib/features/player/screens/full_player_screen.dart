@@ -1,5 +1,4 @@
 import 'package:flick/core/theme/lokal_performance_scope.dart';
-import 'package:flick/features/search/library_download.dart';
 import 'dart:io';
 import 'package:flick/features/player/widgets/full_player_visuals.dart';
 import 'package:flick/features/player/widgets/full_bleed_artwork_frame.dart';
@@ -362,34 +361,12 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
 
   /// The Now Playing menu retains only actions that aren't already surfaced
   /// as player controls or as taps on the track title, artist, and quality pill.
-  Future<void> _saveOnlineSong(Song song) async {
-    try {
-      await LibraryDownloader().save(song, artwork: song.albumArt);
-      if (!mounted) return;
-      LokalToast.fromSnackBar(context, 
-        const SnackBar(content: Text('Saved to your music library')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      LokalToast.fromSnackBar(context, 
-        SnackBar(content: Text('Could not save track: $error')),
-      );
-    }
-  }
-
   void _openMore(Song song) {
     SongActionsBottomSheet.show(
       context,
       song,
       nowPlaying: true,
       extras: [
-        if (song.sourcePackage == 'konnekted.discovery' &&
-            song.filePath != null && File(song.filePath!).existsSync())
-          LokalSongMenuAction(
-            icon: Icons.download_rounded,
-            label: 'Download to library',
-            onTap: () => unawaited(_saveOnlineSong(song)),
-          ),
         LokalSongMenuAction(
           icon: Icons.graphic_eq_rounded,
           label: 'Pitch',

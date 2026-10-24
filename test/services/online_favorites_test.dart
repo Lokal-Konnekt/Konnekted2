@@ -142,4 +142,28 @@ void main() {
     expect(reopened.single.remoteId, 'track-24');
   });
 
+
+  test('reads during writes never replace a newly liked ID', () async {
+    final writer = FavoritesService(songRepository: _Songs([]));
+    final reader = FavoritesService(songRepository: _Songs([]));
+    final operations = <Future<void>>[];
+    for (var i = 0; i < 30; i++) {
+      final song = Song(
+        id: 'discovery:parallel:$i', title: 'Track $i',
+        artist: 'Artist', duration: const Duration(minutes: 2),
+        fileType: 'AAC', sourcePackage: 'konnekted.discovery',
+        isExternal: true,
+      );
+      operations.add(writer.addFavorite(song.id, song: song));
+      operations.add(reader.getFavoritesCount().then((_) {}));
+      operations.add(reader.getFavoriteIds().then((_) {}));
+      operations.add(reader.getFavorites().then((_) {}));
+    }
+    await Future.wait(operations);
+    final saved = await FavoritesService(songRepository: _Songs([]))
+        .getFavorites();
+    expect(saved, hasLength(30));
+    expect(saved.map((s) => s.id).toSet(), hasLength(30));
+  });
+
 }

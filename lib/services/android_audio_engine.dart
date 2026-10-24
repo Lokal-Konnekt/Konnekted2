@@ -173,6 +173,10 @@ class AndroidAudioEngine implements AudioEngine {
       StreamController<PlaybackState>.broadcast();
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   just_audio.AudioPlayer? _player;
+  // The instance supplied by PlayerService may be parked in _secondary
+  // after crossfade. Unlike internally created fade players, it must remain
+  // available to the service's provider/cache after a timed-out load.
+  just_audio.AudioPlayer? _providerPlayer;
   PlaybackState _state = PlaybackState.empty(AudioEngineType.normalAndroid);
   Song? _loadedTrack;
   String? _lastAtmosPlaybackState;
@@ -206,6 +210,7 @@ class AndroidAudioEngine implements AudioEngine {
     if (existing != null) return existing;
     final player = await _playerProvider();
     _player = player;
+    _providerPlayer = player;
     _attachListeners(player);
     return player;
   }
@@ -401,15 +406,39 @@ class AndroidAudioEngine implements AudioEngine {
   /// The owner clears its own cached player and disposes this one separately.
   Future<void> _retireTimedOutPlayer(just_audio.AudioPlayer player) async {
     if (!identical(_player, player)) return;
+    // If a crossfade swapped the primary with its secondary slot, the
+    // PlayerService-owned instance can still live in _secondary. Clearing
+    // only _player would alias the two slots on the next _ensurePlayer().
+    _crossfadeTimer?.cancel();
+    _crossfadeTimer = null;
+    _crossfadeArmed = false;
+    final survivor = _secondary;
+    _secondary = null;
     _player = null;
     _playlistSignature = const <String>[];
     _loadedSingleTrackOnly = false;
     _sourceFailed = true;
+    final orphanedFadePlayer =
+        survivor != null && !identical(survivor, _providerPlayer)
+            ? survivor
+            : null;
+    if (identical(player, _providerPlayer)) _providerPlayer = null;
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }
     _subscriptions.clear();
-    if (_secondary != null) _attachListeners(_secondary!);
+    if (orphanedFadePlayer != null) {
+      try {
+        await orphanedFadePlayer.dispose().timeout(
+          const Duration(seconds: 3),
+        );
+      } catch (error) {
+        devLog('[Playback] Crossfade player cleanup failed: $error');
+      }
+    }
+    // If the survivor belongs to PlayerService, its cached provider returns
+    // it as the *sole* primary on the next attempt. Its listeners are
+    // re-attached by _ensurePlayer(), never as a secondary.
     try {
       final retire = _retireStalledPlayer;
       await (retire == null ? player.dispose() : retire(player))
@@ -853,6 +882,7 @@ class AndroidAudioEngine implements AudioEngine {
     final secondary = _secondary;
     _secondary = null;
     _player = null;
+    _providerPlayer = null;
     _playlistSignature = const <String>[];
     _loadedSingleTrackOnly = false;
     try {

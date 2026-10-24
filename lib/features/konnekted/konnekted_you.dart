@@ -185,19 +185,20 @@ class _KonnektedYouState extends ConsumerState<KonnektedYou> {
           : profile?.username.trim().isNotEmpty == true
               ? profile!.username
               : ref.read(youAccountsProvider).name;
+      final service = ref.read(youProfileServiceProvider);
       final saved = await showModalBottomSheet<bool>(
         context: context,
         useSafeArea: true,
         isScrollControlled: true,
         showDragHandle: true,
         builder: (context) => _YouProfileEditor(
-          service: ref.read(youProfileServiceProvider),
+          service: service,
           profile: existing,
           defaultName: defaultName,
           linkedAvatarPath: profile?.avatarPath,
         ),
       );
-      if (saved == true) ref.invalidate(localYouProfileProvider);
+      if (saved == true && mounted) ref.invalidate(localYouProfileProvider);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -691,7 +692,7 @@ class _YouProfileEditorState extends State<_YouProfileEditor> {
               TextField(
                 controller: _username,
                 maxLength: 40,
-                textCapitalization: TextCapitalization.words,
+                textCapitalization: TextCapitalization.none,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _save(),
                 onChanged: (_) => setState(() {}),

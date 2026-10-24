@@ -135,6 +135,7 @@ class _AnimatedBlurredAlbumBackdropState
                 final y = ui.lerpDouble(_startY, _endY, t)!;
                 final scale = _travelScale + math.sin(t * math.pi) * 0.025;
                 return Transform(
+                  key: const ValueKey('animated-backdrop-motion'),
                   alignment: Alignment.center,
                   transform: Matrix4.translationValues(
                     x * MediaQuery.sizeOf(context).width,
@@ -145,6 +146,7 @@ class _AnimatedBlurredAlbumBackdropState
                 );
               },
               child: RepaintBoundary(
+                key: const ValueKey('cached-backdrop-blur'),
                 child: ImageFiltered(
                   imageFilter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: image,

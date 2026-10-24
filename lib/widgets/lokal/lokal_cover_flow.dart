@@ -204,25 +204,90 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     onSelect(index);
   }
 
-  /// The cover nearest [x] across the stage, inverting `_cover`'s layout.
-  int _indexAt(double x, double size) {
+  /// Map the four corners through the SAME camera used by _cover. Flutter's
+  /// RenderTransform strips perspective before hit testing, making its default
+  /// affine hit rectangle wider than the visible projected image. Stage-owned
+  /// taps use this actual painted quad instead.
+  List<Offset> _projectedQuad(int index, double size) {
+    final distance = index - _position.value;
+    final ad = distance.abs();
+    final side = distance.sign;
+    final near = ad.clamp(0.0, 1.0);
+    final reduced = _reduceMotion || _performance;
+    final dx = reduced ? distance * size * 1.06
+        : side * size * LokalCoverFlow.centerDistance(ad);
+    final depth = reduced ? 0.0
+        : -size * LokalCoverFlow.depthDistance(ad);
+    final angle = (reduced ? 0.0
+        : -side * (2 * near - near * near) * _fanAngle * math.pi / 180)
+        + (index == _index ? _flip.value * math.pi : 0.0);
+    final vanish = size * _vanishY;
+    Offset project(double x, double y) {
+      final worldX = dx + math.cos(angle) * x;
+      final worldZ = depth - math.sin(angle) * x;
+      final scale = reduced ? 1.0
+          : 1 / (1 - worldZ / (_perspective * size));
+      return Offset(
+        _stageWidth / 2 + worldX * scale,
+        size * .56 + (reduced ? y : vanish + (y - vanish) * scale),
+      );
+    }
+    final half = size / 2;
+    return [
+      project(-half, -half), project(half, -half),
+      project(half, half), project(-half, half),
+    ];
+  }
+
+  static bool _insideQuad(Offset point, List<Offset> corners) {
+    bool? sign;
+    for (var i = 0; i < corners.length; i++) {
+      final a = corners[i], b = corners[(i + 1) % corners.length];
+      final cross = (b.dx - a.dx) * (point.dy - a.dy) -
+          (b.dy - a.dy) * (point.dx - a.dx);
+      if (cross.abs() < 0.00001) continue;
+      final positive = cross > 0;
+      if (sign != null && sign != positive) return false;
+      sign = positive;
+    }
+    return sign != null;
+  }
+
+  /// The visible cover whose projected polygon contains the stage tap wins.
+  /// Select front-to-back; only use nearest projected center for genuine gaps.
+  int _indexAt(double x, double y, double size) {
     final offset = x - _stageWidth / 2;
-    if (_reduceMotion || _performance)
-      return (_position.value + offset / (size * 1.06)).round().clamp(0, _last);
-    // Invert the actual 3D projected center, not a guessed hinge distance.
-    final normalizedOffset = offset.abs() / size;
-    var lo = 0.0;
-    var hi = math.max(1.0, widget.albums.length.toDouble());
-    for (var step = 0; step < 24; step++) {
-      final mid = (lo + hi) / 2;
-      if (_projectedCenter(mid) < normalizedOffset) {
-        lo = mid;
-      } else {
-        hi = mid;
+    if (_reduceMotion || _performance) {
+      return (_position.value + offset / (size * 1.06))
+          .round().clamp(0, _last);
+    }
+
+    final pos = _position.value;
+    final radius = _performance ? 2 : 5;
+    final first = math.max(0, pos.floor() - radius);
+    final last = math.min(_last, pos.ceil() + radius);
+    final order = [for (var i = first; i <= last; i++) i]
+      ..sort((a, b) => (a - pos).abs().compareTo((b - pos).abs()));
+    for (final index in order) {
+      if (_insideQuad(Offset(x, y), _projectedQuad(index, size))) {
+        return index;
       }
     }
-    final d = offset.sign * (lo + hi) / 2;
-    return (_position.value + d).round().clamp(0, _last);
+
+    // A true black gap has no cover polygon. Use DISPLAYED center distances;
+    // inverting the nonlinear camera and rounding fractional index space
+    // can choose the wrong side of the gap.
+    var best = 0, minimum = double.infinity;
+    for (var i = 0; i <= _last; i++) {
+      final d = i - pos;
+      final projected = d.sign * _projectedCenter(d);
+      final distance = (projected * size - offset).abs();
+      if (distance < minimum) {
+        minimum = distance;
+        best = i;
+      }
+    }
+    return best;
   }
 
   void _toggleFlip() {
@@ -275,7 +340,7 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
                 // A tap in a gap between covers picks the nearest one; a tap
                 // on a cover is claimed by that cover first.
                 onTapUp: (details) =>
-                    _select(_indexAt(details.localPosition.dx, size)),
+                    _select(_indexAt(details.localPosition.dx, details.localPosition.dy, size)),
                 child: SizedBox(
                   height: size * 1.18,
                   width: constraints.maxWidth,
@@ -392,7 +457,9 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
         origin: Offset(size / 2, size / 2),
         transform: matrix,
         child: GestureDetector(
-          onTap: () => _select(i),
+          // Tap selection belongs to the outer stage, which tests projected
+          // polygons. Otherwise Flutter's affine hit-testing lets an invisible
+          // first-neighbor edge steal the second neighbor's tap.
           onLongPress: facing && widget.onSelect != null ? _toggleFlip : null,
           child: Opacity(
             opacity: (1 - (ad - 4).clamp(0.0, 1.0)),

@@ -1,4 +1,6 @@
 import 'package:flick/services/artwork_gate.dart';
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
+import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/l10n/l10n.dart';
 
 import 'dart:async';
@@ -70,6 +72,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell>
   }
 
   void _select(KonnektedTab tab) {
+    LokalPerformanceAdvisor.noteNavigation();
     AppHaptics.doublePulse();
     nestedNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     _tab.value = tab;
@@ -82,6 +85,11 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell>
   bool _onScroll(ScrollNotification n) {
     onScrollNotification(n);
     if (n.metrics.axis != Axis.vertical) return false;
+    if (n is ScrollUpdateNotification ||
+        n is OverscrollNotification ||
+        (n is UserScrollNotification && n.direction != ScrollDirection.idle)) {
+      LokalPerformanceAdvisor.noteScroll();
+    }
     double? delta;
     if (n is ScrollUpdateNotification && n.dragDetails != null) {
       delta = n.scrollDelta;
@@ -123,6 +131,7 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell>
   }
 
   void _navigate(KonnektedDestination destination) {
+    LokalPerformanceAdvisor.noteNavigation();
     if (destination == KonnektedDestination.queue) {
       unawaited(NavigationHelper.navigateToQueue<void>(context));
       return;
@@ -145,6 +154,8 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell>
     final duration = MediaQuery.disableAnimationsOf(context)
         ? Duration.zero
         : AppConstants.animationNormal;
+    final lightweightTransition =
+        ref.read(lokalAppearanceProvider).performanceMode;
     unawaited(
       navigator.push<void>(
         PageRouteBuilder<void>(
@@ -152,8 +163,24 @@ class _KonnektedShellState extends ConsumerState<KonnektedShell>
           transitionDuration: duration,
           reverseTransitionDuration: duration,
           pageBuilder: (context, _, _) => _destination(destination),
+          // Opacity compositing of two full scrollable pages in the same
+          // transition raises raster pressure on the M05. Use a short
+          // composited translation instead in Performance Mode. Full mode
+          // retains the original fade.
           transitionsBuilder: (_, animation, _, child) =>
-              FadeTransition(opacity: animation, child: child),
+              lightweightTransition && duration != Duration.zero
+                  ? SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(.035, 0),
+                        end: Offset.zero,
+                      ).animate(CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                        reverseCurve: Curves.easeInCubic,
+                      )),
+                      child: RepaintBoundary(child: child),
+                    )
+                  : FadeTransition(opacity: animation, child: child),
         ),
       ),
     );

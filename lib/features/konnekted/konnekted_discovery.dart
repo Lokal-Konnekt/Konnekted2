@@ -826,7 +826,9 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 unawaited(
                   transfer.then((completed) async {
                     try {
-                      final cached = await cache().adopt(found, completed.file);
+                      final cached = await cache().adopt(
+                        found, completed.file, sourceInfo: completed.info,
+                      );
                       final path = cached.filePath;
                       if (path == null) {
                         throw StateError('Completed audio has no cache path');
@@ -951,6 +953,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
               found,
               download.file,
               atmosEncoded: download.atmosEncoded,
+              sourceInfo: download.info,
             );
             if (tryAtmos) AtmosDiagnostics.record('cache_adopt_done', {
               'encoded': adopted.atmosEncoded,

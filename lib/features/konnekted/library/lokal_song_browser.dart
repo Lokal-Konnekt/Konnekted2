@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flick/l10n/l10n.dart';
+import 'package:flick/widgets/lokal/lokal_choice_sheet.dart';
 import 'package:flick/core/theme/lokal_tokens.dart';
 import 'package:flick/features/konnekted/konnekted_data.dart';
 import 'package:flick/models/song.dart';
@@ -9,6 +12,8 @@ import 'lokal_library_kit.dart';
 import 'lokal_song_filter.dart';
 
 import 'package:flick/widgets/lokal/lokal_quality.dart';
+
+final DateTime _epochDate = DateTime.fromMillisecondsSinceEpoch(0);
 
 /// Desktop's Simple view sorts.
 enum LokalSongSort {
@@ -56,7 +61,26 @@ class LokalSongBrowser extends ConsumerStatefulWidget {
 class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
   final _search = TextEditingController();
   late LokalSongSort _sort = widget.initialSort;
+  late bool _descending = _defaultDescending(widget.initialSort);
+  Timer? _queryTimer;
   String _query = '';
+
+  static bool _defaultDescending(LokalSongSort sort) =>
+      sort == LokalSongSort.recentlyAdded ||
+      sort == LokalSongSort.mostPlayed ||
+      sort == LokalSongSort.longest;
+
+  void _onSearchChanged(String value) {
+    _queryTimer?.cancel();
+    if (value.isEmpty) {
+      setState(() => _query = '');
+      return;
+    }
+    // Typing should stay responsive with tens of thousands of entries.
+    _queryTimer = Timer(const Duration(milliseconds: 180), () {
+      if (mounted) setState(() => _query = value);
+    });
+  }
   LokalSongLocation _location = LokalSongLocation.all;
   String _audioFilter = 'all';
   LokalSongLocation? _inputLocation;
@@ -66,9 +90,21 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
   Map<String, int>? _inputCounts;
   String? _inputQuery;
   LokalSongSort? _inputSort;
+  bool? _inputDescending;
+  List<Song>? _formatInput;
+  List<String> _cachedFormats = const [];
+
+  List<String> _formats() {
+    if (!identical(_formatInput, widget.songs)) {
+      _formatInput = widget.songs;
+      _cachedFormats = libraryAudioFormats(widget.songs);
+    }
+    return _cachedFormats;
+  }
 
   @override
   void dispose() {
+    _queryTimer?.cancel();
     _search.dispose();
     super.dispose();
   }
@@ -79,6 +115,7 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
         identical(_inputCounts, counts) &&
         _inputQuery == query &&
         _inputSort == _sort &&
+        _inputDescending == _descending &&
         _inputLocation == _location &&
         _inputAudioFilter == _audioFilter &&
         _visibleCache != null) {
@@ -93,37 +130,50 @@ class _LokalSongBrowserState extends ConsumerState<LokalSongBrowser> {
                     .contains(query)))
           song,
     ];
+    // Lowercasing inside the sort comparator repeatedly allocates strings.
+    // Precompute the sort keys once per filter/sort change.
+    final titleKeys = <String, String>{
+      for (final song in songs) song.id: song.title.toLowerCase(),
+    };
     int byTitle(Song a, Song b) =>
-        a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        titleKeys[a.id]!.compareTo(titleKeys[b.id]!);
     switch (_sort) {
       case LokalSongSort.original:
         break;
       case LokalSongSort.recentlyAdded:
         songs.sort((a, b) {
-          final c = (b.dateAdded ?? DateTime(1970)).compareTo(
-            a.dateAdded ?? DateTime(1970),
+          final c = (a.dateAdded ?? _epochDate).compareTo(
+            b.dateAdded ?? _epochDate,
           );
           return c != 0 ? c : byTitle(a, b);
         });
       case LokalSongSort.title:
         songs.sort(byTitle);
       case LokalSongSort.artist:
+        final artistKeys = <String, String>{
+          for (final song in songs) song.id: song.artist.toLowerCase(),
+        };
         songs.sort((a, b) {
-          final c = a.artist.toLowerCase().compareTo(b.artist.toLowerCase());
+          final c = artistKeys[a.id]!.compareTo(artistKeys[b.id]!);
           return c != 0 ? c : byTitle(a, b);
         });
       case LokalSongSort.mostPlayed:
         songs.sort((a, b) {
-          final c = (counts[b.id] ?? 0).compareTo(counts[a.id] ?? 0);
+          final c = (counts[a.id] ?? 0).compareTo(counts[b.id] ?? 0);
           return c != 0 ? c : byTitle(a, b);
         });
       case LokalSongSort.longest:
-        songs.sort((a, b) => b.duration.compareTo(a.duration));
+        songs.sort((a, b) => a.duration.compareTo(b.duration));
+    }
+    if (_descending) {
+      // Reversal is view-only. Saved playlist order is edited separately.
+      songs.setAll(0, songs.reversed.toList(growable: false));
     }
     _inputSongs = widget.songs;
     _inputCounts = counts;
     _inputQuery = query;
     _inputSort = _sort;
+    _inputDescending = _descending;
     _inputLocation = _location;
     _inputAudioFilter = _audioFilter;
     return _visibleCache = songs;

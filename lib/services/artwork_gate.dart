@@ -33,7 +33,10 @@ void _drainArtworkResolvers() {
   SchedulerBinding.instance.addPostFrameCallback((_) {
     _drainScheduled = false;
     if (artworkExtractionPaused) return;
-    final count = _pendingArtworkResolvers.length.clamp(0, 4);
+    // One deferred artwork extraction per frame on weak devices. Draining
+    // four on the first frame after a swipe can saturate the raster thread
+    // right as scrolling settles or a new page is pushed.
+    final count = _pendingArtworkResolvers.length.clamp(0, 1);
     final batch = _pendingArtworkResolvers.sublist(0, count);
     _pendingArtworkResolvers.removeRange(0, count);
     for (final resolve in batch) {
@@ -65,7 +68,10 @@ mixin ArtworkExtractionScrollGate {
 
   bool onScrollNotification(ScrollNotification notification) {
     if (notification is ScrollEndNotification) {
-      _releaseArtworkGate();
+      // ScrollEnd marks the last kinetic frame, not a safe moment to start
+      // filesystem work. Leave a short quiet period before releasing jobs.
+      _artworkGate?.cancel();
+      _artworkGate = Timer(_settleDelay, _releaseArtworkGate);
     } else if (notification is ScrollUpdateNotification ||
         notification is UserScrollNotification ||
         notification is OverscrollNotification) {

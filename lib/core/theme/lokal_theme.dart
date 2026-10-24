@@ -115,7 +115,6 @@ abstract final class LokalTheme {
         style: MenuStyle(
           backgroundColor: WidgetStatePropertyAll(t.surface2),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
-          foregroundColor: WidgetStatePropertyAll(t.text),
           side: WidgetStatePropertyAll(BorderSide(color: t.border)),
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),

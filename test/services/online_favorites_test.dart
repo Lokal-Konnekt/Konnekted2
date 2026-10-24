@@ -126,4 +126,20 @@ void main() {
     expect(await service.isFavorite('older-external-id'), isTrue);
   });
 
+
+  test('native Tidal network-source likes retain their source identity', () async {
+    const tidal = Song(
+      id: 'tidal:track-24', title: 'Tidal favourite', artist: 'Artist',
+      duration: Duration(minutes: 3), fileType: 'FLAC',
+      sourceType: 'tidal', remoteId: 'track-24',
+    );
+    final instance = FavoritesService(songRepository: _Songs([]));
+    expect(await instance.toggleFavorite(tidal.id, song: tidal), isTrue);
+    final reopened = await FavoritesService(songRepository: _Songs([]))
+        .getFavorites();
+    expect(reopened.single.title, tidal.title);
+    expect(reopened.single.sourceType, 'tidal');
+    expect(reopened.single.remoteId, 'track-24');
+  });
+
 }

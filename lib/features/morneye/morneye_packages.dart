@@ -1518,6 +1518,7 @@ class MorneyePackages {
     String key,
     String id, {
     String? quality,
+    bool forPlayback = false,
     void Function({double? percent, String? message})? onProgress,
     void Function(MorneyeTransfer)? onTransfer,
     Future<void>? cancel,
@@ -1621,13 +1622,20 @@ class MorneyePackages {
         if (provider == 'amazon') 'web_metadata': track,
       };
       final values = settings(addon);
-      final chosen = chooseMorneyeDownloadQuality(
-        requested: quality,
-        configured: values['downloadQuality'] as String?,
-        options: addon.qualityOptions,
-        provider: provider,
-      );
-      if (quality != 'DOLBY_ATMOS' && isMorneyeAtmosQuality(chosen)) {
+      // Preserve Settings > Addons download preferences for actual saves.
+      // Only streaming playback must reject an implicit Atmos-only tier.
+      final configuredQuality = values['downloadQuality'] as String?;
+      final chosen = !forPlayback && (quality == null) &&
+              configuredQuality != null && configuredQuality.isNotEmpty
+          ? configuredQuality
+          : chooseMorneyeDownloadQuality(
+              requested: quality,
+              configured: configuredQuality,
+              options: addon.qualityOptions,
+              provider: provider,
+            );
+      if (forPlayback && quality != 'DOLBY_ATMOS' &&
+          isMorneyeAtmosQuality(chosen)) {
         throw const MorneyePackageError(
           'Normal playback unexpectedly selected a Dolby Atmos download tier.',
         );

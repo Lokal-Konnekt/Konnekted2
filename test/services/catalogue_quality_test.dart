@@ -7,6 +7,82 @@ import 'package:flick/models/song.dart';
 import 'package:flick/widgets/lokal/lokal_quality.dart';
 
 void main() {
+  test('WEBM/M4A containers are never treated as playback quality codecs', () {
+    expect(verifiedAudioCodec('m4a'), isNull);
+    expect(verifiedAudioCodec('webm'), isNull);
+    expect(verifiedAudioCodec('isomp4'), isNull);
+    expect(verifiedAudioCodec('aac'), 'AAC');
+    expect(verifiedAudioCodec('opus'), 'OPUS');
+    expect(verifiedAudioCodec('flac'), 'FLAC');
+    expect(verifiedAudioCodec('alac'), 'ALAC');
+  });
+
+  test('Tidal HIGH/LOW and Amazon Opus use actual compressed-file bitrate', () {
+    expect(measuredLossyBitrate(
+      codec: 'AAC', bitsPerSecond: 320000,
+    ), '320 kbps');
+    expect(measuredLossyBitrate(
+      codec: 'AAC', bitsPerSecond: 96000,
+    ), '96 kbps');
+    expect(measuredLossyBitrate(
+      codec: 'OPUS', bitsPerSecond: 192000,
+    ), '192 kbps');
+    expect(measuredLossyBitrate(
+      codec: 'OPUS', fileBytes: 2400000,
+      duration: const Duration(seconds: 120),
+    ), '160 kbps');
+    expect(measuredLossyBitrate(codec: 'AAC'), isNull);
+    expect(measuredLossyBitrate(codec: 'FLAC', bitsPerSecond: 600000), isNull,
+        reason: 'Compressed FLAC average bitrate is not a lossy tier');
+    expect(LokalQualityTier.of(const Song(
+      id: 'tidal-high', title: 'T', artist: 'A',
+      fileType: 'AAC', resolution: '320 kbps',
+      duration: Duration(seconds: 120),
+    )), LokalQualityTier.high);
+    expect(LokalQualityTier.of(const Song(
+      id: 'tidal-low', title: 'T', artist: 'A',
+      fileType: 'AAC', resolution: '96 kbps',
+      duration: Duration(seconds: 120),
+    )), LokalQualityTier.low);
+    expect(LokalQualityTier.of(const Song(
+      id: 'yt-opus', title: 'T', artist: 'A',
+      fileType: 'OPUS', resolution: '160 kbps',
+      duration: Duration(seconds: 120),
+    )), LokalQualityTier.high);
+  });
+
+  test('Search names selected tiers as requests and does not fake catalogue maxima', () {
+    const qobuz = [
+      {'id': 'HI_RES_LOSSLESS', 'label': '24-Bit Max'},
+      {'id': 'LOSSLESS', 'label': 'Lossless'},
+    ];
+    const tidal = [
+      {'id': 'HI_RES_LOSSLESS', 'label': 'HiRes FLAC'},
+      {'id': 'HIGH', 'label': 'High'},
+      {'id': 'LOW', 'label': 'Low'},
+    ];
+    const amazon = [
+      {'id': 'best', 'label': 'FLAC Best Available'},
+      {'id': 'opus', 'label': 'Opus 320kbps'},
+    ];
+    expect(morneyeSelectedQualityLabel(
+      configured: 'LOSSLESS', options: qobuz,
+    ), 'Lossless (selected)');
+    expect(morneyeSelectedQualityLabel(
+      configured: 'HIGH', options: tidal,
+    ), 'High (selected)');
+    expect(morneyeSelectedQualityLabel(
+      configured: 'LOW', options: tidal,
+    ), 'Low (selected)');
+    expect(morneyeSelectedQualityLabel(
+      configured: 'opus', options: amazon,
+    ), 'Opus 320kbps (selected)');
+    expect(morneyeSelectedQualityLabel(
+      configured: null, options: tidal,
+    ), isNull);
+  });
+
+
   test('early HTTP and Morneye streams retain only advertised quality', () {
     final qobuz = advertisedOnlineAudio(
       codec: 'FLAC', quality: '24bit/96kHz',

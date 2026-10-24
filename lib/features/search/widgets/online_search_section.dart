@@ -757,23 +757,6 @@ class _OnlineTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (badge.requestedLabel case final requested?)
-                          Tooltip(
-                            message: 'Quality selected in Tidal add-on settings; the actual rendition is verified during playback.',
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                    color: t.muted.withValues(alpha: .35)),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                requested,
-                                style: TextStyle(color: t.muted, fontSize: 10),
-                              ),
-                            ),
-                          ),
                           if (track.atmosAvailable)
                             Tooltip(
                               message: 'Play original Dolby Atmos (requires an Android E-AC-3 JOC decoder or direct output)',

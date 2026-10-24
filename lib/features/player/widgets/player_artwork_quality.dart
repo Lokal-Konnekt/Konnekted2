@@ -34,9 +34,11 @@ class PlayerArtworkQuality {
             host == 'is4-ssl.mzstatic.com' ||
             host == 'is5-ssl.mzstatic.com' ||
             host == 'a1.mzstatic.com')) {
-      final updated = uri.path.replaceFirst(
-        RegExp(r'/\d{2,4}x\d{2,4}bb\.'),
-        '/1200x1200bb.',
+      final updated = uri.path.replaceFirstMapped(
+        RegExp(r'/(\d{2,4})x(\d{2,4})bb\.'),
+        (m) => int.parse(m[1]!) < 1200 && int.parse(m[2]!) < 1200
+            ? '/1200x1200bb.'
+            : m[0]!,
       );
       if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
     }
@@ -45,9 +47,11 @@ class PlayerArtworkQuality {
     if (upgraded == null &&
         host.endsWith('.dzcdn.net') &&
         uri.path.startsWith('/images/cover/')) {
-      final updated = uri.path.replaceFirst(
-        RegExp(r'/\d{2,4}x\d{2,4}-'),
-        '/1000x1000-',
+      final updated = uri.path.replaceFirstMapped(
+        RegExp(r'/(\d{2,4})x(\d{2,4})-'),
+        (m) => int.parse(m[1]!) < 1000 && int.parse(m[2]!) < 1000
+            ? '/1000x1000-'
+            : m[0]!,
       );
       if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
     }
@@ -56,9 +60,28 @@ class PlayerArtworkQuality {
     if (upgraded == null &&
         host == 'resources.tidal.com' &&
         uri.path.startsWith('/images/')) {
+      final updated = uri.path.replaceFirstMapped(
+        RegExp(r'/(\d{2,4})x(\d{2,4})\.jpg
+      if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
+    }
+
+    // YouTube artwork's max-res rendition is not always uploaded, so the
+    // original remains an explicit fallback.
+    if (upgraded == null &&
+        (host == 'i.ytimg.com' || host == 'img.youtube.com')) {
       final updated = uri.path.replaceFirst(
-        RegExp(r'/\d{2,4}x\d{2,4}\.jpg$'),
-        '/1280x1280.jpg',
+        RegExp(r'/(?:default|mqdefault|hqdefault|sddefault)\.jpg$'),
+        '/maxresdefault.jpg',
+      );
+      if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
+    }
+    return upgraded == null ? [original] : [upgraded, original];
+  }
+}
+),
+        (m) => int.parse(m[1]!) < 1280 && int.parse(m[2]!) < 1280
+            ? '/1280x1280.jpg'
+            : m[0]!,
       );
       if (updated != uri.path) upgraded = uri.replace(path: updated).toString();
     }

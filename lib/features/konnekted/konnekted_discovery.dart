@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flick/features/morneye/morneye_auth_sheet.dart';
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:flick/features/discovery/discovery_artwork.dart'
     show discoveryImageUrl;
@@ -509,6 +513,32 @@ class OnlineSource {
 
 typedef _PlaybackSource = OnlineSource;
 
+// Desktop has a reusable audio-cache for already downloaded Morneye tracks.
+// Keep a small in-session index of verified, existing cache files so Replay,
+// repeat, and revisiting the same Search result do not repeat provider
+// verification and a full transfer. Never key only by track ID: changing
+// addon binary, requested tier, or account/settings must not reuse old audio.
+final _morneyeReadyPlayback = <String, Song>{};
+const _maxMorneyeReadyPlayback = 32;
+
+String morneyePlaybackCacheKey({
+  required String addonKey,
+  required String addonDigest,
+  required String trackId,
+  required String settingsFingerprint,
+  required String requestedTier,
+}) => sha256.convert(utf8.encode(jsonEncode([
+  addonKey, addonDigest, trackId, settingsFingerprint, requestedTier,
+]))).toString();
+
+void _rememberMorneyePlayback(String key, Song song) {
+  _morneyeReadyPlayback.remove(key);
+  _morneyeReadyPlayback[key] = song;
+  while (_morneyeReadyPlayback.length > _maxMorneyeReadyPlayback) {
+    _morneyeReadyPlayback.remove(_morneyeReadyPlayback.keys.first);
+  }
+}
+
 /// Your Morneye add-ons that can play songs right now, as playback sources.
 Future<List<_PlaybackSource>> _morneyeSources(
   MorneyeService service,
@@ -589,6 +619,25 @@ Future<List<_PlaybackSource>> _morneyeSources(
             throw const DiscoveryException('This track has no advertised Atmos version.');
           }
           final tryAtmos = found.atmosRequested;
+          final requestedTier = tryAtmos
+              ? 'DOLBY_ATMOS'
+              : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : '');
+          final cacheKey = morneyePlaybackCacheKey(
+            addonKey: addon.key,
+            addonDigest: addon.digest,
+            trackId: found.id,
+            settingsFingerprint:
+                sha256.convert(utf8.encode(jsonEncode(packages.settings(addon)))).toString(),
+            requestedTier: requestedTier,
+          );
+          if (!forDownload && !found.atmosDownload) {
+            final cached = _morneyeReadyPlayback[cacheKey];
+            if (cached?.filePath case final path?
+                when File(path).existsSync() && File(path).lengthSync() > 0) {
+              return cached;
+            }
+            _morneyeReadyPlayback.remove(cacheKey);
+          }
           // Mirrors desktop: only plain, unprocessed FLAC with a known
           // byte length can be played while its download grows. Atmos,
           // explicit Save and post-processed formats remain full-file jobs.
@@ -653,6 +702,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
                         throw StateError('Completed audio has no cache path');
                       }
                       session.promote(path);
+                      _rememberMorneyePlayback(cacheKey, cached);
                     } catch (error) {
                       session.fail(error);
                     } finally {
@@ -768,6 +818,9 @@ Future<List<_PlaybackSource>> _morneyeSources(
               'encoded': adopted.atmosEncoded,
               'outcome': 'ready',
             });
+            if (!forDownload && !found.atmosDownload) {
+              _rememberMorneyePlayback(cacheKey, adopted);
+            }
             return adopted;
           } catch (error) {
             if (tryAtmos) AtmosDiagnostics.record('cache_adopt_error', {

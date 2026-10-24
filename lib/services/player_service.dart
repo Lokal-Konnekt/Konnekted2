@@ -151,6 +151,15 @@ enum LoopMode {
   };
 }
 
+/// Ignore stale playback events while an online placeholder or its resolved
+/// version is being installed. In particular an old Media3 stop() event must
+/// never rewind the current song or its carousel position.
+@visibleForTesting
+bool shouldHoldPendingPresentation(String? expectedTrackId, Song? engineTrack) =>
+    expectedTrackId != null &&
+    (engineTrack == null || engineTrack.id != expectedTrackId ||
+        engineTrack.isPending);
+
 @visibleForTesting
 bool shouldReplaceQueuedAudioSource(Song queued, Song selected) =>
     queued.id == selected.id &&
@@ -3382,14 +3391,15 @@ class PlayerService {
     _playbackStateSubscription?.cancel();
     _playbackStateSubscription = _playbackManager.playbackState.listen((state) {
       final presentedId = _pendingPresentationTrackId;
-      if (presentedId != null && state.currentTrack?.id != presentedId) {
+      if (shouldHoldPendingPresentation(presentedId, state.currentTrack)) {
         // A previous song's paused/idle state can arrive asynchronously after
         // tapping Next. It must not undo the pending track selection or send
         // the carousel/mini-player backwards while downloading.
         if (isPlayingNotifier.value) isPlayingNotifier.value = false;
         return;
       }
-      if (presentedId != null && state.currentTrack?.id == presentedId) {
+      if (presentedId != null && state.currentTrack?.id == presentedId &&
+          state.currentTrack?.isPending != true) {
         _pendingPresentationTrackId = null;
       }
       final previous = _lastPlaybackState;

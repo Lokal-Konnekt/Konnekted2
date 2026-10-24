@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -15,10 +14,15 @@ import android.graphics.Canvas
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
-import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.support.v4.media.MediaBrowserCompat
+import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
+import android.net.Uri
+import android.os.Bundle
+import androidx.media.MediaBrowserServiceCompat
+import java.util.concurrent.atomic.AtomicBoolean
 import androidx.media.VolumeProviderCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -28,11 +32,12 @@ import com.mossapps.flick.widgets.WidgetPrefs
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.MethodChannel
 
-class MusicNotificationService : Service() {
+class MusicNotificationService : MediaBrowserServiceCompat() {
 
     companion object {
         const val CHANNEL_ID = "flick_music_channel"
         const val NOTIFICATION_ID = 1001
+        private const val CAR_ROOT_ID = "lokal/root"
         const val ACTION_PLAY_PAUSE = "com.mossapps.flick.PLAY_PAUSE"
         const val ACTION_NEXT = "com.mossapps.flick.NEXT"
         const val ACTION_PREVIOUS = "com.mossapps.flick.PREVIOUS"
@@ -155,6 +160,8 @@ class MusicNotificationService : Service() {
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel()
         setupMediaSession()
+        // The car's MediaBrowser and the lock screen share this same session.
+        setSessionToken(mediaSession.sessionToken)
 
         val filter = IntentFilter().apply {
             addAction(ACTION_PLAY_PAUSE)
@@ -271,7 +278,111 @@ class MusicNotificationService : Service() {
         }
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onGetRoot(
+        clientPackageName: String,
+        clientUid: Int,
+        rootHints: Bundle?
+    ): BrowserRoot? {
+        // Authenticate the claimed package against the Binder UID. Android
+        // Auto and system media clients may use different package names.
+        val packages = packageManager.getPackagesForUid(clientUid)
+        if (packages?.contains(clientPackageName) != true) return null
+        return BrowserRoot(CAR_ROOT_ID, null)
+    }
+
+    override fun onLoadChildren(
+        parentId: String,
+        result: Result<List<MediaBrowserCompat.MediaItem>>
+    ) {
+        if (parentId == CAR_ROOT_ID) {
+            result.sendResult(
+                listOf(
+                    carFolder("lokal/songs", "Songs"),
+                    carFolder("lokal/likes", "Liked Songs"),
+                    carFolder("lokal/playlists", "Playlists"),
+                    carFolder("lokal/albums", "Albums")
+                )
+            )
+            return
+        }
+
+        // Repository/playlist lookups run asynchronously in Flutter. Never
+        // block Android Auto's binder or expose raw song paths in media IDs.
+        val channel = flutterPlayerChannel()
+        if (channel == null) {
+            result.sendResult(emptyList())
+            return
+        }
+        result.detach()
+        val handler = Handler(Looper.getMainLooper())
+        val completed = AtomicBoolean(false)
+        val timeout = Runnable {
+            if (completed.compareAndSet(false, true)) {
+                android.util.Log.w("MusicNotification", "Android Auto browse timed out: $parentId")
+                result.sendResult(emptyList())
+            }
+        }
+        handler.postDelayed(timeout, 8000L)
+        channel.invokeMethod(
+            "androidAutoBrowse",
+            mapOf("parentId" to parentId),
+            object : MethodChannel.Result {
+                override fun success(reply: Any?) {
+                    if (!completed.compareAndSet(false, true)) return
+                    handler.removeCallbacks(timeout)
+                    val entries = (reply as? List<*>)?.mapNotNull(::carEntry) ?: emptyList()
+                    result.sendResult(entries)
+                }
+
+                override fun error(code: String, message: String?, details: Any?) {
+                    android.util.Log.w("MusicNotification", "Car browse failed: $code ($message)")
+                    finishEmpty()
+                }
+
+                override fun notImplemented() {
+                    finishEmpty()
+                }
+
+                private fun finishEmpty() {
+                    if (!completed.compareAndSet(false, true)) return
+                    handler.removeCallbacks(timeout)
+                    result.sendResult(emptyList())
+                }
+            }
+        )
+    }
+
+    private fun carFolder(mediaId: String, name: String): MediaBrowserCompat.MediaItem =
+        MediaBrowserCompat.MediaItem(
+            MediaDescriptionCompat.Builder().setMediaId(mediaId).setTitle(name).build(),
+            MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+        )
+
+    private fun carEntry(value: Any?): MediaBrowserCompat.MediaItem? {
+        val row = value as? Map<*, *> ?: return null
+        val id = (row["id"] as? String)?.takeIf { it.startsWith("lokal/") } ?: return null
+        val title = (row["title"] as? String)?.takeIf { it.isNotBlank() } ?: return null
+        val description = MediaDescriptionCompat.Builder().setMediaId(id).setTitle(title)
+        (row["subtitle"] as? String)?.let(description::setSubtitle)
+        val artwork = row["artUri"] as? String
+        if (artwork?.startsWith("content://") == true ||
+            artwork?.startsWith("https://") == true) {
+            description.setIconUri(Uri.parse(artwork))
+        }
+        val flag = if (row["playable"] == true)
+            MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+        else MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+        return MediaBrowserCompat.MediaItem(description.build(), flag)
+    }
+
+    private fun flutterPlayerChannel(): MethodChannel? {
+        if (methodChannel == null) {
+            FlutterEngineCache.getInstance().get("main_engine")?.let { engine ->
+                methodChannel = MethodChannel(engine.dartExecutor.binaryMessenger, PLAYER_CHANNEL)
+            }
+        }
+        return methodChannel
+    }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -401,6 +512,16 @@ class MusicNotificationService : Service() {
 
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() { sendCommandToFlutter("play") }
+                override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
+                    if (!mediaId.isNullOrEmpty()) {
+                        sendCommandToFlutter("androidAutoPlayMediaId", mapOf("mediaId" to mediaId))
+                    }
+                }
+                override fun onPlayFromSearch(query: String?, extras: Bundle?) {
+                    if (!query.isNullOrBlank()) {
+                        sendCommandToFlutter("androidAutoPlaySearch", mapOf("query" to query))
+                    }
+                }
                 override fun onPause() { sendCommandToFlutter("pause") }
                 override fun onSkipToNext() { sendCommandToFlutter("next") }
                 override fun onSkipToPrevious() { sendCommandToFlutter("previous") }
@@ -768,10 +889,10 @@ class MusicNotificationService : Service() {
             try {
                 if (methodChannel == null) {
                     android.util.Log.w("MusicNotification", "Method channel null, reconnecting…")
-                    FlutterEngineCache.getInstance().get("main_engine")?.let { engine ->
-                        methodChannel = MethodChannel(engine.dartExecutor.binaryMessenger, PLAYER_CHANNEL)
-                        android.util.Log.d("MusicNotification", "Method channel reconnected")
-                    } ?: android.util.Log.e("MusicNotification", "Flutter engine not in cache")
+                    flutterPlayerChannel()
+                    if (methodChannel == null) {
+                        android.util.Log.w("MusicNotification", "No Flutter engine for media command: $command")
+                    }
                 }
 
                 android.util.Log.d("MusicNotification", "→ Flutter: $command")

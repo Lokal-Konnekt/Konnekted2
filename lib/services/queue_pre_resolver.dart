@@ -125,7 +125,9 @@ class QueuePreResolver {
   final _registered = <String, PendingResolve>{};
   final _recent = <String, ({Song song, DateTime at})>{};
   final _running = <String, _Lookup>{};
-  final _timers = <Timer>[];
+  // Each stagger timer belongs to a specific upcoming song. Repeated queue
+  // or track notifications must not restart its two-second countdown.
+  final _timers = <String, Timer>{};
   Timer? _settle;
   _Lookup? _statusOwner;
   PreResolveHost? _host;
@@ -268,12 +270,14 @@ class QueuePreResolver {
       return const [];
     }
     _pruneRecent();
-    for (final timer in _timers) {
-      timer.cancel();
-    }
-    _timers.clear();
     final upcoming = _upcomingPending();
     final keep = {for (final song in upcoming) song.id, ?_currentId()};
+    for (final entry in _timers.entries.toList()) {
+      if (!keep.contains(entry.key)) {
+        entry.value.cancel();
+        _timers.remove(entry.key);
+      }
+    }
     // No longer coming up: its lookup (an add-on's download, say) stops.
     for (final id in _running.keys.toList()) {
       if (!keep.contains(id)) _running.remove(id)?.stop();
@@ -287,10 +291,22 @@ class QueuePreResolver {
         host.replacePending(id, ready);
         continue;
       }
-      if (_running.containsKey(id) || !_registered.containsKey(id)) continue;
+      if (!_registered.containsKey(id)) continue;
+      if (_running.containsKey(id) || _timers.containsKey(id)) {
+        // Respect its existing slot in the two-second stagger instead of
+        // starting a newly revealed fourth track immediately alongside it.
+        delay += stagger;
+        continue;
+      }
       asked.add(id);
       void start() {
         if (_running.containsKey(id)) return;
+        // A delayed timer may fire after a foreground resolution started.
+        // Foreground completion schedules the window again, so don't launch
+        // competing provider requests while the selected track prepares.
+        if (_running.values.any((lookup) => lookup.onDemand && !lookup.cancelled)) {
+          return;
+        }
         // Started later: still coming up in the queue as it is now?
         if (!_upcomingPending().any((other) => other.id == id)) return;
         _start(id, onDemand: false);
@@ -299,7 +315,10 @@ class QueuePreResolver {
       if (delay == Duration.zero) {
         start();
       } else {
-        _timers.add(Timer(delay, start));
+        _timers[id] = Timer(delay, () {
+          _timers.remove(id);
+          start();
+        });
       }
       delay += stagger;
     }
@@ -311,12 +330,21 @@ class QueuePreResolver {
   Future<Song?> resolveNow(Song pending) {
     final id = pending.id;
     _settle?.cancel();
-    for (final timer in _timers) {
-      timer.cancel();
+    // Keep the other next-four background lookups alive. A foreground skip
+    // takes priority but must not discard all previously prepared successors
+    // or continually reset their stagger timers.
+    final wanted = {id, for (final song in _upcomingPending()) song.id};
+    for (final entry in _timers.entries.toList()) {
+      if (!wanted.contains(entry.key)) {
+        entry.value.cancel();
+        _timers.remove(entry.key);
+      }
     }
-    _timers.clear();
     for (final other in _running.keys.toList()) {
-      if (other != id) _running.remove(other)?.stop();
+      if (other != id &&
+          (_running[other]!.onDemand || !wanted.contains(other))) {
+        _running.remove(other)?.stop();
+      }
     }
     if (_recentSong(id) case final ready?) {
       _host?.replacePending(id, ready);
@@ -326,10 +354,18 @@ class QueuePreResolver {
     if (running != null) {
       running.onDemand = true;
       _statusOwner = running;
+      status.value = running.lastStatus ?? 'Preparing ${pending.title}…';
       return _foregroundResult(running);
     }
+    // Show the loading toast immediately on Next—even before the add-on's
+    // first progress callback. It will update in place once it has details.
+    status.value = 'Preparing ${pending.title}…';
     final lookup = _start(id, onDemand: true);
-    return lookup == null ? Future.value(null) : _foregroundResult(lookup);
+    if (lookup == null) {
+      status.value = null;
+      return Future.value(null);
+    }
+    return _foregroundResult(lookup);
   }
 
   Future<Song?> _foregroundResult(_Lookup lookup) async {
@@ -416,12 +452,17 @@ class QueuePreResolver {
       status.value = null;
     }
     if (!lookup.result.isCompleted) lookup.result.complete(song);
+    if (lookup.onDemand && !lookup.cancelled && _host != null) {
+      // Refill the four-ahead window once the foreground download finishes,
+      // even if the engine has not emitted its next track state yet.
+      _onQueueChanged();
+    }
   }
 
   /// Forgets everything (tests; another account).
   void reset() {
     _settle?.cancel();
-    for (final timer in _timers) {
+    for (final timer in _timers.values) {
       timer.cancel();
     }
     _timers.clear();

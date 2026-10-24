@@ -2,6 +2,7 @@ import '../providers/recent_search_tracks.dart';
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +24,41 @@ import 'package:flick/widgets/lokal/lokal_quality.dart';
 import 'package:flick/services/catalogue_quality.dart';
 import 'package:flick/services/atmos_playback_support.dart';
 import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
+
+/// All results in one selected provider belong to the same playback queue.
+/// The selected result may request Atmos, but its neighbours remain normal
+/// playable versions until the user explicitly selects Atmos for each one.
+@visibleForTesting
+({Song selected, List<Song> queue}) buildOnlineSearchPlaybackQueue({
+  required List<OnlineResult> results,
+  required OnlineResult selected,
+  required bool atmos,
+  required Song Function(DiscoveryTrack track) pendingSong,
+}) {
+  final queue = <Song>[];
+  final seen = <String>{};
+  Song? selectedSong;
+  // Cap enormous provider responses, not the 15-item visual preview.
+  final rows = results.take(100);
+  for (final entry in rows) {
+    final isSelected = identical(entry, selected) ||
+        entry.track.key == selected.track.key;
+    final track = isSelected && atmos
+        ? entry.track.requestAtmos()
+        : entry.track;
+    final song = pendingSong(track);
+    if (seen.add(song.id)) queue.add(song);
+    if (isSelected) selectedSong ??= song;
+  }
+  if (selectedSong == null) {
+    final chosen = pendingSong(
+      atmos ? selected.track.requestAtmos() : selected.track,
+    );
+    if (seen.add(chosen.id)) queue.insert(0, chosen);
+    selectedSong = chosen;
+  }
+  return (selected: selectedSong, queue: queue);
+}
 
 /// Songs you don't have, under your library's results: desktop's Search
 /// "online" block. One source at a time (YouTube Music or an add-on you
@@ -171,7 +207,12 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     if (mounted) _progress.fail(message);
   }
 
-  Future<void> _play(OnlineSource source, OnlineResult result, {bool atmos = false}) async {
+  Future<void> _play(
+    OnlineSource source,
+    OnlineResult result, {
+    bool atmos = false,
+    List<OnlineResult>? results,
+  }) async {
     if (!await _verify(source)) return;
     if (atmos) {
       if (!result.track.atmosAvailable) {
@@ -194,14 +235,20 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
             ),
           ),
     );
-    final requested = atmos ? result.track.requestAtmos() : result.track;
-    final pending =
-        (widget.pendingSong ??
-        (source, track) =>
-            onlinePendingSong(source.id, track))(source, requested);
-    // Enter the player immediately. Its pending resolver owns cancellation,
-    // so a later tap/skip can never be overtaken by this page's download.
-    await ref.read(playerProvider.notifier).play(pending, playlist: [pending]);
+    final createPending = widget.pendingSong ??
+        (OnlineSource source, DiscoveryTrack track) =>
+            onlinePendingSong(source.id, track);
+    final playback = buildOnlineSearchPlaybackQueue(
+      results: results ?? [result],
+      selected: result,
+      atmos: atmos,
+      pendingSong: (track) => createPending(source, track),
+    );
+    // Use the source's actual result order. Pending successors will be
+    // resolved four tracks ahead; a skip must not lose the selected row.
+    await ref.read(playerProvider.notifier).play(
+      playback.selected, playlist: playback.queue,
+    );
   }
 
   /// Play next / Add to queue: a placeholder that's found and downloaded
@@ -295,7 +342,11 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     }
   }
 
-  Future<void> _actions(OnlineSource source, OnlineResult result) async {
+  Future<void> _actions(
+    OnlineSource source,
+    OnlineResult result,
+    List<OnlineResult> results,
+  ) async {
     HapticFeedback.mediumImpact();
     final action = await showOnlineResultActions(
       context,
@@ -306,9 +357,9 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
     if (!mounted || action == null) return;
     switch (action) {
       case OnlineResultAction.play:
-        await _play(source, result);
+        await _play(source, result, results: results);
       case OnlineResultAction.playAtmos:
-        await _play(source, result, atmos: true);
+        await _play(source, result, atmos: true, results: results);
       case OnlineResultAction.playNext:
         await _enqueue(source, result, next: true);
       case OnlineResultAction.addToQueue:
@@ -446,9 +497,9 @@ class _OnlineSearchSectionState extends ConsumerState<OnlineSearchSection> {
                           busy: _saving.contains(
                             '${source.id}:${result.track.id}',
                           ),
-                          onTap: () => _play(source, result),
-                          onAtmos: () => _play(source, result, atmos: true),
-                          onMore: () => _actions(source, result),
+                          onTap: () => _play(source, result, results: results),
+                          onAtmos: () => _play(source, result, atmos: true, results: results),
+                          onMore: () => _actions(source, result, results),
                           onQueue: () => _enqueue(source, result, next: false),
                         ),
                     ],

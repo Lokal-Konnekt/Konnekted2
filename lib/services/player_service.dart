@@ -770,6 +770,11 @@ class PlayerService {
   /// The placeholder being looked up to play now, if any.
   String? _pendingPlaybackId;
 
+  /// The engine can emit the *previous* track while stopping its audio sink
+  /// or loading the next pending stream. Never let that old state overwrite
+  /// the selected pending song / queue index until the requested source loads.
+  String? _pendingPresentationTrackId;
+
   /// Placeholders skipped in a row because they couldn't be found: stops a
   /// queue of unplayable songs from going round forever.
   int _pendingFailures = 0;
@@ -819,6 +824,11 @@ class PlayerService {
     _pendingPlaybackId = pending.id;
     onlinePlaybackError.value = null;
     isNetworkLoadingNotifier.value = true;
+    _pendingPresentationTrackId = pending.id;
+    isPlayingNotifier.value = false;
+    positionNotifier.value = Duration.zero;
+    bufferedPositionNotifier.value = Duration.zero;
+    durationNotifier.value = pending.duration;
     currentSongNotifier.value = pending;
     _playbackManager.updateTrack(pending);
     try {
@@ -846,6 +856,9 @@ class PlayerService {
       _pendingPlaybackId = null;
       isNetworkLoadingNotifier.value = false;
       if (resolved != null) {
+        // Continue shielding the next-track UI until the newly resolved
+        // source—not the old decoder's stop event—actually enters the engine.
+        _pendingPresentationTrackId = resolved.id;
         _pendingFailures = 0;
         replacePendingSong(pending.id, resolved);
         final song = resolved;
@@ -2158,6 +2171,9 @@ class PlayerService {
     try {
       await _resumeInternal();
     } catch (e, stackTrace) {
+      if (_pendingPresentationTrackId == song.id) {
+        _pendingPresentationTrackId = null;
+      }
       final recovered = await _handleDirectUsbStartupRefusal(
         e,
         song: currentSongNotifier.value,
@@ -3365,6 +3381,17 @@ class PlayerService {
     _playbackDiagnosticsDebounceTimer = null;
     _playbackStateSubscription?.cancel();
     _playbackStateSubscription = _playbackManager.playbackState.listen((state) {
+      final presentedId = _pendingPresentationTrackId;
+      if (presentedId != null && state.currentTrack?.id != presentedId) {
+        // A previous song's paused/idle state can arrive asynchronously after
+        // tapping Next. It must not undo the pending track selection or send
+        // the carousel/mini-player backwards while downloading.
+        if (isPlayingNotifier.value) isPlayingNotifier.value = false;
+        return;
+      }
+      if (presentedId != null && state.currentTrack?.id == presentedId) {
+        _pendingPresentationTrackId = null;
+      }
       final previous = _lastPlaybackState;
       _lastPlaybackState = state;
 
@@ -5165,6 +5192,7 @@ class PlayerService {
       }
 
       if (song.filePath != null) {
+        _pendingPresentationTrackId = song.id;
         _pendingFailures = 0;
         await _prepareImmediatePlaybackAsset(song);
         // Route changes are already pushed into the session manager via the

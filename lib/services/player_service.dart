@@ -152,6 +152,13 @@ enum LoopMode {
 }
 
 @visibleForTesting
+bool shouldReplaceQueuedAudioSource(Song queued, Song selected) =>
+    queued.id == selected.id &&
+    (queued.filePath != selected.filePath ||
+     queued.atmosEncoded != selected.atmosEncoded ||
+     queued.fileType != selected.fileType);
+
+@visibleForTesting
 List<Song> buildShufflePlaybackOrder({
   required List<Song> songs,
   required Song? current,
@@ -5137,9 +5144,7 @@ class PlayerService {
       // after a same-song version change or a source-provider switch.
       if (_currentIndex >= 0 && _currentIndex < _playlist.length &&
           _playlist[_currentIndex].id == song.id &&
-          (_playlist[_currentIndex].filePath != song.filePath ||
-           _playlist[_currentIndex].atmosEncoded != song.atmosEncoded ||
-           _playlist[_currentIndex].fileType != song.fileType)) {
+          shouldReplaceQueuedAudioSource(_playlist[_currentIndex], song)) {
         _debugLog('[Playback] Replacing queued audio version for selected song '
             '(Atmos=${song.atmosEncoded})');
         _playlist[_currentIndex] = song;

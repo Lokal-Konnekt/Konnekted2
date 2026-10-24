@@ -28,6 +28,21 @@ class LokalPerformanceAdvisor extends ConsumerStatefulWidget {
   const LokalPerformanceAdvisor({super.key, required this.child});
   final Widget child;
   static int lastGlassPaintMicros = 0;
+
+  /// UI-quality tradeoffs are limited to the Samsung models with confirmed
+  /// stutter reports; unrelated devices retain their animation cadence.
+  /// Generic resource savings (e.g. cached geometry) remain universal.
+  static bool samsungRasterMitigations = false;
+
+  @visibleForTesting
+  static bool affectedSamsungModel(String manufacturer, String model) {
+    if (manufacturer.trim().toLowerCase() != 'samsung') return false;
+    final id = model.trim().toUpperCase();
+    return id.startsWith('SM-S938') || // Galaxy S25 Ultra
+        id.startsWith('SM-M055') || // Galaxy M05
+        id.startsWith('SM-M066') || // model seen in supplied M05 logs
+        id == 'GALAXY S25 ULTRA' || id == 'GALAXY M05';
+  }
   // Only the outer player screens register; internal lyrics/queue widgets
   // do not affect attribution. These flags are local to the diagnostics.
   static final List<String> _activePlayerSurfaces = [];
@@ -40,6 +55,22 @@ class LokalPerformanceAdvisor extends ConsumerStatefulWidget {
   }
   static String get diagnosticSurface => _activePlayerSurfaces.isEmpty
       ? 'browse' : _activePlayerSurfaces.last;
+
+  // The previous performance snapshots mixed idle frames, list flings and
+  // page navigation into a single rasterMiss total. Attribute frame samples
+  // to the last interaction for M05 diagnostics without adding per-frame
+  // platform-channel calls or logging any private content.
+  static int _scrollUntilMicros = 0, _navigationUntilMicros = 0;
+  static void noteScroll() =>
+      _scrollUntilMicros = DateTime.now().microsecondsSinceEpoch + 500000;
+  static void noteNavigation() =>
+      _navigationUntilMicros = DateTime.now().microsecondsSinceEpoch + 1000000;
+  static String get diagnosticActivity {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    if (now < _scrollUntilMicros) return 'scroll';
+    if (now < _navigationUntilMicros) return 'navigation';
+    return 'idle';
+  }
   @override
   ConsumerState<LokalPerformanceAdvisor> createState() =>
       _LokalPerformanceAdvisorState();
@@ -55,6 +86,8 @@ class _LokalPerformanceAdvisorState
   Timer? _diagnosticTimer;
   static const _diagnostics = MethodChannel('com.mossapps.flick/diagnostics');
   int _windowFrames = 0, _windowUiMisses = 0, _windowRasterMisses = 0;
+  int _scrollFrames = 0, _scrollRasterMisses = 0;
+  int _navigationFrames = 0, _navigationRasterMisses = 0;
   int? _previousCpuMs, _previousWallMs;
   @override
   void initState() {
@@ -93,6 +126,14 @@ class _LokalPerformanceAdvisorState
       _windowFrames++;
       if (slowUi) _windowUiMisses++;
       if (slowRaster) _windowRasterMisses++;
+      switch (LokalPerformanceAdvisor.diagnosticActivity) {
+        case 'scroll':
+          _scrollFrames++;
+          if (slowRaster) _scrollRasterMisses++;
+        case 'navigation':
+          _navigationFrames++;
+          if (slowRaster) _navigationRasterMisses++;
+      }
       if (maySuggest) {
         _frames++;
         if (slowUi || slowRaster) _missed++;
@@ -106,6 +147,8 @@ class _LokalPerformanceAdvisorState
       _previousCpuMs = null;
       _previousWallMs = null;
       _windowFrames = _windowUiMisses = _windowRasterMisses = 0;
+      _scrollFrames = _scrollRasterMisses = 0;
+      _navigationFrames = _navigationRasterMisses = 0;
       return;
     }
     try {
@@ -113,6 +156,11 @@ class _LokalPerformanceAdvisorState
         'getPerformanceSnapshot',
       );
       if (!mounted || !_foreground || snapshot == null) return;
+      LokalPerformanceAdvisor.samsungRasterMitigations =
+          LokalPerformanceAdvisor.affectedSamsungModel(
+        snapshot['manufacturer']?.toString() ?? '',
+        snapshot['model']?.toString() ?? '',
+      );
       final cpu = (snapshot['cpuMs'] as num?)?.toInt();
       if (cpu == null) return;
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -136,13 +184,17 @@ class _LokalPerformanceAdvisorState
           'suspect=${lokalFrameBottleneck(frames, ui, raster)} '
           'processCpuCores=${cpuCores.toStringAsFixed(2)} '
           'mode=$mode rssMb=$rssMb '
-          'surface=${LokalPerformanceAdvisor.diagnosticSurface}',
+          'surface=${LokalPerformanceAdvisor.diagnosticSurface} '
+          'scrollRaster=$_scrollRasterMisses/$_scrollFrames '
+          'navigationRaster=$_navigationRasterMisses/$_navigationFrames',
           source: LogSource.platform,
         );
       }
       _previousCpuMs = cpu;
       _previousWallMs = now;
       _windowFrames = _windowUiMisses = _windowRasterMisses = 0;
+      _scrollFrames = _scrollRasterMisses = 0;
+      _navigationFrames = _navigationRasterMisses = 0;
     } catch (_) {
       // Perf telemetry must never interfere with startup or the audio path.
     }
@@ -203,6 +255,8 @@ class _LokalPerformanceAdvisorState
     if (!_foreground) {
       _previousCpuMs = _previousWallMs = null;
       _windowFrames = _windowUiMisses = _windowRasterMisses = 0;
+      _scrollFrames = _scrollRasterMisses = 0;
+      _navigationFrames = _navigationRasterMisses = 0;
     }
   }
 

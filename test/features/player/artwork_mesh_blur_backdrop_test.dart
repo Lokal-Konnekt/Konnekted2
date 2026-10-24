@@ -1,4 +1,5 @@
 import 'package:flick/features/player/widgets/artwork_mesh_blur_backdrop.dart';
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -27,4 +28,37 @@ void main() {
     expect((origin - artworkMeshWaveOffset(.5, .37, .61)).distance,
         greaterThan(.01));
   });
+
+  test('Performance Mode limits ambient mesh repaint signals to 30 Hz', () {
+    bool paint(Duration at, Duration? last, {bool performance = true}) =>
+        artworkMeshNeedsFrame(at, last, performanceMode: performance);
+
+    expect(paint(Duration.zero, null), isTrue);
+    expect(paint(const Duration(milliseconds: 16), Duration.zero), isFalse);
+    expect(paint(const Duration(milliseconds: 33), Duration.zero), isFalse);
+    expect(paint(const Duration(milliseconds: 34), Duration.zero), isTrue);
+    expect(paint(const Duration(milliseconds: 50),
+        const Duration(milliseconds: 34)), isFalse);
+    expect(paint(const Duration(milliseconds: 68),
+        const Duration(milliseconds: 34)), isTrue);
+    expect(paint(const Duration(milliseconds: 16),
+        Duration.zero, performance: false), isTrue,
+        reason: 'Full mode retains display-rate animation');
+    expect(paint(Duration.zero, const Duration(seconds: 26)), isTrue,
+        reason: 'Resuming a restarted ticker must not freeze rendering');
+  });
+
+
+  test('Samsung raster workarounds match reported models only', () {
+    bool affected(String brand, String model) =>
+        LokalPerformanceAdvisor.affectedSamsungModel(brand, model);
+    expect(affected('samsung', 'SM-M066B'), isTrue);
+    expect(affected('SAMSUNG', 'SM-M055F'), isTrue);
+    expect(affected('samsung', 'SM-S938B'), isTrue);
+    expect(affected('samsung', 'SM-S938U1'), isTrue);
+    expect(affected('Xiaomi', '25113PN0EG'), isFalse);
+    expect(affected('samsung', 'SM-S931B'), isFalse);
+    expect(affected('Google', 'SM-S938B'), isFalse);
+  });
+
 }

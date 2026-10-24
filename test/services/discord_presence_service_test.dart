@@ -144,4 +144,18 @@ void main() {
       isEmpty,
     );
   });
+
+  test('repeated Discord artwork failures use bounded backoff', () {
+    expect(DiscordPresenceService.coverRetryDelayForFailure(1),
+        const Duration(seconds: 45));
+    expect(DiscordPresenceService.coverRetryDelayForFailure(2),
+        const Duration(minutes: 2));
+    expect(DiscordPresenceService.coverRetryDelayForFailure(3),
+        const Duration(minutes: 5));
+    expect(DiscordPresenceService.coverRetryDelayForFailure(4),
+        const Duration(minutes: 15));
+    expect(DiscordPresenceService.coverRetryDelayForFailure(50),
+        const Duration(minutes: 15));
+  });
+
 }

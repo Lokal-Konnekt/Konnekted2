@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flick/core/theme/lokal_appearance.dart';
 import 'package:flick/models/song.dart';
@@ -22,6 +23,16 @@ Offset artworkMeshWaveOffset(double phase, double u, double v) {
   final y = math.cos(2 * t + u * 4.6 + v * 2.1) +
       .42 * math.sin(3 * t + v * 5);
   return Offset(x * .055, y * .043);
+}
+
+/// Only repaint the ambient mesh at ~30 Hz in Performance Mode. The drift
+/// controller continues running at its original speed, so the 26-second wave
+/// stays continuous; Full mode still paints at the display refresh rate.
+@visibleForTesting
+bool artworkMeshNeedsFrame(Duration elapsed, Duration? previous,
+    {required bool performanceMode}) {
+  if (!performanceMode || previous == null || elapsed < previous) return true;
+  return elapsed - previous >= const Duration(microseconds: 33333);
 }
 
 /// Artwork-driven mesh blur. Preserves the contrasting color regions in the
@@ -60,12 +71,28 @@ class _ArtworkMeshBlurBackdropState
   static const _maxLayers = 3;
   static const _maxRecent = 5;
   static final Map<String, ui.Image> _recent = {};
+  final ChangeNotifier _driftPaint = ChangeNotifier();
+  Duration? _lastDriftPaint;
+  bool _performanceMode = true;
+
+  void _onDriftTick() {
+    final elapsed = _drift.lastElapsedDuration;
+    if (elapsed == null ||
+        artworkMeshNeedsFrame(
+          elapsed, _lastDriftPaint,
+          performanceMode: _performanceMode &&
+              LokalPerformanceAdvisor.samsungRasterMitigations,
+        )) {
+      _lastDriftPaint = elapsed;
+      _driftPaint.notifyListeners();
+    }
+  }
 
   late final AnimationController _drift = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 26),
     value: .15,
-  );
+  )..addListener(_onDriftTick);
   late final AnimationController _fade = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 540),
@@ -254,7 +281,11 @@ class _ArtworkMeshBlurBackdropState
     } else {
       _fade.forward(from: 0);
     }
-    if (mounted) setState(() {});
+    if (mounted) {
+      // A first image or Ultra-mode transition may never tick the fade.
+      _driftPaint.notifyListeners();
+      setState(() {});
+    }
   }
 
   void _pruneLayers() {
@@ -265,7 +296,10 @@ class _ArtworkMeshBlurBackdropState
     _layers.first
       ..from = 1
       ..to = 1;
-    if (mounted) setState(() {});
+    if (mounted) {
+      _driftPaint.notifyListeners();
+      setState(() {});
+    }
   }
 
   @override
@@ -275,6 +309,7 @@ class _ArtworkMeshBlurBackdropState
     _route?.removeStatusListener(_syncMotion);
     _drift.dispose();
     _fade.dispose();
+    _driftPaint.dispose();
     for (final layer in _layers) {
       layer.dispose();
     }
@@ -288,6 +323,10 @@ class _ArtworkMeshBlurBackdropState
     // Regular Performance Mode keeps the ambient mesh alive; only Ultra
     // disables decorative animation. System reduced-motion is independent.
     _ultraPerformance = appearance.ultraPerformanceMode;
+    if (_performanceMode != appearance.performanceMode) {
+      _performanceMode = appearance.performanceMode;
+      _lastDriftPaint = null;
+    }
     _reduceMotion = MediaQuery.disableAnimationsOf(context);
     _syncMotion();
     return RepaintBoundary(
@@ -297,7 +336,7 @@ class _ArtworkMeshBlurBackdropState
           children: [
             CustomPaint(
               painter: _ArtworkMeshPainter(
-                repaint: Listenable.merge([_drift, _fade]),
+                repaint: Listenable.merge([_driftPaint, _fade]),
                 layers: _layers,
                 phase: () => _drift.value,
                 transition: () => Curves.easeInOutCubic.transform(_fade.value),
@@ -338,12 +377,35 @@ class _ArtworkMeshPainter extends CustomPainter {
   static const _columns = 8;
   static const _rows = 12;
 
+  // Mesh topology does not change with the animation or viewport. Allocating
+  // only animated positions avoids generating hundreds of temporary objects
+  // and indices on each raster frame.
+  static final List<Offset> _coordinates = [
+    for (var y = 0; y <= _rows; y++)
+      for (var x = 0; x <= _columns; x++)
+        Offset(
+          x / _columns * _ArtworkMeshBlurBackdropState._dimension,
+          y / _rows * _ArtworkMeshBlurBackdropState._dimension,
+        ),
+  ];
+  static final List<int> _indices = _meshIndices();
+  static List<int> _meshIndices() {
+    final indices = <int>[];
+    for (var y = 0; y < _rows; y++) {
+      for (var x = 0; x < _columns; x++) {
+        final a = y * (_columns + 1) + x;
+        final b = a + 1;
+        final c = a + _columns + 1;
+        indices.addAll([a, b, c, b, c + 1, c]);
+      }
+    }
+    return indices;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty || layers.isEmpty) return;
     final positions = <Offset>[];
-    final coordinates = <Offset>[];
-    final indices = <int>[];
     final frame = phase();
     // 18% overscan in both axes prevents gaps during mesh displacement.
     for (var y = 0; y <= _rows; y++) {
@@ -357,23 +419,13 @@ class _ArtworkMeshPainter extends CustomPainter {
           baseX + wave.dx * size.width,
           baseY + wave.dy * size.height,
         ));
-        coordinates.add(Offset(u * _ArtworkMeshBlurBackdropState._dimension,
-            v * _ArtworkMeshBlurBackdropState._dimension));
-      }
-    }
-    for (var y = 0; y < _rows; y++) {
-      for (var x = 0; x < _columns; x++) {
-        final a = y * (_columns + 1) + x;
-        final b = a + 1;
-        final c = a + _columns + 1;
-        indices.addAll([a, b, c, b, c + 1, c]);
       }
     }
     final mesh = ui.Vertices(
       ui.VertexMode.triangles,
       positions,
-      textureCoordinates: coordinates,
-      indices: indices,
+      textureCoordinates: _coordinates,
+      indices: _indices,
     );
     final matrix = Float64List(16);
     matrix[0] = matrix[5] = matrix[10] = matrix[15] = 1;
@@ -401,5 +453,6 @@ class _ArtworkMeshPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ArtworkMeshPainter oldDelegate) => true;
+  bool shouldRepaint(_ArtworkMeshPainter oldDelegate) =>
+      !identical(layers, oldDelegate.layers);
 }

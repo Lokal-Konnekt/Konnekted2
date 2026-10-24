@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flick/features/appearance/lokal_performance_advisor.dart';
 
 // ponytail: refcounted pause so independent drivers (fling gate, audio
 // preload service) can hold the pause without one's release clobbering
@@ -33,7 +34,11 @@ void _drainArtworkResolvers() {
   SchedulerBinding.instance.addPostFrameCallback((_) {
     _drainScheduled = false;
     if (artworkExtractionPaused) return;
-    final count = _pendingArtworkResolvers.length.clamp(0, 4);
+    // Reduce the post-fling burst only for reported Samsung render stalls.
+    // Unaffected devices preserve the original 4-per-frame throughput.
+    final batchSize =
+        LokalPerformanceAdvisor.samsungRasterMitigations ? 1 : 4;
+    final count = _pendingArtworkResolvers.length.clamp(0, batchSize);
     final batch = _pendingArtworkResolvers.sublist(0, count);
     _pendingArtworkResolvers.removeRange(0, count);
     for (final resolve in batch) {
@@ -65,7 +70,15 @@ mixin ArtworkExtractionScrollGate {
 
   bool onScrollNotification(ScrollNotification notification) {
     if (notification is ScrollEndNotification) {
-      _releaseArtworkGate();
+      if (LokalPerformanceAdvisor.samsungRasterMitigations) {
+        // The last kinetic frame is not a safe place to launch decoding
+        // on affected Samsung GPUs. Wait for the screen to settle.
+        _artworkGate?.cancel();
+        _artworkGate = Timer(_settleDelay, _releaseArtworkGate);
+      } else {
+        // Preserve the existing immediate artwork behavior on other phones.
+        _releaseArtworkGate();
+      }
     } else if (notification is ScrollUpdateNotification ||
         notification is UserScrollNotification ||
         notification is OverscrollNotification) {

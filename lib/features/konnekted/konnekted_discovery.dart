@@ -19,6 +19,7 @@ import 'package:flick/features/discovery/spotify_discovery.dart';
 import 'package:flick/features/discovery/youtube_audio.dart';
 import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_store.dart';
+import 'package:flick/features/morneye/morneye_live_playback.dart';
 import 'package:flick/features/morneye/morneye_packages.dart';
 import 'package:flick/features/morneye/morneye_runtime.dart';
 import 'package:flick/features/morneye/morneye_service.dart';
@@ -514,6 +515,7 @@ Future<List<_PlaybackSource>> _morneyeSources(
   DiscoveryPlaybackCache Function() cache,
   void Function(String status)? onStatus, {
   Future<void>? cancel,
+  bool forDownload = false,
 }) async {
   final List<MorneyeAddon> addons;
   final MorneyePackages packages;
@@ -585,6 +587,12 @@ Future<List<_PlaybackSource>> _morneyeSources(
             throw const DiscoveryException('This track has no advertised Atmos version.');
           }
           final tryAtmos = found.atmosRequested;
+          // Mirrors desktop: only plain, unprocessed FLAC with a known
+          // byte length can be played while its download grows. Atmos,
+          // explicit Save and post-processed formats remain full-file jobs.
+          final live = !forDownload && !tryAtmos && !found.atmosDownload
+              ? MorneyeLiveSession()
+              : null;
           if (tryAtmos && !found.atmosDownload && !await AtmosPlaybackSupport.available) {
             AtmosDiagnostics.record('request_rejected', {'reason': 'decoder_unavailable'});
             throw const DiscoveryException(
@@ -597,7 +605,8 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   addon.key,
                   found.id,
                   quality: quality,
-                  forPlayback: !found.atmosDownload,
+                  forPlayback: !forDownload && !found.atmosDownload,
+                  onTransfer: live?.observe,
                   onProgress: ({percent, message}) {
                 // A runtime winding down after a failure or a cancel says
                 // nothing more: no stale "downloading" after the error.
@@ -615,11 +624,58 @@ Future<List<_PlaybackSource>> _morneyeSources(
                 'quality': 'DOLBY_ATMOS',
                 'downloadOnly': found.atmosDownload,
               });
-              download = await fetch(
+              final transfer = fetch(
                 quality: tryAtmos
                     ? 'DOLBY_ATMOS'
                     : (found.atmosAvailable ? 'HI_RES_LOSSLESS' : null),
               );
+              // The host only exposes a live descriptor after a 64 KiB FLAC
+              // header check and a known full length. Race that safe first
+              // buffer against ordinary completion; never delay short tracks.
+              final canStream = live != null && await Future.any<bool>([
+                live.playable.then((_) => true),
+                transfer.then((_) => false),
+              ]);
+              if (canStream) {
+                final session = live;
+                final handle = MorneyeLiveRegistry.instance.register(session);
+                // Retain the transfer after Now Playing starts. Adoption,
+                // validation and staging cleanup stay asynchronous, while
+                // late failures propagate to the ranged audio reader.
+                unawaited(
+                  transfer.then((completed) async {
+                    try {
+                      final cached = await cache().adopt(found, completed.file);
+                      final path = cached.filePath;
+                      if (path == null) {
+                        throw StateError('Completed audio has no cache path');
+                      }
+                      session.promote(path);
+                    } catch (error) {
+                      session.fail(error);
+                    } finally {
+                      await completed.cleanup();
+                    }
+                  }).catchError((Object error, StackTrace stack) {
+                    session.fail(error);
+                  }),
+                );
+                onStatus?.call('Streaming ${found.title} from ${addon.displayName}…');
+                return Song(
+                  id: 'discovery:${found.key.hashCode}:morneye-live',
+                  title: found.title,
+                  artist: found.artist,
+                  album: found.album,
+                  albumArt: found.artwork,
+                  duration: found.duration ?? Duration.zero,
+                  fileType: 'FLAC',
+                  filePath: handle,
+                  sourcePackage: 'konnekted.morneye-live',
+                  remoteId: found.id,
+                  isExternal: true,
+                );
+              }
+              download = await transfer;
               if (tryAtmos) {
                 AtmosDiagnostics.record('download_complete', {
                   'quality': 'DOLBY_ATMOS',
@@ -898,7 +954,8 @@ Future<List<OnlineSource>> _playbackSources(
         },
       ),
     if (includeMorneye)
-      ...await _morneyeSources(morneye, cache, onStatus, cancel: cancel),
+      ...await _morneyeSources(morneye, cache, onStatus,
+        cancel: cancel, forDownload: forDownload),
   ], (source) => source.id);
 }
 

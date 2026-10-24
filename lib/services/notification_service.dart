@@ -235,6 +235,15 @@ class NotificationService {
           break;
       }
     });
+
+    // A cold Android Auto connection may have started Flutter headlessly.
+    // Release its pending browse requests only after the Dart catalog and
+    // playback command handler are ready to receive calls.
+    unawaited(
+      _channel.invokeMethod<void>('androidAutoReady').onError(
+        (Object _, StackTrace __) {},
+      ),
+    );
   }
 
   /// Show or update the notification with song information.

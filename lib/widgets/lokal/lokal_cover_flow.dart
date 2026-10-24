@@ -5,7 +5,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flick/core/theme/lokal_theme.dart';
@@ -32,19 +31,42 @@ class LokalCoverFlow extends StatefulWidget {
   static const double _firstCenter = .91;
   static const double _farStep = .18;
   static const double _sideDepth = .60;
-
-  @visibleForTesting
-  static double centerDistance(double distance) {
-    final a = distance.abs();
-    if (a >= 1) return _firstCenter + (a - 1) * _farStep;
-    return .90 * a + .75 * a * a - .74 * a * a * a;
-  }
+  static const double _focalLength = 1.92;
+  static const double _firstScreenCenter =
+      _firstCenter / (1 + _sideDepth / _focalLength);
+  static const double _farScreenStep =
+      _farStep / (1 + _sideDepth / _focalLength);
 
   @visibleForTesting
   static double depthDistance(double distance) {
     final a = distance.abs();
     if (a >= 1) return _sideDepth;
     return _sideDepth * a * a * (3 - 2 * a);
+  }
+
+  /// Projected cover centers follow one flat, horizontal rail. Previously
+  /// the world-space center Hermite curve plus a separate Z retreat created
+  /// a strongly non-linear apparent X motion (a carousel/orbiting effect).
+  /// The values at whole-cover positions are UNCHANGED, preserving the
+  /// reference-matched iTunes triangles and closely stacked side covers.
+  @visibleForTesting
+  static double projectedCenterDistance(double distance) {
+    final a = distance.abs();
+    if (a >= 1) return _firstScreenCenter + (a - 1) * _farScreenStep;
+    const startSlope = .70;
+    final c2 = 3 * _firstScreenCenter - 2 * startSlope - _farScreenStep;
+    final c3 = startSlope + _farScreenStep - 2 * _firstScreenCenter;
+    return startSlope * a + c2 * a * a + c3 * a * a * a;
+  }
+
+  @visibleForTesting
+  static double centerDistance(double distance) {
+    final a = distance.abs();
+    // Solve the perspective divide for the horizontal world translation.
+    // This keeps rendered movement on the projected X rail even as covers
+    // rotate back into the side stack in Z.
+    return projectedCenterDistance(a) *
+        (1 + depthDistance(a) / _focalLength);
   }
 
   const LokalCoverFlow({
@@ -111,25 +133,50 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   static const double _perspective = 1.92;
   static const double _vanishY = .16;
 
-  static double _projectedCenter(double distance) {
-    final a = distance.abs();
-    return LokalCoverFlow.centerDistance(a) /
-        (1 + LokalCoverFlow.depthDistance(a) / _perspective);
-  }
+  static double _projectedCenter(double distance) =>
+      LokalCoverFlow.projectedCenterDistance(distance);
   double _stageWidth = 0;
 
-  static const _spring = SpringDescription(
-    mass: 1,
-    stiffness: 135,
-    damping: 24,
-  );
+  // A physical spring fed unbounded finger velocity could jump over several
+  // albums within a single rendered frame and briefly reverse/overshoot.
+  // Cap instantaneous screen-space speed for large flings instead.
+  static const double _maxGlideSpeed = 14; // albums / second
+  static const double _maxFlingVelocity = 18;
+  static const double _flingProjection = .30;
+
+  void _glideTo(double target) {
+    final distance = (target - _position.value).abs();
+    if (distance < .0001) {
+      _position.value = target;
+      return;
+    }
+    if (_reduceMotion) {
+      _position.value = target;
+      return;
+    }
+    // easeOutCubic's initial derivative is 3. This duration bound limits
+    // movement to <= 14 cover positions per second even on a hard fling.
+    final ms = (1000 * 3 * distance / _maxGlideSpeed)
+        .clamp(220.0, 1800.0).round();
+    _position.animateTo(
+      target,
+      duration: Duration(milliseconds: ms),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
   int get _last => math.max(0, widget.albums.length - 1);
 
   @override
   void didUpdateWidget(LokalCoverFlow old) {
     super.didUpdateWidget(old);
-    _faces.clear();
+    // Do not discard every decoded face merely because Home rebuilt during
+    // a glide. Only changes to the actual album entries invalidate faces.
+    final changed = widget.albums.length != old.albums.length ||
+        List.generate(widget.albums.length, (i) => i).any((i) =>
+          widget.albums[i].key != old.albums[i].key ||
+          !identical(widget.albums[i], old.albums[i]));
+    if (changed) _faces.clear();
     if (widget.albums.length != old.albums.length && _index > _last) {
       _position.value = _last.toDouble();
     }
@@ -155,28 +202,16 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
 
   void _settle({double velocity = 0}) {
     if (!mounted || _disposing) return;
-    // Momentum carries roughly a third of a second of the fling.
-    final projected = _position.value + velocity * .30;
+    final safeVelocity = velocity.isFinite
+        ? velocity.clamp(-_maxFlingVelocity, _maxFlingVelocity).toDouble()
+        : 0.0;
+    final projected = _position.value + safeVelocity * _flingProjection;
     final target = projected.round().clamp(0, _last).toDouble();
-    if (_reduceMotion) {
-      _position.value = target;
-      return;
-    }
-    _position.animateWith(
-      SpringSimulation(_spring, _position.value, target, velocity),
-    );
+    _glideTo(target);
   }
 
-  void goTo(int index) {
-    final target = index.clamp(0, _last).toDouble();
-    if (_reduceMotion) {
-      _position.value = target;
-      return;
-    }
-    _position.animateWith(
-      SpringSimulation(_spring, _position.value, target, 0),
-    );
-  }
+  void goTo(int index) =>
+      _glideTo(index.clamp(0, _last).toDouble());
 
   void _onDragUpdate(DragUpdateDetails details) {
     _position.stop();

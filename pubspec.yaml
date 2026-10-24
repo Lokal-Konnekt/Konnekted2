@@ -148,6 +148,7 @@ flutter:
     - assets/fonts/DMMono-OFL.txt
     - assets/branding/lokal_icon.png
     - assets/branding/lokal_icon_sticker.png
+    - assets/branding/lokal_cd_monochrome.svg
 
   fonts:
     # DM Sans and DM Mono are desktop Lokal's faces (body and uppercase

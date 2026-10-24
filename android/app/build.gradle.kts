@@ -88,7 +88,11 @@ android {
         versionName = flutter.versionName
 
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            // Flutter 3.35+ prepopulates all 3 supported ABIs even when the
+            // CLI targets android-arm64. Adding to that set does NOT restrict
+            // the APK: clear Flutter's defaults before adding the sole ABI.
+            abiFilters.clear()
+            abiFilters.add("arm64-v8a")
         }
 
         externalNativeBuild {

@@ -190,7 +190,7 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
     );
   }
 
-  Future<void> _linkActions(LinkedPlaylistRecord record) async {
+  Future<void> _linkActions(PlaylistLinkRecord record) async {
     final selected = await showLokalChoiceSheet<String>(
       context: context,
       title: record.remoteTitle,

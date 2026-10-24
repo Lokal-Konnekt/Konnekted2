@@ -15,9 +15,14 @@ fi
 case "$probe_target" in
   aarch64-apple-ios)
     probe_sdk=iphoneos
+    probe_clang_target=arm64-apple-ios15.0
     ;;
   aarch64-apple-ios-sim|x86_64-apple-ios)
     probe_sdk=iphonesimulator
+    probe_clang_target=arm64-apple-ios15.0-simulator
+    if [[ "$probe_target" == x86_64-apple-ios ]]; then
+      probe_clang_target=x86_64-apple-ios15.0-simulator
+    fi
     ;;
   *)
     echo "Unsupported iOS target: $probe_target" >&2
@@ -51,7 +56,7 @@ fi
 # needs the matching Apple SDK rather than the host macOS headers.
 SDKROOT="$probe_sdk_path" \
 IPHONEOS_DEPLOYMENT_TARGET="$probe_min_ios" \
-BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS:-} -isysroot \"$probe_sdk_path\"" \
+BINDGEN_EXTRA_CLANG_ARGS="${BINDGEN_EXTRA_CLANG_ARGS:-} --target=$probe_clang_target -isysroot \"$probe_sdk_path\"" \
 cargo "+$probe_toolchain" build --locked --release --lib \
   --manifest-path "$probe_root/rust/Cargo.toml" \
   --target "$probe_target" --no-default-features --features native_audio,rquickjs/bindgen

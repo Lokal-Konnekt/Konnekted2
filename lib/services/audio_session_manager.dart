@@ -10,13 +10,12 @@ import 'package:flick/src/rust/api/audio_api.dart' as rust_audio;
 import 'package:flick/core/utils/app_log.dart';
 import 'package:flick/core/utils/dev_log.dart';
 
-typedef AudioSessionSwitchHandler =
-    Future<void> Function({
-      required AudioEngineType? from,
-      required AudioEngineType to,
-      required bool initializeNewEngine,
-      required String reason,
-    });
+typedef AudioSessionSwitchHandler = Future<void> Function({
+  required AudioEngineType? from,
+  required AudioEngineType to,
+  required bool initializeNewEngine,
+  required String reason,
+});
 typedef AudioSessionPlaybackActiveReader = bool Function();
 
 class AudioSessionManager {
@@ -229,7 +228,9 @@ class AudioSessionManager {
     await _preferencesService.initializeKillIsochronousUsbOnQuitCache();
     await _preferencesService.initialize432HzTuningCache();
     await _preferencesService.initializeBtFlagsCache();
-    await _deviceService.initialize();
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      await _deviceService.initialize();
+    }
     selectedModeNotifier.value = await _resolvePreferredMode();
 
     _deviceInfoListener ??= () {
@@ -282,13 +283,19 @@ class AudioSessionManager {
   }
 
   Future<AudioEngineType> _resolvePreferredMode({bool refresh = false}) async {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return EqEngineHint.parametricPeqActive
+          ? AudioEngineType.iosRust
+          : AudioEngineType.iosSystem;
+    }
     final freezeDirectUsbSessionQueries =
         _uac2Service.shouldFreezeAndroidDirectUsbSessionQueries;
     final info = refresh && !freezeDirectUsbSessionQueries
         ? await _deviceService.refresh()
         : _deviceService.deviceInfoNotifier.value;
     final bitPerfectEnabled = await _preferencesService.getBitPerfectEnabled();
-    final dapBitPerfectEnabled = await _preferencesService.getDapBitPerfectEnabled();
+    final dapBitPerfectEnabled = await _preferencesService
+        .getDapBitPerfectEnabled();
     final audioEnginePreference = await _preferencesService
         .getAudioEnginePreference();
     final capabilityInfo = await _uac2Service.getAndroidAudioCapabilityInfo();
@@ -355,7 +362,7 @@ class AudioSessionManager {
         );
       }
 
-    if (audioEnginePreference == AudioEnginePreference.rustOboe) {
+      if (audioEnginePreference == AudioEnginePreference.rustOboe) {
         _debugLog(
           '[Session] Selected RUST_OBOE because an external USB DAC is '
           'attached and the user prefers the Rust Android-managed engine '

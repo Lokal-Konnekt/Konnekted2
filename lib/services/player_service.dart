@@ -158,17 +158,21 @@ enum LoopMode {
 /// version is being installed. In particular an old Media3 stop() event must
 /// never rewind the current song or its carousel position.
 @visibleForTesting
-bool shouldHoldPendingPresentation(String? expectedTrackId, Song? engineTrack) =>
+bool shouldHoldPendingPresentation(
+  String? expectedTrackId,
+  Song? engineTrack,
+) =>
     expectedTrackId != null &&
-    (engineTrack == null || engineTrack.id != expectedTrackId ||
+    (engineTrack == null ||
+        engineTrack.id != expectedTrackId ||
         engineTrack.isPending);
 
 @visibleForTesting
 bool shouldReplaceQueuedAudioSource(Song queued, Song selected) =>
     queued.id == selected.id &&
     (queued.filePath != selected.filePath ||
-     queued.atmosEncoded != selected.atmosEncoded ||
-     queued.fileType != selected.fileType);
+        queued.atmosEncoded != selected.atmosEncoded ||
+        queued.fileType != selected.fileType);
 
 @visibleForTesting
 List<Song> buildShufflePlaybackOrder({
@@ -594,6 +598,7 @@ class PlayerService {
   VoidCallback? _rustPositionListener;
   VoidCallback? _rustDurationListener;
   StreamSubscription<AudioInterruptionEvent>? _audioFocusSubscription;
+  StreamSubscription<void>? _noisyAudioSubscription;
   StreamSubscription<Map<Object?, Object?>>? _bluetoothDeviceEventSubscription;
   StreamSubscription<void>? _usbDacDetachSubscription;
   StreamSubscription<void>? _usbDacAttachSubscription;
@@ -664,11 +669,13 @@ class PlayerService {
 
   /// Set synchronously when a new online track is selected, before the player
   /// queue, native engine or provider can block on network setup.
-  final ValueNotifier<String?> onlinePreparationTitleNotifier =
-      ValueNotifier(null);
+  final ValueNotifier<String?> onlinePreparationTitleNotifier = ValueNotifier(
+    null,
+  );
 
   void _markOnlinePreparation(Song song) {
-    if (song.isPending || song.isNetworkSource ||
+    if (song.isPending ||
+        song.isNetworkSource ||
         song.sourcePackage == 'konnekted.progressive' ||
         song.sourcePackage == 'konnekted.morneye-live') {
       onlinePreparationTitleNotifier.value = song.title;
@@ -677,6 +684,7 @@ class PlayerService {
       onlinePreparationTitleNotifier.value = null;
     }
   }
+
   // ponytail: monotonically increasing token; only the most-recent network
   // play request is allowed to clear the loading flag. Upgrade path: a per-
   // song Set<int> if multiple concurrent network loads ever need tracking.
@@ -1221,8 +1229,8 @@ class PlayerService {
   Future<void> setDuckOnInterruption(bool enabled) async {
     duckOnInterruptionNotifier.value = enabled;
     await _preferencesService.setDuckOnInterruption(enabled);
-    if (Platform.isAndroid && _audioSessionConfigured) {
-      await _applyAndroidAudioSessionConfig();
+    if ((Platform.isAndroid || Platform.isIOS) && _audioSessionConfigured) {
+      await _applySystemAudioSessionConfig();
     }
   }
 
@@ -1954,7 +1962,8 @@ class PlayerService {
 
   Future<void> _prepareForAppLaunchInternal() async {
     await initAudio();
-    if (Platform.isAndroid && !_sessionManager.selectedMode.usesRustBackend) {
+    if ((Platform.isAndroid || Platform.isIOS) &&
+        !_sessionManager.selectedMode.usesRustBackend) {
       await _ensureAndroidPlayer();
     }
     await reapplyEqualizer();
@@ -2095,8 +2104,8 @@ class PlayerService {
   }
 
   Future<void> _activateAudioSessionForRustEngine() async {
-    if (!Platform.isAndroid) return;
-    await _configureAndroidAudioSession();
+    if (!Platform.isAndroid && !Platform.isIOS) return;
+    await _configureSystemAudioSession();
     try {
       final session = await AudioSession.instance;
       final granted = await session.setActive(true);
@@ -2120,26 +2129,34 @@ class PlayerService {
     await _deactivateAndroidAudioSession();
   }
 
-  Future<void> _configureAndroidAudioSession() async {
-    if (!Platform.isAndroid || _audioSessionConfigured) {
+  Future<void> _configureSystemAudioSession() async {
+    if ((!Platform.isAndroid && !Platform.isIOS) || _audioSessionConfigured) {
       return;
     }
 
     try {
       final session = await AudioSession.instance;
-      await _applyAndroidAudioSessionConfig();
+      await _applySystemAudioSessionConfig();
       _audioFocusSubscription ??= session.interruptionEventStream.listen((
         event,
       ) {
         _onAudioInterruptionEvent(event);
       });
+      if (Platform.isIOS) {
+        _noisyAudioSubscription ??= session.becomingNoisyEventStream.listen((
+          _,
+        ) {
+          _wasPlayingBeforeAudioInterruption = false;
+          unawaited(pause());
+        });
+      }
       _audioSessionConfigured = true;
     } catch (e) {
       _debugLog('[AudioFocus] Failed to configure Android audio session: $e');
     }
   }
 
-  Future<void> _applyAndroidAudioSessionConfig() async {
+  Future<void> _applySystemAudioSessionConfig() async {
     final session = await AudioSession.instance;
     // When ducking is enabled we keep the stream alive at reduced gain for
     // transient losses (notifications) instead of pausing. Users who prefer
@@ -2249,7 +2266,7 @@ class PlayerService {
       return existing;
     }
 
-    await _configureAndroidAudioSession();
+    await _configureSystemAudioSession();
     // Android supports request headers natively. Avoid the Dart loopback
     // proxy: a sleeping/unreachable desktop can leave its sockets pending.
     final player = just_audio.AudioPlayer(useProxyForRequestHeaders: false);
@@ -2272,7 +2289,7 @@ class PlayerService {
       _justAudioPlayer = player;
     }
 
-    if (Platform.isAndroid && _audioSessionConfigured) {
+    if ((Platform.isAndroid || Platform.isIOS) && _audioSessionConfigured) {
       try {
         final session = await AudioSession.instance;
         await session.setActive(true);
@@ -2288,6 +2305,9 @@ class PlayerService {
 
   AndroidAudioEngine _createAndroidEngine() {
     final engine = AndroidAudioEngine(
+      engineType: Platform.isIOS
+          ? AudioEngineType.iosSystem
+          : AudioEngineType.normalAndroid,
       playerProvider: _ensureAndroidPlayer,
       sourcesBuilder: _buildAudioSources,
       sourceBuilder: _buildAudioSourceForSong,
@@ -3448,7 +3468,8 @@ class PlayerService {
         if (isPlayingNotifier.value) isPlayingNotifier.value = false;
         return;
       }
-      if (presentedId != null && state.currentTrack?.id == presentedId &&
+      if (presentedId != null &&
+          state.currentTrack?.id == presentedId &&
           state.currentTrack?.isPending != true) {
         _pendingPresentationTrackId = null;
       }
@@ -3607,7 +3628,7 @@ class PlayerService {
   /// handling, ducking preference) before another player in the app, such as
   /// internet radio, requests audio focus through it.
   Future<void> prepareAudioSessionForExternalPlayer() =>
-      _configureAndroidAudioSession();
+      _configureSystemAudioSession();
 
   // ponytail: remote volume ticks can be rapid (slider drags); keep them on the
   // lightweight cast-only notification path instead of a full metadata refresh.
@@ -3934,8 +3955,7 @@ class PlayerService {
     final liveMorneye = song.sourcePackage == 'konnekted.morneye-live'
         ? MorneyeLiveRegistry.instance.resolve(song.filePath)
         : null;
-    if (song.sourcePackage == 'konnekted.morneye-live' &&
-        liveMorneye == null) {
+    if (song.sourcePackage == 'konnekted.morneye-live' && liveMorneye == null) {
       throw StateError('Morneye stream expired. Select the song again.');
     }
     if (liveMorneye != null) {
@@ -4294,7 +4314,8 @@ class PlayerService {
 
   Future<void> _prepareImmediatePlaybackAsset(Song song) async {
     if (song.sourcePackage == 'konnekted.progressive' ||
-        song.sourcePackage == 'konnekted.morneye-live') return;
+        song.sourcePackage == 'konnekted.morneye-live')
+      return;
     if (!_usingRustBackend && _streamSourceForSong(song) != null) {
       // The just_audio stream source stages/decodes lazily; pre-converting
       // here would write the WAV that source exists to avoid.
@@ -4437,6 +4458,11 @@ class PlayerService {
       await _applyRustPlaybackProcessingPolicy(playbackMode);
     }
 
+    if (Platform.isIOS) {
+      await _activateAudioSessionForRustEngine();
+      await _rustAudioService.prepareEngine();
+      await _applyRustPlaybackProcessingPolicy(playbackMode);
+    }
     _setupRustAudioListeners();
   }
 
@@ -4706,7 +4732,9 @@ class PlayerService {
   /// operation. Do not hand the same player back to the next tap: detach it
   /// immediately, then dispose with a bounded wait so playback remains usable
   /// even if Media3 itself never completes the old operation.
-  Future<void> _retireStalledAndroidPlayer(just_audio.AudioPlayer player) async {
+  Future<void> _retireStalledAndroidPlayer(
+    just_audio.AudioPlayer player,
+  ) async {
     if (identical(_justAudioPlayer, player)) {
       _justAudioPlayer = null;
       _audioSourceSequence = null;
@@ -4938,6 +4966,16 @@ class PlayerService {
       reason: reason,
     );
 
+    if (Platform.isIOS) {
+      _sessionManager.clearFallbackReason();
+      final needsRust =
+          song.requiresRustDecoder ||
+          const {'ogg', 'oga', 'ogx', 'opus'}.contains(_playbackFileType(song));
+      return resolveEngineForSong(
+        preferred: normalizedEngine,
+        requiresRustDecoder: needsRust,
+      );
+    }
     if (!Platform.isAndroid) {
       _sessionManager.clearFallbackReason();
       return normalizedEngine;
@@ -4946,6 +4984,9 @@ class PlayerService {
     final engineForSong = _routeEngineForSong(normalizedEngine, song);
 
     switch (engineForSong) {
+      case AudioEngineType.iosSystem:
+      case AudioEngineType.iosRust:
+        return engineForSong;
       case AudioEngineType.normalAndroid:
         await _uac2Service.releaseAndroidDirectUsbRuntime();
         await _rustAudioService.setHighResMode(false);
@@ -5104,7 +5145,9 @@ class PlayerService {
         'codec': 'eac3_joc',
         'desiredEngine': desiredEngine.name,
         'engine': routed.name,
-        'reason': routed != desiredEngine ? 'joc_requires_system' : 'native_system',
+        'reason': routed != desiredEngine
+            ? 'joc_requires_system'
+            : 'native_system',
       });
     } else if (routed != desiredEngine) {
       _debugLog(
@@ -5278,11 +5321,14 @@ class PlayerService {
       // standard releases. The latest selected file is authoritative; leaving
       // the prior queue entry intact makes Media3 seek/play a stale source
       // after a same-song version change or a source-provider switch.
-      if (_currentIndex >= 0 && _currentIndex < _playlist.length &&
+      if (_currentIndex >= 0 &&
+          _currentIndex < _playlist.length &&
           _playlist[_currentIndex].id == song.id &&
           shouldReplaceQueuedAudioSource(_playlist[_currentIndex], song)) {
-        _debugLog('[Playback] Replacing queued audio version for selected song '
-            '(Atmos=${song.atmosEncoded})');
+        _debugLog(
+          '[Playback] Replacing queued audio version for selected song '
+          '(Atmos=${song.atmosEncoded})',
+        );
         _playlist[_currentIndex] = song;
       }
 
@@ -5316,11 +5362,14 @@ class PlayerService {
         _debugLog(
           '[Engine] Playback route resolved to ${activeEngine.logLabel}',
         );
-        if (song.atmosEncoded) AtmosDiagnostics.record('playback_route', {
-          'engine': activeEngine.name,
-          'encoded': true,
-          'reason': _usingRustBackend ? 'unexpected_rust_engine' : 'android_mediacodec',
-        });
+        if (song.atmosEncoded)
+          AtmosDiagnostics.record('playback_route', {
+            'engine': activeEngine.name,
+            'encoded': true,
+            'reason': _usingRustBackend
+                ? 'unexpected_rust_engine'
+                : 'android_mediacodec',
+          });
         if (_usingRustBackend) {
           await _applyRustPlaybackProcessingPolicy(activeEngine);
           // ReplayGain must reach the engine before the play command so the
@@ -5330,10 +5379,11 @@ class PlayerService {
         await _runWithSuppressedSequenceStateUpdates(() async {
           await _playbackManager.playTrack(song);
         });
-        if (song.atmosEncoded) AtmosDiagnostics.record('player_loaded', {
-          'outcome': 'source_submitted',
-          'engine': activeEngine.name,
-        });
+        if (song.atmosEncoded)
+          AtmosDiagnostics.record('player_loaded', {
+            'outcome': 'source_submitted',
+            'engine': activeEngine.name,
+          });
         if (!_usingRustBackend && !song.atmosEncoded) {
           unawaited(_applyReplayGainForSystemTier(song));
         }
@@ -7100,6 +7150,7 @@ class PlayerService {
     _positionSaveTimer?.cancel();
     _stopHwVolumeHealthTimer();
     unawaited(_audioFocusSubscription?.cancel());
+    unawaited(_noisyAudioSubscription?.cancel());
     unawaited(_bluetoothDeviceEventSubscription?.cancel());
     unawaited(_usbDacDetachSubscription?.cancel());
     unawaited(_usbDacAttachSubscription?.cancel());

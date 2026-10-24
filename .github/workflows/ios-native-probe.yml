@@ -19,6 +19,8 @@ jobs:
     name: Rust engine / ${{ matrix.target }}
     runs-on: macos-15
     timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
     strategy:
       fail-fast: false
       matrix:

@@ -175,13 +175,17 @@ class RustBuilder {
     if (target.darwinPlatform == 'iphoneos' ||
         target.darwinPlatform == 'iphonesimulator') {
       final sdk = runCommand('xcrun', [
-        '--sdk', target.darwinPlatform!, '--show-sdk-path',
+        '--sdk',
+        target.darwinPlatform!,
+        '--show-sdk-path',
       ]).stdout.toString().trim();
       return {
         'SDKROOT': sdk,
         'IPHONEOS_DEPLOYMENT_TARGET': '15.0',
         'BINDGEN_EXTRA_CLANG_ARGS':
-            '${Platform.environment['BINDGEN_EXTRA_CLANG_ARGS'] ?? ''} -isysroot "$sdk"',
+            '${Platform.environment['BINDGEN_EXTRA_CLANG_ARGS'] ?? ''} '
+                '--target=${target.darwinArch == 'arm64' ? 'arm64' : 'x86_64'}-apple-ios15.0${target.darwinPlatform == 'iphonesimulator' ? '-simulator' : ''} '
+                '-isysroot "$sdk"',
       };
     }
     if (target.android == null) {

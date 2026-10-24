@@ -12,6 +12,10 @@ AudioEngineType resolveEngineForSong({
   required bool requiresRustDecoder,
   bool isAtmosJoc = false,
 }) {
+  if (preferred == AudioEngineType.iosSystem) {
+    return requiresRustDecoder ? AudioEngineType.iosRust : preferred;
+  }
+  if (preferred == AudioEngineType.iosRust) return preferred;
   // Rust/Oboe PCM decoding discards JOC object metadata. Keep verified
   // Dolby Digital Plus with Atmos on Android's Media3/AudioTrack path.
   if (isAtmosJoc) return AudioEngineType.normalAndroid;

@@ -28,6 +28,7 @@ jobs:
       CI: 'true'
       FLUTTER_SUPPRESS_ANALYTICS: 'true'
       IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -46,9 +47,17 @@ jobs:
           flutter pub get --enforce-lockfile
           python3 tool/ios_readiness.py --require-scaffold
       - name: Build the complete app for iOS simulator
-        run: flutter build ios --simulator --debug --no-pub
+        run: |
+          if ! flutter build ios --simulator --debug --no-pub --verbose > "$RUNNER_TEMP/ios-simulator-build.log" 2>&1; then
+            tail -n 250 "$RUNNER_TEMP/ios-simulator-build.log"
+            exit 1
+          fi
       - name: Build the release iPhone app without signing credentials
         run: flutter build ios --release --no-codesign --no-pub --build-number '${{ github.run_number }}'
+      - name: Boot an iPhone simulator
+        run: python3 tool/ios_simulator.py
+      - name: Exercise actual startup, FFI and playback
+        run: flutter test integration_test/ios_smoke_test.dart --no-pub -d "$IOS_SIMULATOR_UDID" --timeout 5m
       - name: Package and inspect unsigned IPA
         run: python3 tool/ios_package.py build/ios/iphoneos/Runner.app build/ios/ipa/Lokal-unsigned.ipa
       - name: Preserve dependency locks

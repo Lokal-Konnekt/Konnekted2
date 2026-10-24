@@ -1,0 +1,249 @@
+import AVFoundation
+import Flutter
+import MediaPlayer
+import Photos
+import UIKit
+import UniformTypeIdentifiers
+
+/// Apple integration for the shared application. The Dart audio-session owner
+/// configures AVAudioSession; this bridge owns system commands and documents.
+final class LokalPlatform: NSObject, UIDocumentPickerDelegate {
+  private let player: FlutterMethodChannel
+  private var channels: [FlutterMethodChannel] = []
+  private var commandTargets: [(MPRemoteCommand, Any)] = []
+  private var pickerResult: FlutterResult?
+  private var nowPlaying: [String: Any] = [:]
+  private let fileQueue = DispatchQueue(label: "app.lokal.mobile.import", qos: .userInitiated)
+
+  init(messenger: FlutterBinaryMessenger) {
+    player = FlutterMethodChannel(name: "com.mossapps.flick/player", binaryMessenger: messenger)
+    super.init()
+    player.setMethodCallHandler { [weak self] call, result in
+      guard let self = self else { return }
+      switch call.method {
+      case "showNotification", "updateNotification":
+        self.publish(call.arguments as? [String: Any] ?? [:])
+        result(nil)
+      case "hideNotification":
+        self.nowPlaying = [:]
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        result(nil)
+      case "androidAutoReady": result(nil)
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
+    register("lokal/app_info", messenger) { call, result in
+      guard call.method == "get" else { result(FlutterMethodNotImplemented); return }
+      result([
+        "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+        "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
+      ])
+    }
+    register("com.mossapps.flick/integration", messenger) { call, result in
+      switch call.method {
+      case "consumePendingExternalPlayback": result(nil)
+      case "returnToLocker": result(false)
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
+    register("com.mossapps.flick/diagnostics", messenger) { call, result in
+      switch call.method {
+      case "getBuildFlavor": result("ios-sideload")
+      case "getProcessExitInfo": result([])
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
+    register("com.mossapps.flick/storage", messenger) { [weak self] call, result in
+      self?.storage(call, result)
+    }
+    register("lokal/ios", messenger) { [weak self] call, result in
+      switch call.method {
+      case "libraryRoot": result(try? self?.libraryRoot().path)
+      case "audioRoute":
+        let session = AVAudioSession.sharedInstance()
+        result([
+          "sampleRate": session.sampleRate,
+          "channels": session.outputNumberOfChannels,
+          "outputs": session.currentRoute.outputs.map { ["name": $0.portName, "type": $0.portType.rawValue] },
+        ])
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
+    installRemoteCommands()
+  }
+
+  private func register(_ name: String, _ messenger: FlutterBinaryMessenger,
+                        _ handler: @escaping FlutterMethodCallHandler) {
+    let channel = FlutterMethodChannel(name: name, binaryMessenger: messenger)
+    channel.setMethodCallHandler(handler)
+    channels.append(channel)
+  }
+
+  private func installRemoteCommands() {
+    let center = MPRemoteCommandCenter.shared()
+    let commands: [(MPRemoteCommand, String)] = [
+      (center.playCommand, "play"), (center.pauseCommand, "pause"),
+      (center.togglePlayPauseCommand, "togglePlayPause"), (center.stopCommand, "stop"),
+      (center.nextTrackCommand, "next"), (center.previousTrackCommand, "previous"),
+    ]
+    for (command, method) in commands {
+      let target = command.addTarget { [weak self] _ in
+        guard let self = self else { return .commandFailed }
+        DispatchQueue.main.async { self.player.invokeMethod(method, arguments: nil) }
+        return .success
+      }
+      commandTargets.append((command, target))
+    }
+    let seek = center.changePlaybackPositionCommand
+    let target = seek.addTarget { [weak self] event in
+      guard let self = self, let event = event as? MPChangePlaybackPositionCommandEvent else {
+        return .commandFailed
+      }
+      DispatchQueue.main.async {
+        self.player.invokeMethod("seek", arguments: ["position": Int(event.positionTime * 1000)])
+      }
+      return .success
+    }
+    commandTargets.append((seek, target))
+  }
+
+  private func publish(_ args: [String: Any]) {
+    if let title = args["title"] as? String { nowPlaying[MPMediaItemPropertyTitle] = title }
+    if let artist = args["artist"] as? String { nowPlaying[MPMediaItemPropertyArtist] = artist }
+    if let duration = args["duration"] as? NSNumber {
+      nowPlaying[MPMediaItemPropertyPlaybackDuration] = duration.doubleValue / 1000
+    }
+    if let position = args["position"] as? NSNumber {
+      nowPlaying[MPNowPlayingInfoPropertyElapsedPlaybackTime] = position.doubleValue / 1000
+    }
+    if let playing = args["isPlaying"] as? Bool {
+      nowPlaying[MPNowPlayingInfoPropertyPlaybackRate] = playing ? 1.0 : 0.0
+    }
+    if let live = args["isLive"] as? Bool {
+      nowPlaying[MPNowPlayingInfoPropertyIsLiveStream] = live
+      MPRemoteCommandCenter.shared().changePlaybackPositionCommand.isEnabled = !live
+      MPRemoteCommandCenter.shared().nextTrackCommand.isEnabled = !live
+      MPRemoteCommandCenter.shared().previousTrackCommand.isEnabled = !live
+    }
+    if args.keys.contains("albumArtPath") {
+      nowPlaying.removeValue(forKey: MPMediaItemPropertyArtwork)
+      if let path = args["albumArtPath"] as? String,
+         let image = UIImage(contentsOfFile: path) {
+        nowPlaying[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+      }
+    }
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlaying
+  }
+
+  private func libraryRoot() throws -> URL {
+    let documents = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask,
+                                                appropriateFor: nil, create: true)
+    let root = documents.appendingPathComponent("Music", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    return root
+  }
+
+  private var presenter: UIViewController? {
+    var controller = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }.first { $0.isKeyWindow }?.rootViewController
+    while let presented = controller?.presentedViewController { controller = presented }
+    return controller
+  }
+
+  private func storage(_ call: FlutterMethodCall, _ result: @escaping FlutterResult) {
+    let args = call.arguments as? [String: Any] ?? [:]
+    switch call.method {
+    case "openDocumentTree":
+      guard pickerResult == nil else {
+        result(FlutterError(code: "IMPORT_BUSY", message: "An import is already open.", details: nil)); return
+      }
+      guard let controller = presenter else {
+        result(FlutterError(code: "IMPORT_UNAVAILABLE", message: "The file picker is unavailable.", details: nil)); return
+      }
+      pickerResult = result
+      let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder, .data], asCopy: false)
+      picker.allowsMultipleSelection = true
+      picker.delegate = self
+      controller.present(picker, animated: true)
+    case "takePersistableUriPermission":
+      guard let path = args["uri"] as? String, let root = try? libraryRoot() else { result(false); return }
+      result(path == root.path || path.hasPrefix(root.path + "/"))
+    case "releasePersistableUriPermission", "scanMediaFiles": result(nil)
+    case "getPersistedUriPermissions": result((try? libraryRoot()).map { [$0.path] } ?? [])
+    case "hasAllFilesAccess", "requestAllFilesAccess", "isAllFilesAccessSupported": result(false)
+    case "getDocumentDisplayName":
+      result((args["uri"] as? String).map { URL(fileURLWithPath: $0).lastPathComponent })
+    case "resolveTreeUriToPath", "cacheUriForPlayback": result(args["uri"])
+    case "saveImageToGallery": saveImage(args, result)
+    default: result(FlutterMethodNotImplemented)
+    }
+  }
+
+  func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+    let result = pickerResult; pickerResult = nil; result?(nil)
+  }
+
+  func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+    guard let result = pickerResult else { return }
+    // Keep the import busy until copying is complete, including remote providers.
+    fileQueue.async {
+      do {
+        let root = try self.libraryRoot()
+        let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                                  appropriateFor: nil, create: true)
+        let staging = support.appendingPathComponent("Import-" + UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: staging) }
+        for source in urls {
+          let scoped = source.startAccessingSecurityScopedResource()
+          defer { if scoped { source.stopAccessingSecurityScopedResource() } }
+          var coordinationError: NSError?
+          var copyError: Error?
+          NSFileCoordinator().coordinate(readingItemAt: source, options: .withoutChanges,
+                                         error: &coordinationError) { coordinated in
+            do {
+              let name = coordinated.lastPathComponent
+              guard name != ".", name != "..", !name.isEmpty else { throw CocoaError(.fileReadInvalidFileName) }
+              try FileManager.default.copyItem(at: coordinated, to: staging.appendingPathComponent(name))
+            } catch { copyError = error }
+          }
+          if let error = coordinationError { throw error }
+          if let error = copyError { throw error }
+        }
+        let destination = root.appendingPathComponent("Import-" + UUID().uuidString, isDirectory: true)
+        try FileManager.default.moveItem(at: staging, to: destination)
+        DispatchQueue.main.async { self.pickerResult = nil; result(root.path) }
+      } catch {
+        DispatchQueue.main.async {
+          self.pickerResult = nil
+          result(FlutterError(code: "IMPORT_FAILED", message: "Music could not be copied. Check available space and file access.", details: nil))
+        }
+      }
+    }
+  }
+
+  private func saveImage(_ args: [String: Any], _ result: @escaping FlutterResult) {
+    guard let bytes = args["bytes"] as? FlutterStandardTypedData,
+          let image = UIImage(data: bytes.data) else {
+      result(FlutterError(code: "INVALID_IMAGE", message: "The image could not be read.", details: nil)); return
+    }
+    PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+      guard status == .authorized || status == .limited else {
+        DispatchQueue.main.async { result(FlutterError(code: "PHOTOS_PERMISSION", message: "Allow Lokal to save photos in Settings.", details: nil)) }; return
+      }
+      var identifier: String?
+      PHPhotoLibrary.shared().performChanges({
+        identifier = PHAssetChangeRequest.creationRequestForAsset(from: image).placeholderForCreatedAsset?.localIdentifier
+      }) { success, _ in
+        DispatchQueue.main.async {
+          if success { result(identifier) }
+          else { result(FlutterError(code: "PHOTOS_SAVE_FAILED", message: "The image could not be saved.", details: nil)) }
+        }
+      }
+    }
+  }
+
+  deinit {
+    for (command, target) in commandTargets { command.removeTarget(target) }
+  }
+}

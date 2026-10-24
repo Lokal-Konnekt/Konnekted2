@@ -64,6 +64,23 @@ class LinkPlaylistOrder {
     return LinkPlaylistOrder(name: name, deleted: deleted, members: ordered);
   }
 
+  /// Resolve only the tracks available on this phone. The synced snapshot
+  /// must describe precisely that local projection, not unmatched remote
+  /// members, or future local captures can send phantom removals to desktop.
+  Future<({List<String> songIds, List<String> matchedKeys})> resolveMembers(
+    Future<String?> Function(LinkPlaylistMember member) resolveSongId,
+  ) async {
+    final songIds = <String>[];
+    final matchedKeys = <String>[];
+    for (final member in members) {
+      final songId = await resolveSongId(member);
+      if (songId == null) continue;
+      songIds.add(songId);
+      matchedKeys.add(member.trackKey);
+    }
+    return (songIds: songIds, matchedKeys: matchedKeys);
+  }
+
   static String _stamp(Map<String, dynamic> op) =>
       "${op['hlc'] ?? ''}:${op['device_id'] ?? ''}:${op['op_id'] ?? ''}";
 

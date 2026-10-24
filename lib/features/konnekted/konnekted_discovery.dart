@@ -526,6 +526,46 @@ Future<bool> Function(OnlineSource source)? playbackSourceVerification;
 // verification and a full transfer. Never key only by track ID: changing
 // addon binary, requested tier, or account/settings must not reuse old audio.
 final _morneyeReadyPlayback = <String, Song>{};
+
+/// Keep *provider identity*, not a signed audio link or cached file path.
+/// Any add-on can change its rendition quality while a song is playing.
+final _onlineAddonOrigin = <String, ({String addonId, DiscoveryTrack track})>{};
+
+void _rememberOnlineAddon(Song song, String addonId, DiscoveryTrack track) {
+  _onlineAddonOrigin.remove(song.id);
+  _onlineAddonOrigin[song.id] = (addonId: addonId, track: track);
+  while (_onlineAddonOrigin.length > 256) {
+    _onlineAddonOrigin.remove(_onlineAddonOrigin.keys.first);
+  }
+}
+
+/// A fresh quality selection must resolve a fresh stream for **every** addon.
+/// This never infers audio quality from the selected option: playback's native
+/// codec probe establishes the actual delivered rendition.
+Future<void> onOnlineAddonSettingsChanged(String addonKey) async {
+  _morneyeReadyPlayback.clear();
+  final player = PlayerService();
+  final previous = player.currentSongNotifier.value;
+  if (previous == null) return;
+  final origin = _onlineAddonOrigin[previous.id];
+  if (origin == null || origin.addonId != addonKey) return;
+  final savedPosition = player.positionNotifier.value;
+  final wasPlaying = player.isPlayingNotifier.value;
+  try {
+    final replacement = await playOnlineTrack(
+      'a-$addonKey',
+      origin.track,
+    );
+    // Avoid resurrecting a superseded track while another selection plays.
+    if (player.currentSongNotifier.value?.id != previous.id) return;
+    await player.play(replacement);
+    if (savedPosition > Duration.zero) await player.seek(savedPosition);
+    if (!wasPlaying) await player.pause();
+  } catch (_) {
+    // Keep the old edition playable if the newly requested tier fails.
+    rethrow;
+  }
+}
 const _maxMorneyeReadyPlayback = 32;
 
 String morneyePlaybackCacheKey({
@@ -1256,6 +1296,9 @@ Future<Song> playOnlineTrack(
       );
     }
     final song = await source.play(track);
+    if (!forDownload && sourceId.startsWith('a-')) {
+      _rememberOnlineAddon(song, sourceId.substring(2), track);
+    }
     if (!forDownload) {
       OnlineSongSaveRegistry.instance.register(
         song,
@@ -1424,6 +1467,9 @@ Future<Song?> findDiscoverySong(
         try {
           final selected = found.withArtwork(_artworkOf(track));
           final song = await source.play(selected);
+          if (source.id.startsWith('a-')) {
+            _rememberOnlineAddon(song, source.id.substring(2), selected);
+          }
           OnlineSongSaveRegistry.instance.register(
             song,
             () => playOnlineTrack(source.id, selected, forDownload: true),

@@ -90,7 +90,7 @@ class FavoritesService {
 
   Future<T> _mutate<T>(Future<T> Function() action) {
     final result = _writeTail.then((_) async {
-      await _ensureLoaded();
+      _favoriteIds = await _readIds();
       return action();
     });
     _writeTail = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
@@ -100,24 +100,19 @@ class FavoritesService {
   FavoritesService({SongRepository? songRepository})
     : _songRepository = songRepository ?? SongRepository();
 
-  /// Reload on reads: other player controls and notification actions may
-  /// have changed SharedPreferences through a different service instance.
-  Future<void> _ensureLoaded() async {
+  /// Return an independent snapshot; reads must never mutate the shared
+  /// in-memory set while an asynchronous favorite write is in flight.
+  Future<Set<String>> _readIds() async {
     final prefs = await SharedPreferences.getInstance();
-    _favoriteIds = (prefs.getStringList(_favoritesKey) ?? []).toSet();
+    return (prefs.getStringList(_favoritesKey) ?? []).toSet();
   }
 
   /// The saved IDs (including old online likes without recoverable metadata).
-  Future<Set<String>> getFavoriteIds() async {
-    await _ensureLoaded();
-    return Set<String>.of(_favoriteIds);
-  }
+  Future<Set<String>> getFavoriteIds() => _readIds();
 
   /// Get all favorite songs.
   Future<List<Song>> getFavorites() async {
-    await _ensureLoaded();
-
-    final ids = Set<String>.of(_favoriteIds);
+    final ids = await _readIds();
     if (ids.isEmpty) return [];
 
     // A local-library read failure must not hide independently saved online
@@ -150,8 +145,7 @@ class FavoritesService {
   Future<bool> isFavorite(String songId) async {
     if (songId.startsWith('desktop:'))
       return (await remoteDelegate?.isFavorite(songId)) ?? false;
-    await _ensureLoaded();
-    return _favoriteIds.contains(songId);
+    return (await _readIds()).contains(songId);
   }
 
   /// Add a song to favorites.
@@ -205,10 +199,7 @@ class FavoritesService {
   }
 
   /// Get the count of favorite songs.
-  Future<int> getFavoritesCount() async {
-    await _ensureLoaded();
-    return _favoriteIds.length;
-  }
+  Future<int> getFavoritesCount() async => (await _readIds()).length;
 
   /// Save favorites to SharedPreferences.
   Future<void> _saveFavorites({bool captureLink = true}) async {

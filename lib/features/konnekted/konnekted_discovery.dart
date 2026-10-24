@@ -630,6 +630,8 @@ Future<List<_PlaybackSource>> _morneyeSources(
         ],
         play: (found) async {
           final progress = MorneyeProgressText(found.title, addon.displayName);
+          final qobuz = addon.name.toLowerCase().contains('qobuz');
+          double? actualTransferPercent;
           var finished = false;
           MorneyeDownload download;
           // Normal Play stays on the provider's configured stereo/lossless
@@ -690,17 +692,45 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   found.id,
                   quality: quality,
                   forPlayback: !forDownload && !found.atmosDownload,
-                  onTransfer: live?.observe,
+                  onTransfer: live == null ? null : (transfer) {
+                    live.observe(transfer);
+                    // Qobuz's extension emits 5% during URL/ticket
+                    // resolution. Only host-observed bytes are transfer
+                    // progress; they must supersede guest progress numbers.
+                    if (qobuz && !finished && transfer.total > 0) {
+                      actualTransferPercent =
+                          (transfer.written * 100 / transfer.total)
+                              .clamp(0.0, 100.0);
+                      final text = progress.update(
+                        percent: actualTransferPercent,
+                        message: 'Receiving audio…',
+                      );
+                      if (text != null) onStatus?.call(text);
+                    }
+                  },
                   onProgress: ({percent, message}) {
-                // A runtime winding down after a failure or a cancel says
-                // nothing more: no stale "downloading" after the error.
-                if (finished) return;
-                final text = progress.update(
-                  percent: percent,
-                  message: message,
-                );
-                if (text != null) onStatus?.call(text);
-              },
+                    if (finished) return;
+                    if (qobuz) {
+                      if (message == 'Downloading audio segments…') {
+                        // Host-observed completed segments, not a guess.
+                        final text = progress.update(
+                          percent: percent, message: message,
+                        );
+                        if (text != null) onStatus?.call(text);
+                      } else if (actualTransferPercent == null) {
+                        // The extension's 5% is merely a resolver stage.
+                        final text = progress.update(
+                          message: 'Resolving Qobuz stream…',
+                        );
+                        if (text != null) onStatus?.call(text);
+                      }
+                      return;
+                    }
+                    final text = progress.update(
+                      percent: percent, message: message,
+                    );
+                    if (text != null) onStatus?.call(text);
+                  },
               cancel: cancel,
             );
             try {

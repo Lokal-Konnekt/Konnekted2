@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flick/models/song.dart';
+import 'package:flick/features/discovery/discovery_progressive_streams.dart';
+import 'package:flick/features/morneye/morneye_live_playback.dart';
 import 'package:flick/services/player_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -94,7 +96,7 @@ class QueuePreResolver {
     DateTime Function()? now,
     bool Function(Song song)? stillUsable,
   }) : _now = now ?? DateTime.now,
-       _stillUsable = stillUsable ?? _fileExists;
+       _stillUsable = stillUsable ?? isPlayableResolvedSource;
 
   static const defaultLookahead = 4;
   static const _maxRecent = 100;
@@ -131,6 +133,21 @@ class QueuePreResolver {
   Timer? _settle;
   _Lookup? _statusOwner;
   PreResolveHost? _host;
+
+  /// Unlike staged songs, HTTP and live Morneye tracks have intentionally
+  /// opaque in-memory handles. They are usable while their registered
+  /// descriptors exist, even though File(handle).existsSync() is false.
+  @visibleForTesting
+  static bool isPlayableResolvedSource(Song song) {
+    if (song.sourcePackage == 'konnekted.progressive') {
+      return DiscoveryProgressiveStreams.instance.contains(song.filePath);
+    }
+    if (song.sourcePackage == 'konnekted.morneye-live') {
+      return MorneyeLiveRegistry.instance.resolve(song.filePath)?.isPlayable ==
+          true;
+    }
+    return _fileExists(song);
+  }
 
   static bool _fileExists(Song song) {
     final path = song.filePath;

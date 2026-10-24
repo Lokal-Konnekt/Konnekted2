@@ -13,6 +13,7 @@ Map<String, Object?> release(
   bool prerelease = false,
   bool draft = false,
   String flavor = 'full',
+  bool legacy = false,
 }) => {
   'tag_name': 'v$version',
   'prerelease': prerelease,
@@ -24,9 +25,9 @@ Map<String, Object?> release(
       'browser_download_url': '$root/v$version/$flavor-metadata.json',
     },
     {
-      'name': 'Lokal-$version${flavor == 'play' ? '-Play' : ''}-universal.apk',
+      'name': 'Lokal-$version${flavor == 'play' ? '-Play' : ''}-${legacy ? 'universal' : 'arm64'}.apk',
       'browser_download_url':
-          '$root/v$version/Lokal-$version${flavor == 'play' ? '-Play' : ''}-universal.apk',
+          '$root/v$version/Lokal-$version${flavor == 'play' ? '-Play' : ''}-${legacy ? 'universal' : 'arm64'}.apk',
     },
   ],
 };
@@ -142,7 +143,7 @@ void main() {
       final installed = const AppBuildInfo(version: '1.0.0', build: '200');
       expect(
         (await service.check(installed, 'play'))?.apkUrl,
-        endsWith('-Play-universal.apk'),
+        endsWith('-Play-arm64.apk'),
       );
       valid = false;
       expect(await service.check(installed, 'play'), isNull);
@@ -159,4 +160,30 @@ void main() {
     );
     client.close();
   });
+
+  test('still recognizes signed legacy universal APKs for in-place updates',
+      () async {
+    final client = MockClient(
+      (request) async => http.Response(
+        jsonEncode(
+          request.url.host == 'api.github.com'
+              ? [release('1.0.0', legacy: true)]
+              : {
+                  'version': '1.0.0',
+                  'versionCode': 200,
+                  'flavor': 'full',
+                  'sha256': hash,
+                },
+        ),
+        200,
+      ),
+    );
+    final asset = await GithubUpdateService(client).check(
+      const AppBuildInfo(version: '1.0.0', build: '199'),
+      'full',
+    );
+    expect(asset?.apkUrl, endsWith('-universal.apk'));
+    client.close();
+  });
+
 }

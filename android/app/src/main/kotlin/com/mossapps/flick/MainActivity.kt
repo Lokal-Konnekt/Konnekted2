@@ -804,6 +804,10 @@ class MainActivity: FlutterActivity() {
         // Player channel for notification control
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PLAYER_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
+                "androidAutoReady" -> {
+                    // Activity-owned engine is already available to car browsers.
+                    result.success(null)
+                }
                 "showNotification" -> {
                     val title = call.argument<String>("title")
                     val artist = call.argument<String>("artist")

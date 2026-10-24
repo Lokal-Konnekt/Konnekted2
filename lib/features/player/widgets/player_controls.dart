@@ -565,7 +565,7 @@ class _TargetPlayerControlsState extends State<_TargetPlayerControls> {
           icon: favorite ? LucideIcons.heart : LucideIcons.heart,
           active: favorite,
           onTap: () async {
-            await service.toggleFavorite(widget.currentSong!.id);
+            await service.toggleFavorite(widget.currentSong!.id, song: widget.currentSong);
             if (mounted) setState(() {});
             widget.playerService.refreshNotificationState();
           },

@@ -85,6 +85,12 @@ class LocalMetadataRepair {
 
   Future<void> _work() async {
     final prefs = await SharedPreferences.getInstance();
+    // Don't start thousands of Rust/MediaStore probes in the same instant
+    // as Flutter initializes its first scene. Explicit user-requested
+    // repairs bypass the grace period.
+    if (_waiters.isEmpty) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
     if (!_loaded) {
       _seen.addAll(prefs.getStringList(_version) ?? const []);
       _loaded = true;
@@ -92,7 +98,7 @@ class LocalMetadataRepair {
     while (_pending.isNotEmpty && Database.isInitialized) {
       // User-requested repairs keep priority. Automatic backfill yields while
       // a list is being scrolled instead of competing for storage/CPU.
-      if (ultraPerformanceMode && _waiters.isEmpty && artworkExtractionPaused) {
+      if (_waiters.isEmpty && artworkExtractionPaused) {
         await Future<void>.delayed(const Duration(milliseconds: 150));
         continue;
       }
@@ -107,7 +113,9 @@ class LocalMetadataRepair {
       if (read && _pending.isNotEmpty)
         await Future<void>.delayed(
           Duration(
-            milliseconds: ultraPerformanceMode && _waiters.isEmpty ? 150 : 20,
+            milliseconds: _waiters.isNotEmpty
+                ? 20
+                : ultraPerformanceMode ? 200 : 80,
           ),
         );
     }

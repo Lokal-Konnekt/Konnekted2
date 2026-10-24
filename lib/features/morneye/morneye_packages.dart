@@ -1625,15 +1625,13 @@ class MorneyePackages {
       // Preserve Settings > Addons download preferences for actual saves.
       // Only streaming playback must reject an implicit Atmos-only tier.
       final configuredQuality = values['downloadQuality'] as String?;
-      final chosen = !forPlayback && (quality == null) &&
-              configuredQuality != null && configuredQuality.isNotEmpty
-          ? configuredQuality
-          : chooseMorneyeDownloadQuality(
-              requested: quality,
-              configured: configuredQuality,
-              options: addon.qualityOptions,
-              provider: provider,
-            );
+      final chosen = resolveMorneyeRequestQuality(
+        forPlayback: forPlayback,
+        requested: quality,
+        configured: configuredQuality,
+        options: addon.qualityOptions,
+        provider: provider,
+      );
       if (forPlayback && quality != 'DOLBY_ATMOS' &&
           isMorneyeAtmosQuality(chosen)) {
         throw const MorneyePackageError(

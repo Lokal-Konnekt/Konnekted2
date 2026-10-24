@@ -315,10 +315,16 @@ class LinkSyncCoordinator {
         .entityEqualTo('playlist')
         .findAll();
     final remoteIds = <String>{};
+    final hasMembershipHistory = <String>{};
     for (final operation in operations) {
       if (operation.op == 'playlist.create' &&
           operation.deviceId == desktopId) {
         remoteIds.add(operation.entityId);
+      }
+      if (operation.op == 'playlist.add' ||
+          operation.op == 'playlist.move' ||
+          operation.op == 'playlist.remove') {
+        hasMembershipHistory.add(operation.entityId);
       }
     }
     var repaired = false;
@@ -327,8 +333,13 @@ class LinkSyncCoordinator {
       // Guard against inventing playlists or replaying an unrelated user's
       // journal; only repair entries already mapped by an earlier sync.
       final localId = prefs.getString('lokal.link.playlist_local.$id');
-      if (localId == null ||
-          await PlaylistService.instance.getPlaylist(localId) == null) continue;
+      if (localId == null) continue;
+      final existing = await PlaylistService.instance.getPlaylist(localId);
+      if (existing == null) continue;
+      // A partial/legacy journal with no membership events is not enough
+      // evidence to clear someone's already populated mobile playlist.
+      if (existing.songIds.isNotEmpty &&
+          !hasMembershipHistory.contains(id)) continue;
       await _materialize({
         'entity': 'playlist',
         'entity_id': id,

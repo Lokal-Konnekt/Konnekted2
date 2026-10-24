@@ -32,6 +32,45 @@ void main() {
     expect(score, lessThan(1));
   });
 
+  test('mobile Discord scores Big Data - Dangerous with credited guest artist', () {
+    double score(
+      String candidateTitle,
+      String candidateArtist, {
+      bool allowCollaborations = false,
+    }) => artworkMatchConfidence(
+      title: 'Dangerous',
+      artist: 'Big Data',
+      candidateTitle: candidateTitle,
+      candidateArtist: candidateArtist,
+      allowCollaborations: allowCollaborations,
+    );
+    // The existing exact-artist requirement is deliberately unchanged for
+    // Discovery; only Discord opts in to credited collaborators.
+    expect(score('Dangerous', 'Big Data & Joywave'), 0);
+    expect(score('Dangerous', 'Big Data & Joywave',
+        allowCollaborations: true), 1.0);
+    expect(score('Dangerous (feat. Joywave)', 'Big Data & Joywave',
+        allowCollaborations: true), 1.0);
+    expect(score('Dangerous (Oliver Remix)', 'Big Data & Joywave',
+        allowCollaborations: true), 0);
+    expect(score('Dangerous', 'Big Data Theory & Joywave',
+        allowCollaborations: true), 0);
+    expect(score('Dangerous', 'David Guetta', allowCollaborations: true), 0);
+    // Joywave is a guest, not the leading billed artist for this release.
+    expect(artworkMatchConfidence(
+      title: 'Dangerous',
+      artist: 'Joywave',
+      candidateTitle: 'Dangerous',
+      candidateArtist: 'Big Data & Joywave',
+      allowCollaborations: true,
+    ), 0);
+    // Preserve genuine band names containing an ampersand/comma.
+    expect(artworkArtistsMatch('Earth', 'Earth, Wind & Fire',
+        allowCollaborations: true), isFalse);
+    expect(artworkArtistsMatch('Simon', 'Simon & Garfunkel',
+        allowCollaborations: true), isFalse);
+  });
+
   test('artwork confidence rejects remixes, wrong artists and other songs', () {
     double score(String foundTitle, String foundArtist) => artworkMatchConfidence(
       title: 'Biggest in the City',

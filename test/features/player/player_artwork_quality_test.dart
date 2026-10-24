@@ -55,6 +55,16 @@ void main() {
       ]);
     });
 
+    test('large Apple/Deezer/Tidal covers are not downgraded', () {
+      for (final original in [
+        'https://is1-ssl.mzstatic.com/music/1500x1500bb.jpg',
+        'https://e-cdns-images.dzcdn.net/images/cover/hash/1400x1400-000000-80-0-0.jpg',
+        'https://resources.tidal.com/images/abcdef/1500x1500.jpg',
+      ]) {
+        expect(PlayerArtworkQuality.candidates(original), [original]);
+      }
+    });
+
     test('YouTube requests a max-resolution poster with safe fallback', () {
       const old = 'https://i.ytimg.com/vi/abc123/hqdefault.jpg';
       expect(PlayerArtworkQuality.candidates(old), [

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_choice_sheet.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -764,29 +765,40 @@ class _ReplayStudioScreenState extends ConsumerState<ReplayStudioScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            PopupMenuButton<String>(
+            IconButton(
               tooltip: l10n.moreExportOptions,
-              enabled: !_busy,
+              onPressed: _busy ? null : _showExportActions,
               icon: const Icon(
                 Icons.more_horiz_rounded,
                 color: ReplayStyle.silver,
               ),
-              onSelected: (value) =>
-                  value == 'support' ? _support() : _save(format: value),
-              itemBuilder: (context) => [
-                PopupMenuItem(value: 'CSV', child: Text(l10n.exportCsv)),
-                PopupMenuItem(value: 'TXT', child: Text(l10n.exportTxt)),
-                PopupMenuItem(
-                  value: 'support',
-                  child: Text(l10n.supportFlickOnKoFi),
-                ),
-              ],
             ),
           ],
         ),
       ),
     ),
   );
+
+  Future<void> _showExportActions() async {
+    final choice = await showLokalChoiceSheet<String>(
+      context: context,
+      title: l10n.moreExportOptions,
+      choices: [
+        LokalChoice(value: 'CSV', label: l10n.exportCsv,
+          icon: Icons.table_chart_outlined),
+        LokalChoice(value: 'TXT', label: l10n.exportTxt,
+          icon: Icons.description_outlined),
+        LokalChoice(value: 'support', label: l10n.supportFlickOnKoFi,
+          icon: Icons.favorite_border_rounded),
+      ],
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'support') {
+      await _support();
+    } else {
+      await _save(format: choice);
+    }
+  }
 
   Future<void> _support() async {
     try {

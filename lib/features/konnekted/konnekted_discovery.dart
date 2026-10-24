@@ -9,6 +9,7 @@ import 'package:flick/features/discovery/discovery_artwork.dart'
 import 'package:flick/features/discovery/discovery_http.dart';
 import 'package:flick/features/discovery/discovery_models.dart';
 import 'package:flick/features/discovery/discovery_playback.dart';
+import 'package:flick/features/discovery/discovery_progressive_streams.dart';
 import 'package:flick/features/discovery/discovery_registry.dart';
 import 'package:flick/features/discovery/discovery_settings.dart';
 import 'package:flick/features/discovery/discovery_sources.dart';
@@ -809,6 +810,32 @@ DiscoveryPlaybackCache _playbackCache(
 
 /// YouTube Music, then your web add-ons, then your Morneye add-ons:
 /// desktop's order.
+/// HTTP add-ons provide an independently authorized progressive HTTPS URL.
+/// Pass it directly to Android Media3. Unlike download-only Morneye sources,
+/// no full-file staging or format probe is needed before the first audio
+/// frame. Never store signed URLs in a queue or persistence layer.
+Song progressiveAddonSong(DiscoveryTrack track, ResolvedDiscoveryAudio audio) {
+  final handle = DiscoveryProgressiveStreams.instance.register(audio.url);
+  final artwork = track.artwork;
+  final ext = audio.url.pathSegments.isEmpty
+      ? '' : audio.url.pathSegments.last.split('.').last.toLowerCase();
+  final codec = const {'flac', 'mp3', 'm4a', 'aac', 'ogg', 'opus', 'wav', 'webm'}
+      .contains(ext) ? ext.toUpperCase() : 'ONLINE';
+  return Song(
+    id: 'discovery:${track.key.hashCode}:progressive',
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    albumArt: artwork,
+    duration: track.duration ?? Duration.zero,
+    fileType: codec,
+    filePath: handle,
+    sourcePackage: 'konnekted.progressive',
+    remoteId: track.id,
+    isExternal: true,
+  );
+}
+
 Future<List<OnlineSource>> _playbackSources(
   DiscoveryHttp web,
   DiscoverySettings settings,
@@ -816,6 +843,7 @@ Future<List<OnlineSource>> _playbackSources(
   void Function(String status)? onStatus,
   MorneyeService morneye, {
   Future<void>? cancel,
+  bool forDownload = false,
 }) async {
   final registry = DiscoverySourceRegistry(web, settings);
   final youtube = YoutubeAudio(web);
@@ -838,11 +866,26 @@ Future<List<OnlineSource>> _playbackSources(
           for (final track in await addon.search(query))
             OnlineResult(track, artwork: track.artwork),
         ],
-        play: (found) async => cache().prepare(
-          found,
-          await registry.resolve(found),
-          cancel: cancel,
-        ),
+        play: (found) async {
+          onStatus?.call('Connecting to ${addon.displayName}…');
+          final audio = await registry.resolve(found, cancel: cancel);
+          if (forDownload) {
+            return cache().prepare(
+              found, audio, cancel: cancel,
+              onProgress: (received) {
+                if (audio.length case final total? when total > 0) {
+                  onStatus?.call('Downloading from ${addon.displayName}… '
+                      '${(received * 100 / total).clamp(0, 100).round()}%');
+                } else {
+                  onStatus?.call('Downloading from ${addon.displayName}…');
+                }
+              },
+            );
+          }
+          final song = progressiveAddonSong(found, audio);
+          onStatus?.call('Buffering from ${addon.displayName}…');
+          return song;
+        },
       ),
     ...await _morneyeSources(morneye, cache, onStatus, cancel: cancel),
   ], (source) => source.id);
@@ -885,6 +928,7 @@ Future<Song> playOnlineTrack(
   DiscoverySettingsStore? store,
   MorneyeService? morneye,
   http.Client? client,
+  bool forDownload = false,
 }) async {
   var settings = const DiscoverySettings();
   try {
@@ -903,6 +947,7 @@ Future<Song> playOnlineTrack(
       onStatus,
       morneye ?? MorneyeService.instance,
       cancel: cancel,
+      forDownload: forDownload,
     );
     final source = sources.where((s) => s.id == sourceId).firstOrNull;
     if (source == null) {

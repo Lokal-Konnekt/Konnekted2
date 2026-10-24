@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flick/providers/playlist_provider.dart';
+import 'package:flick/providers/songs_provider.dart';
 
 import 'playlist_link_manager.dart';
 import 'playlist_link_models.dart';
+import 'playlist_unmatched_downloader.dart';
 
 final linkedPlaylistManagerProvider = Provider.autoDispose<PlaylistLinkManager>(
   (ref) {
@@ -31,6 +36,9 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
   List<PlaylistLinkRecord> _links = const [];
   String? _error;
   bool _loading = false;
+  String? _downloadStatus;
+  String? _downloadNotice;
+  Completer<void>? _downloadCancellation;
 
   PlaylistLinkManager get _manager => ref.read(linkedPlaylistManagerProvider);
 
@@ -79,6 +87,14 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
             ),
             label: Text(_loading ? 'Cancel' : 'Preview'),
           ),
+          if (_downloadStatus != null) ...[
+            const SizedBox(height: 12),
+            Text(_downloadStatus!),
+          ],
+          if (_downloadNotice != null) ...[
+            const SizedBox(height: 8),
+            Text(_downloadNotice!),
+          ],
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -204,6 +220,7 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
           .createFromPreview(preview, name: _nameController.text)
           .then((_) async {
             if (!mounted) return;
+            ref.invalidate(playlistsProvider);
             setState(() => _preview = null);
             await _loadLinks();
           }),

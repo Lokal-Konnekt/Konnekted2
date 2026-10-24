@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flick/widgets/lokal/lokal_choice_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flick/providers/playlist_provider.dart';
@@ -143,28 +144,10 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
             ),
             isThreeLine: true,
             onTap: () => _previewExisting(record),
-            trailing: PopupMenuButton<String>(
-              onSelected: (value) {
-                switch (value) {
-                  case 'refresh':
-                    _previewExisting(record);
-                    break;
-                  case 'source':
-                    _openSource(record.canonicalUrl);
-                    break;
-                  case 'unlink':
-                    _unlink(record);
-                    break;
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: 'refresh', child: Text('Preview refresh')),
-                PopupMenuItem(
-                  value: 'source',
-                  child: Text('View source externally'),
-                ),
-                PopupMenuItem(value: 'unlink', child: Text('Unlink')),
-              ],
+            trailing: IconButton(
+              tooltip: 'Playlist actions',
+              icon: const Icon(Icons.more_horiz_rounded),
+              onPressed: () => unawaited(_linkActions(record)),
             ),
           ),
           if (record.unmatchedEntries.isNotEmpty)
@@ -205,6 +188,30 @@ class _LinkedPlaylistsScreenState extends ConsumerState<LinkedPlaylistsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _linkActions(LinkedPlaylistRecord record) async {
+    final selected = await showLokalChoiceSheet<String>(
+      context: context,
+      title: record.remoteTitle,
+      choices: const [
+        LokalChoice(value: 'refresh', label: 'Preview refresh',
+          icon: Icons.refresh_rounded),
+        LokalChoice(value: 'source', label: 'View source externally',
+          icon: Icons.open_in_new_rounded),
+        LokalChoice(value: 'unlink', label: 'Unlink',
+          icon: Icons.link_off_rounded, destructive: true),
+      ],
+    );
+    if (!mounted) return;
+    switch (selected) {
+      case 'refresh':
+        _previewExisting(record);
+      case 'source':
+        _openSource(record.canonicalUrl);
+      case 'unlink':
+        _unlink(record);
+    }
   }
 
   Future<void> _loadLinks() async {

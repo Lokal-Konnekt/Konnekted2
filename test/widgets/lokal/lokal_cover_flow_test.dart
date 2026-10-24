@@ -125,7 +125,7 @@ void main() {
     expect((inside(1) - inside(1 - e)) / e,
         closeTo((inside(1 + e) - inside(1)) / e, .001));
     expect((inside(e) - inside(0)) / e,
-        closeTo((inside(0) - inside(-e).abs()) / e, .001));
+        closeTo((inside(0) - inside(-e)) / e, .001));
   });
 
   testWidgets('Home Cover Flow starts centered for odd and even shelves', (

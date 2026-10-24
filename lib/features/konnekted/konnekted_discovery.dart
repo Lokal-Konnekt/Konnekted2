@@ -849,21 +849,11 @@ Future<List<_PlaybackSource>> _morneyeSources(
                   albumArt: found.artwork,
                   duration: found.duration ?? Duration.zero,
                   fileType: 'FLAC',
-                  resolution: advertisedOnlineAudio(
-                    codec: 'FLAC', quality: found.catalogueQuality,
-                    bitDepth: found.catalogueBitDepth,
-                    sampleRate: found.catalogueSampleRate,
-                  ).resolution,
-                  bitDepth: advertisedOnlineAudio(
-                    codec: 'FLAC', quality: found.catalogueQuality,
-                    bitDepth: found.catalogueBitDepth,
-                    sampleRate: found.catalogueSampleRate,
-                  ).bitDepth,
-                  sampleRate: advertisedOnlineAudio(
-                    codec: 'FLAC', quality: found.catalogueQuality,
-                    bitDepth: found.catalogueBitDepth,
-                    sampleRate: found.catalogueSampleRate,
-                  ).sampleRate,
+                  // The stream passed the FLAC magic/header check. Use
+                  // STREAMINFO measurements; the provider's catalogue maximum
+                  // can be 24-bit even when LOW/LOSSLESS was selected.
+                  bitDepth: session.bitDepth,
+                  sampleRate: session.sampleRate,
                   filePath: handle,
                   sourcePackage: 'konnekted.morneye-live',
                   remoteId: found.id,

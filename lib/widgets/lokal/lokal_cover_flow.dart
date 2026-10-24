@@ -172,10 +172,16 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     super.didUpdateWidget(old);
     // Do not discard every decoded face merely because Home rebuilt during
     // a glide. Only changes to the actual album entries invalidate faces.
-    final changed = widget.albums.length != old.albums.length ||
-        List.generate(widget.albums.length, (i) => i).any((i) =>
-          widget.albums[i].key != old.albums[i].key ||
-          !identical(widget.albums[i], old.albums[i]));
+    var changed = widget.albums.length != old.albums.length;
+    if (!changed) {
+      for (var i = 0; i < widget.albums.length; i++) {
+        if (widget.albums[i].key != old.albums[i].key ||
+            !identical(widget.albums[i], old.albums[i])) {
+          changed = true;
+          break;
+        }
+      }
+    }
     if (changed) _faces.clear();
     if (widget.albums.length != old.albums.length && _index > _last) {
       _position.value = _last.toDouble();

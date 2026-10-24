@@ -106,6 +106,14 @@ class DiscoveryException implements Exception {
   String toString() => message;
 }
 
+/// A valid configured provider awaits its user verification. This is NOT
+/// "track unavailable": autoplay must hold the current Mix item instead of
+/// moving to the next recommendation.
+class DiscoveryVerificationRequired extends DiscoveryException {
+  const DiscoveryVerificationRequired(String provider)
+      : super('$provider needs verification. Complete verification and retry this song.');
+}
+
 String discoveryError(Object error) => error is DiscoveryException
     ? error.message
     : 'The request could not be completed. Check your connection and try again.';

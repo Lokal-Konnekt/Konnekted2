@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'morneye_auth_sheet.dart';
 import 'morneye_packages.dart';
 import 'morneye_service.dart';
+import 'package:flick/features/konnekted/konnekted_discovery.dart';
 
 /// Loads the add-on manager for a panel, or the test's stand-in.
 typedef MorneyePackagesLoader = Future<MorneyePackages> Function();
@@ -667,10 +669,20 @@ class _AddonRowState extends State<_AddonRow> {
                   onPressed: _busy
                       ? null
                       : () => _run(() async {
+                          final before = jsonEncode(_packages.settings(_addon));
                           _packages.setSettings(_addon.key, _values);
                           _values = _packages.settings(_addon);
+                          final changed = before != jsonEncode(_values);
+                          if (changed) {
+                            // Every addon and every tier uses the same fresh
+                            // playback-resolution path. Never replay cached
+                            // audio encoded at the previous quality setting.
+                            await onOnlineAddonSettingsChanged(_addon.key);
+                          }
                           if (mounted) {
-                            setState(() => _message = 'Settings saved');
+                            setState(() => _message = changed
+                                ? 'Settings saved. Playback quality updated.'
+                                : 'Settings saved');
                           }
                         }),
                 ),

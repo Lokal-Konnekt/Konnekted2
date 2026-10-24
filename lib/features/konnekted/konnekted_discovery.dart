@@ -516,12 +516,56 @@ class OnlineSource {
 
 typedef _PlaybackSource = OnlineSource;
 
+/// App-shell supplied verification UI. Discovery and autoplay resolvers run
+/// without BuildContext; only a foreground request may open the auth sheet.
+Future<bool> Function(OnlineSource source)? playbackSourceVerification;
+
 // Desktop has a reusable audio-cache for already downloaded Morneye tracks.
 // Keep a small in-session index of verified, existing cache files so Replay,
 // repeat, and revisiting the same Search result do not repeat provider
 // verification and a full transfer. Never key only by track ID: changing
 // addon binary, requested tier, or account/settings must not reuse old audio.
 final _morneyeReadyPlayback = <String, Song>{};
+
+/// Keep *provider identity*, not a signed audio link or cached file path.
+/// Any add-on can change its rendition quality while a song is playing.
+final _onlineAddonOrigin = <String, ({String addonId, DiscoveryTrack track})>{};
+
+void _rememberOnlineAddon(Song song, String addonId, DiscoveryTrack track) {
+  _onlineAddonOrigin.remove(song.id);
+  _onlineAddonOrigin[song.id] = (addonId: addonId, track: track);
+  while (_onlineAddonOrigin.length > 256) {
+    _onlineAddonOrigin.remove(_onlineAddonOrigin.keys.first);
+  }
+}
+
+/// A fresh quality selection must resolve a fresh stream for **every** addon.
+/// This never infers audio quality from the selected option: playback's native
+/// codec probe establishes the actual delivered rendition.
+Future<void> onOnlineAddonSettingsChanged(String addonKey) async {
+  _morneyeReadyPlayback.clear();
+  final player = PlayerService();
+  final previous = player.currentSongNotifier.value;
+  if (previous == null) return;
+  final origin = _onlineAddonOrigin[previous.id];
+  if (origin == null || origin.addonId != addonKey) return;
+  final savedPosition = player.positionNotifier.value;
+  final wasPlaying = player.isPlayingNotifier.value;
+  try {
+    final replacement = await playOnlineTrack(
+      'a-$addonKey',
+      origin.track,
+    );
+    // Avoid resurrecting a superseded track while another selection plays.
+    if (player.currentSongNotifier.value?.id != previous.id) return;
+    await player.play(replacement);
+    if (savedPosition > Duration.zero) await player.seek(savedPosition);
+    if (!wasPlaying) await player.pause();
+  } catch (_) {
+    // Keep the old edition playable if the newly requested tier fails.
+    rethrow;
+  }
+}
 const _maxMorneyeReadyPlayback = 32;
 
 String morneyePlaybackCacheKey({
@@ -675,9 +719,14 @@ Future<List<_PlaybackSource>> _morneyeSources(
               sourceName: addon.displayName,
               artwork: song.thumbnail,
               atmosAvailable: song.atmosAvailable,
+              // A chosen HIGH, LOSSLESS or Atmos quality is a preference,
+              // not a property of every returned search result. Only the
+              // observed version earns a badge; otherwise leave it blank.
               catalogueQuality: verified != null
                   ? verified.resolution
-                  : selectedQuality ?? morneyeAdvertisedQuality(song.quality),
+                  : selectedQuality == null
+                      ? morneyeAdvertisedQuality(song.quality)
+                      : null,
               catalogueCodec: details.codec,
               catalogueBitDepth: details.bitDepth,
               catalogueSampleRate: details.sampleRate,
@@ -1247,6 +1296,9 @@ Future<Song> playOnlineTrack(
       );
     }
     final song = await source.play(track);
+    if (!forDownload && sourceId.startsWith('a-')) {
+      _rememberOnlineAddon(song, sourceId.substring(2), track);
+    }
     if (!forDownload) {
       OnlineSongSaveRegistry.instance.register(
         song,
@@ -1300,6 +1352,7 @@ Future<Song?> findDiscoverySong(
   Set<String> Function()? additionalProtectedPaths,
   MorneyeService? morneye,
   Future<void>? cancel,
+  bool Function()? mayRequestVerification,
 }) async {
   var cancelled = false;
   if (cancel != null) unawaited(cancel.then((_) => cancelled = true));
@@ -1334,10 +1387,17 @@ Future<Song?> findDiscoverySong(
     for (final source in sources) {
       check();
       if (source.needsVerification?.call() == true) {
-        onStatus?.call(
-          '${source.name} needs verification. Continuing with another source…',
-        );
-        continue;
+        // Preloads must not open an auth popup over an unrelated screen.
+        // Once current, await user verification instead of skipping the Mix.
+        if (mayRequestVerification?.call() == false) {
+          throw DiscoveryVerificationRequired(source.name);
+        }
+        onStatus?.call('Verify ${source.name} to continue ${track.title}…');
+        final verified = await playbackSourceVerification?.call(source) ?? false;
+        check();
+        if (!verified || source.needsVerification?.call() == true) {
+          throw DiscoveryVerificationRequired(source.name);
+        }
       }
       if (source.id == 'yt' && track.videoId != null) {
         final videoId = track.videoId!;
@@ -1407,6 +1467,9 @@ Future<Song?> findDiscoverySong(
         try {
           final selected = found.withArtwork(_artworkOf(track));
           final song = await source.play(selected);
+          if (source.id.startsWith('a-')) {
+            _rememberOnlineAddon(song, source.id.substring(2), selected);
+          }
           OnlineSongSaveRegistry.instance.register(
             song,
             () => playOnlineTrack(source.id, selected, forDownload: true),
@@ -1454,7 +1517,8 @@ String? _artworkOf(LokalDiscoveryTrack track) {
 /// Music or your add-ons and downloaded once it's coming up (QueuePreResolver).
 Song discoveryPendingSong(LokalDiscoveryTrack track) {
   final resolver = QueuePreResolver.shared;
-  final pending = resolver.pending(
+  late final Song pending;
+  pending = resolver.pending(
     key: track.key,
     title: track.title,
     artist: track.artist,
@@ -1466,6 +1530,8 @@ Song discoveryPendingSong(LokalDiscoveryTrack track) {
       onStatus: onStatus,
       cancel: cancel,
       additionalProtectedPaths: () => resolver.resolvedPaths,
+      mayRequestVerification: () =>
+          PlayerService().currentSongNotifier.value?.id == pending.id,
     ),
   );
   OnlineSongSaveRegistry.instance.register(

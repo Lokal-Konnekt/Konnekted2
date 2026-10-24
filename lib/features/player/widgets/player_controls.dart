@@ -3,6 +3,8 @@ import 'material_player_thumb.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flick/providers/favorites_provider.dart';
 import 'package:flick/widgets/lokal/lokal_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flick/services/player_service.dart';
@@ -565,7 +567,14 @@ class _TargetPlayerControlsState extends State<_TargetPlayerControls> {
           icon: favorite ? LucideIcons.heart : LucideIcons.heart,
           active: favorite,
           onTap: () async {
-            await service.toggleFavorite(widget.currentSong!.id);
+            await service.toggleFavorite(widget.currentSong!.id, song: widget.currentSong);
+            // Classic Player uses a direct service for the heart button;
+            // refresh the Riverpod-backed Liked page after the write too.
+            if (mounted) {
+              final container = ProviderScope.containerOf(context, listen: false);
+              container.invalidate(favoritesServiceProvider);
+              container.invalidate(favoritesProvider);
+            }
             if (mounted) setState(() {});
             widget.playerService.refreshNotificationState();
           },

@@ -914,6 +914,16 @@ class PlayerService {
       onlinePlaybackError.value = failure is DiscoveryException
           ? failure.message
           : 'Couldn’t prepare this song for playback. Try another source or try again.';
+      if (failure is DiscoveryVerificationRequired) {
+        // A login challenge is recoverable user interaction, not a missing
+        // recording. Keep the pending Mix entry selected for manual retry.
+        _pendingFailures = 0;
+        if (_pendingPresentationTrackId == pending.id) {
+          _pendingPresentationTrackId = null;
+        }
+        _debugLog('[Playback] ${pending.title} waiting for verification');
+        return;
+      }
       _debugLog('[Playback] ${pending.title} not found; skipping');
       if (++_pendingFailures >= _playlist.length) {
         _pendingFailures = 0;
@@ -3612,7 +3622,7 @@ class PlayerService {
   Future<void> _toggleFavoriteFromNotification() async {
     final song = currentSongNotifier.value;
     if (_allowsFavoriteActions(song)) {
-      await _favoritesService.toggleFavorite(song!.id);
+      await _favoritesService.toggleFavorite(song!.id, song: song);
       favoriteNotificationToggleNotifier.value++;
       await _updateNotificationState();
     }

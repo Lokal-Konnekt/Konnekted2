@@ -13,6 +13,12 @@ import 'package:flick/features/discovery/youtube_music_account.dart';
 import 'package:flick/features/discovery/youtube_music_sign_in.dart';
 import 'package:flick/features/settings/lokal/lokal_settings_group.dart';
 import 'package:flick/models/song.dart';
+import 'package:flick/features/discovery/discovery_models.dart';
+import 'package:flick/features/search/widgets/online_result_actions.dart';
+import 'package:flick/features/search/online_song_save.dart';
+import 'package:flick/features/search/library_download.dart';
+import 'package:flick/providers/player_provider.dart';
+import 'package:flick/widgets/lokal/lokal_swipe_to_queue.dart';
 import 'package:flick/widgets/lokal/lokal_glass.dart';
 import 'package:flick/widgets/lokal/lokal_status_snack.dart';
 import 'package:flutter/material.dart';
@@ -225,6 +231,83 @@ class _KonnektedDiscoveryViewState
     widget.onPlay(pending, _shelfQueue(track, pending, shelf, library));
   }
 
+  /// Online Search and Discovery use exactly the same menu/sheet actions.
+  /// Discovery placeholders preserve the original recommendation so queue
+  /// pre-resolution can verify and download the chosen recording later.
+  Future<void> _enqueue(LokalDiscoveryTrack track, {bool next = false}) async {
+    final song = _library().match(track) ?? widget.pendingSong(track);
+    final player = ref.read(playerProvider.notifier);
+    try {
+      if (ref.read(playerProvider).currentSong == null) {
+        widget.onPlay(song, [song]);
+        return;
+      }
+      final index = await player.addToQueue(song);
+      if (next && index > 0) await player.moveQueueItemToNext(index);
+      _say(next ? '${track.title} plays next' :
+          'Added ${track.title} to the queue');
+    } catch (_) {
+      if (mounted) _say('Could not add ${track.title} to the queue.');
+    }
+  }
+
+  Future<void> _downloadDiscovery(LokalDiscoveryTrack track) async {
+    final key = 'save:${track.key}';
+    if (_busy != null) return;
+    setState(() => _busy = key);
+    _progress.update('Downloading ${track.title} to library…');
+    try {
+      final found = await widget.findSong(
+        track, onStatus: (text) { if (mounted) _progress.update(text); },
+      );
+      if (found == null) throw const DiscoveryException(
+          'No playable source was found for this track.');
+      if (OnlineSongSaveRegistry.instance.canSave(found)) {
+        await OnlineSongSaveRegistry.instance.save(found);
+      } else {
+        await LibraryDownloader().save(found, artwork: track.artworkUrl);
+      }
+      if (mounted) _say('Saved ${track.title} to your library');
+    } catch (error) {
+      if (mounted) _say('Could not save ${track.title}. Check your connection or source and retry.');
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  Future<void> _actions(
+    LokalDiscoveryTrack track, List<LokalDiscoveryTrack> shelf,
+  ) async {
+    HapticFeedback.mediumImpact();
+    final result = OnlineResult(DiscoveryTrack(
+      id: track.videoId ?? track.key,
+      title: track.title,
+      artist: track.artist,
+      album: track.album,
+      duration: track.duration,
+      artwork: track.artworkUrl,
+      source: DiscoverySource.youtubeMusic,
+    ));
+    final action = await showOnlineResultActions(
+      context, result: result, sourceName: 'Discovery',
+      saving: _busy == 'save:${track.key}',
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case OnlineResultAction.play:
+        await _play(track, shelf);
+      case OnlineResultAction.playNext:
+        await _enqueue(track, next: true);
+      case OnlineResultAction.addToQueue:
+        await _enqueue(track);
+      case OnlineResultAction.download:
+        await _downloadDiscovery(track);
+      case OnlineResultAction.playAtmos:
+      case OnlineResultAction.downloadAtmos:
+        break; // Discovery has not verified an Atmos edition for this pick.
+    }
+  }
+
   /// The shelf in order with [found] in [track]'s place: your copies of the
   /// others, else placeholders looked up once they're coming up.
   List<Song> _shelfQueue(
@@ -285,6 +368,8 @@ class _KonnektedDiscoveryViewState
                 ? '×${track.scrobbleCount}'
                 : null,
             onTap: () => _play(track, items),
+            onMore: () => unawaited(_actions(track, items)),
+            onQueue: () => _enqueue(track),
           ),
       ],
     );
@@ -497,6 +582,8 @@ class _KonnektedDiscoveryViewState
                       ),
                     ),
               onTap: () => _play(track, history),
+              onMore: () => unawaited(_actions(track, history)),
+              onQueue: () => _enqueue(track),
             ),
           ),
         ],
@@ -566,6 +653,8 @@ class _KonnektedDiscoveryViewState
             inLibrary: library.match(track) != null,
             busy: _busy == track.key,
             onTap: () => _play(track, items),
+            onMore: () => unawaited(_actions(track, items)),
+            onQueue: () => _enqueue(track),
           ),
       ],
     );
@@ -725,6 +814,8 @@ class _KonnektedDiscoveryViewState
                       ),
                     ),
               onTap: () => _play(track, history),
+              onMore: () => unawaited(_actions(track, history)),
+              onQueue: () => _enqueue(track),
             ),
           ),
         ],
@@ -1084,6 +1175,8 @@ class KonnektedDiscoveryRow extends StatelessWidget {
     super.key,
     required this.track,
     required this.onTap,
+    this.onMore,
+    this.onQueue,
     this.inLibrary = false,
     this.busy = false,
     this.trailing,
@@ -1091,6 +1184,8 @@ class KonnektedDiscoveryRow extends StatelessWidget {
 
   final LokalDiscoveryTrack track;
   final VoidCallback onTap;
+  final VoidCallback? onMore;
+  final Future<void> Function()? onQueue;
   final bool inLibrary;
   final bool busy;
   final String? trailing;
@@ -1103,7 +1198,7 @@ class KonnektedDiscoveryRow extends StatelessWidget {
       alignment: Alignment.center,
       child: Icon(Icons.music_note_rounded, color: t.accent, size: 20),
     );
-    return Semantics(
+    final row = Semantics(
       button: true,
       label: lokalText(
         "Play {arg0} by {arg1}{arg2}",
@@ -1117,6 +1212,7 @@ class KonnektedDiscoveryRow extends StatelessWidget {
       onTap: onTap,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onMore,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 7),
           child: Row(
@@ -1203,6 +1299,13 @@ class KonnektedDiscoveryRow extends StatelessWidget {
         ),
       ),
     );
+    return onQueue == null
+        ? row
+        : LokalSwipeToQueue(
+            onQueue: onQueue,
+            enabled: !busy,
+            child: row,
+          );
   }
 }
 

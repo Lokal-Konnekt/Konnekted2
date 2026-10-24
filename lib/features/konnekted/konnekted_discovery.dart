@@ -39,6 +39,7 @@ import 'package:flick/services/player_service.dart';
 import 'package:flick/services/queue_pre_resolver.dart';
 import 'package:flick/services/playback_source_priority.dart';
 import 'package:flick/services/catalogue_quality.dart';
+import 'package:flick/features/search/online_song_save.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1236,7 +1237,14 @@ Future<Song> playOnlineTrack(
         '${track.sourceName ?? 'That source'} isn’t available any more.',
       );
     }
-    return await source.play(track);
+    final song = await source.play(track);
+    if (!forDownload) {
+      OnlineSongSaveRegistry.instance.register(
+        song,
+        () => playOnlineTrack(sourceId, track, forDownload: true),
+      );
+    }
+    return song;
   } finally {
     if (owned) transport.close();
   }
@@ -1250,7 +1258,7 @@ Song onlinePendingSong(
   QueuePreResolver? resolver,
 }) {
   final queue = resolver ?? QueuePreResolver.shared;
-  return queue.pending(
+  final pending = queue.pending(
     key: 'online:$sourceId:${track.key}',
     title: track.title,
     artist: track.artist,
@@ -1264,6 +1272,11 @@ Song onlinePendingSong(
       additionalProtectedPaths: () => queue.resolvedPaths,
     ),
   );
+  OnlineSongSaveRegistry.instance.register(
+    pending,
+    () => playOnlineTrack(sourceId, track, forDownload: true),
+  );
+  return pending;
 }
 
 /// Finds [track] somewhere to play it and downloads it, as desktop does for
@@ -1331,11 +1344,16 @@ Future<Song?> findDiscoverySong(
             sourceUrl: Uri.tryParse(track.url),
             artwork: _artworkOf(track),
           );
-          return await youtube.prepare(
+          final song = await youtube.prepare(
             direct,
             _playbackCache(web, additionalProtectedPaths),
             cancel: cancel,
           );
+          OnlineSongSaveRegistry.instance.register(
+            song,
+            () => playOnlineTrack('yt', direct, forDownload: true),
+          );
+          return song;
         } on DiscoveryException catch (error) {
           check();
           if (error.message == 'Request cancelled.') rethrow;
@@ -1378,7 +1396,13 @@ Future<Song?> findDiscoverySong(
         check();
         onStatus?.call('Getting ${track.title} from ${source.name}…');
         try {
-          return await source.play(found.withArtwork(_artworkOf(track)));
+          final selected = found.withArtwork(_artworkOf(track));
+          final song = await source.play(selected);
+          OnlineSongSaveRegistry.instance.register(
+            song,
+            () => playOnlineTrack(source.id, selected, forDownload: true),
+          );
+          return song;
         } catch (error) {
           check();
           // A requested Atmos stream failing because Tidal's own server
@@ -1421,7 +1445,7 @@ String? _artworkOf(LokalDiscoveryTrack track) {
 /// Music or your add-ons and downloaded once it's coming up (QueuePreResolver).
 Song discoveryPendingSong(LokalDiscoveryTrack track) {
   final resolver = QueuePreResolver.shared;
-  return resolver.pending(
+  final pending = resolver.pending(
     key: track.key,
     title: track.title,
     artist: track.artist,
@@ -1435,4 +1459,15 @@ Song discoveryPendingSong(LokalDiscoveryTrack track) {
       additionalProtectedPaths: () => resolver.resolvedPaths,
     ),
   );
+  OnlineSongSaveRegistry.instance.register(
+    pending,
+    () async {
+      final found = await findDiscoverySong(track);
+      if (found == null) throw const DiscoveryException(
+        'This recommendation has no downloadable audio source.',
+      );
+      return found;
+    },
+  );
+  return pending;
 }

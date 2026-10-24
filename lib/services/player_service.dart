@@ -42,6 +42,7 @@ import 'package:flick/services/android_audio_engine.dart';
 import 'package:flick/services/rust_audio_engine.dart';
 import 'package:flick/services/rust_audio_service.dart';
 import 'package:flick/services/app_preferences_service.dart';
+import 'package:flick/services/lyrics_playback_prefetch.dart';
 import 'package:flick/services/uac2_preferences_service.dart';
 import 'package:flick/services/color_extraction_service.dart';
 import 'package:flick/services/album_color_mode_preference_service.dart';
@@ -475,6 +476,12 @@ class PlayerService {
       isPlaybackActive: () => isPlayingNotifier.value,
     );
     _bindPlaybackState();
+    // Prepare sidecar/embedded lyrics at playback time, independently of
+    // whether either full-player layout or Lyrics pane is visible.
+    currentSongNotifier.addListener(() {
+      final song = currentSongNotifier.value;
+      if (song != null) LyricsPlaybackPrefetch.instance.warm(song);
+    });
     _init();
   }
 

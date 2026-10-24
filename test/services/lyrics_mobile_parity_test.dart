@@ -2,9 +2,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flick/models/song.dart';
 import 'package:flick/services/bini_lyrics_matcher.dart';
 import 'package:flick/services/lyrics_service.dart';
+import 'package:flick/services/lyrics_playback_prefetch.dart';
 import 'package:flick/services/lyrics_translation_service.dart';
 
 void main() {
+  test('local synchronized lyrics remain visible while an online upgrade loads', () {
+    const local = LyricsData(
+      lines: [LyricsLine(timestamp: Duration.zero, text: 'Local lyrics')],
+      isSynchronized: true,
+      rawContent: '[00:00.00]Local lyrics',
+      source: 'song.lrc',
+    );
+    const plain = LyricsData(
+      lines: [LyricsLine(timestamp: Duration.zero, text: 'Unverified web text')],
+      isSynchronized: false,
+      rawContent: 'Unverified web text',
+    );
+    expect(lyricQualityRank(local), 2);
+    expect(lyricQualityRank(plain), 1);
+    expect(lyricQualityRank(null), 0);
+    expect(lyricQualityRank(plain) > lyricQualityRank(local), isFalse);
+  });
+
   test(
     'localized Bini names can match the recording by duration and timing',
     () {

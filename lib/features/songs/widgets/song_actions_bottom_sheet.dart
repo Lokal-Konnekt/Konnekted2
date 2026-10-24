@@ -12,6 +12,7 @@ import 'package:flick/features/konnekted/library/lokal_navigation.dart';
 import 'package:flick/features/konnekted/library/lokal_radio.dart';
 import 'package:flick/features/music_videos/music_videos_page.dart';
 import 'package:flick/features/player/widgets/add_to_playlist_sheet.dart';
+import 'package:flick/features/search/online_song_save.dart';
 import 'package:flick/features/player/widgets/share/share_bottom_sheet.dart';
 import 'package:flick/features/player/widgets/song_metadata_sheet.dart';
 import 'package:flick/features/songs/widgets/album_art_picker_bottom_sheet.dart';
@@ -195,6 +196,19 @@ class SongActionsBottomSheet extends ConsumerWidget {
           }),
         ),
       ],
+      if (OnlineSongSaveRegistry.instance.canSave(song))
+        _MenuRow(
+          icon: Icons.download_rounded,
+          label: 'Download to library',
+          onTap: close(() async {
+            try {
+              await OnlineSongSaveRegistry.instance.save(song);
+              _say('Saved ${song.title} to your library');
+            } catch (error) {
+              _say('Could not save ${song.title}: $error');
+            }
+          }),
+        ),
       if (song.sourceType == 'lokal')
         _MenuRow(
           icon: Icons.download_rounded,

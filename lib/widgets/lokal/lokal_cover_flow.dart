@@ -82,12 +82,19 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
   // Width the finger travels to move one album; set per layout.
   double _albumWidth = 120;
 
-  // Same C1-continuous spacing curve as desktop Cover Flow. At one cover the
-  // inside edge is .52 * size from centre, and each further panel adds .34.
+  // Match desktop geometry: each first neighbor's INNER hinge is tucked
+  // behind 8% of the centered artwork, so the facing cover occludes its
+  // inside edge instead of meeting it flush. Preserve the same derivative
+  // at 0 and 1 to avoid a kink while scrubbing through a half-selected cover.
+  static const double _firstHinge = .42;
+  static const double _hingeShift = .52 - _firstHinge;
+  static const double _farStep = .34;
+
   static double _innerDistance(double distance) {
     final a = distance.abs();
-    if (a >= 1) return .52 + (a - 1) * .34;
-    return .66 * a - .10 * a * a - .04 * a * a * a;
+    if (a >= 1) return _firstHinge + (a - 1) * _farStep;
+    return .66 * a - .10 * a * a - .04 * a * a * a
+        - _hingeShift * (3 * a * a - 2 * a * a * a);
   }
 
   // Hit testing follows projected artwork centres, not unprojected matrices.
@@ -198,8 +205,9 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     // Invert the actual projected spacing with a monotonic binary search.
     final normalizedOffset = offset.abs() / size;
     var lo = 0.0;
-    var hi = normalizedOffset > .69
-        ? 1 + (normalizedOffset - .69) / .34
+    final firstProjected = _firstHinge + .17;
+    var hi = normalizedOffset > firstProjected
+        ? 1 + (normalizedOffset - firstProjected) / _farStep
         : 1.0;
     for (var step = 0; step < 20; step++) {
       final mid = (lo + hi) / 2;
@@ -345,10 +353,10 @@ class _LokalCoverFlowState extends State<LokalCoverFlow>
     final side = d.sign;
     final near = ad.clamp(0.0, 1.0);
     final hinge = near * near * (3 - 2 * near);
-    // Position each side cover by its INNER hinge: at one item the hinge is
-    // barely beyond the centre artwork edge (.52 * size vs .50 * size).
-    // The Hermite curve has a matching .34 slope at d = 1; swipes cannot
-    // lurch when an adjacent cover moves into the farther stacked panels.
+    // Position adjacent hinges slightly BEHIND the center cover (0.42
+    // rather than 0.50 widths from its center). The stage paints farthest
+    // first, allowing the facing artwork to hide both inner edges.
+    // The smoothstep inset keeps d = 1 C1-continuous during dragging.
     final dx = reduce ? d * size * 1.06
         : side * size * (_innerDistance(ad) + .5 * hinge);
     // With positive perspective (Matrix4 entry 3,2), negative Y rotation

@@ -78,7 +78,7 @@ String? catalogueStreamTierLabel({
 /// Keep Tidal's per-track catalogue metadata visible before playback, even
 /// when a different rendition is requested. Distinguish catalogue availability,
 /// requested settings and an actually verified stream in the visible label.
-({String label, String tooltip}) onlineSearchAudioBadge({
+({String label, String tooltip, String? requestedLabel}) onlineSearchAudioBadge({
   String? verifiedQuality,
   String? requestedQuality,
   String? catalogueQuality,
@@ -91,6 +91,7 @@ String? catalogueStreamTierLabel({
     return (
       label: verified,
       tooltip: 'Audio details from a resolved stream, not inferred from search metadata.',
+      requestedLabel: null,
     );
   }
   final advertised = catalogueAudioDetails(
@@ -104,6 +105,7 @@ String? catalogueStreamTierLabel({
     return (
       label: requested.isEmpty ? advertised : '$advertised (catalogue)',
       tooltip: 'Provider-advertised catalogue availability; the configured rendition is verified during playback.',
+      requestedLabel: requested.isEmpty ? null : requested,
     );
   }
   return (
@@ -111,6 +113,7 @@ String? catalogueStreamTierLabel({
     tooltip: requested.isEmpty
         ? ''
         : 'Quality requested in add-on settings; the delivered stream is verified during playback.',
+    requestedLabel: null,
   );
 }
 

@@ -137,7 +137,12 @@ class RustBuilder {
 
   /// Returns the path of directory containing build artifacts.
   Future<String> build() async {
-    final extraArgs = _buildOptions?.flags ?? [];
+    final isIOS = target.darwinPlatform == 'iphoneos' ||
+        target.darwinPlatform == 'iphonesimulator';
+    final extraArgs = [
+      ...?_buildOptions?.flags,
+      if (isIOS) ...['--no-default-features', '--features', 'native_audio'],
+    ];
     final manifestPath = path.join(environment.manifestDir, 'Cargo.toml');
     runCommand(
       'rustup',
@@ -167,6 +172,18 @@ class RustBuilder {
   }
 
   Future<Map<String, String>> _buildEnvironment() async {
+    if (target.darwinPlatform == 'iphoneos' ||
+        target.darwinPlatform == 'iphonesimulator') {
+      final sdk = runCommand('xcrun', [
+        '--sdk', target.darwinPlatform!, '--show-sdk-path',
+      ]).stdout.toString().trim();
+      return {
+        'SDKROOT': sdk,
+        'IPHONEOS_DEPLOYMENT_TARGET': '15.0',
+        'BINDGEN_EXTRA_CLANG_ARGS':
+            '${Platform.environment['BINDGEN_EXTRA_CLANG_ARGS'] ?? ''} -isysroot "$sdk"',
+      };
+    }
     if (target.android == null) {
       return {};
     } else {

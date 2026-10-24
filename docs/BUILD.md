@@ -1,5 +1,10 @@
 # Build Konnekted2
 
+The iPhone port is in the investigation stage. See [the iOS architecture and
+sideloading plan](IOS_PORT.md) for the Windows-to-hosted-Mac build approach,
+feature audit, validation gates and manual native feasibility probe. No iOS app
+or IPA is currently validated.
+
 ## Prerequisites
 
 - Flutter 3.47+ / Dart 3.13+ (verified with 3.47.1 / 3.13.1).

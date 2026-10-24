@@ -153,6 +153,11 @@ class NotificationService {
         final parentId = args is Map ? args['parentId'] as String? : null;
         return AndroidAutoCatalog().browse(parentId ?? AndroidAutoCatalog.root);
       }
+      if (call.method == 'androidAutoSearch') {
+        final args = call.arguments;
+        final query = args is Map ? args['query'] as String? : null;
+        return AndroidAutoCatalog().search(query ?? '');
+      }
       if (call.method == 'androidAutoPlayMediaId') {
         final args = call.arguments;
         final mediaId = args is Map ? args['mediaId'] as String? : null;

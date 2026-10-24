@@ -1004,16 +1004,19 @@ class _FullPlayerScreenState extends ConsumerState<FullPlayerScreen>
                               LokalQualityTier.high => 'HIGH',
                               LokalQualityTier.low => 'LOW',
                               LokalQualityTier.unknown =>
-                                  (song.resolution?.trim().isNotEmpty == true &&
-                                          (song.sourcePackage == 'konnekted.progressive' ||
-                                           song.sourcePackage == 'konnekted.morneye-live'))
-                                      // Keep Qobuz's actual advertised label,
-                                      // without the redundant "CATALOGUE:" text.
-                                      ? catalogueQualityLabel(song.resolution).toUpperCase()
-                                      // A codec/MP4/WebM container is not a
-                                      // quality tier. Full player uses actual
-                                      // file bitrate + codec (or FLAC bits and
-                                      // rate) whenever native probing succeeds.
+                                  (song.sourcePackage == 'konnekted.progressive' ||
+                                   song.sourcePackage == 'konnekted.morneye-live')
+                                      // The audio resolution belongs in Song
+                                      // Metadata, not in the tier pill. If the
+                                      // HTTP add-on reports 24-bit / 44.1 kHz
+                                      // but not a codec, only say HI-RES (not
+                                      // unverified LOSSLESS).
+                                      ? (catalogueStreamTierLabel(
+                                            quality: song.resolution,
+                                            codec: song.fileType,
+                                            bitDepth: song.bitDepth,
+                                            sampleRate: song.sampleRate,
+                                          ) ?? 'UNKNOWN')
                                       : 'UNKNOWN',
                             },
                             style: const TextStyle(fontFamily: _font,
